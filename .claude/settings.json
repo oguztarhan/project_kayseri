@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit(Assets/Scripts/**)",
+      "Write(Assets/Scripts/**)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(adb logcat:*)",
+      "Bash(adb devices)"
+    ],
+    "ask": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Edit(Assets/Settings/**)",
+      "Edit(ProjectSettings/**)",
+      "Edit(Packages/manifest.json)"
+    ],
+    "deny": [
+      "Read(./Library/**)",
+      "Read(./Temp/**)",
+      "Read(./Logs/**)",
+      "Read(./obj/**)",
+      "Read(./Build/**)",
+      "Read(./Builds/**)",
+      "Read(./UserSettings/**)",
+      "Read(./*.keystore)",
+      "Read(./*.jks)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Edit(**/*.meta)",
+      "Edit(**/*.unity)",
+      "Edit(**/*.prefab)",
+      "Bash(git reset:*)",
+      "Bash(git checkout:*)",
+      "Bash(git push --force:*)",
+      "Bash(rm:*)"
+    ]
+  }
+}
