@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 901ec5bff46dafe4ea6a953530eec5c2, type: 3}
+  m_Name: SilverIsland
+  m_EditorClassIdentifier: Game.Data::Game.Data.IslandDefinition
+  displayName: Silver Island
+  ore: {fileID: 11400000, guid: 6728937b2a29e944c9e82567408d2195, type: 2}
+  unlockCost: 750000
+  baseIncomePerSec: 1100
+  maxLevel: 8
+  upgradeBaseCost: 200000
+  starter: 0

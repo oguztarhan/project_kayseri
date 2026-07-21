@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 
@@ -16,8 +17,8 @@ namespace Game.UI
         [SerializeField] private float scrollZoomSpeed = 6f;
         [SerializeField] private float pinchZoomSpeed = 0.04f;
         [SerializeField] private float panSpeed = 1.4f;
-        [SerializeField] private Vector2 boundsX = new Vector2(-150f, 150f);
-        [SerializeField] private Vector2 boundsZ = new Vector2(-150f, 150f);
+        [SerializeField] private Vector2 boundsX = new Vector2(-250f, 250f);
+        [SerializeField] private Vector2 boundsZ = new Vector2(-250f, 250f);
 
         private Vector3 _right, _forward;
         private bool _dragging;
@@ -35,8 +36,27 @@ namespace Game.UI
         private void Update()
         {
             if (cam == null) return;
+            // Don't pan/zoom the world camera while the finger (or mouse) is over UI — otherwise dragging the
+            // World Map or tapping a button secretly drags the 3D camera underneath.
+            if (PointerOverUI()) { _dragging = false; _lastPinch = 0f; return; }
             Zoom();
             Pan();
+        }
+
+        public static bool PointerOverUI()
+        {
+            var es = EventSystem.current;
+            if (es == null) return false;
+            if (es.IsPointerOverGameObject()) return true;   // mouse / primary pointer
+            var ts = Touchscreen.current;
+            if (ts != null)
+            {
+                var touches = ts.touches;
+                for (int i = 0; i < touches.Count; i++)
+                    if (touches[i].press.isPressed && es.IsPointerOverGameObject(touches[i].touchId.ReadValue()))
+                        return true;
+            }
+            return false;
         }
 
         private void Zoom()
@@ -82,7 +102,7 @@ namespace Game.UI
 
             var mouse = Mouse.current;
             if (mouse == null) return;
-            bool held = mouse.rightButton.isPressed || mouse.middleButton.isPressed;
+            bool held = mouse.leftButton.isPressed || mouse.rightButton.isPressed || mouse.middleButton.isPressed;
             Vector2 mp = mouse.position.ReadValue();
             if (held && !_dragging) { _dragging = true; _lastMouse = mp; }
             if (!held) _dragging = false;
@@ -99,6 +119,28 @@ namespace Game.UI
             p.x = Mathf.Clamp(p.x, boundsX.x, boundsX.y);
             p.z = Mathf.Clamp(p.z, boundsZ.x, boundsZ.y);
             transform.position = p;
+        }
+
+        // ---- camera profiles (used by WorldMapUI to switch between MAP mode and ISLAND mode) ----
+
+        /// <summary>Set the pan clamp rectangle (world X/Z ranges).</summary>
+        public void SetBounds(Vector2 x, Vector2 z) { boundsX = x; boundsZ = z; }
+
+        /// <summary>Set the zoom (orthographic-size) range and re-clamp the current size into it.</summary>
+        public void SetZoomRange(float min, float max)
+        {
+            minSize = min; maxSize = max;
+            if (cam != null) cam.orthographicSize = Mathf.Clamp(cam.orthographicSize, minSize, maxSize);
+        }
+
+        /// <summary>Snap the camera to a framing (position + rotation + ortho size). Recaches the pan basis so
+        /// dragging stays correct after a rotation change.</summary>
+        public void FrameTo(Vector3 pos, Quaternion rot, float size)
+        {
+            transform.SetPositionAndRotation(pos, rot);
+            Vector3 r = transform.right; r.y = 0f; _right = r.sqrMagnitude > 0.0001f ? r.normalized : Vector3.right;
+            Vector3 f = transform.forward; f.y = 0f; _forward = f.sqrMagnitude > 0.0001f ? f.normalized : Vector3.forward;
+            if (cam != null) cam.orthographicSize = Mathf.Clamp(size, minSize, maxSize);
         }
     }
 }

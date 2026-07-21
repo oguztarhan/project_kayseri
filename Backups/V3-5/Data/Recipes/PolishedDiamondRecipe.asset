@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18f784d9c5933864988727694c0dfd57, type: 3}
+  m_Name: PolishedDiamondRecipe
+  m_EditorClassIdentifier: Game.Data::Game.Data.Recipe
+  displayName: Polished Diamond
+  inputs:
+  - resource: {fileID: 11400000, guid: 67dfc661cfb210c47811af0650330790, type: 2}
+    amount: 1
+  output: {fileID: 11400000, guid: 926db543c9f14ef419c10ff6ce34c1eb, type: 2}
+  outputAmount: 1
+  refineSeconds: 1.5
