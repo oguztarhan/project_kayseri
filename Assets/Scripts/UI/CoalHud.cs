@@ -25,7 +25,7 @@ namespace Game.UI
         private CoalOperation _op;
         private Font _font;
         private Sprite _flat;
-        private Text _cashText, _rateText;
+        private Text _cashText, _rateText, _title;
         private GameObject _panel;
         private float _timer;
 
@@ -47,7 +47,7 @@ namespace Game.UI
         private void Start()
         {
             _wallet = ServiceLocator.Get<WalletService>();
-            _op = FindAnyObjectByType<CoalOperation>();
+            BindEnabledOp();
             _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             _flat = MakeFlat();
             Build();
@@ -57,11 +57,31 @@ namespace Game.UI
         private void Update()
         {
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
-            if (_op == null) _op = FindAnyObjectByType<CoalOperation>();
+            if (_op == null || !_op.enabled) BindEnabledOp();
             _timer -= Time.unscaledDeltaTime;
             if (_timer > 0f) return;
             _timer = refreshInterval;
             Refresh();
+        }
+
+        /// <summary>Retarget every row at another island's operation (world-map travel). The upgrade catalog
+        /// is identical on every island, so the rows themselves are reused — only the binding and the title
+        /// change.</summary>
+        public void SetOperation(CoalOperation op)
+        {
+            if (op == null) return;
+            _op = op;
+            if (_title != null) _title.text = "UPGRADES  —  " + op.IslandDisplayName;
+            Refresh();
+        }
+
+        /// <summary>Several operations live on this controller (one per island) — bind the enabled one.</summary>
+        private void BindEnabledOp()
+        {
+            var ops = FindObjectsByType<CoalOperation>();
+            for (int i = 0; i < ops.Length; i++)
+                if (ops[i].enabled) { SetOperation(ops[i]); return; }
+            if (_op == null && ops.Length > 0) _op = ops[0];   // catalog shape for building rows pre-boot
         }
 
         private void Build()
@@ -98,9 +118,10 @@ namespace Game.UI
             _panel = panel.gameObject;
 
             float titleH = 64f;
-            Text title = Label(panel, "Title", "UPGRADES  —  COAL ISLAND", 34, TextAnchor.MiddleCenter);
+            Text title = Label(panel, "Title", "UPGRADES  —  " + (_op != null ? _op.IslandDisplayName : "ISLAND"), 34, TextAnchor.MiddleCenter);
             title.rectTransform.anchorMin = new Vector2(0f, 1f); title.rectTransform.anchorMax = new Vector2(1f, 1f); title.rectTransform.pivot = new Vector2(0.5f, 1f);
             title.rectTransform.offsetMin = new Vector2(0f, -titleH); title.rectTransform.offsetMax = Vector2.zero;
+            _title = title;
 
             // scroll view
             var viewGO = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
@@ -157,6 +178,15 @@ namespace Game.UI
 
             _panel.SetActive(false);
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            // TEST MODE (dev only): free purchases everywhere + saving suspended for the session, so every
+            // island/upgrade can be tried without touching the real save
+            _testBtn = Btn(root, "TestBtn", "🔧 TEST MODE: OFF", Cant, 26, ToggleTestMode);
+            RectTransform xrt = _testBtn.GetComponent<RectTransform>();
+            xrt.anchorMin = new Vector2(0f, 1f); xrt.anchorMax = new Vector2(0f, 1f); xrt.pivot = new Vector2(0f, 1f);
+            xrt.anchoredPosition = new Vector2(16f, -186f); xrt.sizeDelta = new Vector2(440f, 70f);
+#endif
+
             // toggle button (bottom-right, always visible)
             Button toggle = Btn(root, "ToggleBtn", "▲  UPGRADES", Amber, 34, null);
             RectTransform trt = toggle.GetComponent<RectTransform>();
@@ -165,6 +195,25 @@ namespace Game.UI
             Text ttxt = toggle.GetComponentInChildren<Text>();
             toggle.onClick.AddListener(() => { bool on = !_panel.activeSelf; _panel.SetActive(on); ttxt.text = on ? "▼  CLOSE" : "▲  UPGRADES"; if (on) Refresh(); });
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private Button _testBtn;
+
+        private void ToggleTestMode()
+        {
+            if (_wallet == null) return;
+            bool on = !_wallet.FreePurchases;
+            _wallet.FreePurchases = on;
+            if (on)
+            {
+                var save = ServiceLocator.Get<SaveService>();
+                if (save != null) save.Suspended = true;   // sticky: once test mode has run, this session never saves
+            }
+            _testBtn.GetComponentInChildren<Text>().text = on ? "🔧 TEST ON — NOT SAVING" : "🔧 TEST MODE: OFF (session unsaved)";
+            _testBtn.GetComponent<Image>().color = on ? new Color(0.75f, 0.20f, 0.20f, 1f) : Cant;
+            Refresh();
+        }
+#endif
 
         private void Header(Transform parent, string text)
         {
@@ -192,7 +241,6 @@ namespace Game.UI
             if (_cashText != null && _wallet != null) _cashText.text = "$ " + NumberFormatter.Format(_wallet.Cash);
             if (_rateText != null && _op != null) _rateText.text = "▲ $" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)) + " / min";
             if (_op == null || _panel == null || !_panel.activeSelf) return;
-            BigDouble cash = _wallet != null ? _wallet.Cash : new BigDouble(0d);
             for (int i = 0; i < _rows.Count; i++)
             {
                 Row r = _rows[i];
@@ -206,10 +254,16 @@ namespace Game.UI
                     else
                     {
                         BigDouble ucost = _op.UnlockCost(r.unlock);
-                        bool uafford = cash >= ucost;
+                        bool uafford = _wallet != null && _wallet.CanAfford(ucost);
                         r.label.text = _op.UnlockName(r.unlock) + "      $" + NumberFormatter.Format(ucost);
                         r.bg.color = uafford ? Ghost : Cant; r.btn.interactable = uafford;
                     }
+                    continue;
+                }
+                if (_op.AxisLocked(r.station, r.axis))
+                {
+                    r.label.text = _op.AxisName(r.station, r.axis) + "      LOCKED — build the " + _op.PowerPlantName;
+                    r.bg.color = Cant; r.btn.interactable = false;
                     continue;
                 }
                 if (_op.AxisMaxed(r.station, r.axis))
@@ -219,7 +273,7 @@ namespace Game.UI
                     continue;
                 }
                 BigDouble cost = _op.AxisCost(r.station, r.axis);
-                bool afford = cash >= cost;
+                bool afford = _wallet != null && _wallet.CanAfford(cost);
                 r.label.text = _op.AxisName(r.station, r.axis) + "    Lv " + _op.AxisLevel(r.station, r.axis) + "      $" + NumberFormatter.Format(cost);
                 r.bg.color = afford ? Buy : Cant;
                 r.btn.interactable = afford;

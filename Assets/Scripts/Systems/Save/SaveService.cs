@@ -35,8 +35,13 @@ namespace Game.Systems
 
         public string SavePath => _path;
 
+        /// <summary>While true, <see cref="Save"/> is a no-op. Test mode sets this (sticky for the whole
+        /// session) so test purchases never reach disk — the next launch loads the real save untouched.</summary>
+        public bool Suspended;
+
         public void Save(SaveData data)
         {
+            if (Suspended) return;
             data.savedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             File.WriteAllBytes(_path, Encrypt(data));
         }

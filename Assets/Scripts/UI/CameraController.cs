@@ -19,6 +19,7 @@ namespace Game.UI
         [SerializeField] private float panSpeed = 1.4f;
         [SerializeField] private Vector2 boundsX = new Vector2(-250f, 250f);
         [SerializeField] private Vector2 boundsZ = new Vector2(-250f, 250f);
+        [SerializeField] private float groundY = 6f;   // ground plane height — perspective zoom is the dolly distance to it
 
         private Vector3 _right, _forward;
         private bool _dragging;
@@ -65,7 +66,7 @@ namespace Game.UI
             if (mouse != null)
             {
                 float scroll = mouse.scroll.ReadValue().y;
-                if (Mathf.Abs(scroll) > 0.01f) SetZoom(cam.orthographicSize - Mathf.Sign(scroll) * scrollZoomSpeed);
+                if (Mathf.Abs(scroll) > 0.01f) SetZoom(CurrentZoom - Mathf.Sign(scroll) * scrollZoomSpeed);
             }
 
             var ts = Touchscreen.current;
@@ -82,7 +83,7 @@ namespace Game.UI
                 if (n == 2)
                 {
                     float dist = Vector2.Distance(a, b);
-                    if (_lastPinch > 0f) { float d = dist - _lastPinch; if (Mathf.Abs(d) > 0.01f) SetZoom(cam.orthographicSize - d * pinchZoomSpeed); }
+                    if (_lastPinch > 0f) { float d = dist - _lastPinch; if (Mathf.Abs(d) > 0.01f) SetZoom(CurrentZoom - d * pinchZoomSpeed); }
                     _lastPinch = dist;
                 }
                 else { _lastPinch = 0f; }
@@ -109,11 +110,21 @@ namespace Game.UI
             if (_dragging) { Vector2 d = mp - _lastMouse; PanBy(-d.x, -d.y); _lastMouse = mp; }
         }
 
-        public void SetZoom(float size) => cam.orthographicSize = Mathf.Clamp(size, minSize, maxSize);
+        /// <summary>Current zoom level: orthographic size, or (perspective) dolly distance to the ground plane.</summary>
+        public float CurrentZoom => cam.orthographic
+            ? cam.orthographicSize
+            : (transform.position.y - groundY) / Mathf.Max(0.2f, -transform.forward.y);
+
+        public void SetZoom(float size)
+        {
+            if (cam.orthographic) { cam.orthographicSize = Mathf.Clamp(size, minSize, maxSize); return; }
+            float target = Mathf.Clamp(size, minSize, maxSize);
+            transform.position += transform.forward * (CurrentZoom - target);   // dolly toward/away from the ground
+        }
 
         public void PanBy(float screenDx, float screenDy)
         {
-            float scale = (cam.orthographicSize / 200f) * panSpeed;
+            float scale = (CurrentZoom / 200f) * panSpeed;
             Vector3 move = _right * (screenDx * scale) + _forward * (screenDy * scale);
             Vector3 p = transform.position + move;
             p.x = Mathf.Clamp(p.x, boundsX.x, boundsX.y);
@@ -126,21 +137,25 @@ namespace Game.UI
         /// <summary>Set the pan clamp rectangle (world X/Z ranges).</summary>
         public void SetBounds(Vector2 x, Vector2 z) { boundsX = x; boundsZ = z; }
 
-        /// <summary>Set the zoom (orthographic-size) range and re-clamp the current size into it.</summary>
+        /// <summary>Set the ground height used by perspective zoom.</summary>
+        public void SetGroundY(float y) { groundY = y; }
+
+        /// <summary>Set the zoom range and re-clamp the current zoom into it.</summary>
         public void SetZoomRange(float min, float max)
         {
             minSize = min; maxSize = max;
-            if (cam != null) cam.orthographicSize = Mathf.Clamp(cam.orthographicSize, minSize, maxSize);
+            if (cam != null) SetZoom(CurrentZoom);
         }
 
-        /// <summary>Snap the camera to a framing (position + rotation + ortho size). Recaches the pan basis so
-        /// dragging stays correct after a rotation change.</summary>
+        /// <summary>Snap the camera to a framing (position + rotation + zoom: ortho size, or perspective dolly
+        /// distance already baked into pos). Recaches the pan basis so dragging stays correct after a rotation
+        /// change.</summary>
         public void FrameTo(Vector3 pos, Quaternion rot, float size)
         {
             transform.SetPositionAndRotation(pos, rot);
             Vector3 r = transform.right; r.y = 0f; _right = r.sqrMagnitude > 0.0001f ? r.normalized : Vector3.right;
             Vector3 f = transform.forward; f.y = 0f; _forward = f.sqrMagnitude > 0.0001f ? f.normalized : Vector3.forward;
-            if (cam != null) cam.orthographicSize = Mathf.Clamp(size, minSize, maxSize);
+            if (cam != null && cam.orthographic) cam.orthographicSize = Mathf.Clamp(size, minSize, maxSize);
         }
     }
 }

@@ -16,6 +16,10 @@ namespace Game.UI
         [SerializeField] private float back = 170f;
         [SerializeField] private float viewPad = 0.30f;   // ortho size = operation span * this (small = close-up start)
         [SerializeField] private float pan = 130f;        // pan half-extent around the operation
+        [SerializeField] private bool perspectiveCamera = true;         // mobile 3/4 view with real depth
+        [SerializeField] private float fieldOfView = 38f;
+        [SerializeField] private float perspectivePitch = 52f;          // steeper than ortho so tall things don't hide the map
+        [SerializeField] private float distanceFactor = 2.6f;           // ortho-size equivalent → dolly distance
 
         private bool _framed;
 
@@ -25,6 +29,13 @@ namespace Game.UI
         // unfindable in the same frame as Start, so a one-shot in Start silently no-ops. Once framed we stop
         // so we never fight the player's own pan/zoom.
         private void Update() { if (!_framed) Frame(); }
+
+        /// <summary>Re-frame onto another island root (world-map travel).</summary>
+        public void FrameOn(string rootName)
+        {
+            operationRootName = rootName;
+            _framed = false;
+        }
 
         private void Frame()
         {
@@ -39,23 +50,41 @@ namespace Game.UI
             {
                 string n = ch.name;
                 if (n == "isle_Coal" || n == "lagoon_Coal" || n == "Water" || n == "Ground") continue;   // skip big ground/water planes
+                if (n == "Dressing_Coal") continue;   // scenery (backdrop mountains, forests) must not drag the framing off the playable area
                 var rs = ch.GetComponentsInChildren<Renderer>();
                 for (int i = 0; i < rs.Length; i++) { if (!have) { b = rs[i].bounds; have = true; } else b.Encapsulate(rs[i].bounds); }
             }
             Vector3 c = have ? b.center : root.transform.position;
             float span = have ? Mathf.Max(b.size.x, b.size.z) : 120f;
 
-            Quaternion rot = Quaternion.Euler(rotEuler);
             float size = Mathf.Max(30f, span * viewPad);
-            Vector3 pos = c + rot * Vector3.forward * -back;
+            Quaternion rot;
+            Vector3 pos;
+            float zoom;
+            if (perspectiveCamera && cam != null)
+            {
+                // mobile 3/4 perspective: real depth like the concept art; zoom = dolly distance
+                cam.orthographic = false;
+                cam.fieldOfView = fieldOfView;
+                rot = Quaternion.Euler(perspectivePitch, rotEuler.y, 0f);
+                zoom = size * distanceFactor;
+                pos = c + rot * Vector3.forward * -zoom;
+            }
+            else
+            {
+                rot = Quaternion.Euler(rotEuler);
+                zoom = size;
+                pos = c + rot * Vector3.forward * -back;
+            }
             if (cc != null)
             {
                 cc.enabled = true;
-                cc.SetZoomRange(Mathf.Max(10f, size * 0.30f), size * 2.4f);   // deep zoom-in, and room to pull back out
+                cc.SetGroundY(have ? b.min.y : c.y);
+                cc.SetZoomRange(Mathf.Max(10f, zoom * 0.30f), zoom * 2.4f);   // deep zoom-in, and room to pull back out
                 cc.SetBounds(new Vector2(pos.x - pan, pos.x + pan), new Vector2(pos.z - pan, pos.z + pan));
-                cc.FrameTo(pos, rot, size);
+                cc.FrameTo(pos, rot, zoom);
             }
-            else { cam.transform.SetPositionAndRotation(pos, rot); if (cam.orthographic) cam.orthographicSize = size; }
+            else { cam.transform.SetPositionAndRotation(pos, rot); if (cam.orthographic) cam.orthographicSize = zoom; }
             _framed = true;
             Debug.Log("OperationCameraBoot: framed on '" + operationRootName + "' at " + pos.ToString("F0") + " ortho " + size.ToString("F0"));
 

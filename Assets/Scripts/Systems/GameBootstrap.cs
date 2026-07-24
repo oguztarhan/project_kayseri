@@ -36,6 +36,11 @@ namespace Game.Systems
         private void Awake()
         {
             DontDestroyOnLoad(gameObject);
+#if UNITY_EDITOR
+            // editor playtests must keep simulating when the editor loses focus (remote tooling, alt-tab);
+            // device builds keep the OS default so the idle/battery rules in GDD §14.5 still apply
+            Application.runInBackground = true;
+#endif
 
             // Quality / device tier + frame-rate cap (GDD §14.5)
             ServiceLocator.Register(new QualityService(

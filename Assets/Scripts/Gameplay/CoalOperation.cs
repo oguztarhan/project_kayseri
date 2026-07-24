@@ -22,6 +22,9 @@ namespace Game.Gameplay
     /// Tycoon layer (GDD §3): every station has multiple upgrade axes, plus one-time ghost-building unlocks
     /// (second mine line / second smelter / trade post). Income is tracked as a trailing $/min for the HUD.
     /// Self-contained: cash lands in <see cref="WalletService"/>; levels persist in <see cref="SaveData"/>.
+    /// One component per ore island (Coal → Diamond): <c>islandKey</c> scopes the save keys, the tier
+    /// multipliers scale prices/costs, and <c>incomeCapPerMin</c> + <c>axisLevelCap</c> cap the island so
+    /// buying the next island (via <see cref="WorldIslands"/>) is the only way to keep growing.
     /// </summary>
     public sealed class CoalOperation : MonoBehaviour
     {
@@ -40,6 +43,19 @@ namespace Game.Gameplay
         [SerializeField] private float upgradeCostGrowth = 1.6f;
         [SerializeField] private string islandRootName = "Island_Coal";
 
+        [Header("Island identity (world map — one component per ore island)")]
+        [SerializeField] private string islandKey = "coal";        // save-key prefix + unlockedIslands id
+        [SerializeField] private string displayName = "COAL ISLAND";
+        [SerializeField] private string tilesRootName = "";        // "" = tiles at scene root (coal); clones use "Tiles_<Ore>"
+        [SerializeField] private Color oreColor = new Color(0.10f, 0.10f, 0.12f);
+        [SerializeField] private Color barColor = new Color(0.88f, 0.55f, 0.18f);
+
+        [Header("Tier scaling & caps (archipelago progression)")]
+        [SerializeField] private float valueMultiplier = 1f;       // ore tier value (GDD §5: ~×3.2 per tier)
+        [SerializeField] private float costMultiplier = 1f;        // every upgrade + unlock cost on this island
+        [SerializeField] private double incomeCapPerMin = 50000d;  // island $/min ceiling — the next island is the only way past it
+        [SerializeField] private int axisLevelCap = 10;            // per-axis level cap on this island
+
         [Header("Ghost-building unlock prices")]
         [SerializeField] private float secondMineCost = 25000f;
         [SerializeField] private float secondSmelterCost = 10000f;
@@ -49,6 +65,8 @@ namespace Game.Gameplay
         [SerializeField] private float depotCost = 35000f;
         [SerializeField] private float exportDockCost = 40000f;
         [SerializeField] private float fourthMineCost = 150000f;
+        [SerializeField] private float powerPlantCost = 80000f;
+        [SerializeField] private float deepShaftCost = 45000f;
         [SerializeField] private float exportPriceBonus = 1.25f;   // dock sells bars at this multiple
 
         [Header("Path building")]
@@ -57,8 +75,8 @@ namespace Game.Gameplay
         [SerializeField] private int queueSpacing = 2;           // loop points a queued truck stops short of the truck ahead
 
         // ---- upgrade catalog (station × axis; ids "coal#<s>#<a>" in SaveData) ----
-        private const int StMine = 0, StTrain = 1, StStorage = 2, StOreTrucks = 3, StSmelter = 4, StCargoTrucks = 5, StMarket = 6;
-        private static readonly string[] StationList = { "MINE", "TRAIN", "STORAGE", "ORE TRUCKS", "SMELTER", "CARGO TRUCKS", "MARKET" };
+        private const int StMine = 0, StTrain = 1, StStorage = 2, StOreTrucks = 3, StSmelter = 4, StCargoTrucks = 5, StMarket = 6, StPower = 7;
+        private static readonly string[] StationList = { "MINE", "TRAIN", "STORAGE", "ORE TRUCKS", "SMELTER", "CARGO TRUCKS", "MARKET", "POWER PLANT" };
         private static readonly string[][] AxisList =
         {
             new[] { "Richness", "Load Speed" },
@@ -68,6 +86,7 @@ namespace Game.Gameplay
             new[] { "Smelt Speed", "Bar Storage" },
             new[] { "Trucks", "Speed", "Capacity" },
             new[] { "Price", "Sell Speed" },
+            new[] { "Generators", "Turbines" },
         };
         private static readonly double[][] AxisBaseCost =
         {
@@ -78,6 +97,7 @@ namespace Game.Gameplay
             new[] { 120d, 110d },
             new[] { 600d, 90d, 95d },
             new[] { 150d, 120d },
+            new[] { 2000d, 1500d },
         };
         private static readonly int[][] AxisMaxLv =   // 0 = uncapped
         {
@@ -88,16 +108,19 @@ namespace Game.Gameplay
             new[] { 0, 0 },
             new[] { 2, 0, 0 },
             new[] { 0, 0 },
+            new[] { 0, 0 },
         };
-        private readonly int[][] _lv = { new int[2], new int[3], new int[2], new int[3], new int[2], new int[3], new int[2] };
+        private readonly int[][] _lv = { new int[2], new int[3], new int[2], new int[3], new int[2], new int[3], new int[2], new int[2] };
 
         // ---- ghost-building unlocks (ids "coalu#<u>" in SaveData) ----
         public const int UnlockSecondMine = 0, UnlockSecondSmelter = 1, UnlockTradePost = 2, UnlockThirdMine = 3,
-                         UnlockWarehouse = 4, UnlockDepot = 5, UnlockExportDock = 6, UnlockFourthMine = 7;
+                         UnlockWarehouse = 4, UnlockDepot = 5, UnlockExportDock = 6, UnlockFourthMine = 7,
+                         UnlockPowerPlant = 8, UnlockDeepShaft = 9;
         private static readonly string[] UnlockList =
         {
             "SECOND MINE + RAIL LINE", "SECOND SMELTER (2x smelt)", "TRADE POST (+50% price)", "THIRD MINE + RAIL LINE",
             "WAREHOUSE (2x storage)", "TRAIN DEPOT (+25% train speed)", "EXPORT DOCK (+25% export price)", "FOURTH MINE + RAIL LINE",
+            "COAL POWER PLANT (new upgrades)", "DEEP SHAFT (+30% ore per trip)",
         };
         // scene objects belonging to each unlock, matched by name prefix ("ghostx_*" = placed with real
         // materials; the code ghosts them at runtime until bought)
@@ -108,8 +131,10 @@ namespace Game.Gameplay
             new[] { "ghostx_depot" },
             new[] { "ghostx_dock", "ghostx_roadP" },
             new[] { "ghostx_mine4", "ghostx_rail4" },
+            new[] { "ghostx_power", "ghostx_roadW" },
+            new[] { "ghostx_shaft" },
         };
-        private readonly bool[] _unlocked = new bool[8];
+        private readonly bool[] _unlocked = new bool[10];
         private Renderer[][] _unlockRends; private Material[][][] _unlockMats;   // per unlock: ghosted renderers + originals
 
         // ---- landmarks (found by name under the island root) ----
@@ -127,6 +152,8 @@ namespace Game.Gameplay
         // ---- income meter ($ earned per trailing minute) ----
         private readonly double[] _minuteBuckets = new double[60];
         private int _minIdx, _minFilled; private float _minAccum; private double _earnedThisSecond;
+        private double _trailing;          // running sum of the buckets — also enforces incomeCapPerMin
+        private int _rateSaveCountdown;
         public double CashPerMinute { get; private set; }
 
         // ---- trains ----
@@ -171,36 +198,61 @@ namespace Game.Gameplay
 
         private bool _ready;
 
-        // ---- public surface for the HUD ----
+        // ---- public surface for the HUD / world map ----
         public double StorageOre => _storeOre;
         public double Bars => _bars;
+        public string IslandKey => islandKey;
+        public string IslandDisplayName => displayName;
+        public string PowerPlantName => OreWord + " POWER PLANT";
+        public double IncomeCapPerMinute => incomeCapPerMin;
+        private string OreWord => islandKey.ToUpperInvariant();
         public int StationCount => StationList.Length;
         public string StationName(int s) => StationList[s];
         public int AxisCount(int s) => AxisList[s].Length;
         public string AxisName(int s, int a) => AxisList[s][a];
         public int AxisLevel(int s, int a) => _lv[s][a];
-        public bool AxisMaxed(int s, int a) => AxisMaxLv[s][a] > 0 && _lv[s][a] >= AxisMaxLv[s][a];
-        public BigDouble AxisCost(int s, int a) => new BigDouble(AxisBaseCost[s][a] * System.Math.Pow(upgradeCostGrowth, _lv[s][a]));
+        public bool AxisMaxed(int s, int a)
+        {
+            int cap = AxisMaxLv[s][a] > 0 ? Mathf.Min(AxisMaxLv[s][a], axisLevelCap) : axisLevelCap;
+            return _lv[s][a] >= cap;
+        }
+        /// <summary>The POWER PLANT station only upgrades once its ghost building is bought.</summary>
+        public bool AxisLocked(int s, int a) => s == StPower && !_unlocked[UnlockPowerPlant];
+        public BigDouble AxisCost(int s, int a) => new BigDouble(AxisBaseCost[s][a] * costMultiplier * System.Math.Pow(upgradeCostGrowth, _lv[s][a]));
         public int UnlockCount => UnlockList.Length;
-        public string UnlockName(int u) => UnlockList[u];
+        public string UnlockName(int u) => UnlockList[u].Replace("COAL", OreWord);
         public bool IsUnlocked(int u) => _unlocked[u];
+        /// <summary>Everything bought: every axis at its cap and every ghost building built.</summary>
+        public bool FullyMaxed
+        {
+            get
+            {
+                for (int s = 0; s < StationList.Length; s++)
+                    for (int a = 0; a < AxisList[s].Length; a++)
+                        if (!AxisMaxed(s, a)) return false;
+                for (int u = 0; u < _unlocked.Length; u++) if (!_unlocked[u]) return false;
+                return true;
+            }
+        }
         public BigDouble UnlockCost(int u) =>
-            new BigDouble(u == UnlockSecondMine ? secondMineCost
+            new BigDouble(costMultiplier * (u == UnlockSecondMine ? secondMineCost
                 : u == UnlockSecondSmelter ? secondSmelterCost
                 : u == UnlockTradePost ? tradePostCost
                 : u == UnlockThirdMine ? thirdMineCost
                 : u == UnlockWarehouse ? warehouseCost
                 : u == UnlockDepot ? depotCost
-                : u == UnlockExportDock ? exportDockCost : fourthMineCost);
+                : u == UnlockExportDock ? exportDockCost
+                : u == UnlockFourthMine ? fourthMineCost
+                : u == UnlockPowerPlant ? powerPlantCost : deepShaftCost));
 
         /// <summary>Buy one level on a station axis: spends cash, applies the effect live, persists.</summary>
         public bool TryUpgrade(int s, int a)
         {
             if (s < 0 || s >= StationList.Length || a < 0 || a >= AxisList[s].Length || _wallet == null) return false;
-            if (AxisMaxed(s, a)) return false;
+            if (AxisMaxed(s, a) || AxisLocked(s, a)) return false;
             if (!_wallet.TrySpendCash(AxisCost(s, a))) return false;
             _lv[s][a]++;
-            SaveLevel("coal#" + s + "#" + a, _lv[s][a]);
+            SaveLevel(islandKey + "#" + s + "#" + a, _lv[s][a]);
             if ((s == StOreTrucks || s == StCargoTrucks) && a == 0) ApplyFleetStates();
             return true;
         }
@@ -211,27 +263,29 @@ namespace Game.Gameplay
             if (u < 0 || u >= _unlocked.Length || _unlocked[u] || _wallet == null) return false;
             if (!_wallet.TrySpendCash(UnlockCost(u))) return false;
             _unlocked[u] = true;
-            SaveLevel("coalu#" + u, 1);
+            SaveLevel(islandKey + "u#" + u, 1);
             ApplyUnlock(u);
             return true;
         }
 
         // ---- effective rates (base × axis levels × unlock bonuses) ----
+        private float PowerIncome => 1f + 0.05f * _lv[StPower][0];   // Generators: global income
+        private float PowerSpeed => 1f + 0.03f * _lv[StPower][1];    // Turbines: every vehicle
         private float MineDwell => dwellSeconds / (1f + 0.2f * _lv[StMine][1]);
-        private float EffTrainOre => trainOrePerTrip * (1f + 0.25f * _lv[StMine][0]) * (ActiveWagons / (float)BaseWagons) * (1f + 0.25f * _lv[StTrain][2]);
-        private float EffTrainSpeed => trainSpeed * (1f + 0.15f * _lv[StTrain][0]) * (_unlocked[UnlockDepot] ? 1.25f : 1f);
+        private float EffTrainOre => trainOrePerTrip * (1f + 0.25f * _lv[StMine][0]) * (ActiveWagons / (float)BaseWagons) * (1f + 0.25f * _lv[StTrain][2]) * (_unlocked[UnlockDeepShaft] ? 1.3f : 1f);
+        private float EffTrainSpeed => trainSpeed * (1f + 0.15f * _lv[StTrain][0]) * (_unlocked[UnlockDepot] ? 1.25f : 1f) * PowerSpeed;
         private int ActiveWagons => Mathf.Min(BaseWagons + _lv[StTrain][1], MaxWagons);
         private float EffStorageFull => storageCapacity * (1f + 0.5f * _lv[StStorage][0]) * (_unlocked[UnlockWarehouse] ? 2f : 1f);
         private float StorageDwell => dwellSeconds / (1f + 0.2f * _lv[StStorage][1]);
         private int OreTruckCount => OreBaseTrucks + _lv[StOreTrucks][0];
-        private float EffOreSpeed => truckSpeed * (1f + 0.15f * _lv[StOreTrucks][1]);
+        private float EffOreSpeed => truckSpeed * (1f + 0.15f * _lv[StOreTrucks][1]) * PowerSpeed;
         private float EffOreCap => oreTruckCapacity * (1f + 0.30f * _lv[StOreTrucks][2]);
         private float EffSmelt => smeltPerSecond * (1f + 0.30f * _lv[StSmelter][0]) * (_unlocked[UnlockSecondSmelter] ? 2f : 1f);
         private float EffBarCap => barCapacity * (1f + 0.5f * _lv[StSmelter][1]);
         private int CargoTruckCount => CargoBaseTrucks + _lv[StCargoTrucks][0];
-        private float EffCargoSpeed => truckSpeed * (1f + 0.15f * _lv[StCargoTrucks][1]);
+        private float EffCargoSpeed => truckSpeed * (1f + 0.15f * _lv[StCargoTrucks][1]) * PowerSpeed;
         private float EffCargoCap => cargoTruckCapacity * (1f + 0.30f * _lv[StCargoTrucks][2]);
-        private float EffBarPrice => barPrice * (1f + 0.40f * _lv[StMarket][0]) * (_unlocked[UnlockTradePost] ? 1.5f : 1f);
+        private float EffBarPrice => barPrice * valueMultiplier * (1f + 0.40f * _lv[StMarket][0]) * (_unlocked[UnlockTradePost] ? 1.5f : 1f) * PowerIncome;
         private float MarketDwell => dwellSeconds / (1f + 0.2f * _lv[StMarket][1]);
 
         private void Start()
@@ -239,7 +293,9 @@ namespace Game.Gameplay
             _wallet = ServiceLocator.Get<WalletService>();
             _data = ServiceLocator.Get<SaveData>();
             LoadLevels();
-            var root = GameObject.Find(islandRootName);
+            GameObject root = null;   // scene-root scan (not Find) so an island activated this very frame still resolves
+            var sceneRoots = gameObject.scene.GetRootGameObjects();
+            for (int i = 0; i < sceneRoots.Length; i++) if (sceneRoots[i].name == islandRootName) { root = sceneRoots[i]; break; }
             if (root == null) { Debug.LogWarning("CoalOperation: '" + islandRootName + "' not found — disabled."); enabled = false; return; }
             _islandRoot = root.transform;
 
@@ -267,8 +323,8 @@ namespace Game.Gameplay
             // ore/bar/ghost materials (ghost cloned from the map's own ghost buildings so the look matches)
             Renderer refRend = engine.GetComponentInChildren<Renderer>();
             Material src = refRend != null ? refRend.sharedMaterial : null;
-            _oreMat = MakeMat(src, new Color(0.10f, 0.10f, 0.12f));   // coal ore (near-black)
-            _barMat = MakeMat(src, new Color(0.88f, 0.55f, 0.18f));   // metal bars (amber)
+            _oreMat = MakeMat(src, oreColor);   // raw ore chunks/heaps, tinted per island tier
+            _barMat = MakeMat(src, barColor);   // refined product
             var ghostRend = _ghostMarket != null ? _ghostMarket.GetComponentInChildren<Renderer>() : null;
             _ghostMat = ghostRend != null ? ghostRend.sharedMaterial : MakeMat(null, new Color(1f, 1f, 1f, 0.35f));
 
@@ -364,13 +420,36 @@ namespace Game.Gameplay
             }
         }
 
+        private GameObject[] _tileScan;
+
+        /// <summary>The objects this island's rail/road tiles live among: the scene roots for the coal
+        /// original, or the children of "Tiles_&lt;Ore&gt;" for a cloned island. Cached — Start-time only.</summary>
+        private GameObject[] TileScanObjects()
+        {
+            if (_tileScan != null) return _tileScan;
+            var roots = gameObject.scene.GetRootGameObjects();
+            if (string.IsNullOrEmpty(tilesRootName)) { _tileScan = roots; return _tileScan; }
+            for (int i = 0; i < roots.Length; i++)
+            {
+                if (roots[i].name != tilesRootName) continue;
+                Transform tr = roots[i].transform;
+                var arr = new GameObject[tr.childCount];
+                for (int c = 0; c < tr.childCount; c++) arr[c] = tr.GetChild(c).gameObject;
+                _tileScan = arr;
+                return _tileScan;
+            }
+            Debug.LogWarning("CoalOperation(" + islandKey + "): tiles root '" + tilesRootName + "' not found.");
+            _tileScan = new GameObject[0];
+            return _tileScan;
+        }
+
         /// <summary>Rail tiles near and aligned with the mountain→storage line, ordered: [mountain, tile…, storage].</summary>
         private Vector3[] BuildRailPath(Transform mountain, Transform storage)
         {
             Vector3 a = Flat(mountain.position), b = Flat(storage.position);
             Vector3 abDir = (b - a).normalized;
             var tiles = new List<Vector3>();
-            var roots = gameObject.scene.GetRootGameObjects();
+            var roots = TileScanObjects();
             for (int i = 0; i < roots.Length; i++)
             {
                 string tn = roots[i].name;
@@ -666,7 +745,7 @@ namespace Game.Gameplay
         private List<List<Vector3>> BuildRoadLoops()
         {
             var tiles = new List<Vector3>();
-            var roots = gameObject.scene.GetRootGameObjects();
+            var roots = TileScanObjects();
             for (int i = 0; i < roots.Length; i++)
                 if (roots[i].name.StartsWith("SM_Road_") || roots[i].name.StartsWith("ghostx_road")) tiles.Add(roots[i].transform.position);
 
@@ -742,8 +821,14 @@ namespace Game.Gameplay
                     else if (a.carry > 0.001d && _wallet != null)
                     {
                         double sale = a.carry * EffBarPrice * (a.route == Route.Export ? exportPriceBonus : 1f);
-                        _wallet.AddCash(new BigDouble(sale));
-                        _earnedThisSecond += sale;
+                        // island income ceiling: this island can never out-earn its cap — the next island is the growth path
+                        double headroom = incomeCapPerMin - (_trailing + _earnedThisSecond);
+                        if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
+                        if (sale > 0d)
+                        {
+                            _wallet.AddCash(new BigDouble(sale));
+                            _earnedThisSecond += sale;
+                        }
                     }
                     a.carry = 0d; Show(a.load, false);
                     a.state = avail > 0.01d ? TK.ToLoad : TK.ToIdle;
@@ -804,7 +889,7 @@ namespace Game.Gameplay
             _unlockRends = new Renderer[UnlockList.Length][];
             _unlockMats = new Material[UnlockList.Length][][];
             var rendList = new List<Renderer>();
-            var roots = gameObject.scene.GetRootGameObjects();
+            var roots = TileScanObjects();
             for (int u = 0; u < UnlockList.Length; u++)
             {
                 string[] prefixes = UnlockPrefixes[u];
@@ -884,7 +969,7 @@ namespace Game.Gameplay
 
         private void SolidifyGhostRails()
         {
-            var roots = gameObject.scene.GetRootGameObjects();
+            var roots = TileScanObjects();
             Material[] railMats = null;
             for (int i = 0; i < roots.Length && railMats == null; i++)
                 if (roots[i].name.StartsWith("SM_Rail_"))
@@ -907,13 +992,30 @@ namespace Game.Gameplay
             _minAccum += dt;
             if (_minAccum < 1f) return;
             _minAccum -= 1f;
+            _trailing += _earnedThisSecond - _minuteBuckets[_minIdx];
             _minuteBuckets[_minIdx] = _earnedThisSecond;
             _earnedThisSecond = 0d;
             _minIdx = (_minIdx + 1) % _minuteBuckets.Length;
             if (_minFilled < _minuteBuckets.Length) _minFilled++;
-            double sum = 0d;
-            for (int i = 0; i < _minFilled; i++) sum += _minuteBuckets[i];
-            CashPerMinute = sum * (60.0 / _minFilled);
+            // clamp the extrapolated warm-up value: earning can never exceed the cap per rolling minute
+            CashPerMinute = System.Math.Min(_trailing * (60.0 / _minFilled), incomeCapPerMin);
+            // persist the measured rate so this island keeps earning while another one is active (and
+            // offline) — only once the window is half-full, so a warm-up spike can't inflate it
+            if (--_rateSaveCountdown <= 0 && _minFilled >= 30)
+            {
+                _rateSaveCountdown = 5;
+                SaveLevel("rate#" + islandKey, (int)System.Math.Min(CashPerMinute, incomeCapPerMin));
+            }
+        }
+
+        // Travelling away freezes this island (visuals off, component disabled); the meter must restart
+        // from zero on return or the queued-up truck dumps read as a fake income spike.
+        private void OnDisable()
+        {
+            for (int i = 0; i < _minuteBuckets.Length; i++) _minuteBuckets[i] = 0d;
+            _minIdx = 0; _minFilled = 0; _minAccum = 0f;
+            _trailing = 0d; _earnedThisSecond = 0d;
+            CashPerMinute = 0d;
         }
 
         // ---------------- pile visuals ----------------
@@ -930,12 +1032,12 @@ namespace Game.Gameplay
             for (int s = 0; s < StationList.Length; s++)
                 for (int a = 0; a < AxisList[s].Length; a++)
                 {
-                    StationLevel e = FindLevel("coal#" + s + "#" + a);
+                    StationLevel e = FindLevel(islandKey + "#" + s + "#" + a);
                     if (e != null) _lv[s][a] = e.level;
                 }
             for (int u = 0; u < _unlocked.Length; u++)
             {
-                StationLevel e = FindLevel("coalu#" + u);
+                StationLevel e = FindLevel(islandKey + "u#" + u);
                 _unlocked[u] = e != null && e.level > 0;
             }
         }

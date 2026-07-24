@@ -23,6 +23,12 @@ namespace Game.Systems
         public long Gems => _data.gems;
         public BigDouble LifetimeCash => _data.lifetimeCash;
 
+        /// <summary>Test mode: every cash purchase succeeds without deducting. Only ever set by the
+        /// dev-build TEST button (which also suspends saving, so nothing bought this way persists).</summary>
+        public bool FreePurchases;
+
+        public bool CanAfford(BigDouble amount) => FreePurchases || amount <= _data.cash;
+
         public void AddCash(BigDouble amount)
         {
             if (amount.Mantissa <= 0d) return;
@@ -33,6 +39,7 @@ namespace Game.Systems
 
         public bool TrySpendCash(BigDouble amount)
         {
+            if (FreePurchases) return true;
             if (amount > _data.cash) return false;
             _data.cash -= amount;
             CashChanged?.Invoke();
