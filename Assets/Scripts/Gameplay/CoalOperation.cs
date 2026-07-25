@@ -40,8 +40,27 @@ namespace Game.Gameplay
         [SerializeField] private float barPrice = 45f;
         [SerializeField] private float dwellSeconds = 0.7f;   // base pause at every load/unload stop
         [SerializeField] private float wagonGap = 2.2f;
-        [SerializeField] private float upgradeCostGrowth = 1.6f;
+        [SerializeField] private float upgradeCostGrowth = 1.13f;
         [SerializeField] private string islandRootName = "Island_Coal";
+        // The authored island meshes name their primary mine per ore (mine_Copper, mine_Gold, …); every
+        // other landmark is generic. Everything else in this class finds objects by exact name and
+        // disables the island if one is missing, so this stays a lookup key rather than a rename.
+        [SerializeField] private string mineObjectName = "mine_Coal";
+
+        [Header("Upgrade curve")]
+        // Scales every per-level gain. At 1.0 the tracks were tuned for ~10 levels and hit the island's
+        // income cap by level 8; at 0.1 the same coefficients spread across a 50-level track that lands
+        // on the cap at the top, so the last upgrade you buy is still the one that finishes the island.
+        [SerializeField] private float axisEffectScale = 0.085f;
+
+        [Header("Ghost-building multipliers")]
+        // Softened from 2×/1.5×/2×/1.25×/1.3×: at the old sizes the five unlocks alone were worth ~9.7×,
+        // which blew past the income cap on their own and made the whole upgrade track irrelevant.
+        [SerializeField] private float secondSmelterBonus = 1.25f;
+        [SerializeField] private float tradePostBonus = 1.20f;
+        [SerializeField] private float warehouseBonus = 1.15f;
+        [SerializeField] private float depotBonus = 1.10f;
+        [SerializeField] private float deepShaftBonus = 1.12f;
 
         [Header("Island identity (world map — one component per ore island)")]
         [SerializeField] private string islandKey = "coal";        // save-key prefix + unlockedIslands id
@@ -54,7 +73,7 @@ namespace Game.Gameplay
         [SerializeField] private float valueMultiplier = 1f;       // ore tier value (GDD §5: ~×3.2 per tier)
         [SerializeField] private float costMultiplier = 1f;        // every upgrade + unlock cost on this island
         [SerializeField] private double incomeCapPerMin = 50000d;  // island $/min ceiling — the next island is the only way past it
-        [SerializeField] private int axisLevelCap = 10;            // per-axis level cap on this island
+        [SerializeField] private int axisLevelCap = 50;            // per-axis level cap on this island
 
         [Header("Ghost-building unlock prices")]
         [SerializeField] private float secondMineCost = 25000f;
@@ -70,9 +89,39 @@ namespace Game.Gameplay
         [SerializeField] private float exportPriceBonus = 1.25f;   // dock sells bars at this multiple
 
         [Header("Path building")]
-        [SerializeField] private float railSnapDistance = 8f;    // rail tile must sit this close to a mountain→storage line to belong to it
-        [SerializeField] private float roadLinkDistance = 3.2f;  // max gap between road tiles that still counts as one connected loop
+        [SerializeField] private float routeLaneWidth = 6f;   // gap between the out and back lanes of a truck route
         [SerializeField] private int queueSpacing = 2;           // loop points a queued truck stops short of the truck ahead
+
+        [Header("Site dressing")]
+        // The islands ship with painted road and rail, but it was authored against a layout the sim no
+        // longer drives, so trucks crossed bare ground beside track that led somewhere else — the main
+        // reason the maps read as unfinished. Generating both from the route endpoints means the track can
+        // never disagree with the motion, on any island, whatever its mesh happens to carry.
+        [SerializeField] private bool generateTrack = true;
+        [SerializeField] private float roadWidth = 9f;
+        [SerializeField] private float yardOffset = 12f;      // how far a yard pad sits from the building it serves
+        [SerializeField] private GameObject portalPrefab;     // tunnel mouth each rail line emerges from
+        [SerializeField] private GameObject ridgeRockPrefab;  // massed behind the mine to close off the map edge
+        [SerializeField] private int ridgeRocks = 4;
+        [SerializeField] private float ridgeSpread = 30f;
+        [SerializeField] private float ridgeDistance = 17f;   // outward from the mine, before mine-clearing
+        [SerializeField] private float ridgeClearance = 15f;  // keep rocks off any mine head
+        [SerializeField] private float ridgeScale = 1.9f;
+        [SerializeField] private float portalScale = 3.4f;
+        [SerializeField] private Color roadColor = new Color(0.27f, 0.26f, 0.28f);
+        [SerializeField] private Color roadLineColor = new Color(0.86f, 0.82f, 0.54f);
+        [SerializeField] private Color ballastColor = new Color(0.41f, 0.37f, 0.32f);
+        [SerializeField] private Color sleeperColor = new Color(0.23f, 0.17f, 0.12f);
+        [SerializeField] private Color steelColor = new Color(0.60f, 0.62f, 0.66f);
+        [SerializeField] private Color sitePadColor = new Color(0.33f, 0.30f, 0.26f);
+
+        [Header("Upgrade feedback")]
+        // A purchase has to land on the map, not just in the HUD: the station it belongs to grows with the
+        // levels bought on it, and pops on the buy itself.
+        [SerializeField] private float buildingGrowthPerLevel = 0.004f;
+        [SerializeField] private float buildingGrowthCap = 0.22f;
+        [SerializeField] private float punchStrength = 0.14f;
+        [SerializeField] private float punchSeconds = 0.4f;
 
         // ---- upgrade catalog (station × axis; ids "coal#<s>#<a>" in SaveData) ----
         private const int StMine = 0, StTrain = 1, StStorage = 2, StOreTrucks = 3, StSmelter = 4, StCargoTrucks = 5, StMarket = 6, StPower = 7;
@@ -141,13 +190,23 @@ namespace Game.Gameplay
         private Transform _islandRoot;
         private Transform _mountain, _ghostMine, _ghostMine2, _storage, _orePile, _refinery, _ghostRefinery, _refinedPile, _market, _ghostMarket, _waitSpot;
         private Transform _dock, _mine4;
-        private Transform _oreHeap, _barHeap; private float _oreHeapY0, _barHeapY0;
+        private Transform _dressing;                 // parent for every generated road, rail and rock
+        private PileStack _oreYard, _barYard;
+
+        // ---- upgrade feedback (station → the building that grows when you buy on it) ----
+        private Transform[] _stationBody;
+        private Vector3[] _stationBaseScale;
+        private float[] _punch;
 
         // ---- economy ----
         private double _storeOre, _refOre, _bars;
         private WalletService _wallet;
+        private PrestigeService _prestige;
+        private BoostService _boost;
+        private double _incomeMult = 1d;   // prestige × active boost, refreshed once a second
+        private float _deckY;              // ground height every vehicle drives at
         private SaveData _data;
-        private Material _oreMat, _barMat, _ghostMat;
+        private Material _oreMat, _barMat, _ghostMat, _srcMat;
 
         // ---- income meter ($ earned per trailing minute) ----
         private readonly double[] _minuteBuckets = new double[60];
@@ -165,6 +224,8 @@ namespace Game.Gameplay
             public GameObject[] wagonOre;
             public float engineY; public float[] wagonY;
             public Vector3[] path;          // [0]=mountain gate … [n-1]=storage gate
+            public Transform mountain;      // the mine this line serves — sites the tunnel mouth
+            public GameObject portal;       // tunnel mouth this line runs out of
             public int wp;
             public TR state; public float timer; public double carry;
             public bool active;
@@ -218,6 +279,54 @@ namespace Game.Gameplay
         }
         /// <summary>The POWER PLANT station only upgrades once its ghost building is bought.</summary>
         public bool AxisLocked(int s, int a) => s == StPower && !_unlocked[UnlockPowerPlant];
+
+        /// <summary>
+        /// World point a floating station badge should hover over — the top of the station's silhouette.
+        /// Stations with no single building (train, cargo trucks) anchor to the midpoint of the leg they run.
+        /// Returns false while the layout hasn't resolved yet.
+        /// </summary>
+        public bool StationAnchor(int s, out Vector3 world)
+        {
+            world = Vector3.zero;
+            Transform t = null;
+            switch (s)
+            {
+                case StMine: t = _mountain; break;
+                case StStorage: t = _storage; break;
+                case StOreTrucks: t = _waitSpot; break;
+                case StSmelter: t = _refinery; break;
+                case StMarket: t = _market; break;
+                case StPower: t = _islandRoot != null ? Child(_islandRoot, "ghostx_power") : null; break;
+                case StTrain:
+                    if (_mountain == null || _storage == null) return false;
+                    world = (TopOf(_mountain) + TopOf(_storage)) * 0.5f;
+                    return true;
+                case StCargoTrucks:
+                    if (_refinery == null || _market == null) return false;
+                    world = (TopOf(_refinery) + TopOf(_market)) * 0.5f;
+                    return true;
+            }
+            if (t == null) return false;
+            world = TopOf(t);
+            return true;
+        }
+
+        private static Vector3 TopOf(Transform t)
+        {
+            Bounds b = WorldBounds(t);
+            return new Vector3(b.center.x, b.max.y, b.center.z);
+        }
+
+        /// <summary>Union of every renderer under <paramref name="t"/>, or a zero box at its pivot.</summary>
+        private static Bounds WorldBounds(Transform t)
+        {
+            var rs = t.GetComponentsInChildren<Renderer>(true);
+            if (rs.Length == 0) return new Bounds(t.position, Vector3.zero);
+            Bounds b = rs[0].bounds;
+            for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+            return b;
+        }
+
         public BigDouble AxisCost(int s, int a) => new BigDouble(AxisBaseCost[s][a] * costMultiplier * System.Math.Pow(upgradeCostGrowth, _lv[s][a]));
         public int UnlockCount => UnlockList.Length;
         public string UnlockName(int u) => UnlockList[u].Replace("COAL", OreWord);
@@ -253,6 +362,7 @@ namespace Game.Gameplay
             if (!_wallet.TrySpendCash(AxisCost(s, a))) return false;
             _lv[s][a]++;
             SaveLevel(islandKey + "#" + s + "#" + a, _lv[s][a]);
+            if (_punch != null) _punch[s] = punchSeconds;   // the station pops, then settles at its new size
             if ((s == StOreTrucks || s == StCargoTrucks) && a == 0) ApplyFleetStates();
             return true;
         }
@@ -269,28 +379,33 @@ namespace Game.Gameplay
         }
 
         // ---- effective rates (base × axis levels × unlock bonuses) ----
-        private float PowerIncome => 1f + 0.05f * _lv[StPower][0];   // Generators: global income
-        private float PowerSpeed => 1f + 0.03f * _lv[StPower][1];    // Turbines: every vehicle
-        private float MineDwell => dwellSeconds / (1f + 0.2f * _lv[StMine][1]);
-        private float EffTrainOre => trainOrePerTrip * (1f + 0.25f * _lv[StMine][0]) * (ActiveWagons / (float)BaseWagons) * (1f + 0.25f * _lv[StTrain][2]) * (_unlocked[UnlockDeepShaft] ? 1.3f : 1f);
-        private float EffTrainSpeed => trainSpeed * (1f + 0.15f * _lv[StTrain][0]) * (_unlocked[UnlockDepot] ? 1.25f : 1f) * PowerSpeed;
+        // Per-level gains are scaled by axisEffectScale so the same coefficients spread across a long
+        // upgrade track instead of a 10-level one. Measured: output ≈ base·(1 + 0.335·L)^2.89 at scale 1,
+        // which slammed into the island's income cap around level 8 and wasted everything above it.
+        private float PowerIncome => 1f + 0.05f * axisEffectScale * _lv[StPower][0];   // Generators: global income
+        private float PowerSpeed => 1f + 0.03f * axisEffectScale * _lv[StPower][1];    // Turbines: every vehicle
+        private float MineDwell => dwellSeconds / (1f + 0.2f * axisEffectScale * _lv[StMine][1]);
+        private float EffTrainOre => trainOrePerTrip * (1f + 0.25f * axisEffectScale * _lv[StMine][0]) * (ActiveWagons / (float)BaseWagons) * (1f + 0.25f * axisEffectScale * _lv[StTrain][2]) * (_unlocked[UnlockDeepShaft] ? deepShaftBonus : 1f);
+        private float EffTrainSpeed => trainSpeed * (1f + 0.15f * axisEffectScale * _lv[StTrain][0]) * (_unlocked[UnlockDepot] ? depotBonus : 1f) * PowerSpeed;
         private int ActiveWagons => Mathf.Min(BaseWagons + _lv[StTrain][1], MaxWagons);
-        private float EffStorageFull => storageCapacity * (1f + 0.5f * _lv[StStorage][0]) * (_unlocked[UnlockWarehouse] ? 2f : 1f);
-        private float StorageDwell => dwellSeconds / (1f + 0.2f * _lv[StStorage][1]);
+        private float EffStorageFull => storageCapacity * (1f + 0.5f * axisEffectScale * _lv[StStorage][0]) * (_unlocked[UnlockWarehouse] ? warehouseBonus : 1f);
+        private float StorageDwell => dwellSeconds / (1f + 0.2f * axisEffectScale * _lv[StStorage][1]);
         private int OreTruckCount => OreBaseTrucks + _lv[StOreTrucks][0];
-        private float EffOreSpeed => truckSpeed * (1f + 0.15f * _lv[StOreTrucks][1]) * PowerSpeed;
-        private float EffOreCap => oreTruckCapacity * (1f + 0.30f * _lv[StOreTrucks][2]);
-        private float EffSmelt => smeltPerSecond * (1f + 0.30f * _lv[StSmelter][0]) * (_unlocked[UnlockSecondSmelter] ? 2f : 1f);
-        private float EffBarCap => barCapacity * (1f + 0.5f * _lv[StSmelter][1]);
+        private float EffOreSpeed => truckSpeed * (1f + 0.15f * axisEffectScale * _lv[StOreTrucks][1]) * PowerSpeed;
+        private float EffOreCap => oreTruckCapacity * (1f + 0.30f * axisEffectScale * _lv[StOreTrucks][2]);
+        private float EffSmelt => smeltPerSecond * (1f + 0.30f * axisEffectScale * _lv[StSmelter][0]) * (_unlocked[UnlockSecondSmelter] ? secondSmelterBonus : 1f);
+        private float EffBarCap => barCapacity * (1f + 0.5f * axisEffectScale * _lv[StSmelter][1]);
         private int CargoTruckCount => CargoBaseTrucks + _lv[StCargoTrucks][0];
-        private float EffCargoSpeed => truckSpeed * (1f + 0.15f * _lv[StCargoTrucks][1]) * PowerSpeed;
-        private float EffCargoCap => cargoTruckCapacity * (1f + 0.30f * _lv[StCargoTrucks][2]);
-        private float EffBarPrice => barPrice * valueMultiplier * (1f + 0.40f * _lv[StMarket][0]) * (_unlocked[UnlockTradePost] ? 1.5f : 1f) * PowerIncome;
-        private float MarketDwell => dwellSeconds / (1f + 0.2f * _lv[StMarket][1]);
+        private float EffCargoSpeed => truckSpeed * (1f + 0.15f * axisEffectScale * _lv[StCargoTrucks][1]) * PowerSpeed;
+        private float EffCargoCap => cargoTruckCapacity * (1f + 0.30f * axisEffectScale * _lv[StCargoTrucks][2]);
+        private float EffBarPrice => barPrice * valueMultiplier * (1f + 0.40f * axisEffectScale * _lv[StMarket][0]) * (_unlocked[UnlockTradePost] ? tradePostBonus : 1f) * PowerIncome;
+        private float MarketDwell => dwellSeconds / (1f + 0.2f * axisEffectScale * _lv[StMarket][1]);
 
         private void Start()
         {
             _wallet = ServiceLocator.Get<WalletService>();
+            _prestige = ServiceLocator.Get<PrestigeService>();
+            _boost = ServiceLocator.Get<BoostService>();
             _data = ServiceLocator.Get<SaveData>();
             LoadLevels();
             GameObject root = null;   // scene-root scan (not Find) so an island activated this very frame still resolves
@@ -299,7 +414,7 @@ namespace Game.Gameplay
             if (root == null) { Debug.LogWarning("CoalOperation: '" + islandRootName + "' not found — disabled."); enabled = false; return; }
             _islandRoot = root.transform;
 
-            _mountain = Child(_islandRoot, "mine_Coal");
+            _mountain = Child(_islandRoot, mineObjectName);
             _ghostMine = Child(_islandRoot, "ghost_mine");
             _ghostMine2 = Child(_islandRoot, "ghost_mine (1)");
             _storage = Child(_islandRoot, "storage");
@@ -312,6 +427,7 @@ namespace Game.Gameplay
             _waitSpot = Child(_islandRoot, "waiting ore trucks wait here");
             _dock = Child(_islandRoot, "ghostx_dock");
             _mine4 = Child(_islandRoot, "ghostx_mine4");
+            if (_storage != null) _deckY = _storage.position.y;
 
             if (_mountain == null || _storage == null || _orePile == null ||
                 _refinery == null || _refinedPile == null || _market == null)
@@ -322,14 +438,17 @@ namespace Game.Gameplay
 
             // ore/bar/ghost materials (ghost cloned from the map's own ghost buildings so the look matches)
             Renderer refRend = engine.GetComponentInChildren<Renderer>();
-            Material src = refRend != null ? refRend.sharedMaterial : null;
-            _oreMat = MakeMat(src, oreColor);   // raw ore chunks/heaps, tinted per island tier
-            _barMat = MakeMat(src, barColor);   // refined product
+            _srcMat = refRend != null ? refRend.sharedMaterial : null;
+            _oreMat = MakeMat(_srcMat, oreColor);   // raw ore chunks/heaps, tinted per island tier
+            _barMat = MakeMat(_srcMat, barColor);   // refined product
             var ghostRend = _ghostMarket != null ? _ghostMarket.GetComponentInChildren<Renderer>() : null;
             _ghostMat = ghostRend != null ? ghostRend.sharedMaterial : MakeMat(null, new Color(1f, 1f, 1f, 0.35f));
 
-            _oreHeap = MakeHeap(_orePile, _oreMat, out _oreHeapY0);
-            _barHeap = MakeHeap(_refinedPile, _barMat, out _barHeapY0);
+            RelocateYards();   // before anything measures a yard: the roads and the heaps both key off it
+            // A level-0 yard reads as ten chunks; a fully upgraded one needs the widest grid to hold what
+            // it can now store, which is the whole point of buying Capacity.
+            _oreYard = new PileStack(_orePile, _oreMat, storageCapacity / 10f, "OpOreHeap");
+            _barYard = new PileStack(_refinedPile, _barMat, barCapacity / 10f, "OpBarHeap");
 
             _train1 = BuildTrain(engine, _mountain);
             _train1.active = true;
@@ -341,8 +460,11 @@ namespace Game.Gameplay
 
             BuildTruckAgents();
             BuildUnlockRegistry();
+            BuildSiteDressing();     // needs the rail paths the trains just resolved
+            CacheStationBodies();
             ApplyFleetStates();
             for (int u = 0; u < _unlocked.Length; u++) if (_unlocked[u]) ApplyUnlock(u);
+            ApplyStationScale();     // show the levels already bought, without the purchase pop
 
             _ready = true;
         }
@@ -359,6 +481,7 @@ namespace Game.Gameplay
             for (int i = 0; i < _agents.Length; i++) if (_agents[i].active) TruckTick(_agents[i], dt);
             Smelt(dt);
             UpdateHeaps();
+            TickPunch(dt);
             TickIncome(dt);
         }
 
@@ -367,7 +490,7 @@ namespace Game.Gameplay
         /// <summary>Wires a train agent from an engine + the shared wagon pool convention, and its rail path.</summary>
         private TrainAgent BuildTrain(Transform engine, Transform mountain)
         {
-            var a = new TrainAgent { engine = engine, engineY = engine.position.y };
+            var a = new TrainAgent { engine = engine, engineY = engine.position.y, mountain = mountain };
 
             // wagon pool: the 3 scene wagons belong to train 1; clones fill each pool up to MaxWagons
             var wagons = new List<Transform>();
@@ -443,33 +566,21 @@ namespace Game.Gameplay
             return _tileScan;
         }
 
-        /// <summary>Rail tiles near and aligned with the mountain→storage line, ordered: [mountain, tile…, storage].</summary>
+        /// <summary>
+        /// Straight run from a mountain down to storage, sampled into waypoints.
+        ///
+        /// Previously this scanned for SM_Rail_* tiles near the line and gated them on an ~11° alignment
+        /// test, because three rail runs converge on storage and shared a corridor. That made the track a
+        /// prerequisite for the sim working at all — a missing or slightly rotated tile silently shortened
+        /// a train's route. The islands carry their own painted rail as scenery; the train just drives.
+        /// </summary>
         private Vector3[] BuildRailPath(Transform mountain, Transform storage)
         {
-            Vector3 a = Flat(mountain.position), b = Flat(storage.position);
-            Vector3 abDir = (b - a).normalized;
-            var tiles = new List<Vector3>();
-            var roots = TileScanObjects();
-            for (int i = 0; i < roots.Length; i++)
-            {
-                string tn = roots[i].name;
-                if (!tn.StartsWith("SM_Rail_") && !tn.StartsWith("GH_Rail_") && !tn.StartsWith("ghostx_rail")) continue;
-                Transform tile = roots[i].transform;
-                if (DistToSegmentXZ(tile.position, a, b) > railSnapDistance) continue;
-                // all three rail lines converge at storage — a tight alignment gate (~11°) keeps only the
-                // tiles that belong to THIS run out of the shared corridor
-                Vector3 f = Flat(tile.forward).normalized;
-                Vector3 r = Flat(tile.right).normalized;
-                if (Mathf.Max(Mathf.Abs(Vector3.Dot(f, abDir)), Mathf.Abs(Vector3.Dot(r, abDir))) < 0.98f) continue;
-                tiles.Add(tile.position);
-            }
-            Vector3 ab = b - a;
-            tiles.Sort((u, v) => Vector3.Dot(Flat(u) - a, ab).CompareTo(Vector3.Dot(Flat(v) - a, ab)));
-
-            var path = new Vector3[tiles.Count + 2];
-            path[0] = mountain.position;
-            for (int i = 0; i < tiles.Count; i++) path[i + 1] = tiles[i];
-            path[path.Length - 1] = storage.position;
+            Vector3 a = mountain.position, b = storage.position;
+            float len = Flat(b - a).magnitude;
+            int n = Mathf.Clamp(Mathf.RoundToInt(len / 6f), 1, 16);
+            var path = new Vector3[n + 1];
+            for (int i = 0; i <= n; i++) path[i] = Vector3.Lerp(a, b, i / (float)n);
             return path;
         }
 
@@ -584,38 +695,14 @@ namespace Game.Gameplay
             var loops = BuildRoadLoops();
             var sceneTrucks = new List<Transform>();
             foreach (Transform t in _islandRoot) if (t.name.StartsWith("truck_road")) sceneTrucks.Add(t);
-
-            // greedy loop→route matching: score = dist(loop, source) + dist(loop, dest); the globally best
-            // pairs win, so a loop that skims past a foreign landmark can't steal the wrong route
-            int routeCount = _dock != null ? 3 : 2;
-            var routeOfLoop = new int[loops.Count];
-            for (int i = 0; i < routeOfLoop.Length; i++) routeOfLoop[i] = -1;
-            var routeTaken = new bool[3];
-            for (int pick = 0; pick < Mathf.Min(loops.Count, routeCount); pick++)
-            {
-                int bestLoop = -1, bestRoute = -1; float bestScore = float.MaxValue;
-                for (int li2 = 0; li2 < loops.Count; li2++)
-                {
-                    if (routeOfLoop[li2] >= 0) continue;
-                    for (int r = 0; r < routeCount; r++)
-                    {
-                        if (routeTaken[r]) continue;
-                        Vector3 src = r == (int)Route.Ore ? _orePile.position : _refinedPile.position;
-                        Vector3 dst = r == (int)Route.Ore ? _refinery.position : r == (int)Route.Market ? _market.position : _dock.position;
-                        float score = Mathf.Sqrt(MinSqrXZ(loops[li2], src)) + Mathf.Sqrt(MinSqrXZ(loops[li2], dst));
-                        if (score < bestScore) { bestScore = score; bestLoop = li2; bestRoute = r; }
-                    }
-                }
-                if (bestLoop < 0) break;
-                routeOfLoop[bestLoop] = bestRoute; routeTaken[bestRoute] = true;
-            }
+            var truckClaimed = new bool[sceneTrucks.Count];
 
             var agents = new List<TruckAgent>();
             for (int li = 0; li < loops.Count; li++)
             {
-                if (routeOfLoop[li] < 0) continue;   // more loops than routes — extra loop is decorative
                 List<Vector3> loop = loops[li];
-                Route route = (Route)routeOfLoop[li];
+                if (loop.Count < 2) continue;
+                Route route = (Route)li;   // BuildRoadLoops emits exactly one loop per route, in Route order
                 Vector3 srcPos = route == Route.Ore ? _orePile.position : _refinedPile.position;
                 Vector3 dstPos = route == Route.Ore ? _refinery.position : route == Route.Market ? _market.position : _dock.position;
                 int load = NearestIndex(loop, srcPos);
@@ -641,8 +728,19 @@ namespace Game.Gameplay
                 // (the export fleet is fixed to its scene trucks — the dock unlock is its gate)
                 var fleet = new List<Transform>();
                 for (int ti = 0; ti < sceneTrucks.Count; ti++)
-                    if (NearestLoop(loops, sceneTrucks[ti].position) == li) fleet.Add(sceneTrucks[ti]);
-                if (fleet.Count == 0) continue;
+                    if (!truckClaimed[ti] && NearestLoop(loops, sceneTrucks[ti].position) == li)
+                    { truckClaimed[ti] = true; fleet.Add(sceneTrucks[ti]); }
+                // Routes are synthesised now, so every authored truck can end up nearest the same one.
+                // A route with no truck would silently never run, so clone one — never share a Transform
+                // between two routes, or a single truck ends up driven by two agents at once.
+                if (fleet.Count == 0)
+                {
+                    if (sceneTrucks.Count == 0) continue;
+                    Transform seed = Instantiate(sceneTrucks[0].gameObject, _islandRoot).transform;
+                    seed.name = sceneTrucks[0].name + "_route" + li;
+                    StripOpChildren(seed);
+                    fleet.Add(seed);
+                }
                 int sceneFleet = fleet.Count;
                 int maxFleet = route == Route.Ore ? OreBaseTrucks + AxisMaxLv[StOreTrucks][0]
                     : route == Route.Market ? CargoBaseTrucks + AxisMaxLv[StCargoTrucks][0] : sceneFleet;
@@ -741,43 +839,41 @@ namespace Game.Gameplay
             }
         }
 
-        /// <summary>Flood-fills root SM_Road_* tiles into connected clusters, each chained into an ordered ring.</summary>
+        /// <summary>
+        /// One driving loop per route, synthesised straight from the buildings it connects: out along one
+        /// side, back along the other, so trucks visibly circulate instead of stacking on a single line.
+        ///
+        /// This replaced a flood-fill over scattered SM_Road_* tiles. That approach made the islands read
+        /// as a confusing tangle of track, and it was fragile — a ring whose two sides sat further apart
+        /// than the tile link distance silently split into two clusters and starved a whole route.
+        /// The authored islands already carry their own painted roads as scenery; trucks just drive.
+        ///
+        /// Index order is the <see cref="Route"/> order, so no loop→route matching is needed.
+        /// </summary>
         private List<List<Vector3>> BuildRoadLoops()
         {
-            var tiles = new List<Vector3>();
-            var roots = TileScanObjects();
-            for (int i = 0; i < roots.Length; i++)
-                if (roots[i].name.StartsWith("SM_Road_") || roots[i].name.StartsWith("ghostx_road")) tiles.Add(roots[i].transform.position);
-
             var loops = new List<List<Vector3>>();
-            var used = new bool[tiles.Count];
-            float link2 = roadLinkDistance * roadLinkDistance;
-            for (int i = 0; i < tiles.Count; i++)
-            {
-                if (used[i]) continue;
-                var cluster = new List<int> { i }; used[i] = true;
-                for (int c = 0; c < cluster.Count; c++)
-                    for (int j = 0; j < tiles.Count; j++)
-                        if (!used[j] && SqrXZ(tiles[cluster[c]], tiles[j]) <= link2) { used[j] = true; cluster.Add(j); }
-                if (cluster.Count < 4) continue;   // stray decor tiles are not a drivable loop
-
-                // nearest-neighbour walk chains the cluster into ring order
-                var ring = new List<Vector3>(cluster.Count) { tiles[cluster[0]] };
-                var taken = new bool[cluster.Count]; taken[0] = true;
-                for (int k = 1; k < cluster.Count; k++)
-                {
-                    int bi = -1; float bd = float.MaxValue;
-                    for (int j = 0; j < cluster.Count; j++)
-                    {
-                        if (taken[j]) continue;
-                        float d = SqrXZ(ring[ring.Count - 1], tiles[cluster[j]]);
-                        if (d < bd) { bd = d; bi = j; }
-                    }
-                    taken[bi] = true; ring.Add(tiles[cluster[bi]]);
-                }
-                loops.Add(ring);
-            }
+            loops.Add(RouteLoop(_orePile, _refinery));                       // Route.Ore
+            loops.Add(RouteLoop(_refinedPile, _market));                     // Route.Market
+            if (_dock != null) loops.Add(RouteLoop(_refinedPile, _dock));    // Route.Export
             return loops;
+        }
+
+        private List<Vector3> RouteLoop(Transform from, Transform to)
+        {
+            var path = new List<Vector3>();
+            if (from == null || to == null) return path;
+            Vector3 a = from.position, b = to.position;
+            a.y = b.y = _deckY;
+            Vector3 dir = b - a; dir.y = 0f;
+            float len = dir.magnitude;
+            if (len < 0.01f) return path;
+            dir /= len;
+            Vector3 side = new Vector3(-dir.z, 0f, dir.x) * (routeLaneWidth * 0.5f);
+            int n = Mathf.Clamp(Mathf.RoundToInt(len / 4f), 2, 24);
+            for (int i = 0; i <= n; i++) path.Add(Vector3.Lerp(a, b, i / (float)n) + side);   // outbound lane
+            for (int i = n; i >= 0; i--) path.Add(Vector3.Lerp(a, b, i / (float)n) - side);   // return lane
+            return path;
         }
 
         private static int NearestLoop(List<List<Vector3>> loops, Vector3 p)
@@ -820,7 +916,9 @@ namespace Game.Gameplay
                     if (ore) _refOre += a.carry;
                     else if (a.carry > 0.001d && _wallet != null)
                     {
-                        double sale = a.carry * EffBarPrice * (a.route == Route.Export ? exportPriceBonus : 1f);
+                        // Prestige investors and rewarded-ad boosts multiply the sale *before* the cap, so
+                        // they speed up the climb without letting an island out-earn its own ceiling.
+                        double sale = a.carry * EffBarPrice * (a.route == Route.Export ? exportPriceBonus : 1f) * _incomeMult;
                         // island income ceiling: this island can never out-earn its cap — the next island is the growth path
                         double headroom = incomeCapPerMin - (_trailing + _earnedThisSecond);
                         if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
@@ -934,7 +1032,7 @@ namespace Game.Gameplay
             {
                 case UnlockSecondMine:
                     Solidify(_ghostMine2, _mountain);
-                    if (_train2 != null && !_train2.active) { _train2.active = true; _train2.state = TR.LoadMountain; _train2.timer = dwellSeconds; }
+                    ActivateTrain(_train2);
                     break;
                 case UnlockSecondSmelter:
                     Solidify(_ghostRefinery, _refinery);
@@ -945,15 +1043,25 @@ namespace Game.Gameplay
                 case UnlockThirdMine:
                     Solidify(_ghostMine, _mountain);
                     SolidifyGhostRails();
-                    if (_train3 != null && !_train3.active) { _train3.active = true; _train3.state = TR.LoadMountain; _train3.timer = dwellSeconds; }
+                    ActivateTrain(_train3);
                     break;
                 case UnlockExportDock:
                     ApplyFleetStates();   // wakes the export loop's trucks
                     break;
                 case UnlockFourthMine:
-                    if (_train4 != null && !_train4.active) { _train4.active = true; _train4.state = TR.LoadMountain; _train4.timer = dwellSeconds; }
+                    ActivateTrain(_train4);
                     break;
             }
+        }
+
+        /// <summary>Wakes an expansion line: its train starts running and its tunnel mouth appears.</summary>
+        private void ActivateTrain(TrainAgent a)
+        {
+            if (a == null || a.active) return;
+            a.active = true;
+            a.state = TR.LoadMountain;
+            a.timer = dwellSeconds;
+            Show(a.portal, true);
         }
 
         /// <summary>Swap a ghost building's materials for its real counterpart's — it "gets built".</summary>
@@ -992,6 +1100,9 @@ namespace Game.Gameplay
             _minAccum += dt;
             if (_minAccum < 1f) return;
             _minAccum -= 1f;
+            // once a second is often enough for a boost timer, and keeps service lookups out of the sale path
+            _incomeMult = (_prestige != null ? _prestige.IncomeMultiplier : 1d)
+                        * (_boost != null ? _boost.ActiveMultiplier : 1d);
             _trailing += _earnedThisSecond - _minuteBuckets[_minIdx];
             _minuteBuckets[_minIdx] = _earnedThisSecond;
             _earnedThisSecond = 0d;
@@ -1001,17 +1112,27 @@ namespace Game.Gameplay
             CashPerMinute = System.Math.Min(_trailing * (60.0 / _minFilled), incomeCapPerMin);
             // persist the measured rate so this island keeps earning while another one is active (and
             // offline) — only once the window is half-full, so a warm-up spike can't inflate it
-            if (--_rateSaveCountdown <= 0 && _minFilled >= 30)
+            if (--_rateSaveCountdown <= 0 && _minFilled >= RateSaveMinSeconds)
             {
                 _rateSaveCountdown = 5;
-                SaveLevel("rate#" + islandKey, (int)System.Math.Min(CashPerMinute, incomeCapPerMin));
+                PersistRate();
             }
+        }
+
+        private const int RateSaveMinSeconds = 15;   // enough to be past the warm-up, short enough for a quick visit
+
+        private void PersistRate()
+        {
+            SaveLevel("rate#" + islandKey, (int)System.Math.Min(CashPerMinute, incomeCapPerMin));
         }
 
         // Travelling away freezes this island (visuals off, component disabled); the meter must restart
         // from zero on return or the queued-up truck dumps read as a fake income spike.
+        // Persist first: without this, leaving before the periodic save fires left the island earning
+        // nothing in the background, which quietly broke the whole passive-empire premise.
         private void OnDisable()
         {
+            if (_minFilled >= RateSaveMinSeconds && CashPerMinute > 0d) PersistRate();
             for (int i = 0; i < _minuteBuckets.Length; i++) _minuteBuckets[i] = 0d;
             _minIdx = 0; _minFilled = 0; _minAccum = 0f;
             _trailing = 0d; _earnedThisSecond = 0d;
@@ -1021,8 +1142,29 @@ namespace Game.Gameplay
         // ---------------- pile visuals ----------------
         private void UpdateHeaps()
         {
-            ScaleHeap(_oreHeap, _oreHeapY0, _storeOre, EffStorageFull);
-            ScaleHeap(_barHeap, _barHeapY0, _bars, EffBarCap);
+            _oreYard.Set(_storeOre, EffStorageFull);
+            _barYard.Set(_bars, EffBarCap);
+        }
+
+        /// <summary>
+        /// Pulls each yard pad in beside the building it serves. The authored pads sit ~24 units off the
+        /// working chain, so the trucks drove out to bare ground and back while the buildings they belong
+        /// to sat somewhere else entirely. The side is taken from wherever the artist put the pad, so each
+        /// island keeps its own composition.
+        /// </summary>
+        private void RelocateYards()
+        {
+            MoveYard(_orePile, _storage);
+            MoveYard(_refinedPile, _refinery);
+        }
+
+        private void MoveYard(Transform pad, Transform building)
+        {
+            Vector3 away = Flat(pad.position - building.position);
+            if (away.sqrMagnitude < 0.01f) away = Vector3.forward;
+            Vector3 p = building.position + away.normalized * yardOffset;
+            p.y = pad.position.y;
+            pad.position = p;
         }
 
         // ---- persistence ----
@@ -1057,17 +1199,6 @@ namespace Game.Gameplay
             e.level = level;
         }
 
-        private void ScaleHeap(Transform heap, float baseY, double amount, double full)
-        {
-            if (heap == null) return;
-            float f = Mathf.Clamp01((float)(amount / full));
-            bool on = f > 0.02f;
-            if (heap.gameObject.activeSelf != on) heap.gameObject.SetActive(on);
-            if (!on) return;
-            Vector3 s = heap.localScale; s.y = Mathf.Lerp(0.4f, 4.5f, f); heap.localScale = s;
-            Vector3 pp = heap.position; pp.y = baseY + s.y * 0.5f; heap.position = pp;
-        }
-
         // ---------------- geometry helpers ----------------
         private static Vector3 Flat(Vector3 v) { v.y = 0f; return v; }
 
@@ -1096,15 +1227,6 @@ namespace Game.Gameplay
             Vector3 c = Vector3.zero;
             for (int i = 0; i < pts.Count; i++) c += pts[i];
             return pts.Count > 0 ? c / pts.Count : c;
-        }
-
-        private static float DistToSegmentXZ(Vector3 p, Vector3 a, Vector3 b)
-        {
-            p.y = 0f;
-            Vector3 ab = b - a;
-            float len2 = ab.sqrMagnitude;
-            float t = len2 > 1e-6f ? Mathf.Clamp01(Vector3.Dot(p - a, ab) / len2) : 0f;
-            return Vector3.Distance(p, a + ab * t);
         }
 
         // ---------------- builders ----------------
@@ -1137,22 +1259,196 @@ namespace Game.Gameplay
             return go;
         }
 
-        private Transform MakeHeap(Transform pile, Material mat, out float baseY)
-        {
-            var pr = pile.GetComponentInChildren<Renderer>();
-            Vector3 size = pr != null ? pr.bounds.size : new Vector3(6f, 1f, 6f);
-            baseY = (pr != null ? pr.bounds.max.y : pile.position.y);
+        // ---------------- site dressing ----------------
 
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "OpHeap";
-            var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
-            go.GetComponent<Renderer>().sharedMaterial = mat;
-            go.transform.SetParent(pile, true);
-            go.transform.position = new Vector3(pile.position.x, baseY, pile.position.z);
-            go.transform.localScale = new Vector3(Mathf.Max(2f, size.x * 0.65f), 1f, Mathf.Max(2f, size.z * 0.65f));
-            go.transform.rotation = Quaternion.identity;
-            go.SetActive(false);
-            return go.transform;
+        /// <summary>
+        /// Lays the road network, the rail lines and the building aprons. Everything hangs off a
+        /// "Dressing_*" child so <see cref="Game.UI.OperationCameraBoot"/> leaves it out of the framing
+        /// bounds — the ridge sits well outside the working area and would otherwise pull the camera back.
+        /// </summary>
+        private void BuildSiteDressing()
+        {
+            var go = new GameObject("Dressing_Site");
+            go.transform.SetParent(_islandRoot, true);
+            go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            go.transform.localScale = Vector3.one;
+            _dressing = go.transform;
+
+            if (!generateTrack) return;
+            HideAuthoredTrack();
+
+            Material road = MakeMat(_srcMat, roadColor), line = MakeMat(_srcMat, roadLineColor);
+            Material ballast = MakeMat(_srcMat, ballastColor), sleeper = MakeMat(_srcMat, sleeperColor);
+            Material steel = MakeMat(_srcMat, steelColor), apron = MakeMat(_srcMat, sitePadColor);
+            float roadY = _deckY + 0.06f;
+
+            // One continuous ribbon through the chain: storage → its yard → refinery → its yard → market.
+            // The yard legs are what tie a pile to the building it belongs to; without them the piles read
+            // as unrelated props sitting on the grass.
+            RouteMesh.Road(_dressing, "OpRoad_OreYard", _storage.position, _orePile.position, roadWidth, roadY, road, line);
+            RouteMesh.Road(_dressing, "OpRoad_Ore", _orePile.position, _refinery.position, roadWidth, roadY, road, line);
+            RouteMesh.Road(_dressing, "OpRoad_BarYard", _refinery.position, _refinedPile.position, roadWidth, roadY, road, line);
+            RouteMesh.Road(_dressing, "OpRoad_Market", _refinedPile.position, _market.position, roadWidth, roadY, road, line);
+            if (_dock != null)
+                RouteMesh.Road(_dressing, "OpRoad_Export", _refinedPile.position, _dock.position, roadWidth, roadY, road, line);
+
+            LayRail(_train1, "1", ballast, sleeper, steel);
+            LayRail(_train2, "2", ballast, sleeper, steel);
+            LayRail(_train3, "3", ballast, sleeper, steel);
+            LayRail(_train4, "4", ballast, sleeper, steel);
+
+            SitePad(_mountain, apron); SitePad(_storage, apron);
+            SitePad(_refinery, apron); SitePad(_market, apron);
+
+            // The authored yard slabs are near-white, which reads as blank paper whenever a yard happens
+            // to be empty. Gravel-toned, an empty yard reads as a yard.
+            Retint(_orePile, apron); Retint(_refinedPile, apron);
+
+            BuildRidge();
+        }
+
+        /// <summary>Track plus the tunnel mouth the line runs out of, hidden until its train is bought.</summary>
+        private void LayRail(TrainAgent a, string id, Material ballast, Material sleeper, Material steel)
+        {
+            if (a == null || a.path == null || a.path.Length < 2) return;
+            Vector3 head = a.path[0], tail = a.path[a.path.Length - 1];
+            RouteMesh.Rail(_dressing, "OpRail_" + id, head, tail, _deckY, a.engineY, ballast, sleeper, steel);
+            if (portalPrefab == null || a.mountain == null) return;
+
+            Vector3 dir = Flat(tail - head).normalized;
+            // The mouth belongs on the mine's downhill face, not on its pivot. The engine still spawns at
+            // the pivot, deep inside the building where the mesh hides it, so the first thing the player
+            // sees of a departing train is it coming out of the tunnel.
+            Bounds mb = WorldBounds(a.mountain);
+            float face = Mathf.Abs(dir.x) * mb.extents.x + Mathf.Abs(dir.z) * mb.extents.z;
+            Vector3 mouth = mb.center + dir * face;
+
+            var p = Instantiate(portalPrefab, _dressing);
+            p.name = "OpPortal_" + id;
+            p.transform.SetPositionAndRotation(new Vector3(mouth.x, _deckY, mouth.z),
+                                               Quaternion.LookRotation(dir, Vector3.up));
+            p.transform.localScale = Vector3.one * portalScale;
+            a.portal = p;
+            p.SetActive(a.active);
+        }
+
+        /// <summary>Repaints a landmark's own mesh, leaving the generated children (the heap) alone.</summary>
+        private static void Retint(Transform t, Material mat)
+        {
+            var rs = t.GetComponents<Renderer>();
+            for (int i = 0; i < rs.Length; i++)
+            {
+                var arr = new Material[rs[i].sharedMaterials.Length];
+                for (int m = 0; m < arr.Length; m++) arr[m] = mat;
+                rs[i].sharedMaterials = arr;
+            }
+        }
+
+        private void SitePad(Transform building, Material mat)
+        {
+            if (building == null) return;
+            Bounds b = WorldBounds(building);
+            RouteMesh.Pad(_dressing, "OpPad_" + building.name,
+                          b.center, Mathf.Max(b.extents.x, b.extents.z) * 1.15f, _deckY + 0.03f, mat);
+        }
+
+        /// <summary>
+        /// Masses rock behind the mine so the map ends in a mountain wall instead of trailing off into
+        /// empty terrain, and gives the rail line somewhere to come from.
+        /// </summary>
+        private void BuildRidge()
+        {
+            if (ridgeRockPrefab == null || ridgeRocks <= 0) return;
+            Vector3 outward = Flat(_mountain.position - _market.position).normalized;
+            Vector3 side = new Vector3(-outward.z, 0f, outward.x);
+            Transform[] mines = { _mountain, _ghostMine, _ghostMine2, _mine4 };
+
+            for (int i = 0; i < ridgeRocks; i++)
+            {
+                float t = ridgeRocks == 1 ? 0f : i / (float)(ridgeRocks - 1) - 0.5f;
+                Vector3 pos = _mountain.position + outward * (ridgeDistance + Mathf.Abs(t) * 7f)
+                                                + side * (t * ridgeSpread);
+                // Walk a rock back until it clears every mine head. Expansion mines sit outboard of the
+                // primary one, and a rock dropped on top of one would bury the building the player is
+                // about to unlock. The uneven distances this produces also stop the ridge reading as a wall.
+                for (int guard = 0; guard < 10 && NearAny(mines, pos, ridgeClearance); guard++)
+                    pos += outward * 5f;
+
+                var r = Instantiate(ridgeRockPrefab, _dressing);
+                r.name = "Dressing_Rock" + i;
+                r.transform.position = new Vector3(pos.x, _deckY - 2.5f, pos.z);
+                r.transform.rotation = Quaternion.Euler(0f, i * 137f, 0f);
+                r.transform.localScale = Vector3.one * (ridgeScale - Mathf.Abs(t) * 0.4f);
+            }
+        }
+
+        private static bool NearAny(Transform[] ts, Vector3 p, float radius)
+        {
+            float r2 = radius * radius;
+            for (int i = 0; i < ts.Length; i++)
+                if (ts[i] != null && SqrXZ(ts[i].position, p) < r2) return true;
+            return false;
+        }
+
+        /// <summary>Turns off the painted decoration the generated track replaces, so they can't double up.</summary>
+        private void HideAuthoredTrack()
+        {
+            foreach (Transform t in _islandRoot)
+            {
+                string n = t.name;
+                // "edge" is the kerb strip that runs alongside a painted road; on its own it reads as a
+                // stray line drawn straight through the buildings.
+                if (n.StartsWith("road") || n.StartsWith("rail") || n.StartsWith("tie") || n.StartsWith("edge"))
+                    t.gameObject.SetActive(false);
+            }
+        }
+
+        // ---------------- upgrade feedback ----------------
+
+        private void CacheStationBodies()
+        {
+            _stationBody = new Transform[StationList.Length];
+            _stationBody[StMine] = _mountain;
+            _stationBody[StStorage] = _storage;
+            _stationBody[StSmelter] = _refinery;
+            _stationBody[StMarket] = _market;
+            _stationBody[StPower] = Child(_islandRoot, "ghostx_power");
+            // TRAIN, ORE TRUCKS and CARGO TRUCKS have no single building — their levels already show as
+            // more wagons and more trucks on the road.
+            _stationBaseScale = new Vector3[StationList.Length];
+            _punch = new float[StationList.Length];
+            for (int s = 0; s < _stationBody.Length; s++)
+                if (_stationBody[s] != null) _stationBaseScale[s] = _stationBody[s].localScale;
+        }
+
+        private int StationLevelSum(int s)
+        {
+            int n = 0;
+            for (int a = 0; a < _lv[s].Length; a++) n += _lv[s][a];
+            return n;
+        }
+
+        private float StationScale(int s) =>
+            1f + Mathf.Min(buildingGrowthCap, buildingGrowthPerLevel * StationLevelSum(s));
+
+        private void ApplyStationScale()
+        {
+            for (int s = 0; s < _stationBody.Length; s++)
+                if (_stationBody[s] != null) _stationBody[s].localScale = _stationBaseScale[s] * StationScale(s);
+        }
+
+        // Only the stations mid-pop write a transform; the rest were sized when their level last changed.
+        private void TickPunch(float dt)
+        {
+            for (int s = 0; s < _punch.Length; s++)
+            {
+                if (_punch[s] <= 0f) continue;
+                _punch[s] = Mathf.Max(0f, _punch[s] - dt);
+                Transform t = _stationBody[s];
+                if (t == null) continue;
+                float k = _punch[s] / punchSeconds;
+                t.localScale = _stationBaseScale[s] * (StationScale(s) + punchStrength * k * Mathf.Sin(k * Mathf.PI * 3f));
+            }
         }
     }
 }

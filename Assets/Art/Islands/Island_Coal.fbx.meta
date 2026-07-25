@@ -3,11 +3,171 @@ guid: fe161a24c7e596143a22351471ed2dcb
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: E_gold_warm
+    second: {fileID: 2100000, guid: cb7249e2f7e2ef640a803281cf1cb517, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_blue_dk
+    second: {fileID: 2100000, guid: 04b6e4937d689634ebbf25c66978fac3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_coal
+    second: {fileID: 2100000, guid: 7365c8af02db1274b969c75988046da7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_concrete
+    second: {fileID: 2100000, guid: a37b14586739ab443b9a4023e66ae9fb, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_concrete_dk
+    second: {fileID: 2100000, guid: a8747a6cbce8bff4e837178158ffdadb, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_cyan_water.050
+    second: {fileID: 2100000, guid: 5eeb3eadad2dfd04d811f6997cd51ab9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_dark
+    second: {fileID: 2100000, guid: 3d6649a421567da4a90d505fc4b41409, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_dirt
+    second: {fileID: 2100000, guid: 1b84c5f6484e2a94aa80c4f75698f16c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_dirt_dk
+    second: {fileID: 2100000, guid: 4f2f98e8cae235c42862cc19d2bc9c9f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_emerald
+    second: {fileID: 2100000, guid: 824d7709ea65f724ba22c50a6bc9ab8b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_ghost.022
+    second: {fileID: 2100000, guid: 5d98c58a926a2c043ab0cd6c4f546995, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_glass
+    second: {fileID: 2100000, guid: b8826f14e4fcbac428674cb5fb0cf85f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_gold
+    second: {fileID: 2100000, guid: 8f0ecc62d2c035f44a0fb0c60a3f1717, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_gold_warm
+    second: {fileID: 2100000, guid: ee96acd13113f254daed83749b0600ce, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_grass
+    second: {fileID: 2100000, guid: d2b7f8cfc21922f4cb2604a5f02b9485, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_grass_dk
+    second: {fileID: 2100000, guid: 0036618cdd5f45b4096a5ee2dfb46aee, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_gravel
+    second: {fileID: 2100000, guid: adfe620b7dd37b54392d92eb4cc2f41e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_iron
+    second: {fileID: 2100000, guid: c169f7b14fe8b6d49bebfa1ce43f8826, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_orange
+    second: {fileID: 2100000, guid: cecd65c5fa0c53d4aac34fe78edd389b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_red_dk
+    second: {fileID: 2100000, guid: 5d9d2ace1d3911c4ab6b22d9f769eda8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_red_roof
+    second: {fileID: 2100000, guid: 3c242022b127f4c419a633f726a5209d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_rock
+    second: {fileID: 2100000, guid: 2ca0c63da08d293468b62ea474b03139, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_rock_dk
+    second: {fileID: 2100000, guid: 188af27a6c83add409038362e39618f0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_skin
+    second: {fileID: 2100000, guid: 4a6278119f4a1cf40a6a4f021386ac1e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_snow
+    second: {fileID: 2100000, guid: 354f1fc9518083e47b6171b18d38688b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_steel
+    second: {fileID: 2100000, guid: 920fcabed4c13a04194a91968722e08e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_steel_dk
+    second: {fileID: 2100000, guid: e1459ff23d3a4194db4394154dc9478e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_train_green
+    second: {fileID: 2100000, guid: 87e0222e91ede594a95151fb5b582269, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_train_green_dk
+    second: {fileID: 2100000, guid: 2401016daccf4e04d81f13a35d776ca1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_truck_blue
+    second: {fileID: 2100000, guid: 9c8413fed2a09d24fa013995e99be6be, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood
+    second: {fileID: 2100000, guid: e5e8d1e463af75f47942720bd7c687fa, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_wood_dk
+    second: {fileID: 2100000, guid: 4aed470317ddab3478a74ca8b3aeb072, type: 2}
   materials:
     materialImportMode: 2
-    materialName: 0
-    materialSearch: 1
+    materialName: 1
+    materialSearch: 2
     materialLocation: 1
   animations:
     legacyGenerateAnimations: 4

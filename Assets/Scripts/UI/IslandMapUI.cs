@@ -186,6 +186,10 @@ namespace Game.UI
                         if (boot != null) boot.FrameOn(_world.RootName(i));
                         var hud = FindAnyObjectByType<CoalHud>();
                         if (hud != null) hud.SetOperation(op);
+                        var badges = FindAnyObjectByType<StationBadges>();
+                        if (badges != null) badges.SetOperation(op);
+                        var juice = FindAnyObjectByType<HudJuice>();
+                        if (juice != null) juice.SetOperation(op);
                     }
                 }
                 yield return null;

@@ -24,10 +24,11 @@ namespace Game.UI
         private WalletService _wallet;
         private CoalOperation _op;
         private Font _font;
-        private Sprite _flat;
         private Text _cashText, _rateText, _title;
         private GameObject _panel;
         private float _timer;
+        private double _shownCash;        // eased display value behind the real balance
+        private bool _haveShownCash;
 
         private sealed class Row
         {
@@ -49,7 +50,6 @@ namespace Game.UI
             _wallet = ServiceLocator.Get<WalletService>();
             BindEnabledOp();
             _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            _flat = MakeFlat();
             Build();
             Refresh();
         }
@@ -58,10 +58,31 @@ namespace Game.UI
         {
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
             if (_op == null || !_op.enabled) BindEnabledOp();
+            RollCash(Time.unscaledDeltaTime);
             _timer -= Time.unscaledDeltaTime;
             if (_timer > 0f) return;
             _timer = refreshInterval;
             Refresh();
+        }
+
+        /// <summary>
+        /// Ease the displayed balance toward the real one instead of snapping every quarter second.
+        /// Runs per frame (the rest of the HUD refreshes on an interval) because the counter climbing is
+        /// most of what makes the money feel like it's flowing in.
+        /// </summary>
+        private void RollCash(float dt)
+        {
+            if (_wallet == null || _cashText == null) return;
+            double target = _wallet.Cash.ToDouble();
+            if (!_haveShownCash) { _shownCash = target; _haveShownCash = true; }
+            else
+            {
+                double diff = target - _shownCash;
+                // snap on a big jump (a purchase, an offline grant) so the counter never crawls for seconds
+                if (diff < 0d || System.Math.Abs(diff) > System.Math.Max(1d, target * 0.35d)) _shownCash = target;
+                else _shownCash += diff * (1d - System.Math.Exp(-9d * dt));
+            }
+            _cashText.text = "$ " + NumberFormatter.Format(new BigDouble(_shownCash));
         }
 
         /// <summary>Retarget every row at another island's operation (world-map travel). The upgrade catalog
@@ -238,7 +259,7 @@ namespace Game.UI
 
         private void Refresh()
         {
-            if (_cashText != null && _wallet != null) _cashText.text = "$ " + NumberFormatter.Format(_wallet.Cash);
+            // cash is driven per-frame by RollCash so it eases instead of stepping
             if (_rateText != null && _op != null) _rateText.text = "▲ $" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)) + " / min";
             if (_op == null || _panel == null || !_panel.activeSelf) return;
             for (int i = 0; i < _rows.Count; i++)
@@ -249,21 +270,21 @@ namespace Game.UI
                     if (_op.IsUnlocked(r.unlock))
                     {
                         r.label.text = _op.UnlockName(r.unlock) + "      BUILT ✓";
-                        r.bg.color = Done; r.btn.interactable = false;
+                        SetRowState(r, Done); r.btn.interactable = false;
                     }
                     else
                     {
                         BigDouble ucost = _op.UnlockCost(r.unlock);
                         bool uafford = _wallet != null && _wallet.CanAfford(ucost);
                         r.label.text = _op.UnlockName(r.unlock) + "      $" + NumberFormatter.Format(ucost);
-                        r.bg.color = uafford ? Ghost : Cant; r.btn.interactable = uafford;
+                        SetRowState(r, uafford ? Ghost : Cant); r.btn.interactable = uafford;
                     }
                     continue;
                 }
                 if (_op.AxisLocked(r.station, r.axis))
                 {
                     r.label.text = _op.AxisName(r.station, r.axis) + "      LOCKED — build the " + _op.PowerPlantName;
-                    r.bg.color = Cant; r.btn.interactable = false;
+                    SetRowState(r, Cant); r.btn.interactable = false;
                     continue;
                 }
                 if (_op.AxisMaxed(r.station, r.axis))
@@ -275,7 +296,7 @@ namespace Game.UI
                 BigDouble cost = _op.AxisCost(r.station, r.axis);
                 bool afford = _wallet != null && _wallet.CanAfford(cost);
                 r.label.text = _op.AxisName(r.station, r.axis) + "    Lv " + _op.AxisLevel(r.station, r.axis) + "      $" + NumberFormatter.Format(cost);
-                r.bg.color = afford ? Buy : Cant;
+                SetRowState(r, afford ? Buy : Cant);
                 r.btn.interactable = afford;
             }
         }
@@ -306,7 +327,9 @@ namespace Game.UI
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>(); img.sprite = _flat; img.type = Image.Type.Sliced; img.color = c;
+            var img = go.GetComponent<Image>();
+            img.sprite = SkinFor(c); img.type = Image.Type.Sliced; img.pixelsPerUnitMultiplier = 2.6f;
+            img.color = UiSkin.HasArt ? Color.white : c;
             var t = Label((RectTransform)go.transform, "Text", text, size, TextAnchor.MiddleCenter);
             Stretch(t.rectTransform, 6f, 2f, 6f, 2f);
             var b = go.GetComponent<Button>(); b.targetGraphic = img;
@@ -320,11 +343,23 @@ namespace Game.UI
             rt.offsetMin = new Vector2(l, b); rt.offsetMax = new Vector2(-r, -t);
         }
 
-        private Sprite MakeFlat()
+        /// <summary>
+        /// Map a semantic row colour onto the kit's pre-coloured button art. Rows already communicate
+        /// state through <see cref="Buy"/>/<see cref="Cant"/>/<see cref="Done"/>, so the sprite follows
+        /// the colour the caller already chose rather than needing every call site rewritten.
+        /// </summary>
+        private static void SetRowState(Row r, Color c)
         {
-            var tex = new Texture2D(4, 4, TextureFormat.RGBA32, false);
-            var px = new Color[16]; for (int i = 0; i < 16; i++) px[i] = Color.white; tex.SetPixels(px); tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(1, 1, 1, 1));
+            if (UiSkin.HasArt) { r.bg.sprite = SkinFor(c); r.bg.color = Color.white; }
+            else r.bg.color = c;
+        }
+
+        private static Sprite SkinFor(Color c)
+        {
+            if (c == Buy) return UiSkin.ButtonGreen;
+            if (c == Amber) return UiSkin.ButtonYellow;
+            if (c == Done || c == Ghost) return UiSkin.ButtonBlue;
+            return UiSkin.ButtonGrey;
         }
     }
 }
