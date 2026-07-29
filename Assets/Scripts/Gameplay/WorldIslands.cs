@@ -108,25 +108,42 @@ namespace Game.Gameplay
             if (_ops[i] != null) _ops[i].enabled = on;
         }
 
+        /// <summary>
+        /// Pays out every island you are NOT currently standing on, once a second.
+        ///
+        /// Only one island simulates at a time — running eight full operations would cost eight times the
+        /// CPU for seven islands nobody is looking at. So each operation measures its own $/min while
+        /// active and saves it (<c>rate#&lt;key&gt;</c>); the moment you sail away, that saved number becomes
+        /// the island's payout rate. The result is an empire that keeps earning without simulating.
+        ///
+        /// This is why the whole "buy the next island" loop works: previous islands never go quiet.
+        /// </summary>
         private void Update()
         {
+            // Once per second, not per frame — this is bookkeeping, not animation.
             _bgAccum += Time.deltaTime;
             if (_bgAccum < 1f) return;
             _bgAccum -= 1f;
+            // Services can be unavailable for the first frame or two after a scene load; retry rather
+            // than caching in Start, which would silently leave this dead if it ran too early.
             if (_data == null) { _data = ServiceLocator.Get<SaveData>(); if (_data == null) return; }
             if (_wallet == null) { _wallet = ServiceLocator.Get<WalletService>(); if (_wallet == null) return; }
 
-            // owned, non-active islands keep producing at their last measured rate (already cap-clamped on save)
             double totalPerMin = 0d, background = 0d;
             for (int i = 0; i < islands.Length; i++)
             {
                 if (!IsOwned(i)) continue;
-                double rate = RatePerMin(i);
+                double rate = RatePerMin(i);       // live meter if active, last saved rate otherwise
                 totalPerMin += rate;
+                // The active island is excluded: its trucks are already paying the wallet directly as
+                // they sell. Counting it here too would pay for the same ore twice.
                 if (i != _active) background += rate;
             }
-            if (background > 0d) _wallet.AddCash(new BigDouble(background / 60d));
-            _data.incomeRatePerSec = totalPerMin / 60d;   // offline earnings pay out the whole empire
+            if (background > 0d) _wallet.AddCash(new BigDouble(background / 60d));   // one second's worth
+
+            // Offline earnings (granted in GameBootstrap on next launch) use the WHOLE empire's rate,
+            // active island included — while the app is closed, nothing is simulating either.
+            _data.incomeRatePerSec = totalPerMin / 60d;
         }
 
         // ---- persistence helpers (same islandLevels store the operations use) ----

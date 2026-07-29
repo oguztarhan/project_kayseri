@@ -6,25 +6,50 @@ using UnityEngine;
 namespace Game.Gameplay
 {
     /// <summary>
-    /// Drives the automated production cycle on the player-built <b>Coal</b> map. It reads the map's own
-    /// labelled landmark objects <b>by name</b> and never moves the static layout — only the vehicles and
-    /// the ore/bar piles animate. Vehicles follow the tiles the designer placed:
+    /// The whole game loop for one ore island. Eight copies of this component live on <c>CoalController</c>
+    /// — one per island, Coal through Diamond — and only the island you are standing on is enabled.
+    ///
+    /// <para><b>The production chain.</b> Ore moves along a fixed path, and every stage is a station the
+    /// player can upgrade:</para>
+    /// <code>
+    ///   MINE ──train──▶ STORAGE ──ore truck──▶ SMELTER ──cargo truck──▶ MARKET ──▶ $
+    ///                   (ore yard)             (bars)    (bar yard)
+    /// </code>
     /// <list type="bullet">
-    /// <item>Trains run along their <c>SM_Rail_Straight</c> line between a mountain and the storage shed:
-    /// hidden inside the mountain while loading, emerge with full wagons, haul along the rails, hide inside
-    /// the shed to dump onto the storage pile (waiting while the yard is full), return empty. The second
-    /// mine's train exists from the start but only activates when its ghost buildings are unlocked.</item>
-    /// <item>Trucks drive one-way around the closed <c>SM_Road_Straight</c> loop they were parked on:
-    /// ore trucks load at the storage pile and empty into the smelter, the cargo trucks load bars at the
-    /// refined pile and sell at the market. A truck with nothing to haul parks at its wait spot. Locked
-    /// fleet trucks sit ghosted in the parking area until bought via the <b>Trucks</b> upgrade axis.</item>
+    /// <item><b>Trains</b> shuttle mine → storage. The engine spawns inside the mine building (hidden by the
+    /// mesh), drives out through the tunnel portal with loaded wagons, disappears into the storage shed to
+    /// dump, and returns empty. If the ore yard is full it waits inside the shed — a visible bottleneck.</item>
+    /// <item><b>Trucks</b> drive a two-lane oval: out on one side, back on the other. Ore trucks carry
+    /// storage → smelter, cargo trucks carry smelter → market (or → export dock, once unlocked). A truck
+    /// with nothing to haul parks at its wait spot. Trucks you have not bought yet sit greyed-out in the
+    /// depot bay so you can see what the next <b>Trucks</b> upgrade will give you.</item>
     /// </list>
-    /// Tycoon layer (GDD §3): every station has multiple upgrade axes, plus one-time ghost-building unlocks
-    /// (second mine line / second smelter / trade post). Income is tracked as a trailing $/min for the HUD.
-    /// Self-contained: cash lands in <see cref="WalletService"/>; levels persist in <see cref="SaveData"/>.
-    /// One component per ore island (Coal → Diamond): <c>islandKey</c> scopes the save keys, the tier
-    /// multipliers scale prices/costs, and <c>incomeCapPerMin</c> + <c>axisLevelCap</c> cap the island so
-    /// buying the next island (via <see cref="WorldIslands"/>) is the only way to keep growing.
+    ///
+    /// <para><b>How to read this file.</b> It is long, but it is in fixed order:</para>
+    /// <list type="number">
+    /// <item><b>Inspector fields</b> — every tunable number, grouped by <c>[Header]</c>.</item>
+    /// <item><b>Upgrade catalog</b> — the static tables defining stations, axes and prices.</item>
+    /// <item><b>Public surface</b> — what the HUD and the badges call (costs, levels, <c>TryUpgrade</c>).</item>
+    /// <item><b>Effective rates</b> — the <c>Eff*</c> properties: base value × upgrades × unlocks.</item>
+    /// <item><b>Start / Tick</b> — boot order, then the per-frame update order.</item>
+    /// <item><b>Trains, then trucks</b> — the two vehicle state machines.</item>
+    /// <item><b>Unlocks, income, piles, dressing, upgrade feedback</b> — the rest, each behind a banner.</item>
+    /// </list>
+    ///
+    /// <para><b>Two things worth knowing before you edit.</b> First, landmarks are found <b>by exact object
+    /// name</b> under the island root (<c>"storage"</c>, <c>"refinery"</c>, <c>"market"</c>…). Rename one in
+    /// the scene and this component logs a warning and disables itself. Second, the layout is <i>mostly</i>
+    /// static, with one deliberate exception: <see cref="RelocateYards"/> moves the two pile pads next to
+    /// the buildings they serve at startup, because the authored positions sat far off the working chain.</para>
+    ///
+    /// <para><b>Roads and rails are generated, not authored.</b> Vehicles used to follow scattered
+    /// <c>SM_Road_*</c> / <c>SM_Rail_*</c> tiles; that was fragile and the track no longer matched where the
+    /// sim drove. Now routes are synthesised from the buildings themselves and the visible track is built to
+    /// match (see <see cref="BuildSiteDressing"/>), so the two can never disagree.</para>
+    ///
+    /// <para>Cash goes to <see cref="WalletService"/>; levels persist in <see cref="SaveData"/> under keys
+    /// prefixed by <c>islandKey</c>. <c>incomeCapPerMin</c> and <c>axisLevelCap</c> deliberately cap each
+    /// island, so buying the <i>next</i> island (via <see cref="WorldIslands"/>) is the only way to grow.</para>
     /// </summary>
     public sealed class CoalOperation : MonoBehaviour
     {
@@ -123,7 +148,27 @@ namespace Game.Gameplay
         [SerializeField] private float punchStrength = 0.14f;
         [SerializeField] private float punchSeconds = 0.4f;
 
-        // ---- upgrade catalog (station × axis; ids "coal#<s>#<a>" in SaveData) ----
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+        //  UPGRADE CATALOG
+        //
+        //  Every upgrade in the game is addressed by two numbers: a STATION (which building) and an
+        //  AXIS (which stat on that building). "Mine → Richness" is station 0, axis 0.
+        //
+        //  The five tables below are PARALLEL ARRAYS — index [s][a] means the same upgrade in all of
+        //  them. Keep them in step: adding an axis means adding an entry to AxisList, AxisBaseCost,
+        //  AxisMaxLv and to the matching row length in _lv, or you get an IndexOutOfRange at runtime.
+        //
+        //      StMine = 0 ─┐
+        //                  ├─ AxisList[0]     = { "Richness", "Load Speed" }   ← names shown in the UI
+        //                  ├─ AxisBaseCost[0] = { 60, 80 }                     ← price of level 1
+        //                  ├─ AxisMaxLv[0]    = { 0, 0 }                       ← 0 means "no special cap"
+        //                  └─ _lv[0]          = new int[2]                     ← levels the player owns
+        //
+        //  Saved as "<islandKey>#<station>#<axis>" (e.g. "coal#0#0") in SaveData.islandLevels.
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+        // Station indices. These are array positions, so never reorder them — saved games address
+        // upgrades by number, and renumbering would silently move the player's levels onto other stations.
         private const int StMine = 0, StTrain = 1, StStorage = 2, StOreTrucks = 3, StSmelter = 4, StCargoTrucks = 5, StMarket = 6, StPower = 7;
         private static readonly string[] StationList = { "MINE", "TRAIN", "STORAGE", "ORE TRUCKS", "SMELTER", "CARGO TRUCKS", "MARKET", "POWER PLANT" };
         private static readonly string[][] AxisList =
@@ -148,20 +193,35 @@ namespace Game.Gameplay
             new[] { 150d, 120d },
             new[] { 2000d, 1500d },
         };
-        private static readonly int[][] AxisMaxLv =   // 0 = uncapped
+        // Per-axis hard caps. 0 means "no special cap" — that axis then stops at the island-wide
+        // axisLevelCap instead. The non-zero entries are the axes limited by physical scene objects:
+        // there are only so many wagon slots on a train (3) and so many parked truck bodies to wake (2).
+        private static readonly int[][] AxisMaxLv =
         {
             new[] { 0, 0 },
-            new[] { 0, 3, 0 },
+            new[] { 0, 3, 0 },      // TRAIN → Wagons caps at 3 (BaseWagons 3 + 3 = MaxWagons 6)
             new[] { 0, 0 },
-            new[] { 2, 0, 0 },
+            new[] { 2, 0, 0 },      // ORE TRUCKS → Trucks caps at 2 (2 base + 2 = 4 on the road)
             new[] { 0, 0 },
-            new[] { 2, 0, 0 },
+            new[] { 2, 0, 0 },      // CARGO TRUCKS → same
             new[] { 0, 0 },
             new[] { 0, 0 },
         };
+
+        // The levels this island's player actually owns. Row lengths MUST match AxisList above.
         private readonly int[][] _lv = { new int[2], new int[3], new int[2], new int[3], new int[2], new int[3], new int[2], new int[2] };
 
-        // ---- ghost-building unlocks (ids "coalu#<u>" in SaveData) ----
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+        //  GHOST-BUILDING UNLOCKS — the one-time purchases
+        //
+        //  Separate from the upgrade axes: these are bought once, never levelled. The buildings are
+        //  ALREADY in the scene with their real materials; the code swaps in a translucent "ghost"
+        //  material while they are locked, and swaps the originals back when you buy. So the player can
+        //  always see the shape of what they are saving up for, which is the point.
+        //
+        //  Saved as "<islandKey>u#<index>" — note the "u", which keeps these from colliding with the
+        //  axis keys ("coal#0#0" vs "coalu#0").
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
         public const int UnlockSecondMine = 0, UnlockSecondSmelter = 1, UnlockTradePost = 2, UnlockThirdMine = 3,
                          UnlockWarehouse = 4, UnlockDepot = 5, UnlockExportDock = 6, UnlockFourthMine = 7,
                          UnlockPowerPlant = 8, UnlockDeepShaft = 9;
@@ -215,7 +275,28 @@ namespace Game.Gameplay
         private int _rateSaveCountdown;
         public double CashPerMinute { get; private set; }
 
-        // ---- trains ----
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+        //  TRAINS — the mine → storage leg
+        //
+        //  Each train is a plain C# object (not a MonoBehaviour) driving Transforms that already exist
+        //  in the scene. One agent per mine, up to four; trains 2-4 stay asleep until their mine is
+        //  unlocked. The loop never ends:
+        //
+        //      LoadMountain ──▶ Haul ──▶ Deposit ──▶ Return ──┐
+        //      (hidden inside   (visible  (hidden inside  (visible, empty)
+        //       the mine,        on the    the shed,      │
+        //       timer runs)      rails)    dumping ore)   │
+        //           ▲                                     │
+        //           └─────────────────────────────────────┘
+        //
+        //  "Hidden" is literal — SetTrainVisible(false) switches the GameObjects off, so the engine only
+        //  exists on screen while it is actually travelling. That is why it appears to come out of the
+        //  tunnel portal: it is switched on at the mine's pivot, which sits inside the building mesh.
+        //
+        //  If the ore yard is full, Deposit simply does not finish — the train waits inside the shed.
+        //  The player sees the trains stop, which is the intended signal to upgrade Storage.
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+
         private enum TR { LoadMountain, Haul, Deposit, Return }
         private sealed class TrainAgent
         {
@@ -233,9 +314,34 @@ namespace Game.Gameplay
         private const int BaseWagons = 3, MaxWagons = 6;
         private TrainAgent _train1, _train2, _train3, _train4;   // 1: coal mine · 2: "ghost_mine (1)" · 3: "ghost_mine"+GH rails · 4: "ghostx_mine4"+south line
 
-        // ---- trucks ----
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+        //  TRUCKS — the two road legs
+        //
+        //  Same idea as trains, but trucks stay visible the whole time and drive a closed oval: out
+        //  along one lane, back along the other. Their cycle:
+        //
+        //      ToLoad ──▶ Loading ──▶ ToDrop ──▶ Dropping ──┐
+        //      (drive to  (pause at   (drive to  (pause, hand over cargo:
+        //       pickup)    the pile)   target)    ore → smelter, bars → cash)
+        //          ▲                                        │
+        //          │                                        │
+        //          └──── if there is more to haul ◀──────────┤
+        //                                                   │
+        //      ToIdle ──▶ Idle  ◀───── if the source is empty┘
+        //      (drive to  (parked; leaves the moment work appears)
+        //       wait spot)
+        //
+        //  Idle trucks are the other visible bottleneck signal: a row of parked cargo trucks means the
+        //  smelter is not producing fast enough, so the player knows which station to upgrade next.
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+
         private enum TK { ToLoad, Loading, ToDrop, Dropping, ToIdle, Idle }
-        private enum Route { Ore, Market, Export }   // ore: pile→smelter · market: bars→market · export: bars→dock
+
+        /// <summary>
+        /// Which leg a truck runs. The order matters — <see cref="BuildRoadLoops"/> emits exactly one
+        /// loop per route in this order, so the loop index IS the route.
+        /// </summary>
+        private enum Route { Ore, Market, Export }   // ore: yard→smelter · market: bars→market · export: bars→dock
         private sealed class TruckAgent
         {
             public Transform body;
@@ -259,7 +365,16 @@ namespace Game.Gameplay
 
         private bool _ready;
 
-        // ---- public surface for the HUD / world map ----
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+        //  PUBLIC SURFACE — everything the UI is allowed to touch
+        //
+        //  CoalHud, StationBadges, HudJuice and IslandMapUI all talk to the island through these members
+        //  and nothing else. The UI never reads the sim's internals, and the sim never reaches into the
+        //  UI — so you can rebuild the whole interface without touching a line of gameplay code.
+        //
+        //  The important ones: AxisCost/AxisLevel/AxisMaxed to draw a button, TryUpgrade to press it,
+        //  StationAnchor to know where in the world to float it, and CashPerMinute for the top bar.
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
         public double StorageOre => _storeOre;
         public double Bars => _bars;
         public string IslandKey => islandKey;
@@ -378,29 +493,84 @@ namespace Game.Gameplay
             return true;
         }
 
-        // ---- effective rates (base × axis levels × unlock bonuses) ----
-        // Per-level gains are scaled by axisEffectScale so the same coefficients spread across a long
-        // upgrade track instead of a 10-level one. Measured: output ≈ base·(1 + 0.335·L)^2.89 at scale 1,
-        // which slammed into the island's income cap around level 8 and wasted everything above it.
-        private float PowerIncome => 1f + 0.05f * axisEffectScale * _lv[StPower][0];   // Generators: global income
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+        //  EFFECTIVE RATES — the actual economy
+        //
+        //  Nothing in the sim reads a raw Inspector value directly; it reads one of these instead.
+        //  Every one follows the same shape:
+        //
+        //      base value  ×  (1 + coefficient × axisEffectScale × level)  ×  unlock bonuses
+        //      └─ Inspector   └────────── the upgrade the player bought ──┘  └─ one-time buildings
+        //
+        //  So a level is always a straight-line gain on one term, but the terms MULTIPLY each other.
+        //  That is what makes the curve steep: upgrading the mine and the train and the trucks together
+        //  compounds, which is the core idle-tycoon feeling.
+        //
+        //  Why axisEffectScale exists: the coefficients below were originally tuned for a 10-level
+        //  track. Measured output came out at base·(1 + 0.335·L)^2.89 — which hit the island's income
+        //  cap around level 8 and made every level after that worthless. Rather than re-tune ~20
+        //  coefficients by hand, one shared scale (0.085) stretches the same curve across 50 levels.
+        //  Turn it UP for a faster, shorter game; DOWN for a longer grind.
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+        // POWER PLANT — the only station that touches everything else. Both feed into the formulas below,
+        // which is why it is the most expensive unlock: it multiplies gains you already bought.
+        private float PowerIncome => 1f + 0.05f * axisEffectScale * _lv[StPower][0];   // Generators: every sale
         private float PowerSpeed => 1f + 0.03f * axisEffectScale * _lv[StPower][1];    // Turbines: every vehicle
+
+        // MINE — how much ore exists per trip, and how long the train sits inside the mountain loading.
+        // "Dwell" values DIVIDE, so a higher level means a shorter pause. That is why they read inverted.
         private float MineDwell => dwellSeconds / (1f + 0.2f * axisEffectScale * _lv[StMine][1]);
-        private float EffTrainOre => trainOrePerTrip * (1f + 0.25f * axisEffectScale * _lv[StMine][0]) * (ActiveWagons / (float)BaseWagons) * (1f + 0.25f * axisEffectScale * _lv[StTrain][2]) * (_unlocked[UnlockDeepShaft] ? deepShaftBonus : 1f);
+        private float EffTrainOre => trainOrePerTrip
+            * (1f + 0.25f * axisEffectScale * _lv[StMine][0])        // Mine → Richness: ore in the ground
+            * (ActiveWagons / (float)BaseWagons)                     // more wagons = proportionally more cargo
+            * (1f + 0.25f * axisEffectScale * _lv[StTrain][2])       // Train → Wagon Cargo: per-wagon load
+            * (_unlocked[UnlockDeepShaft] ? deepShaftBonus : 1f);
+
+        // TRAIN — the mine→storage leg. Wagons are the one upgrade you can literally count on screen.
         private float EffTrainSpeed => trainSpeed * (1f + 0.15f * axisEffectScale * _lv[StTrain][0]) * (_unlocked[UnlockDepot] ? depotBonus : 1f) * PowerSpeed;
         private int ActiveWagons => Mathf.Min(BaseWagons + _lv[StTrain][1], MaxWagons);
+
+        // STORAGE — the ore yard. EffStorageFull is both the economic buffer and the size of the visible
+        // pile: PileStack widens its grid to match, so buying Capacity enlarges the heap on screen.
         private float EffStorageFull => storageCapacity * (1f + 0.5f * axisEffectScale * _lv[StStorage][0]) * (_unlocked[UnlockWarehouse] ? warehouseBonus : 1f);
         private float StorageDwell => dwellSeconds / (1f + 0.2f * axisEffectScale * _lv[StStorage][1]);
+
+        // ORE TRUCKS — storage→smelter. Count is capped by AxisMaxLv because each truck is a real body
+        // parked in the scene; ApplyFleetStates wakes them one at a time as you buy.
         private int OreTruckCount => OreBaseTrucks + _lv[StOreTrucks][0];
         private float EffOreSpeed => truckSpeed * (1f + 0.15f * axisEffectScale * _lv[StOreTrucks][1]) * PowerSpeed;
         private float EffOreCap => oreTruckCapacity * (1f + 0.30f * axisEffectScale * _lv[StOreTrucks][2]);
+
+        // SMELTER — turns ore into bars at EffSmelt per second. If EffBarCap fills, smelting STOPS until
+        // cargo trucks clear it, so an under-upgraded market throttles the whole chain from the far end.
         private float EffSmelt => smeltPerSecond * (1f + 0.30f * axisEffectScale * _lv[StSmelter][0]) * (_unlocked[UnlockSecondSmelter] ? secondSmelterBonus : 1f);
         private float EffBarCap => barCapacity * (1f + 0.5f * axisEffectScale * _lv[StSmelter][1]);
+
+        // CARGO TRUCKS — smelter→market (or →dock on the export route, which pays exportPriceBonus more).
         private int CargoTruckCount => CargoBaseTrucks + _lv[StCargoTrucks][0];
         private float EffCargoSpeed => truckSpeed * (1f + 0.15f * axisEffectScale * _lv[StCargoTrucks][1]) * PowerSpeed;
         private float EffCargoCap => cargoTruckCapacity * (1f + 0.30f * axisEffectScale * _lv[StCargoTrucks][2]);
+
+        // MARKET — where cash is actually made. valueMultiplier is the island's tier (diamond bars are worth
+        // far more than coal), which is why later islands feel like a different scale of money.
         private float EffBarPrice => barPrice * valueMultiplier * (1f + 0.40f * axisEffectScale * _lv[StMarket][0]) * (_unlocked[UnlockTradePost] ? tradePostBonus : 1f) * PowerIncome;
         private float MarketDwell => dwellSeconds / (1f + 0.2f * axisEffectScale * _lv[StMarket][1]);
 
+        /// <summary>
+        /// One-time setup, and the order matters a lot. Roughly: get services → load saved levels → find
+        /// every landmark by name → move the yards → build the vehicles → build the visible track →
+        /// re-apply everything the player already owns.
+        ///
+        /// Two ordering traps, both of which caused real bugs:
+        /// <list type="bullet">
+        /// <item><see cref="RelocateYards"/> must run BEFORE the piles or the roads are built — both
+        /// measure the pad's final position, and a road built first would point at the old spot.</item>
+        /// <item><see cref="BuildSiteDressing"/> must run AFTER the trains exist, because it reads each
+        /// train's resolved rail path to lay track and place that line's tunnel portal.</item>
+        /// </list>
+        /// If any core landmark is missing this disables itself rather than half-running — a silently
+        /// broken island is far harder to diagnose than one that says why it stopped.
+        /// </summary>
         private void Start()
         {
             _wallet = ServiceLocator.Get<WalletService>();
@@ -471,6 +641,12 @@ namespace Game.Gameplay
 
         private void Update() { if (_ready) Tick(Time.deltaTime); }
 
+        /// <summary>
+        /// One frame of the whole island. The order follows the ore's own journey — trains deliver into
+        /// storage, trucks move it on, the smelter converts what arrived, then the visuals and the income
+        /// meter catch up on the result. Running it in this order means ore delivered this frame can be
+        /// picked up this frame, instead of always lagging one frame behind.
+        /// </summary>
         private void Tick(float dt)
         {
             if (dt <= 0f) return;
@@ -588,34 +764,43 @@ namespace Game.Gameplay
         {
             switch (a.state)
             {
+                // Sitting inside the mountain being filled. Faster with Mine → Load Speed (MineDwell).
                 case TR.LoadMountain:
                     a.timer -= dt;
                     if (a.timer <= 0f)
                     {
-                        a.carry = EffTrainOre;
-                        ShowTrainAt(a, a.path[0], a.path[1]);
-                        SetWagonOre(a, true);
+                        a.carry = EffTrainOre;                      // one trip's worth of ore, decided at load time
+                        ShowTrainAt(a, a.path[0], a.path[1]);       // pop into existence at the railhead, facing storage
+                        SetWagonOre(a, true);                       // show the ore cubes sitting in the wagons
                         a.wp = 1; a.state = TR.Haul;
                     }
                     break;
+
+                // Driving down the rails, visible.
                 case TR.Haul:
                     if (DriveTrain(a, true, dt)) { SetTrainVisible(a, false); a.timer = StorageDwell; a.state = TR.Deposit; }
                     break;
+
+                // Hidden inside the storage shed, tipping ore onto the yard.
                 case TR.Deposit:
                     a.timer -= dt;
                     if (a.timer > 0f) break;
                     double space = EffStorageFull - _storeOre;
                     if (space > 0d)
                     {
-                        double dep = System.Math.Min(space, a.carry);
+                        double dep = System.Math.Min(space, a.carry);   // only as much as the yard can still take
                         _storeOre += dep; a.carry -= dep;
                     }
-                    if (a.carry > 0.01d) break;   // yard full — the train waits inside the shed until trucks make room
+                    // Still holding ore means the yard filled up. Staying in this state keeps the train
+                    // parked in the shed and stops the whole mine — the intended "upgrade Storage" signal.
+                    if (a.carry > 0.01d) break;
                     a.carry = 0d;
-                    ShowTrainAt(a, a.path[a.path.Length - 1], a.path[a.path.Length - 2]);
-                    SetWagonOre(a, false);
+                    ShowTrainAt(a, a.path[a.path.Length - 1], a.path[a.path.Length - 2]);   // reappear facing back
+                    SetWagonOre(a, false);                      // wagons are empty now
                     a.wp = a.path.Length - 2; a.state = TR.Return;
                     break;
+
+                // Driving back up the rails empty, then straight into the next load.
                 case TR.Return:
                     if (DriveTrain(a, false, dt)) { SetTrainVisible(a, false); a.timer = MineDwell; a.state = TR.LoadMountain; }
                     break;
@@ -887,29 +1072,43 @@ namespace Game.Gameplay
             return best;
         }
 
+        /// <summary>
+        /// One frame for one truck. Ore trucks and cargo trucks run identical logic — the only difference
+        /// is which stockpile they draw from and what "dropping" means (tip into the smelter vs. sell).
+        /// The <c>ore</c> flag below picks between the two everywhere.
+        /// </summary>
         private void TruckTick(TruckAgent a, float dt)
         {
             bool ore = a.route == Route.Ore;
-            double avail = ore ? _storeOre : _bars;
+            double avail = ore ? _storeOre : _bars;   // what this truck's pickup pile currently holds
             switch (a.state)
             {
+                // Driving to the pickup. Cargo is taken the instant it arrives, so two trucks can never
+                // load the same ore — whoever gets there first subtracts it from the pile.
                 case TK.ToLoad:
                     if (DriveLoop(a, a.loadIdx, dt))
                     {
                         double take = System.Math.Min(ore ? EffOreCap : EffCargoCap, avail);
-                        if (take <= 0.01d) { a.state = TK.ToIdle; break; }
+                        if (take <= 0.01d) { a.state = TK.ToIdle; break; }   // beaten to it — go park
                         if (ore) _storeOre -= take; else _bars -= take;
-                        a.carry = take; Show(a.load, true);
+                        a.carry = take; Show(a.load, true);                  // show the cargo block on the flatbed
                         a.timer = ore ? StorageDwell : dwellSeconds; a.state = TK.Loading;
                     }
                     break;
+
+                // Paused at the pile being filled.
                 case TK.Loading:
                     a.timer -= dt;
                     if (a.timer <= 0f) a.state = TK.ToDrop;
                     break;
+
+                // Driving the loaded half of the oval to the smelter / market.
                 case TK.ToDrop:
                     if (DriveLoop(a, a.dropIdx, dt)) { a.timer = ore ? dwellSeconds : MarketDwell; a.state = TK.Dropping; }
                     break;
+
+                // Handing the cargo over. For ore that is just a transfer; for bars this is the moment
+                // the player actually gets paid, and the only place cash enters the game.
                 case TK.Dropping:
                     a.timer -= dt;
                     if (a.timer > 0f) break;
@@ -1094,7 +1293,19 @@ namespace Game.Gameplay
             }
         }
 
-        // ---------------- income meter ----------------
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+        //  INCOME METER — the "$ / min" figure in the top bar
+        //
+        //  Money arrives in irregular lumps (one truck selling one load), so a naive rate would jump
+        //  around wildly. Instead this keeps a 60-slot ring buffer, one slot per second, and reports the
+        //  trailing sum. _trailing is maintained incrementally — add the new second, subtract the second
+        //  falling out of the window — so it costs the same no matter how long you play.
+        //
+        //  It is also the value SAVED for offline earnings: an island you are not standing on keeps
+        //  paying out at its last measured rate. That is why it is only persisted once the window is at
+        //  least RateSaveMinSeconds full — saving during the warm-up would bank a misleading spike.
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+
         private void TickIncome(float dt)
         {
             _minAccum += dt;
