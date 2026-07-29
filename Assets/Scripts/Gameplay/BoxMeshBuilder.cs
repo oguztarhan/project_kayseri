@@ -38,6 +38,28 @@ namespace Game.Gameplay
             AddFace(centre - u, r, f, submesh);
         }
 
+        /// <summary>
+        /// Stamps a copy of a source mesh, given its already-extracted arrays. Callers cache those once
+        /// (reading <c>Mesh.vertices</c> allocates a fresh array every time) and hand them in on each
+        /// rebuild, which is what keeps a growing ore pile allocation-free.
+        ///
+        /// Every source submesh is flattened into <paramref name="submesh"/>: these are ore chunks and
+        /// metal bars drawn in one flat per-island tint, so their original material splits carry no
+        /// information worth keeping.
+        /// </summary>
+        public void AddMesh(Vector3[] srcVerts, Vector3[] srcNormals, int[] srcTris,
+                            Vector3 centre, Quaternion rot, float scale, int submesh)
+        {
+            List<int> tris = Tris(submesh);
+            int v0 = _verts.Count;
+            for (int i = 0; i < srcVerts.Length; i++)
+            {
+                _verts.Add(centre + rot * (srcVerts[i] * scale));
+                _norms.Add(srcNormals != null && i < srcNormals.Length ? rot * srcNormals[i] : Vector3.up);
+            }
+            for (int i = 0; i < srcTris.Length; i++) tris.Add(v0 + srcTris[i]);
+        }
+
         /// <summary>An upward-facing disc in the XZ plane — a ground decal, so it has no underside.</summary>
         public void AddDisc(Vector3 centre, float radius, int segments, int submesh)
         {

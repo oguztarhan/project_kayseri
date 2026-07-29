@@ -19,22 +19,30 @@ namespace Game.Gameplay
         private const int Surface = 0, Detail = 1, Metal = 2;
 
         /// <summary>
-        /// A two-lane slab from <paramref name="a"/> to <paramref name="b"/>, overrun at both ends by half
-        /// its width so the truck turnaround happens on tarmac, with a dashed centre line.
+        /// A two-lane slab from <paramref name="a"/> to <paramref name="b"/> with a dashed centre line.
+        ///
+        /// The two overrun values extend the slab past each end. That is wanted where a truck turns around
+        /// in the open, and unwanted where the road meets a building — an overrun there pushes tarmac
+        /// straight through the wall, which is exactly how the roads ended up colliding with the buildings.
+        /// Callers pass 0 for any end that terminates against something solid.
         /// </summary>
         public static GameObject Road(Transform parent, string name, Vector3 a, Vector3 b, float width,
-                                      float topY, Material surface, Material line)
+                                      float topY, float overrunA, float overrunB, Material surface, Material line)
         {
             Vector3 dir = b - a; dir.y = 0f;
             float len = dir.magnitude;
             if (len < 0.01f) return null;
             dir /= len;
             Vector3 right = new Vector3(dir.z, 0f, -dir.x);
-            Vector3 centre = (a + b) * 0.5f; centre.y = topY - 0.06f;
             float half = width * 0.5f;
 
+            // Grow the slab asymmetrically, so its centre shifts toward whichever end is allowed to overrun.
+            Vector3 slabA = a - dir * overrunA, slabB = b + dir * overrunB;
+            Vector3 centre = (slabA + slabB) * 0.5f; centre.y = topY - 0.06f;
+            float slabLen = Vector3.Distance(slabA, slabB);
+
             var mb = new BoxMeshBuilder();
-            mb.AddBox(centre, right, Vector3.up, dir, new Vector3(half, 0.06f, len * 0.5f + half), Surface);
+            mb.AddBox(centre, right, Vector3.up, dir, new Vector3(half, 0.06f, slabLen * 0.5f), Surface);
 
             // Dashes stop short of both ends so the line never runs off the overrun and into the buildings.
             const float dashLen = 2.6f, dashGap = 3.4f;

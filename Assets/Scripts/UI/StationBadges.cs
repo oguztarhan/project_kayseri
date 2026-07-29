@@ -18,13 +18,22 @@ namespace Game.UI
     public sealed class StationBadges : MonoBehaviour
     {
         [SerializeField] private float refreshInterval = 0.2f;
-        [SerializeField] private float cardWidth = 208f;
-        [SerializeField] private float cardHeight = 116f;
+        // Sized so all eight stations can be de-overlapped inside the safe area of a portrait screen:
+        // 8 × (94 + 12) = 848 against roughly 1540 usable reference pixels.
+        [SerializeField] private float cardWidth = 176f;
+        [SerializeField] private float cardHeight = 94f;
         [SerializeField] private float worldYOffset = 5f;      // lift above the building's roof
         [SerializeField] private float pulseSpeed = 3.2f;      // affordable cards breathe
         [SerializeField] private float pulseAmount = 0.045f;
         [SerializeField] private float safeTopPx = 210f;       // keep cards clear of the cash bar
         [SerializeField] private float safeBottomPx = 170f;    // and of the MAP / UPGRADES row
+        // A card centred on its building covers the building. Offsetting it sideways keeps the chain the
+        // player is actually watching — mine, rails, trucks, piles — visible down the middle of the screen.
+        [SerializeField] private float sideOffsetPx = 132f;
+        [SerializeField] private float stackGapPx = 12f;       // clear space between de-overlapped cards
+        // Which side the column of cards sits on. The yards sit to the right of the chain on the authored
+        // islands, so the left is the open side — flip this if you mirror a layout.
+        [SerializeField] private bool badgesOnLeft = true;
 
         private WalletService _wallet;
         private CoalOperation _op;
@@ -119,7 +128,7 @@ namespace Game.UI
             c.bg.color = CardBg;
             c.bg.raycastTarget = false;
 
-            c.title = Label(c.rt, "Title", "", 25, TextAnchor.MiddleCenter);
+            c.title = Label(c.rt, "Title", "", 21, TextAnchor.MiddleCenter);
             c.title.rectTransform.anchorMin = new Vector2(0f, 0.52f);
             c.title.rectTransform.anchorMax = new Vector2(1f, 1f);
             c.title.rectTransform.offsetMin = Vector2.zero; c.title.rectTransform.offsetMax = Vector2.zero;
@@ -137,7 +146,7 @@ namespace Game.UI
             c.btn = btnGO.GetComponent<Button>();
             c.btn.onClick.AddListener(() => OnBuy(captured));
 
-            c.cost = Label(brt, "Cost", "", 26, TextAnchor.MiddleCenter);
+            c.cost = Label(brt, "Cost", "", 23, TextAnchor.MiddleCenter);
             return c;
         }
 
@@ -206,29 +215,92 @@ namespace Game.UI
             Refresh();
         }
 
+        // Scratch buffers for the layout pass, allocated once — Position runs every frame.
+        private int[] _order;
+        private float[] _wantX, _wantY;
+
+        /// <summary>
+        /// Places every visible card, in three steps: project its building to screen space and push the
+        /// card to one side of it, resolve cards that would sit on top of each other, then apply.
+        ///
+        /// The de-overlap matters more than it sounds. Eight stations on a chain that runs down a portrait
+        /// screen put every card in the same narrow column, so without this they stack into one unreadable
+        /// pile that hides the mine, the rails and the tunnel completely.
+        /// </summary>
         private void Position()
         {
             float sf = _canvas != null && _canvas.scaleFactor > 0.0001f ? _canvas.scaleFactor : 1f;
             float pulse = 1f + Mathf.Sin(Time.unscaledTime * pulseSpeed) * pulseAmount;
+            float refW = Screen.width / sf, refH = Screen.height / sf;
+            float halfW = cardWidth * 0.5f;
+            float ceilY = refH - cardHeight - safeTopPx;
+
+            if (_order == null || _order.Length != _cards.Length)
+            {
+                _order = new int[_cards.Length];
+                _wantX = new float[_cards.Length];
+                _wantY = new float[_cards.Length];
+            }
+
+            int live = 0;
             for (int i = 0; i < _cards.Length; i++)
             {
                 Card c = _cards[i];
-                if (!c.hasAnchor) { if (c.rt.gameObject.activeSelf) c.rt.gameObject.SetActive(false); continue; }
+                if (!c.hasAnchor) { SetShown(c, false); continue; }
 
                 Vector3 sp = _cam.WorldToScreenPoint(c.anchor);
                 bool visible = sp.z > 0f
                                && sp.x > -cardWidth * sf && sp.x < Screen.width + cardWidth * sf
                                && sp.y > -cardHeight * sf && sp.y < Screen.height + cardHeight * sf;
-                if (c.rt.gameObject.activeSelf != visible) c.rt.gameObject.SetActive(visible);
+                SetShown(c, visible);
                 if (!visible) continue;
 
-                // Keep the whole card on screen when its building sits near an edge — a half-clipped
-                // price is worse than a card that leans in a little.
-                float halfW = cardWidth * 0.5f;
-                float refW = Screen.width / sf, refH = Screen.height / sf;
-                float px = Mathf.Clamp(sp.x / sf, halfW + 8f, refW - halfW - 8f);
-                float py = Mathf.Clamp(sp.y / sf, safeBottomPx, refH - cardHeight - safeTopPx);
-                c.rt.anchoredPosition = new Vector2(px, py);
+                // Push the card to one consistent side of its building. Picking the side by screen centre
+                // instead made the column zigzag across the chain, which put cards straight onto the ore
+                // and bar yards — the two things a player most wants to watch. Only swing to the far side
+                // when the preferred one would run off the edge.
+                float x = sp.x / sf;
+                float lean = badgesOnLeft ? -sideOffsetPx : sideOffsetPx;
+                float want = x + lean;
+                if (want - halfW < 8f || want + halfW > refW - 8f) want = x - lean;
+                _wantX[i] = Mathf.Clamp(want, halfW + 8f, refW - halfW - 8f);
+                _wantY[i] = Mathf.Clamp(sp.y / sf, safeBottomPx, ceilY);
+                _order[live++] = i;
+            }
+
+            // Sort bottom-to-top. Insertion sort: live is at most 8, and it allocates nothing.
+            for (int a = 1; a < live; a++)
+            {
+                int key = _order[a], b = a - 1;
+                while (b >= 0 && _wantY[_order[b]] > _wantY[key]) { _order[b + 1] = _order[b]; b--; }
+                _order[b + 1] = key;
+            }
+
+            // Lift any card that would land on the one below it. Cards far enough apart horizontally are
+            // left alone — two stations side by side on screen don't need separating.
+            float minGap = cardHeight + stackGapPx;
+            for (int a = 1; a < live; a++)
+            {
+                int cur = _order[a], below = _order[a - 1];
+                if (Mathf.Abs(_wantX[cur] - _wantX[below]) > cardWidth) continue;
+                float floorY = _wantY[below] + minGap;
+                if (_wantY[cur] < floorY) _wantY[cur] = floorY;
+            }
+
+            // Lifting can push the top card under the cash bar; slide the whole stack back down if so.
+            if (live > 0)
+            {
+                float overshoot = _wantY[_order[live - 1]] - ceilY;
+                if (overshoot > 0f)
+                    for (int a = 0; a < live; a++)
+                        _wantY[_order[a]] = Mathf.Max(safeBottomPx, _wantY[_order[a]] - overshoot);
+            }
+
+            for (int a = 0; a < live; a++)
+            {
+                int i = _order[a];
+                Card c = _cards[i];
+                c.rt.anchoredPosition = new Vector2(_wantX[i], _wantY[i]);
                 float s = c.affordable ? pulse : 1f;
                 if (c.punch > 0f)
                 {
@@ -237,6 +309,11 @@ namespace Game.UI
                 }
                 c.rt.localScale = new Vector3(s, s, 1f);
             }
+        }
+
+        private static void SetShown(Card c, bool on)
+        {
+            if (c.rt.gameObject.activeSelf != on) c.rt.gameObject.SetActive(on);
         }
 
         private void Refresh()

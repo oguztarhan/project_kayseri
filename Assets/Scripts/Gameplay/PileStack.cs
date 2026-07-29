@@ -28,7 +28,13 @@ namespace Game.Gameplay
         private Vector3[] _slots = new Vector3[0];   // pyramid positions, ordered so the heap grows as a cone
         private int _grid = -1, _shown = -1;
 
-        public PileStack(Transform pad, Material mat, float unitsPerChunk, string name)
+        // Real ore/product geometry, extracted once. Null falls back to plain boxes, which is what the
+        // piles looked like before: readable, but unmistakably placeholder cubes.
+        private readonly Vector3[] _srcVerts, _srcNormals;
+        private readonly int[] _srcTris;
+        private readonly float _srcFit;   // scale that makes one source mesh fill one grid cell
+
+        public PileStack(Transform pad, Material mat, float unitsPerChunk, string name, Mesh chunkMesh = null)
         {
             var pr = pad.GetComponentInChildren<Renderer>();
             Vector3 size = pr != null ? pr.bounds.size : new Vector3(8f, 1f, 8f);
@@ -48,6 +54,16 @@ namespace Game.Gameplay
             _renderer = go.AddComponent<MeshRenderer>();
             _renderer.sharedMaterial = mat;
             _renderer.enabled = false;
+
+            if (chunkMesh != null)
+            {
+                _srcVerts = chunkMesh.vertices;
+                _srcNormals = chunkMesh.normals;
+                _srcTris = chunkMesh.triangles;       // flattened across submeshes by Mesh.triangles
+                Vector3 ext = chunkMesh.bounds.size;
+                float widest = Mathf.Max(0.001f, Mathf.Max(ext.x, Mathf.Max(ext.y, ext.z)));
+                _srcFit = _cell * 0.95f / widest;     // one chunk ≈ one cell, whatever the asset's own scale
+            }
         }
 
         public void Set(double amount, double capacity)
@@ -72,10 +88,19 @@ namespace Game.Gameplay
             {
                 // A per-chunk yaw derived from the slot index keeps the stack from reading as a pixel grid
                 // without needing any stored state.
-                float yaw = (i * 47 % 90) * Mathf.Deg2Rad;
-                Vector3 right = new Vector3(Mathf.Cos(yaw), 0f, -Mathf.Sin(yaw));
-                Vector3 fwd = new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw));
-                _builder.AddBox(_slots[i], right, Vector3.up, fwd, new Vector3(half, half * 0.8f, half), 0);
+                float yawDeg = i * 47 % 90;
+                float yaw = yawDeg * Mathf.Deg2Rad;
+                if (_srcVerts != null)
+                {
+                    _builder.AddMesh(_srcVerts, _srcNormals, _srcTris, _slots[i],
+                                     Quaternion.Euler(0f, yawDeg, 0f), _srcFit, 0);
+                }
+                else
+                {
+                    Vector3 right = new Vector3(Mathf.Cos(yaw), 0f, -Mathf.Sin(yaw));
+                    Vector3 fwd = new Vector3(Mathf.Sin(yaw), 0f, Mathf.Cos(yaw));
+                    _builder.AddBox(_slots[i], right, Vector3.up, fwd, new Vector3(half, half * 0.8f, half), 0);
+                }
             }
             _builder.Apply(_mesh);
             _renderer.enabled = true;
