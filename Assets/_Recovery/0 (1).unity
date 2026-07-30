@@ -808,9 +808,6 @@ GameObject:
   - component: {fileID: 2135659113}
   - component: {fileID: 2135659114}
   - component: {fileID: 2135659115}
-  - component: {fileID: 2135659118}
-  - component: {fileID: 2135659117}
-  - component: {fileID: 2135659116}
   m_Layer: 0
   m_Name: CoalController
   m_TagString: Untagged
@@ -875,8 +872,6 @@ MonoBehaviour:
   siteSpread: 1.35
   groundScale: 1.7
   railSeparation: 11
-  routeClearance: 4
-  tidyGap: 5
   generateTrack: 1
   roadWidth: 9
   yardOffset: 12
@@ -900,8 +895,7 @@ MonoBehaviour:
   powerPrefab: {fileID: 919132149155446097, guid: 3d1c495e0a39cb14c8689338139d6efe, type: 3}
   shaftPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   expansionScale: 2.6
-  expansionGap: 6
-  landInset: 0.78
+  expansionClearance: 13
   oreChunkPrefab: {fileID: 919132149155446097, guid: dcd8d364a8694fd4d8f55e6d388e8941, type: 3}
   barChunkPrefab: {fileID: 919132149155446097, guid: 67ddaa72f0492794cbf6ba5184898ffa, type: 3}
   workerPrefab: {fileID: 919132149155446097, guid: b95dd27e3bebbb24aa5970737fb36a44, type: 3}
@@ -1055,8 +1049,6 @@ MonoBehaviour:
   siteSpread: 1.35
   groundScale: 1.7
   railSeparation: 11
-  routeClearance: 4
-  tidyGap: 5
   generateTrack: 1
   roadWidth: 9
   yardOffset: 12
@@ -1080,8 +1072,7 @@ MonoBehaviour:
   powerPrefab: {fileID: 919132149155446097, guid: 3d1c495e0a39cb14c8689338139d6efe, type: 3}
   shaftPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   expansionScale: 2.6
-  expansionGap: 6
-  landInset: 0.78
+  expansionClearance: 13
   oreChunkPrefab: {fileID: 919132149155446097, guid: a0dc957b4d5911549913bc4273f7a8da, type: 3}
   barChunkPrefab: {fileID: 919132149155446097, guid: dcfd4a51062b863469b48835fc50f98f, type: 3}
   workerPrefab: {fileID: 919132149155446097, guid: b95dd27e3bebbb24aa5970737fb36a44, type: 3}
@@ -1156,8 +1147,6 @@ MonoBehaviour:
   siteSpread: 1.35
   groundScale: 1.7
   railSeparation: 11
-  routeClearance: 4
-  tidyGap: 5
   generateTrack: 1
   roadWidth: 9
   yardOffset: 12
@@ -1181,8 +1170,7 @@ MonoBehaviour:
   powerPrefab: {fileID: 919132149155446097, guid: 3d1c495e0a39cb14c8689338139d6efe, type: 3}
   shaftPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   expansionScale: 2.6
-  expansionGap: 6
-  landInset: 0.78
+  expansionClearance: 13
   oreChunkPrefab: {fileID: 919132149155446097, guid: a0dc957b4d5911549913bc4273f7a8da, type: 3}
   barChunkPrefab: {fileID: 919132149155446097, guid: 0e83d8d78b69548469f6f79af4f5cb3b, type: 3}
   workerPrefab: {fileID: 919132149155446097, guid: b95dd27e3bebbb24aa5970737fb36a44, type: 3}
@@ -1257,8 +1245,6 @@ MonoBehaviour:
   siteSpread: 1.35
   groundScale: 1.7
   railSeparation: 11
-  routeClearance: 4
-  tidyGap: 5
   generateTrack: 1
   roadWidth: 9
   yardOffset: 12
@@ -1282,8 +1268,7 @@ MonoBehaviour:
   powerPrefab: {fileID: 919132149155446097, guid: 3d1c495e0a39cb14c8689338139d6efe, type: 3}
   shaftPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   expansionScale: 2.6
-  expansionGap: 6
-  landInset: 0.78
+  expansionClearance: 13
   oreChunkPrefab: {fileID: 919132149155446097, guid: a0dc957b4d5911549913bc4273f7a8da, type: 3}
   barChunkPrefab: {fileID: 919132149155446097, guid: 0e83d8d78b69548469f6f79af4f5cb3b, type: 3}
   workerPrefab: {fileID: 919132149155446097, guid: b95dd27e3bebbb24aa5970737fb36a44, type: 3}
@@ -1358,8 +1343,6 @@ MonoBehaviour:
   siteSpread: 1.35
   groundScale: 1.7
   railSeparation: 11
-  routeClearance: 4
-  tidyGap: 5
   generateTrack: 1
   roadWidth: 9
   yardOffset: 12
@@ -1383,8 +1366,7 @@ MonoBehaviour:
   powerPrefab: {fileID: 919132149155446097, guid: 3d1c495e0a39cb14c8689338139d6efe, type: 3}
   shaftPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   expansionScale: 2.6
-  expansionGap: 6
-  landInset: 0.78
+  expansionClearance: 13
   oreChunkPrefab: {fileID: 919132149155446097, guid: dcd8d364a8694fd4d8f55e6d388e8941, type: 3}
   barChunkPrefab: {fileID: 919132149155446097, guid: db706737f53ed0343a4277a0530d8a58, type: 3}
   workerPrefab: {fileID: 919132149155446097, guid: b95dd27e3bebbb24aa5970737fb36a44, type: 3}
@@ -1459,8 +1441,6 @@ MonoBehaviour:
   siteSpread: 1.35
   groundScale: 1.7
   railSeparation: 11
-  routeClearance: 4
-  tidyGap: 5
   generateTrack: 1
   roadWidth: 9
   yardOffset: 12
@@ -1484,8 +1464,7 @@ MonoBehaviour:
   powerPrefab: {fileID: 919132149155446097, guid: 3d1c495e0a39cb14c8689338139d6efe, type: 3}
   shaftPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   expansionScale: 2.6
-  expansionGap: 6
-  landInset: 0.78
+  expansionClearance: 13
   oreChunkPrefab: {fileID: 919132149155446097, guid: dcd8d364a8694fd4d8f55e6d388e8941, type: 3}
   barChunkPrefab: {fileID: 919132149155446097, guid: db706737f53ed0343a4277a0530d8a58, type: 3}
   workerPrefab: {fileID: 919132149155446097, guid: b95dd27e3bebbb24aa5970737fb36a44, type: 3}
@@ -1560,8 +1539,6 @@ MonoBehaviour:
   siteSpread: 1.35
   groundScale: 1.7
   railSeparation: 11
-  routeClearance: 4
-  tidyGap: 5
   generateTrack: 1
   roadWidth: 9
   yardOffset: 12
@@ -1585,8 +1562,7 @@ MonoBehaviour:
   powerPrefab: {fileID: 919132149155446097, guid: 3d1c495e0a39cb14c8689338139d6efe, type: 3}
   shaftPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   expansionScale: 2.6
-  expansionGap: 6
-  landInset: 0.78
+  expansionClearance: 13
   oreChunkPrefab: {fileID: 919132149155446097, guid: dcd8d364a8694fd4d8f55e6d388e8941, type: 3}
   barChunkPrefab: {fileID: 919132149155446097, guid: db706737f53ed0343a4277a0530d8a58, type: 3}
   workerPrefab: {fileID: 919132149155446097, guid: b95dd27e3bebbb24aa5970737fb36a44, type: 3}
@@ -1661,8 +1637,6 @@ MonoBehaviour:
   siteSpread: 1.35
   groundScale: 1.7
   railSeparation: 11
-  routeClearance: 4
-  tidyGap: 5
   generateTrack: 1
   roadWidth: 9
   yardOffset: 12
@@ -1686,8 +1660,7 @@ MonoBehaviour:
   powerPrefab: {fileID: 919132149155446097, guid: 3d1c495e0a39cb14c8689338139d6efe, type: 3}
   shaftPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   expansionScale: 2.6
-  expansionGap: 6
-  landInset: 0.78
+  expansionClearance: 13
   oreChunkPrefab: {fileID: 919132149155446097, guid: dcd8d364a8694fd4d8f55e6d388e8941, type: 3}
   barChunkPrefab: {fileID: 919132149155446097, guid: db706737f53ed0343a4277a0530d8a58, type: 3}
   workerPrefab: {fileID: 919132149155446097, guid: b95dd27e3bebbb24aa5970737fb36a44, type: 3}
@@ -1723,7 +1696,7 @@ MonoBehaviour:
   worldYOffset: 5
   pulseSpeed: 3.2
   pulseAmount: 0.045
-  safeTopPx: 470
+  safeTopPx: 210
   safeBottomPx: 170
   sideOffsetPx: 132
   stackGapPx: 12
@@ -1766,48 +1739,6 @@ MonoBehaviour:
   coinsPerPop: 3
   coinSeconds: 0.65
   coinSize: 54
---- !u!114 &2135659116
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2135659099}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 09ba2496b6eb64648ad4db48bfed21b1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.UI::Game.UI.PrestigeUI
-  mainSceneName: Main
---- !u!114 &2135659117
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2135659099}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4cf50bdb787ba6f47b28103c785b4c6f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.UI::Game.UI.WelcomeBackUI
-  appearDelay: 0.6
---- !u!114 &2135659118
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2135659099}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ef473ce179cee4d4a8aff4d6616dce7f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.UI::Game.UI.MetaHud
-  refreshInterval: 0.15
-  boostMultiplier: 2
-  boostSeconds: 30
-  boostGemCost: 1
 --- !u!33 &1358364995091767
 MeshFilter:
   m_ObjectHideFlags: 0

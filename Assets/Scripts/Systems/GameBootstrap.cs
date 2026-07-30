@@ -17,6 +17,7 @@ namespace Game.Systems
         [SerializeField] private OfflineConfig offlineConfig;
         [SerializeField] private PrestigeConfig prestigeConfig;
         [SerializeField] private DailyRewardConfig dailyConfig;
+        [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
         [SerializeField] private JuiceConfig juiceConfig;
@@ -97,6 +98,10 @@ namespace Game.Systems
 
             ServiceLocator.Register(new BoostService());
             ServiceLocator.Register(new DailyRewardService(Data, _time, dailyConfig != null ? dailyConfig.RewardGems : 5L));
+            ServiceLocator.Register(contractConfig != null
+                ? new ContractService(Wallet, contractConfig.TargetUnits, contractConfig.TimeLimitSeconds,
+                                      contractConfig.RewardCash, contractConfig.RewardGems)
+                : new ContractService(Wallet, 100d, 60f, 500d, 2L));
 
             Offline = new OfflineReport();
             ServiceLocator.Register(Offline);

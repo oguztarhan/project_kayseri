@@ -126,6 +126,8 @@ namespace Game.Gameplay
         [SerializeField] private float siteSpread = 1.35f;       // push landmarks out from the site centre
         [SerializeField] private float groundScale = 1.7f;       // grow isle/lagoon so the spread stays on land
         [SerializeField] private float railSeparation = 11f;     // side-by-side gap where rail lines reach storage
+        [SerializeField] private float routeClearance = 4f;      // gap a building keeps off a road or rail centreline
+        [SerializeField] private float tidyGap = 5f;             // gap TidySite opens between two overlapping buildings
 
         [Header("Site dressing")]
         // The islands ship with painted road and rail, but it was authored against a layout the sim no
@@ -161,7 +163,11 @@ namespace Game.Gameplay
         [SerializeField] private GameObject powerPrefab;
         [SerializeField] private GameObject shaftPrefab;
         [SerializeField] private float expansionScale = 2.6f;
-        [SerializeField] private float expansionClearance = 13f;   // keep new buildings off the existing ones
+        // Renamed from expansionClearance, which measured pivot to pivot and so let a small building sit
+        // inside a large one. This is the gap left between the two FOOTPRINTS, so it means the same thing
+        // whatever the buildings' sizes — and needs to be far smaller than the old number.
+        [SerializeField] private float expansionGap = 6f;
+        [SerializeField] private float landInset = 0.78f;   // how far out toward the shoreline a shoved building may go
 
         [Header("Yard contents")]
         // What a single unit of stock looks like on the yard. Leave empty and the piles fall back to plain
@@ -302,6 +308,30 @@ namespace Game.Gameplay
         // Which arrival bay each mine's line uses at the shed, ordered left-to-right across the approach.
         private readonly Dictionary<Transform, int> _railLanes = new Dictionary<Transform, int>();
         private int _railLaneCount;
+
+        /// <summary>
+        /// One planned centreline between two landmarks. Roads carry a <see cref="roadName"/> and get
+        /// tarmac drawn along them; rail legs are keep-clear corridors only, since the rail geometry is
+        /// built from the train's own path.
+        ///
+        /// The endpoints are held as Transforms rather than positions because the site is still being
+        /// arranged while the plan is in use — <see cref="TidySite"/> moves things after the legs are
+        /// planned, and reading the position on demand means a leg can never go stale.
+        /// </summary>
+        private sealed class RouteLeg
+        {
+            public Transform a, b;
+            public Vector3 bOffset;  // rail lines stop at an arrival bay beside the shed, not on its pivot
+            public float clear;      // half-width plus the margin a building has to keep off the line
+            public string roadName;  // null on rail corridors
+
+            public Vector3 A { get { return new Vector3(a.position.x, 0f, a.position.z); } }
+            public Vector3 B { get { return new Vector3(b.position.x + bOffset.x, 0f, b.position.z + bOffset.z); } }
+        }
+        private readonly List<RouteLeg> _legs = new List<RouteLeg>();
+        private Transform _exportBend;   // waypoint the export run swings around the market on
+        private Vector3 _landCentre;     // island footprint, inset — the area a shoved building may use
+        private float _landHalfX, _landHalfZ;
 
         // ---- upgrade feedback (station → the building that grows when you buy on it) ----
         private Transform[] _stationBody;
@@ -490,6 +520,16 @@ namespace Game.Gameplay
             return mf != null ? mf.sharedMesh : null;
         }
 
+        /// <summary>
+        /// Radius of a circle that fully contains a footprint — half the diagonal, not half the longest
+        /// side. Two boxes can clear each other's longest side and still overlap at the corners, which is
+        /// where the last stubborn metre of building-inside-building kept coming from.
+        /// </summary>
+        private static float FootprintRadius(Bounds b)
+        {
+            return new Vector2(b.size.x, b.size.z).magnitude * 0.5f;
+        }
+
         /// <summary>Union of every renderer under <paramref name="t"/>, or a zero box at its pivot.</summary>
         private static Bounds WorldBounds(Transform t)
         {
@@ -674,20 +714,47 @@ namespace Game.Gameplay
             var ghostRend = _ghostMarket != null ? _ghostMarket.GetComponentInChildren<Renderer>() : null;
             _ghostMat = ghostRend != null ? ghostRend.sharedMaterial : MakeMat(null, new Color(1f, 1f, 1f, 0.35f));
 
+            MeasureLand();   // after the spread grew the ground: every shove below is clamped to it
+
+            // The route plan comes first and is then read by everything that places geometry. Rails are
+            // planned before the yards move, because a yard picks which side of its building to sit on
+            // partly by which side keeps it off the track.
+            PlanRails();
             RelocateYards();   // before anything measures a yard: the roads and the heaps both key off it
+            PlanRoads();       // needs the final yard positions
 
             // After the yards move (so expansions never land on one) and before the dock / fourth-mine
             // lookups, which resolve buildings this may have just created.
             SpawnExpansions();
             _dock = Child(_islandRoot, "ghostx_dock");
             _mine4 = Child(_islandRoot, "ghostx_mine4");
+            // Buildings grow with the levels already bought — by up to a fifth — so they have to reach
+            // their real size BEFORE anything measures them. Settling the layout first and inflating the
+            // buildings afterwards is what left the depot clipping the track on a well-developed island.
+            CacheStationBodies();
+            ApplyStationScale();
+
+            // Placement settles by alternating two things that each depend on the other: where the
+            // buildings stand, and where the rail lines run between them. Settling with the mines free
+            // moves them; moving a mine re-orders the arrival bays, which moves its line; the moved line
+            // then pushes on the buildings again. Three rounds is enough for that to come to rest on
+            // every island. The last pass pins the mines so the paths built afterwards land exactly on
+            // the corridors that were kept clear.
+            for (int stage = 0; stage < 3; stage++)
+            {
+                TidySite(false);
+                AssignRailLanes();
+                ReplanRails();
+            }
+            TidySite(true);
 
             // A level-0 yard reads as ten chunks; a fully upgraded one needs the widest grid to hold what
             // it can now store, which is the whole point of buying Capacity.
             _oreYard = new PileStack(_orePile, _oreMat, storageCapacity / 10f, "OpOreHeap", MeshOf(oreChunkPrefab));
             _barYard = new PileStack(_refinedPile, _barMat, barCapacity / 10f, "OpBarHeap", MeshOf(barChunkPrefab));
 
-            AssignRailLanes();       // before any rail path is built — they all read the lane table
+            // Lanes were assigned above, between the two placement passes, and the mines have been pinned
+            // ever since — so the paths built here land exactly on the corridors that were kept clear.
             _train1 = BuildTrain(engine, _mountain);
             _train1.active = true;
             // "ghost_mine (1)" sits at the head of the second (already-laid) rail line; "ghost_mine" at the
@@ -700,7 +767,6 @@ namespace Game.Gameplay
             BuildUnlockRegistry();
             BuildSiteDressing();     // needs the rail paths the trains just resolved
             BuildSiteLife();
-            CacheStationBodies();
             ApplyFleetStates();
             for (int u = 0; u < _unlocked.Length; u++) if (_unlocked[u]) ApplyUnlock(u);
             ApplyStationScale();     // show the levels already bought, without the purchase pop
@@ -851,22 +917,30 @@ namespace Game.Gameplay
             _railLaneCount = present.Count;
         }
 
+        /// <summary>
+        /// Where a mine's line meets the shed, relative to the shed's pivot.
+        ///
+        /// Every mine hauls to the same building, so aiming all of them at its pivot drew four lines
+        /// converging on one point — the single worst knot on the map. Each gets its own bay instead, and
+        /// the bays are ordered by where the mine actually sits across the approach, so the leftmost mine
+        /// gets the leftmost bay. Numbering them in construction order made the lines swap sides and
+        /// cross in an X right in front of the shed.
+        ///
+        /// The route plan reads this too, so the keep-clear corridor sits over the track rather than over
+        /// the shed's pivot — with four mines the outermost bay is a good 16 m away from it.
+        /// </summary>
+        private Vector3 RailBay(Transform mountain)
+        {
+            int lane;
+            if (_railLaneCount <= 1 || !_railLanes.TryGetValue(mountain, out lane)) return Vector3.zero;
+            Vector3 axis = Flat(_storage.position - _mountain.position).normalized;
+            Vector3 side = new Vector3(-axis.z, 0f, axis.x);
+            return side * (railSeparation * (lane - (_railLaneCount - 1) * 0.5f));
+        }
+
         private Vector3[] BuildRailPath(Transform mountain, Transform storage)
         {
-            Vector3 a = mountain.position, b = storage.position;
-            // Every mine hauls to the same shed, so aiming all of them at its pivot drew three lines
-            // crossing into one point — the single worst knot on the map. Give each line its own bay,
-            // offset sideways from the shed, so they run in parallel and arrive side by side.
-            int lane;
-            if (_railLaneCount > 1 && _railLanes.TryGetValue(mountain, out lane))
-            {
-                // Bays are ordered by where each mine actually sits across the approach, so the leftmost
-                // mine gets the leftmost bay. Numbering them in construction order instead made the lines
-                // swap sides and cross in an X right in front of the shed.
-                Vector3 axis = Flat(_storage.position - _mountain.position).normalized;
-                Vector3 side = new Vector3(-axis.z, 0f, axis.x);
-                b += side * (railSeparation * (lane - (_railLaneCount - 1) * 0.5f));
-            }
+            Vector3 a = mountain.position, b = storage.position + RailBay(mountain);
             float len = Flat(b - a).magnitude;
             int n = Mathf.Clamp(Mathf.RoundToInt(len / 6f), 1, 16);
             var path = new Vector3[n + 1];
@@ -1152,34 +1226,57 @@ namespace Game.Gameplay
         private List<List<Vector3>> BuildRoadLoops()
         {
             var loops = new List<List<Vector3>>();
-            loops.Add(RouteLoop(_orePile, _refinery));                       // Route.Ore
-            loops.Add(RouteLoop(_refinedPile, _market));                     // Route.Market
-            if (_dock != null) loops.Add(RouteLoop(_refinedPile, _dock));    // Route.Export
+            loops.Add(RouteLoop(_orePile, null, _refinery));                 // Route.Ore
+            loops.Add(RouteLoop(_refinedPile, null, _market));               // Route.Market
+            // Export bends around the market rather than driving through it — see SpawnExpansions.
+            if (_dock != null) loops.Add(RouteLoop(_refinedPile, _exportBend, _dock));   // Route.Export
             return loops;
         }
 
-        private List<Vector3> RouteLoop(Transform from, Transform to)
+        /// <summary>
+        /// An out-and-back driving loop between two buildings, optionally bending around a waypoint.
+        ///
+        /// The export run is the one that needs the bend: the dock sits beyond the market on the same
+        /// axis, so a straight line from the refined yard runs through the market building — and the road
+        /// drawn along that line did exactly that. Routing via a waypoint set off to the market's side
+        /// keeps both the trucks and the tarmac outside the walls.
+        /// </summary>
+        private List<Vector3> RouteLoop(Transform from, Transform via, Transform to)
         {
+            var outbound = new List<Vector3>();
+            var back = new List<Vector3>();
+            if (via == null) LoopRun(outbound, back, from, to);
+            else { LoopRun(outbound, back, from, via); LoopRun(outbound, back, via, to); }
+
             var path = new List<Vector3>();
-            if (from == null || to == null) return path;
+            if (outbound.Count < 2) return path;
+            path.AddRange(outbound);
+            for (int i = back.Count - 1; i >= 0; i--) path.Add(back[i]);   // return lane, other way round
+            return path;
+        }
+
+        /// <summary>One straight run of a loop: appends its outbound points and its return points.</summary>
+        private void LoopRun(List<Vector3> outbound, List<Vector3> back, Transform from, Transform to)
+        {
+            if (from == null || to == null) return;
             Vector3 a = from.position, b = to.position;
             a.y = b.y = _deckY;
             Vector3 dir = b - a; dir.y = 0f;
             float len = dir.magnitude;
-            if (len < 0.01f) return path;
+            if (len < 0.01f) return;
             dir /= len;
             // Pull both ends back to the buildings' walls. Driving to the pivot means driving INTO the
             // building — and the generated road stops at the wall too, so an un-inset route would also
-            // leave trucks running along bare ground for the last few metres.
+            // leave trucks running along bare ground for the last few metres. A bare waypoint has no
+            // walls, so StopInset returns 0 there and the two runs meet exactly on it.
             a += dir * StopInset(from, dir);
             b -= dir * StopInset(to, dir);
             len = Flat(b - a).magnitude;
-            if (len < 1f) return path;
+            if (len < 1f) return;
             Vector3 side = new Vector3(-dir.z, 0f, dir.x) * (routeLaneWidth * 0.5f);
             int n = Mathf.Clamp(Mathf.RoundToInt(len / 4f), 2, 24);
-            for (int i = 0; i <= n; i++) path.Add(Vector3.Lerp(a, b, i / (float)n) + side);   // outbound lane
-            for (int i = n; i >= 0; i--) path.Add(Vector3.Lerp(a, b, i / (float)n) - side);   // return lane
-            return path;
+            for (int i = 0; i <= n; i++) outbound.Add(Vector3.Lerp(a, b, i / (float)n) + side);
+            for (int i = 0; i <= n; i++) back.Add(Vector3.Lerp(a, b, i / (float)n) - side);
         }
 
         private static int NearestLoop(List<List<Vector3>> loops, Vector3 p)
@@ -1526,6 +1623,129 @@ namespace Game.Gameplay
         }
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
+        //  ROUTE PLAN
+        //
+        //  Every road and rail line is planned here BEFORE any building is placed, so the expansions and
+        //  the tidy pass can both be told to keep off them. The corridor test used to read the trains'
+        //  paths instead — but those are not built until much later in Start, so it was testing against
+        //  four null agents and never rejected anything. That is how buildings ended up on the track.
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Measures the ground the site may be arranged on, so the outward shoves have somewhere to stop.
+        /// Without it a building with nowhere to go simply kept walking, and the power plant ended up
+        /// standing in the sea off the north shore.
+        /// </summary>
+        private void MeasureLand()
+        {
+            foreach (Transform t in _islandRoot)
+            {
+                if (!t.name.StartsWith("isle_")) continue;
+                Bounds b = WorldBounds(t);
+                _landCentre = new Vector3(b.center.x, 0f, b.center.z);
+                _landHalfX = b.extents.x * landInset;
+                _landHalfZ = b.extents.z * landInset;
+                return;
+            }
+        }
+
+        /// <summary>
+        /// True if a point is still comfortably inland. Tested as an ellipse rather than the mesh's
+        /// bounding box, because the island meshes are rounded — the box corners are open water.
+        /// </summary>
+        private bool OnLand(Vector3 p)
+        {
+            if (_landHalfX <= 0.01f || _landHalfZ <= 0.01f) return true;   // no island mesh: don't constrain
+            Vector3 d = Flat(p - _landCentre);
+            float nx = d.x / _landHalfX, nz = d.z / _landHalfZ;
+            return nx * nx + nz * nz <= 1f;
+        }
+
+        /// <summary>The rail corridors, one per mine that exists before the expansions are spawned.</summary>
+        private void PlanRails()
+        {
+            AddRailLeg(_mountain);
+            AddRailLeg(_ghostMine2);
+            AddRailLeg(_ghostMine);
+        }
+
+        /// <summary>
+        /// Reserves the corridor a mine's rail line runs down. Called before the arrival bays are handed
+        /// out, so it reserves the whole spread of bays rather than one line — a mine's bay still shifts
+        /// by up to half the separation once the fourth mine joins the ordering.
+        /// </summary>
+        private void AddRailLeg(Transform mine)
+        {
+            if (mine == null || _storage == null) return;
+            _legs.Add(new RouteLeg { a = mine, b = _storage, clear = railSeparation * 0.5f + routeClearance });
+        }
+
+        /// <summary>
+        /// Replaces the provisional rail corridors with the real ones, once the arrival bays are known.
+        ///
+        /// Until the bays are handed out a corridor can only guess where its line will end up, so it
+        /// reserves a wide approximate band. That band is both too wide along most of the run and — with
+        /// four mines fanning out to ±16 m at the shed — too narrow at the end that matters. Re-planned
+        /// against the actual centreline, a corridor is exactly as wide as the ballast plus its margin.
+        /// </summary>
+        private void ReplanRails()
+        {
+            for (int i = _legs.Count - 1; i >= 0; i--) if (_legs[i].roadName == null) _legs.RemoveAt(i);
+
+            Transform[] mines = { _mountain, _ghostMine2, _ghostMine, _mine4 };
+            for (int i = 0; i < mines.Length; i++)
+            {
+                if (mines[i] == null) continue;
+                _legs.Add(new RouteLeg
+                {
+                    a = mines[i], b = _storage, bOffset = RailBay(mines[i]),
+                    clear = 2.1f + routeClearance   // 2.1 is the ballast half-width RouteMesh.Rail lays
+                });
+            }
+        }
+
+        /// <summary>
+        /// The haul roads, which are the truck routes made visible — so this list has to stay in step with
+        /// <see cref="BuildRoadLoops"/>, or trucks drive on bare ground again. The two yard spurs are not
+        /// driven by anything; they are there so a pile reads as belonging to the building beside it.
+        /// </summary>
+        private void PlanRoads()
+        {
+            AddRoadLeg("OpRoad_OreYard", _storage, _orePile);
+            AddRoadLeg("OpRoad_Ore", _orePile, _refinery);
+            AddRoadLeg("OpRoad_BarYard", _refinery, _refinedPile);
+            AddRoadLeg("OpRoad_Market", _refinedPile, _market);
+        }
+
+        /// <summary>Reserves a road leg and marks it to be drawn by <see cref="BuildSiteDressing"/>.</summary>
+        private void AddRoadLeg(string name, Transform from, Transform to)
+        {
+            if (from == null || to == null) return;
+            _legs.Add(new RouteLeg { a = from, b = to, clear = roadWidth * 0.5f + routeClearance, roadName = name });
+        }
+
+        /// <summary>
+        /// True if a point lies inside any planned corridor. Legs that end on <paramref name="self"/> are
+        /// skipped: a yard is supposed to sit on its own spur, and the shed at the end of the rail line.
+        /// </summary>
+        private bool OnLeg(Vector3 p, float radius, Transform self)
+        {
+            for (int i = 0; i < _legs.Count; i++)
+            {
+                RouteLeg leg = _legs[i];
+                if (leg.a == null || leg.b == null || leg.a == self || leg.b == self) continue;
+                Vector3 s = leg.A, d = leg.B - s;
+                float len = d.magnitude;
+                if (len < 0.01f) continue;
+                d /= len;
+                float t = Mathf.Clamp(Vector3.Dot(Flat(p) - s, d), 0f, len);
+                float need = leg.clear + radius;
+                if (SqrXZ(s + d * t, p) < need * need) return true;
+            }
+            return false;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════════════════
         //  EXPANSION BUILDINGS
         //
         //  Everything the player can unlock but the island mesh does not author. Each is dropped in as a
@@ -1547,15 +1767,45 @@ namespace Game.Gameplay
             if (yardSign == 0f) yardSign = 1f;
             Vector3 free = side * -yardSign;
 
-            Expansion("ghostx_warehouse", warehousePrefab, _storage.position + free * 16f);
-            Expansion("ghostx_depot", depotPrefab, Vector3.Lerp(_mountain.position, _storage.position, 0.55f) + free * 15f);
-            Expansion("ghostx_power", powerPrefab, _refinery.position + free * 16f);
-            Expansion("ghostx_shaft", shaftPrefab, _mountain.position + free * 15f);
-            // The dock belongs at the water, so it runs past the market and off the end of the chain.
-            Expansion("ghostx_dock", dockPrefab, _market.position + chain * 20f + free * 6f);
+            // The two that bring their own routes go first, and register those routes as they land, so
+            // the other four are placed knowing where the fourth rail line and the export road will run.
             // A fourth mine is another mine: clone the real one rather than inventing a lookalike.
             Expansion("ghostx_mine4", _mountain != null ? _mountain.gameObject : null,
                       _mountain.position + free * 30f, true);
+            AddRailLeg(Child(_islandRoot, "ghostx_mine4"));
+
+            // The dock belongs at the water, so it runs past the market and off the end of the chain —
+            // which leaves the market squarely between it and the refined yard. Rather than move the dock
+            // inland to dodge that, the export run bends around the market on the yard side. The dock
+            // itself goes to the yard side too, so the detour is a gentle curve instead of a zigzag.
+            Expansion("ghostx_dock", dockPrefab, _market.position + chain * 20f - free * 6f);
+            Transform dock = Child(_islandRoot, "ghostx_dock");
+            if (dock != null)
+            {
+                var bend = new GameObject("OpBend_Export");
+                bend.transform.SetParent(_islandRoot, true);
+                // Far enough off the market for a full road width to pass outside its wall. "Op" prefixed
+                // so the placement passes skip it — it is a waypoint, not a building.
+                Bounds mb = WorldBounds(_market);
+                float clear = Mathf.Max(mb.size.x, mb.size.z) * 0.5f + roadWidth;
+                Vector3 pos = _market.position - free * clear;
+                bend.transform.position = new Vector3(pos.x, _deckY, pos.z);
+                _exportBend = bend.transform;
+
+                AddRoadLeg("OpRoad_ExportA", _refinedPile, _exportBend);
+                AddRoadLeg("OpRoad_ExportB", _exportBend, dock);
+            }
+
+            // Down-chain of the shed, not level with it: every rail line converges on storage from the
+            // mine side, so the ground straight out to the shed's flank is the one place a building is
+            // guaranteed to foul the track.
+            Expansion("ghostx_warehouse", warehousePrefab, _storage.position + free * 14f + chain * 10f);
+            // The depot and the shaft are the two that start life closest to a mine, and the mines are by
+            // far the widest things on the island — 22 m across on some. Offsets that clear a refinery
+            // leave these two inside the mountain, so both start further out.
+            Expansion("ghostx_depot", depotPrefab, Vector3.Lerp(_mountain.position, _storage.position, 0.55f) + free * 22f);
+            Expansion("ghostx_power", powerPrefab, _refinery.position + free * 16f);
+            Expansion("ghostx_shaft", shaftPrefab, _mountain.position + free * 28f);
         }
 
         /// <summary>
@@ -1573,57 +1823,108 @@ namespace Game.Gameplay
             else go.transform.localScale = Vector3.one * expansionScale;
 
             // Walk it outward from the island centre until it stops overlapping anything already placed.
+            // The building's own footprint goes into the clearance, so a wide one gets out of the way by
+            // its own width rather than by whatever a fixed radius happened to be.
             Vector3 outward = Flat(want - _islandRoot.position);
             outward = outward.sqrMagnitude < 0.01f ? Vector3.forward : outward.normalized;
-            Vector3 pos = want;
-            for (int guard = 0; guard < 12 && Occupied(pos, expansionClearance, go.transform); guard++)
-                pos += outward * 5f;
+            Bounds own = WorldBounds(go.transform);
+            float half = FootprintRadius(own);
+            // Lean the shove outward as well, so a building that has a choice ends up clear of the working
+            // chain rather than tucked in behind it.
+            Vector3 pos = ShoveClear(want, half, expansionGap, go.transform, outward * 0.4f, false);
 
             go.transform.position = new Vector3(pos.x, _deckY, pos.z);
             go.transform.rotation = Quaternion.LookRotation(Flat(_islandRoot.position - pos).normalized, Vector3.up);
         }
 
         /// <summary>
-        /// True if a real building already stands within <paramref name="radius"/> of a point.
+        /// The direction to shove a building of half-width <paramref name="half"/> standing at
+        /// <paramref name="p"/> so it stops overlapping whatever it is currently in, or zero if the spot
+        /// is already clear. <paramref name="gap"/> is the clear ground wanted between two footprints;
+        /// route corridors carry their own margin instead, so they do not also charge the gap.
         ///
-        /// Only buildings count. The islands are covered in scenery — thirty-odd dead trees, rocks and
-        /// bushes — and treating those as obstacles pushed every expansion out to the coastline, because
-        /// each one shoved the building another five metres looking for a gap that scenery never leaves.
+        /// The direction matters as much as the test. Shoving radially away from the island centre —
+        /// which is what this used to do — walked a building along a line that mostly does not lead out
+        /// of the thing it is stuck in, so it ran out of island and gave up still overlapping. Away from
+        /// the obstruction itself clears the same overlap in a few metres and stays inland.
         /// </summary>
-        private bool Occupied(Vector3 p, float radius, Transform ignore)
+        private Vector3 PushOut(Vector3 p, float half, float gap, Transform ignore, bool legsOnly)
         {
-            float r2 = radius * radius;
+            Vector3 best = Vector3.zero;
+            float worst = 0f;
+
             foreach (Transform t in _islandRoot)
             {
+                if (legsOnly) break;
                 if (t == ignore || t.name.StartsWith("Dressing") || t.name.StartsWith("Op")) continue;
+                // The island and its lagoon are the ground everything stands on, not obstacles on it.
+                if (t.name.StartsWith("isle_") || t.name.StartsWith("lagoon_")) continue;
                 if (t.GetComponentsInChildren<Renderer>(true).Length == 0) continue;
                 Bounds b = WorldBounds(t);
                 if (b.size.y < 1.5f) continue;                              // flat pads: fine to stand near
                 if (Mathf.Max(b.size.x, b.size.z) < 6f) continue;           // props and trees: not obstacles
-                if (SqrXZ(b.center, p) < r2) return true;
-            }
-            // Also keep clear of the rail corridors. Buildings were the only thing tested before, which
-            // is how expansions ended up sitting across the lines coming down from the mines.
-            return OnRailCorridor(p, radius * 0.7f);
-        }
 
-        /// <summary>True if a point lies within <paramref name="clear"/> of any train's line.</summary>
-        private bool OnRailCorridor(Vector3 p, float clear)
-        {
-            TrainAgent[] all = { _train1, _train2, _train3, _train4 };
-            for (int i = 0; i < all.Length; i++)
+                // Measured against the neighbour's own footprint, not its pivot: a flat radius let a 4 m
+                // shaft sit 13 m from the centre of a 22 m mine — which is to say, inside it.
+                float need = gap + half + FootprintRadius(b);
+                Vector3 away = Flat(p - b.center);
+                float pen = need - away.magnitude;
+                if (pen <= worst) continue;
+                worst = pen;
+                best = away.sqrMagnitude < 0.01f ? Vector3.right : away.normalized;
+            }
+
+            for (int i = 0; i < _legs.Count; i++)
             {
-                TrainAgent a = all[i];
-                if (a == null || a.path == null || a.path.Length < 2) continue;
-                Vector3 s = a.path[0], e = a.path[a.path.Length - 1];
-                Vector3 d = Flat(e - s);
+                RouteLeg leg = _legs[i];
+                if (leg.a == null || leg.b == null || leg.a == ignore || leg.b == ignore) continue;
+                Vector3 s = leg.A, d = leg.B - s;
                 float len = d.magnitude;
                 if (len < 0.01f) continue;
                 d /= len;
-                float t = Mathf.Clamp(Vector3.Dot(Flat(p - s), d), 0f, len);
-                if (SqrXZ(s + d * t, p) < clear * clear) return true;
+                float t = Mathf.Clamp(Vector3.Dot(Flat(p) - s, d), 0f, len);
+                Vector3 away = Flat(p) - (s + d * t);
+                float pen = leg.clear + half - away.magnitude;
+                if (pen <= worst) continue;
+                worst = pen;
+                // Sitting exactly on the centreline gives no direction to run: step off sideways.
+                best = away.sqrMagnitude < 0.01f ? new Vector3(-d.z, 0f, d.x) : away.normalized;
             }
-            return false;
+            return best;
+        }
+
+        /// <summary>
+        /// Walks a building out of whatever it is standing in, and returns where it ended up.
+        ///
+        /// The walk is not a straight line, because a straight line runs out of island. When a step would
+        /// leave the land the direction is fanned sideways until one is found that stays inland, so a
+        /// building pinned between an obstruction and the shore bends along the coast rather than
+        /// stopping dead. Without the fan it stopped dead — which is what left the fourth mine standing
+        /// inside the third one on five of the eight islands.
+        /// </summary>
+        private Vector3 ShoveClear(Vector3 start, float half, float gap, Transform self, Vector3 bias, bool legsOnly)
+        {
+            Vector3 pos = start;
+            for (int guard = 0; guard < 20; guard++)
+            {
+                Vector3 push = PushOut(pos, half, gap, self, legsOnly);
+                if (push == Vector3.zero) return pos;
+                Vector3 leaned = push + bias;
+                if (leaned.sqrMagnitude > 0.01f) push = leaned.normalized;
+
+                bool moved = false;
+                for (int fan = 0; fan < 7 && !moved; fan++)
+                {
+                    // Straight out first, then ±30°, ±60°, ±90°.
+                    float deg = fan == 0 ? 0f : (fan + 1) / 2 * 30f * (fan % 2 == 1 ? 1f : -1f);
+                    Vector3 next = pos + (fan == 0 ? push : Quaternion.Euler(0f, deg, 0f) * push) * 4f;
+                    if (!OnLand(next)) continue;
+                    pos = next;
+                    moved = true;
+                }
+                if (!moved) return pos;   // boxed in against the shore: crowded on grass beats tidy at sea
+            }
+            return pos;
         }
 
         /// <summary>
@@ -1642,9 +1943,90 @@ namespace Game.Gameplay
         {
             Vector3 away = Flat(pad.position - building.position);
             if (away.sqrMagnitude < 0.01f) away = Vector3.forward;
-            Vector3 p = building.position + away.normalized * yardOffset;
+            away.Normalize();
+            Vector3 p = building.position + away * yardOffset;
+
+            // The artist's side is the first choice, but on some islands it drops the pad under a rail
+            // line coming down off one of the mines — a train straight through the middle of the yard.
+            // The far side costs nothing, so take it whenever the near side is fouled and it is not.
+            Bounds b = WorldBounds(pad);
+            float half = FootprintRadius(b);
+            if (OnLeg(p, half, pad))
+            {
+                Vector3 flip = building.position - away * yardOffset;
+                if (!OnLeg(flip, half, pad)) p = flip;
+            }
+
             p.y = pad.position.y;
             pad.position = p;
+        }
+
+        /// <summary>
+        /// The last word on placement: shoves every station and expansion that is not a route endpoint
+        /// out of the other buildings and off the roads and rail corridors.
+        ///
+        /// The authored islands ship with some of this already fouled — on every one of them the second
+        /// refinery stands part-way inside the second mine — and a generated route then runs through
+        /// whatever is left in the way. Two things are deliberately exempt. Route endpoints, because
+        /// moving one moves its route with it and the whole chain would chase itself around the island;
+        /// and scenery, because the trees and rocks are meant to sit wherever the artist put them.
+        /// </summary>
+        private void TidySite(bool pinMines)
+        {
+            // The working chain is always pinned. The secondary mines are pinned only on the second pass:
+            // by then the arrival bays have been handed out and the corridors re-planned against them, so
+            // moving a mine would invalidate the very lines the pass is settling everything else against.
+            Transform[] anchors = pinMines
+                ? new[] { _mountain, _storage, _refinery, _market, _orePile, _refinedPile,
+                          _ghostMine, _ghostMine2, _mine4 }
+                : new[] { _mountain, _storage, _refinery, _market, _orePile, _refinedPile };
+
+            // Several rounds, because shoving one building clear can push it into another that has
+            // already been settled. Converges in two or three on every island; the early-out means an
+            // island that was never fouled costs one pass.
+            for (int round = 0; round < 8; round++)
+            {
+                bool moved = false;
+                foreach (Transform t in _islandRoot)
+                {
+                    if (t.name.StartsWith("Dressing") || t.name.StartsWith("Op")) continue;
+                    if (t.name.StartsWith("isle_") || t.name.StartsWith("lagoon_")) continue;
+                    bool anchor = false;
+                    for (int i = 0; i < anchors.Length; i++) if (anchors[i] == t) { anchor = true; break; }
+                    if (anchor) continue;
+
+                    Bounds b = WorldBounds(t);
+                    float half = FootprintRadius(b);
+                    if (b.size.y < 1.5f || half < 3f) continue;
+
+                    // A station already standing off the land can never shove its way back, because every
+                    // outward step is the one thing the walk refuses to take. Pull it ashore first. A
+                    // couple of the authored islands park a locked station out past their own coastline.
+                    if (t.name.StartsWith("ghost") && !OnLand(b.center))
+                    {
+                        Vector3 inward = Flat(_landCentre - b.center);
+                        if (inward.sqrMagnitude > 0.01f)
+                        {
+                            inward.Normalize();
+                            Vector3 ashore = b.center;
+                            for (int g = 0; g < 20 && !OnLand(ashore); g++) ashore += inward * 4f;
+                            t.position += Flat(ashore - b.center);
+                            b = WorldBounds(t);
+                            moved = true;
+                        }
+                    }
+
+                    // Stations and expansions get pulled out of everything. Scenery is only moved when it
+                    // stands in a road or a rail corridor — a palm in the middle of the haul road reads as
+                    // badly as a building would, but a palm merely near one is the composition, not a bug.
+                    bool station = t.name.StartsWith("ghost");
+                    Vector3 delta = Flat(ShoveClear(b.center, half, tidyGap, t, Vector3.zero, !station) - b.center);
+                    if (delta.sqrMagnitude < 0.25f) continue;
+                    t.position += delta;   // keep whatever offset the pivot has from the mesh
+                    moved = true;
+                }
+                if (!moved) break;
+            }
         }
 
         // ---- persistence ----
@@ -1762,14 +2144,11 @@ namespace Game.Gameplay
             Material steel = MakeMat(_srcMat, steelColor), apron = MakeMat(_srcMat, sitePadColor);
             float roadY = _deckY + 0.06f;
 
-            // One continuous ribbon through the chain: storage → its yard → refinery → its yard → market.
-            // The yard legs are what tie a pile to the building it belongs to; without them the piles read
-            // as unrelated props sitting on the grass.
-            HaulRoad("OpRoad_OreYard", _storage, _orePile, roadY, road, line);
-            HaulRoad("OpRoad_Ore", _orePile, _refinery, roadY, road, line);
-            HaulRoad("OpRoad_BarYard", _refinery, _refinedPile, roadY, road, line);
-            HaulRoad("OpRoad_Market", _refinedPile, _market, roadY, road, line);
-            if (_dock != null) HaulRoad("OpRoad_Export", _refinedPile, _dock, roadY, road, line);
+            // Straight off the route plan, so the tarmac lands exactly where the trucks drive and exactly
+            // where the buildings were told to keep clear. Anything that moved during TidySite is picked
+            // up here too, because a leg reads its endpoints' positions now rather than when it was planned.
+            for (int i = 0; i < _legs.Count; i++)
+                if (_legs[i].roadName != null) HaulRoad(_legs[i], roadY, road, line);
 
             LayRail(_train1, "1", ballast, sleeper, steel);
             LayRail(_train2, "2", ballast, sleeper, steel);
@@ -1790,8 +2169,9 @@ namespace Game.Gameplay
         /// Lays one leg of the haul road, stopping it at each endpoint's wall rather than its pivot.
         /// Only ends that finish in the open get an overrun for the truck turnaround.
         /// </summary>
-        private void HaulRoad(string name, Transform from, Transform to, float roadY, Material road, Material line)
+        private void HaulRoad(RouteLeg leg, float roadY, Material road, Material line)
         {
+            Transform from = leg.a, to = leg.b;
             if (from == null || to == null) return;
             Vector3 dir = Flat(to.position - from.position);
             if (dir.sqrMagnitude < 0.01f) return;
@@ -1800,7 +2180,7 @@ namespace Game.Gameplay
             Vector3 a = from.position + dir * insetA, b = to.position - dir * insetB;
             a.y = b.y = _deckY;
             if (Flat(b - a).magnitude < 1f) return;   // buildings too close to fit a road between them
-            RouteMesh.Road(_dressing, name, a, b, roadWidth, roadY,
+            RouteMesh.Road(_dressing, leg.roadName, a, b, roadWidth, roadY,
                            insetA > 0f ? 0f : roadWidth * 0.5f,
                            insetB > 0f ? 0f : roadWidth * 0.5f,
                            road, line);
