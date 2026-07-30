@@ -1,5 +1,6 @@
 using Game.Core;
 using Game.Systems;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -7,108 +8,129 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The prestige screen (GDD §8): cash the run in for Investors, a permanent global income multiplier,
-    /// and start the upgrades again from zero. <see cref="PrestigeService"/> has always been able to do
-    /// this; nothing in the game could ask it to, so the entire end-game loop was unreachable.
+    /// The prestige screen (GDD §8, Figma "ekran_prestij"): cash the run in for Investors — a permanent
+    /// global income multiplier — and start the upgrades again from zero. Editor-authored; the whole
+    /// hierarchy lives in the UI_Prestij prefab and every reference is wired in the Inspector.
     ///
-    /// Opened from the chip <see cref="MetaHud"/> shows once the run is worth cashing in. Confirming is
-    /// deliberately two taps — it wipes every upgrade the player has bought.
+    /// The screen is built as one argument top to bottom: what you become (hero medallion), how many
+    /// you get (gain chip), the only number that matters (multiplier now → after), what you lose vs
+    /// what you keep (the trade tray), how close you are (threshold bar), then the irreversible button.
     ///
-    /// The islands themselves are NOT taken away. Buying them back every run would turn the world map
-    /// into busywork rather than progress, so a prestige resets what you built on the islands and keeps
-    /// the archipelago you unlocked.
+    /// Confirming is deliberately two taps — it wipes every upgrade the player has bought. The islands
+    /// themselves are NOT taken away: re-buying the archipelago every run would be busywork, so a
+    /// prestige resets what you built on the islands and keeps the islands.
     /// </summary>
     public sealed class PrestigeUI : MonoBehaviour
     {
+        [Header("Panel (UI_Prestij prefabında bağlı)")]
+        [SerializeField] private GameObject panelRoot;
+        [SerializeField] private Button closeButton;
+
+        [Header("Değerler")]
+        [Tooltip("Bu prestijde kazanılacak yatırımcı sayısı.")]
+        [SerializeField] private TMP_Text gainText;
+        [SerializeField] private TMP_Text multiplierNowText;
+        [SerializeField] private TMP_Text multiplierAfterText;
+
+        [Header("Eşik çubuğu")]
+        [Tooltip("Dolgu alanı — genişliği ilerlemeye göre değişir.")]
+        [SerializeField] private RectTransform barFillArea;
+        [SerializeField] private TMP_Text barNoteText;
+
+        [Header("Prestij butonu")]
+        [SerializeField] private Button prestigeButton;
+        [SerializeField] private Image prestigeButtonImage;
+        [SerializeField] private Sprite ctaLive;     // btn_prestij
+        [SerializeField] private Sprite ctaLocked;   // btn_prestij_pasif
+        [SerializeField] private TMP_Text ctaLabel;
+
         [SerializeField] private string mainSceneName = "Main";
 
         private PrestigeService _prestige;
         private SaveData _data;
-        private GameObject _modal;
-        private Text _headline, _detail, _confirmText;
-        private Button _confirm;
-        private Image _confirmBg;
+        private float _barFullWidth;
         private bool _armed;
-
-        private static readonly Color Scrim = new Color(0.04f, 0.02f, 0.07f, 0.86f);
-        private static readonly Color Card = new Color(0.17f, 0.13f, 0.26f, 1f);
-        private static readonly Color Violet = new Color(0.50f, 0.32f, 0.72f, 1f);
-        private static readonly Color Red = new Color(0.72f, 0.26f, 0.26f, 1f);
-        private static readonly Color Grey = new Color(0.24f, 0.27f, 0.32f, 1f);
-        private static readonly Color Dim = new Color(0.72f, 0.68f, 0.85f, 1f);
 
         private void Start()
         {
             _prestige = ServiceLocator.Get<PrestigeService>();
             _data = ServiceLocator.Get<SaveData>();
-            Build();
+            if (barFillArea != null) _barFullWidth = barFillArea.rect.width;
+
+            if (closeButton != null) closeButton.onClick.AddListener(Hide);
+            if (prestigeButton != null) prestigeButton.onClick.AddListener(OnConfirm);
+
+            if (panelRoot != null) panelRoot.SetActive(false);
+        }
+
+        public void Toggle()
+        {
+            if (panelRoot == null) return;
+            if (panelRoot.activeSelf) { Hide(); return; }
+            Open();
         }
 
         /// <summary>Shows the screen with the current payout filled in.</summary>
         public void Open()
         {
-            if (_prestige == null || _modal == null) return;
+            if (_prestige == null || panelRoot == null) return;
             _armed = false;
-            _confirmText.text = "PRESTIGE";
-            _confirmBg.sprite = UiSkin.ButtonYellow;
-            if (!UiSkin.HasArt) _confirmBg.color = Violet;
-
-            BigDouble pending = _prestige.PendingInvestors();
-            double after = _prestige.Investors + pending.ToDouble();
-            _headline.text = "+" + NumberFormatter.Format(pending) + "  INVESTORS";
-            _detail.text =
-                "you hold " + NumberFormatter.Format(new BigDouble(_prestige.Investors)) + " investors" +
-                // Invariant: on a Turkish-locale machine the default gives "×1,00", which reads as a
-                // thousands separator next to every other number on screen.
-                "   (×" + _prestige.IncomeMultiplier.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " income)\n" +
-                "after prestige: " + NumberFormatter.Format(new BigDouble(after)) + " investors\n\n" +
-                "every station upgrade resets to level 1 and your cash goes to zero.\n" +
-                "the islands you own stay yours.";
-            _modal.SetActive(true);
+            Refresh();
+            panelRoot.SetActive(true);
         }
 
-        private void Build()
+        public void Hide()
         {
-            RectTransform root = UiBuild.Canvas(transform, "PrestigeCanvas", 225);
-            RectTransform scrim = UiBuild.Flat(root, "Scrim", Scrim, Vector2.zero, Vector2.one);
-            _modal = scrim.gameObject;
-
-            RectTransform card = UiBuild.Flat(scrim, "Card", Card, new Vector2(0.07f, 0.28f), new Vector2(0.93f, 0.72f));
-
-            Text title = UiBuild.Label(card, "Title", "PRESTIGE", 46, TextAnchor.MiddleCenter);
-            UiBuild.Anchor(title.rectTransform, new Vector2(0f, 0.86f), new Vector2(1f, 0.97f));
-            title.color = new Color(1f, 0.88f, 0.55f);
-
-            _headline = UiBuild.Label(card, "Headline", "", 54, TextAnchor.MiddleCenter);
-            UiBuild.Anchor(_headline.rectTransform, new Vector2(0f, 0.68f), new Vector2(1f, 0.85f));
-            _headline.color = new Color(0.78f, 0.62f, 1f);
-
-            _detail = UiBuild.Label(card, "Detail", "", 24, TextAnchor.UpperCenter);
-            UiBuild.Anchor(_detail.rectTransform, new Vector2(0.06f, 0.26f), new Vector2(0.94f, 0.66f));
-            _detail.color = Dim;
-
-            _confirm = UiBuild.Btn(card, "Confirm", "PRESTIGE", UiSkin.ButtonYellow, Violet, 32, OnConfirm);
-            UiBuild.Anchor(_confirm.GetComponent<RectTransform>(), new Vector2(0.10f, 0.13f), new Vector2(0.62f, 0.24f));
-            _confirmText = _confirm.GetComponentInChildren<Text>();
-            _confirmBg = _confirm.GetComponent<Image>();
-
-            Button close = UiBuild.Btn(card, "Close", "NOT YET", UiSkin.ButtonGrey, Grey, 30,
-                                       () => _modal.SetActive(false));
-            UiBuild.Anchor(close.GetComponent<RectTransform>(), new Vector2(0.66f, 0.13f), new Vector2(0.90f, 0.24f));
-
-            _modal.SetActive(false);
+            _armed = false;
+            if (panelRoot != null) panelRoot.SetActive(false);
         }
+
+        private void Refresh()
+        {
+            BigDouble pending = _prestige.PendingInvestors();
+            bool ready = _prestige.CanPrestige();
+
+            if (gainText != null) gainText.text = "+" + NumberFormatter.Format(pending) + " YATIRIMCI";
+            if (multiplierNowText != null) multiplierNowText.text = Multiplier(_prestige.IncomeMultiplier);
+            if (multiplierAfterText != null) multiplierAfterText.text = Multiplier(_prestige.MultiplierAfterPrestige());
+
+            double lifetime = _prestige.LifetimeCash.ToDouble();
+            double threshold = _prestige.Threshold;
+            if (barFillArea != null)
+            {
+                float p = threshold > 0d ? Mathf.Clamp01((float)(lifetime / threshold)) : 1f;
+                barFillArea.sizeDelta = new Vector2(_barFullWidth * p, barFillArea.sizeDelta.y);
+            }
+            if (barNoteText != null)
+                barNoteText.text = ready
+                    ? "PRESTİJ HAZIR"
+                    : "PRESTİJ İÇİN $" + NumberFormatter.Format(new BigDouble(threshold - lifetime)) + " DAHA KAZAN";
+
+            if (prestigeButton != null) prestigeButton.interactable = ready;
+            if (prestigeButtonImage != null)
+            {
+                prestigeButtonImage.sprite = ready ? ctaLive : ctaLocked;
+                // Disabled tint takılı kalabiliyor; doğru rengi anında bas.
+                prestigeButtonImage.CrossFadeColor(Color.white, 0f, true, true);
+            }
+            if (ctaLabel != null) ctaLabel.text = ready ? "PRESTİJ YAP" : "HENÜZ DEĞİL";
+        }
+
+        /// <summary>
+        /// Invariant culture on purpose: a Turkish-locale machine renders "×1,35", which reads as a
+        /// thousands separator next to every other number on the screen.
+        /// </summary>
+        private static string Multiplier(double value)
+            => "×" + value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
 
         private void OnConfirm()
         {
-            if (_prestige == null) return;
+            if (_prestige == null || !_prestige.CanPrestige()) return;
             if (!_armed)
             {
                 // Two taps: this throws away every upgrade the player has bought.
                 _armed = true;
-                _confirmText.text = "TAP AGAIN TO CONFIRM";
-                _confirmBg.sprite = UiSkin.ButtonGrey;
-                if (!UiSkin.HasArt) _confirmBg.color = Red;
+                if (ctaLabel != null) ctaLabel.text = "ONAYLAMAK İÇİN TEKRAR BAS";
                 return;
             }
 
@@ -125,7 +147,7 @@ namespace Game.UI
 
             // Reloading is the reset: each CoalOperation reads its levels in Start, so re-running Start on
             // all eight is both simpler and safer than trying to walk them back in place.
-            _modal.SetActive(false);
+            Hide();
             SceneManager.LoadScene(mainSceneName, LoadSceneMode.Single);
         }
     }

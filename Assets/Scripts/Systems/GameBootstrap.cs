@@ -16,7 +16,6 @@ namespace Game.Systems
         [SerializeField] private EconomyConfig economyConfig;
         [SerializeField] private OfflineConfig offlineConfig;
         [SerializeField] private PrestigeConfig prestigeConfig;
-        [SerializeField] private DailyRewardConfig dailyConfig;
         [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
@@ -97,15 +96,21 @@ namespace Game.Systems
             ServiceLocator.Register(_time);
 
             ServiceLocator.Register(new BoostService());
-            ServiceLocator.Register(new DailyRewardService(Data, _time, dailyConfig != null ? dailyConfig.RewardGems : 5L));
-            ServiceLocator.Register(contractConfig != null
+            ServiceLocator.Register(new DailyRewardService(Data, _time));
+            ServiceLocator.Register(new FreeRewardService(Data, _time));
+            var contract = contractConfig != null
                 ? new ContractService(Wallet, contractConfig.TargetUnits, contractConfig.TimeLimitSeconds,
                                       contractConfig.RewardCash, contractConfig.RewardGems)
-                : new ContractService(Wallet, 100d, 60f, 500d, 2L));
+                : new ContractService(Wallet, 100d, 60f, 500d, 2L);
+            ServiceLocator.Register(contract);
 
             Offline = new OfflineReport();
             ServiceLocator.Register(Offline);
             GrantOffline();
+
+            // After the offline grant, so the money earned while away is not also counted as progress
+            // toward the opening contract.
+            contract.Seed(Data.incomeRatePerSec * 60d);
 
             ServiceLocator.Get<IAnalytics>()?.Log("session_start");
         }
@@ -117,8 +122,12 @@ namespace Game.Systems
             BigDouble earned = OfflineEarnings.Compute(new BigDouble(Data.incomeRatePerSec), elapsed, offlineConfig.Efficiency, offlineConfig.CapSeconds);
             if (earned.Mantissa > 0d)
             {
+                long cap = offlineConfig.CapSeconds;
                 Wallet.AddCash(earned);
                 Offline.Amount = earned;
+                Offline.AwaySeconds = elapsed;
+                Offline.CreditedSeconds = (cap > 0L && elapsed > cap) ? cap : elapsed;
+                Offline.Efficiency = offlineConfig.Efficiency;
                 Offline.Pending = true;
             }
         }

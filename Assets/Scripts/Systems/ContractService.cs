@@ -34,6 +34,7 @@ namespace Game.Systems
         private BigDouble _startCash;
         private BigDouble _target;
         private double _difficulty = 1d;
+        private double _lastIncomePerMinute;
         private float _left;
         private bool _claimable;
         private bool _seeded;
@@ -77,19 +78,38 @@ namespace Game.Systems
         }
 
         /// <summary>
+        /// Sizes the opening contract from the rate the previous session persisted (the same number the
+        /// offline grant trusts). Without it the first contract of a session is sized from the live
+        /// income meter, which is a trailing 60-second average starting at zero: a grown empire got the
+        /// $100 floor and cleared it before the player had looked at the screen. Call once, after the
+        /// offline earnings are paid, or the money the player made while away counts as progress.
+        /// </summary>
+        public void Seed(double incomePerMinute)
+        {
+            if (_seeded || incomePerMinute <= 0d) return;
+            _seeded = true;
+            Roll(incomePerMinute);
+        }
+
+        /// <summary>
         /// Advances the clock. <paramref name="incomePerMinute"/> sizes the NEXT contract, so it is only
         /// read when one is rolled — a target that moved while the player was working toward it would be
         /// a treadmill they could never catch.
         /// </summary>
         public void Tick(float dt, double incomePerMinute)
         {
+            _lastIncomePerMinute = incomePerMinute;
+
             // The first real target has to wait for the islands to report an income — the service is
             // built during bootstrap, before any of them exist. Without this, a returning player's
             // opening contract is the $100 floor, which their empire clears before they see it.
-            if (!_seeded)
+            // Keep waiting while the income reads zero: the first few ticks after a scene load run
+            // before the operations have reported, and spending the seed on one of those leaves the
+            // target stuck on the floor for the whole first contract.
+            if (!_seeded && incomePerMinute > 0d)
             {
                 _seeded = true;
-                if (incomePerMinute > 0d) Roll(incomePerMinute);
+                Roll(incomePerMinute);
             }
 
             if (_claimable) return;                       // the clock stops once it is won; claim at leisure
@@ -104,6 +124,13 @@ namespace Game.Systems
             Streak = 0;
             Roll(incomePerMinute);
         }
+
+        /// <summary>
+        /// Pays the bonus and starts the next contract, sized from the income the ticker last reported.
+        /// The contract screen has no view of the empire's income, and re-deriving it there would be a
+        /// second, drifting copy of <see cref="HudUI"/>'s sum.
+        /// </summary>
+        public bool Claim() => Claim(_lastIncomePerMinute);
 
         /// <summary>Pays the bonus and starts the next contract. No-op unless the goal is met.</summary>
         public bool Claim(double incomePerMinute)

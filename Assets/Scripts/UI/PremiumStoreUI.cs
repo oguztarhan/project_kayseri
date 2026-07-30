@@ -2,116 +2,133 @@ using System;
 using System.Collections.Generic;
 using Game.Core;
 using Game.Systems;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Game.UI
 {
     /// <summary>
-    /// Premium Store / Shop (GDD §10). A right-edge button opens a skinned panel with two sections —
-    /// GOLD PACKS and DIAMOND PACKS — each a grid of cells (icon + amount + price button). Gold packs
-    /// grant cash and diamond packs grant gems through <see cref="IIAPService"/>; the panel also supports
-    /// rewarded-ad and gem-priced boost rows if added to the catalog. Editor-authored: the whole hierarchy
-    /// lives in the UI_Store prefab and every reference below is wired in the Inspector, so layout, skin
-    /// and catalog are all tunable without touching code.
+    /// The store (GDD §10), reskinned with the Figma set: serit_baslik ribbon, four offer cards
+    /// (offer_1..4), then ALTIN and ELMAS pack sections — a purple title strip (gold_title /
+    /// gems_title) over a 3×2 grid of full-card pack sprites (gold_* / gems_*, 280×360). One
+    /// vertical ScrollRect holds everything. Editor-authored: the hierarchy lives in the UI_Magaza
+    /// prefab; offer cards and their texts are plain scene objects, pack cells are cloned from an
+    /// inactive template so the catalog list below stays the single source of truth for packs.
+    ///
+    /// Each pack sprite already contains its art, amount pill and price strip, so a cell is just
+    /// the card image (also the button) plus two TMP labels the catalog fills in.
     /// </summary>
     public sealed class PremiumStoreUI : MonoBehaviour
     {
-        /// <summary>What a store cell does when its action button is pressed.</summary>
+        /// <summary>What a pack cell grants. Offers are separate — see <see cref="OfferBinding"/>.</summary>
         public enum StoreItemKind
         {
-            GemPackIAP,     // 0 - IAP grants gemAmount gems (diamond pack)
-            GoldPackIAP,    // 1 - IAP grants cashAmount cash (gold pack)
-            RemoveAdsIAP,   // 2 - IAP flags ads removed on success
-            RewardedGems,   // 3 - watch a rewarded ad, receive gemAmount
-            RewardedBoost,  // 4 - watch a rewarded ad, receive an income boost
-            GemBoost        // 5 - spend gemCost gems for an income boost
+            GemPackIAP,     // 0 - IAP grants gemAmount gems (green card)
+            GoldPackIAP     // 1 - IAP grants cashAmount cash (blue card)
         }
 
-        /// <summary>One catalog entry. Edit the list on the component to add/remove/retune offers.</summary>
+        /// <summary>One pack cell. Edit the list on the component to retune amounts and prices.</summary>
         [Serializable]
         public sealed class StoreItem
         {
-            public string title = "New Offer";
-            public StoreItemKind kind = StoreItemKind.GemPackIAP;
+            public string title = "2.5K";
+            public StoreItemKind kind = StoreItemKind.GoldPackIAP;
+            [Tooltip("Full card sprite (gold_2500, gems_80, ...) — becomes the cell background.")]
             public Sprite icon;
-            [Tooltip("Extra scale applied to the cell icon (bigger pile for bigger packs).")]
-            public float iconScale = 1f;
-            [Tooltip("Real-money price shown on the buy button, e.g. \"TRY 109,99\" (IAP kinds).")]
+            [Tooltip("Real-money price shown on the card, e.g. \"₺14,99\".")]
             public string priceLabel = "";
-            [Tooltip("IAP product id — GemPackIAP / GoldPackIAP / RemoveAdsIAP")]
+            [Tooltip("IAP product id.")]
             public string sku = "";
-            [Tooltip("Cash granted — GoldPackIAP")]
+            [Tooltip("Cash granted — GoldPackIAP.")]
             public double cashAmount = 0d;
-            [Tooltip("Gems granted — GemPackIAP / RewardedGems")]
-            public long gemAmount = 100;
-            [Tooltip("Gems spent — GemBoost")]
-            public long gemCost = 50;
-            [Tooltip("Income multiplier — RewardedBoost / GemBoost")]
-            public double boostMultiplier = 2d;
-            [Tooltip("Boost duration in seconds — RewardedBoost / GemBoost")]
-            public double boostSeconds = 300d;
+            [Tooltip("Gems granted — GemPackIAP.")]
+            public long gemAmount = 0;
         }
 
-        [Header("Wiring (assigned on the UI_Store prefab)")]
-        [SerializeField] private Button openButton;
+        /// <summary>
+        /// One offer card, authored in the hierarchy (its texts are plain TMP objects there); this
+        /// binding only says which button sells what. All grants are optional — fill what the
+        /// offer promises and leave the rest at zero.
+        /// </summary>
+        [Serializable]
+        public sealed class OfferBinding
+        {
+            public string name = "Teklif";
+            public Button button;
+            [Tooltip("IAP product id.")]
+            public string sku = "";
+            public double cashAmount = 0d;
+            public long gemAmount = 0;
+            [Tooltip("Income boost applied on purchase; skipped while multiplier ≤ 1 or seconds ≤ 0.")]
+            public double boostMultiplier = 1d;
+            public double boostSeconds = 0d;
+            [Tooltip("Purchase also removes forced ads (offer_2 / offer_3).")]
+            public bool removeAds = false;
+        }
+
+        [Header("Panel (UI_Magaza prefabında bağlı)")]
         [SerializeField] private GameObject panelRoot;
         [SerializeField] private Button closeButton;
-        [SerializeField] private Text gemsBalanceText;
-        [SerializeField] private Text cashBalanceText;
-        [Tooltip("Grid that receives GoldPackIAP cells.")]
+
+        [Header("Paket ızgaraları")]
+        [Tooltip("GoldPackIAP hücrelerinin eklendiği ızgara.")]
         [SerializeField] private RectTransform goldGrid;
-        [Tooltip("Grid that receives all other (gem/diamond) cells.")]
+        [Tooltip("GemPackIAP hücrelerinin eklendiği ızgara.")]
         [SerializeField] private RectTransform diamondGrid;
-        [Tooltip("Fallback container used when the grids above are not set.")]
-        [SerializeField] private RectTransform content;
-        [Tooltip("Inactive template cell; one clone is spawned per catalog item.")]
+        [Tooltip("Pasif şablon hücre; katalogdaki her paket için bir kopya açılır.")]
         [SerializeField] private GameObject cellTemplate;
 
-        [Header("Catalog (edit freely)")]
+        [Header("Katalog (serbestçe düzenle)")]
         [SerializeField] private List<StoreItem> items = new List<StoreItem>();
+        [SerializeField] private List<OfferBinding> offers = new List<OfferBinding>();
+
+        [Tooltip("Editör testi: IAP stub'ı her satın almayı reddettiği için, bu açıkken ödüller IAP'siz anında verilir. Cihaz sürümünde yok sayılır.")]
+        [SerializeField] private bool devFreeIAP;
+
+        [Header("Efektler")]
+        [Tooltip("Satın alma başarılı olunca karttan yukarı coin/elmas uçuran efekt; boşsa sessizce atlanır.")]
+        [SerializeField] private StorePurchaseFx purchaseFx;
 
         private WalletService _wallet;
-        private IAdService _ad;
         private IIAPService _iap;
         private BoostService _boost;
-        private bool _adsRemoved;
+        private FreeRewardService _free;
         private bool _built;
 
-        private sealed class Row
+        /// <summary>
+        /// The remove-ads entitlement lives in the save (via <see cref="FreeRewardService"/>) rather than
+        /// in a field here: it is a purchase, and a purchase that a restart forgets is a refund request.
+        /// </summary>
+        private bool AdsRemoved
         {
-            public StoreItem item;
-            public Button button;
-            public Text actionLabel;
+            get { return _free != null && _free.AdsRemoved; }
+            set { if (_free != null) _free.AdsRemoved = value; }
         }
-        private readonly List<Row> _rows = new List<Row>();
 
         private void Start()
         {
             ResolveServices();
 
-            if (openButton != null) openButton.onClick.AddListener(Show);
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
+            for (int i = 0; i < offers.Count; i++)
+            {
+                OfferBinding captured = offers[i];
+                if (captured != null && captured.button != null)
+                    captured.button.onClick.AddListener(() => BuyOffer(captured));
+            }
 
-            BuildRows();
-
-            if (_wallet != null) { _wallet.GemsChanged += OnBalanceChanged; _wallet.CashChanged += OnBalanceChanged; }
+            BuildCells();
+            RefreshOffers();
             if (panelRoot != null) panelRoot.SetActive(false);
-            RefreshBalance();
-            RefreshRows();
-        }
-
-        private void OnDestroy()
-        {
-            if (_wallet != null) { _wallet.GemsChanged -= OnBalanceChanged; _wallet.CashChanged -= OnBalanceChanged; }
         }
 
         private void ResolveServices()
         {
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
-            if (_ad == null) _ad = ServiceLocator.Get<IAdService>();
             if (_iap == null) _iap = ServiceLocator.Get<IIAPService>();
             if (_boost == null) _boost = ServiceLocator.Get<BoostService>();
+            if (_free == null) _free = ServiceLocator.Get<FreeRewardService>();
         }
 
         // ---------- open / close ----------
@@ -119,8 +136,7 @@ namespace Game.UI
         {
             ResolveServices();
             if (panelRoot != null) panelRoot.SetActive(true);
-            RefreshBalance();
-            RefreshRows();
+            RefreshOffers();
         }
 
         public void Hide()
@@ -129,13 +145,7 @@ namespace Game.UI
         }
 
         // ---------- construction ----------
-        private RectTransform ParentFor(StoreItem item)
-        {
-            if (item.kind == StoreItemKind.GoldPackIAP) return goldGrid != null ? goldGrid : content;
-            return diamondGrid != null ? diamondGrid : content;
-        }
-
-        private void BuildRows()
+        private void BuildCells()
         {
             if (_built || cellTemplate == null) return;
             _built = true;
@@ -145,130 +155,91 @@ namespace Game.UI
             {
                 StoreItem item = items[i];
                 if (item == null) continue;
-                RectTransform parent = ParentFor(item);
+                RectTransform parent = item.kind == StoreItemKind.GoldPackIAP ? goldGrid : diamondGrid;
                 if (parent == null) continue;
 
                 GameObject go = Instantiate(cellTemplate, parent);
-                go.name = "Cell_" + item.kind + "_" + i;
+                go.name = "Paket_" + item.sku;
                 go.SetActive(true);
 
-                Transform iconT = go.transform.Find("Icon");
-                if (iconT != null)
+                Image bg = go.GetComponent<Image>();
+                if (bg != null && item.icon != null) bg.sprite = item.icon;
+
+                Transform amountT = go.transform.Find("Adet");
+                if (amountT != null)
                 {
-                    Image iconImg = iconT.GetComponent<Image>();
-                    if (iconImg != null)
-                    {
-                        if (item.icon != null) iconImg.sprite = item.icon;
-                        iconImg.enabled = iconImg.sprite != null;
-                    }
-                    iconT.localScale = Vector3.one * (item.iconScale <= 0f ? 1f : item.iconScale);
+                    TMP_Text amountTxt = amountT.GetComponent<TMP_Text>();
+                    if (amountTxt != null) amountTxt.text = item.title;
                 }
 
-                Transform titleT = go.transform.Find("Title");
-                if (titleT != null)
+                Transform priceT = go.transform.Find("Fiyat");
+                if (priceT != null)
                 {
-                    Text titleTxt = titleT.GetComponent<Text>();
-                    if (titleTxt != null) titleTxt.text = item.title;
+                    TMP_Text priceTxt = priceT.GetComponent<TMP_Text>();
+                    if (priceTxt != null) priceTxt.text = item.priceLabel;
                 }
 
-                Button actionBtn = null;
-                Transform actionT = go.transform.Find("Action");
-                if (actionT != null) actionBtn = actionT.GetComponent<Button>();
-                if (actionBtn == null) continue;
-
-                Text actionLabel = actionBtn.GetComponentInChildren<Text>();
+                Button btn = go.GetComponent<Button>();
                 StoreItem captured = item;
-                actionBtn.onClick.AddListener(() => Buy(captured));
-                if (actionLabel != null) actionLabel.text = ActionText(item);
-
-                _rows.Add(new Row { item = item, button = actionBtn, actionLabel = actionLabel });
-            }
-        }
-
-        private static string ActionText(StoreItem item)
-        {
-            switch (item.kind)
-            {
-                case StoreItemKind.GemPackIAP:
-                case StoreItemKind.GoldPackIAP:
-                case StoreItemKind.RemoveAdsIAP:
-                    return string.IsNullOrEmpty(item.priceLabel) ? "Buy" : item.priceLabel;
-                case StoreItemKind.RewardedGems:
-                case StoreItemKind.RewardedBoost:
-                    return "Watch Ad";
-                case StoreItemKind.GemBoost:
-                    return item.gemCost + " Gems";
-                default:
-                    return "Buy";
+                RectTransform cardRt = (RectTransform)go.transform;   // the fx launches off the cell
+                if (btn != null) btn.onClick.AddListener(() => Buy(captured, cardRt));
             }
         }
 
         // ---------- purchase handling ----------
-        private void Buy(StoreItem item)
+        /// <summary>Real IAP normally; the dev toggle short-circuits to success so grants are testable in-editor.</summary>
+        private void PurchaseFlow(string sku, Action<bool> onDone)
         {
-            switch (item.kind)
-            {
-                case StoreItemKind.GoldPackIAP:
-                    if (_iap != null)
-                        _iap.Purchase(item.sku, ok => { if (ok && _wallet != null) _wallet.AddCash(new BigDouble(item.cashAmount)); });
-                    break;
-
-                case StoreItemKind.GemPackIAP:
-                    if (_iap != null)
-                        _iap.Purchase(item.sku, ok => { if (ok && _wallet != null) _wallet.AddGems(item.gemAmount); });
-                    break;
-
-                case StoreItemKind.RemoveAdsIAP:
-                    if (_iap != null)
-                        _iap.Purchase(item.sku, ok => { if (ok) { _adsRemoved = true; RefreshRows(); } });
-                    break;
-
-                case StoreItemKind.RewardedGems:
-                    if (_ad != null && _ad.Available)
-                        _ad.ShowRewarded(() => { if (_wallet != null) _wallet.AddGems(item.gemAmount); });
-                    break;
-
-                case StoreItemKind.RewardedBoost:
-                    if (_ad != null && _ad.Available)
-                        _ad.ShowRewarded(() => { if (_boost != null) _boost.SetBoost(item.boostMultiplier, item.boostSeconds); });
-                    break;
-
-                case StoreItemKind.GemBoost:
-                    if (_wallet != null && _wallet.TrySpendGems(item.gemCost) && _boost != null)
-                        _boost.SetBoost(item.boostMultiplier, item.boostSeconds);
-                    break;
-            }
+            if (devFreeIAP && (Application.isEditor || Debug.isDebugBuild)) { onDone(true); return; }
+            if (_iap != null) _iap.Purchase(sku, onDone);
         }
 
-        // ---------- refresh ----------
-        private void OnBalanceChanged()
+        private void Buy(StoreItem item, RectTransform card)
         {
-            RefreshBalance();
-            RefreshRows();
-        }
-
-        private void RefreshBalance()
-        {
-            if (gemsBalanceText != null)
-                gemsBalanceText.text = "Gems: " + (_wallet != null ? _wallet.Gems.ToString() : "0");
-            if (cashBalanceText != null)
-                cashBalanceText.text = "Gold: " + (_wallet != null ? NumberFormatter.Format(_wallet.Cash) : "0");
-        }
-
-        private void RefreshRows()
-        {
-            for (int i = 0; i < _rows.Count; i++)
-            {
-                Row r = _rows[i];
-                if (r.item.kind == StoreItemKind.GemBoost)
+            if (item.kind == StoreItemKind.GoldPackIAP)
+                PurchaseFlow(item.sku, ok =>
                 {
-                    r.button.interactable = _wallet != null && _wallet.Gems >= r.item.gemCost;
-                }
-                else if (r.item.kind == StoreItemKind.RemoveAdsIAP && _adsRemoved)
+                    if (!ok) return;
+                    if (_wallet != null) _wallet.AddCash(new BigDouble(item.cashAmount));
+                    if (purchaseFx != null) purchaseFx.PlayCash(card);
+                });
+            else
+                PurchaseFlow(item.sku, ok =>
                 {
-                    r.button.interactable = false;
-                    if (r.actionLabel != null) r.actionLabel.text = "Owned";
+                    if (!ok) return;
+                    if (_wallet != null) _wallet.AddGems(item.gemAmount);
+                    if (purchaseFx != null) purchaseFx.PlayGems(card);
+                });
+        }
+
+        private void BuyOffer(OfferBinding offer)
+        {
+            PurchaseFlow(offer.sku, ok =>
+            {
+                if (!ok) return;
+                if (_wallet != null && offer.cashAmount > 0d) _wallet.AddCash(new BigDouble(offer.cashAmount));
+                if (_wallet != null && offer.gemAmount > 0) _wallet.AddGems(offer.gemAmount);
+                if (_boost != null && offer.boostMultiplier > 1d && offer.boostSeconds > 0d)
+                    _boost.SetBoost(offer.boostMultiplier, offer.boostSeconds);
+                if (offer.removeAds) { AdsRemoved = true; RefreshOffers(); }
+
+                if (purchaseFx != null && offer.button != null)
+                {
+                    RectTransform card = (RectTransform)offer.button.transform;
+                    if (offer.cashAmount > 0d) purchaseFx.PlayCash(card);
+                    if (offer.gemAmount > 0) purchaseFx.PlayGems(card);
                 }
+            });
+        }
+
+        /// <summary>Ads-removing offers grey out once ads are gone; everything else stays buyable.</summary>
+        private void RefreshOffers()
+        {
+            for (int i = 0; i < offers.Count; i++)
+            {
+                OfferBinding o = offers[i];
+                if (o != null && o.button != null && o.removeAds)
+                    o.button.interactable = !AdsRemoved;
             }
         }
     }

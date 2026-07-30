@@ -50,6 +50,15 @@ namespace Game.UI
             if (_world != null) Build();
         }
 
+        /// <summary>Open/close the world map — called by the HUD's map button.</summary>
+        public void ToggleMap()
+        {
+            if (_sailing || _map == null) return;
+            bool on = !_map.activeSelf;
+            _map.SetActive(on);
+            if (on) Refresh();
+        }
+
         private void Update()
         {
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
@@ -76,13 +85,7 @@ namespace Game.UI
             sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; sc.referenceResolution = new Vector2(1080f, 1920f); sc.matchWidthOrHeight = 0.5f;
             RectTransform root = (RectTransform)canvasGO.transform;
 
-            // MAP button (bottom-left, always visible — mirrors the HUD's UPGRADES button bottom-right)
-            Button mapBtn = Btn(root, "MapBtn", "🌍  MAP", Amber, 34, () => { if (_sailing) return; bool on = !_map.activeSelf; _map.SetActive(on); if (on) Refresh(); });
-            RectTransform mrt = mapBtn.GetComponent<RectTransform>();
-            mrt.anchorMin = Vector2.zero; mrt.anchorMax = Vector2.zero; mrt.pivot = Vector2.zero;
-            mrt.anchoredPosition = new Vector2(24f, 24f); mrt.sizeDelta = new Vector2(300f, 100f);
-
-            // full-screen map
+            // full-screen map — opened by the HUD's map button via ToggleMap()
             RectTransform map = Panel(root, "WorldMap", Ocean);
             _map = map.gameObject;
             Text title = Label(map, "Title", "ORE  EMPIRE  —  WORLD  MAP", 44, TextAnchor.MiddleCenter);
@@ -184,8 +187,8 @@ namespace Game.UI
                     {
                         var boot = FindAnyObjectByType<OperationCameraBoot>();
                         if (boot != null) boot.FrameOn(_world.RootName(i));
-                        var hud = FindAnyObjectByType<CoalHud>();
-                        if (hud != null) hud.SetOperation(op);
+                        var upgrades = FindAnyObjectByType<UpgradePanelUI>();
+                        if (upgrades != null) upgrades.SetOperation(op);
                         var badges = FindAnyObjectByType<StationBadges>();
                         if (badges != null) badges.SetOperation(op);
                         var juice = FindAnyObjectByType<HudJuice>();

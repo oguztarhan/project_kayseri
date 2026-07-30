@@ -21,6 +21,14 @@ namespace Game.Systems
         public BigDouble PendingInvestors() => Prestige.Investors(_data.wallet.lifetimeCash, _k);
         public bool CanPrestige() => _data.wallet.lifetimeCash.ToDouble() >= _threshold && PendingInvestors().Mantissa > 0d;
 
+        /// <summary>Lifetime cash needed before prestige unlocks — the prestige screen draws a bar toward it.</summary>
+        public double Threshold => _threshold;
+        public BigDouble LifetimeCash => _data.wallet.lifetimeCash;
+
+        /// <summary>What the multiplier becomes once the pending investors are cashed in.</summary>
+        public double MultiplierAfterPrestige()
+            => Prestige.IncomeMultiplier(_data.wallet.investors + PendingInvestors().ToDouble(), _bonus);
+
         /// <summary>Award pending investors and reset the run. Returns investors gained. Caller resets in-scene stations.</summary>
         public double DoPrestige()
         {
