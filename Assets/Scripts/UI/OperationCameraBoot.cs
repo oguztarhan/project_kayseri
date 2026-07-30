@@ -66,7 +66,23 @@ namespace Game.UI
             cam.fieldOfView = fieldOfView;
             cam.farClipPlane = Mathf.Max(cam.farClipPlane, 20000f);
 
-            Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
+            // Each island's chain runs mine → market in its own world direction. Aiming the camera along
+            // that axis makes every island read identically in portrait — mountains at the top, market at
+            // the bottom, the road straight down the middle — instead of each one at a random diagonal.
+            float useYaw = yaw;
+            Transform mine = null, market = null;
+            foreach (Transform ch in root.transform)
+            {
+                if (ch.name.StartsWith("mine_")) mine = ch;
+                else if (ch.name == "market") market = ch;
+            }
+            if (mine != null && market != null)
+            {
+                Vector3 f = mine.position - market.position; f.y = 0f;   // screen-up points at the mountains
+                if (f.sqrMagnitude > 1f) useYaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
+            }
+
+            Quaternion rot = Quaternion.Euler(pitch, useYaw, 0f);
             float surveyDist = FitDistance(b, rot, cam.aspect);
             float dist = surveyDist * defaultZoomFraction;
             Vector3 pos = b.center - rot * Vector3.forward * dist;
