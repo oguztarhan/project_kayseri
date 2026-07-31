@@ -2600,7 +2600,6 @@ MonoBehaviour:
   roadWidth: 9
   chainBend: 0
   yardOut: 13
-  mineUnlockHaulBonus: 2
   seaTradeDistance: 42
   shipSpeed: 5
   shipYawOffset: 0
@@ -2772,7 +2771,6 @@ MonoBehaviour:
   roadWidth: 9
   chainBend: 0
   yardOut: 13
-  mineUnlockHaulBonus: 2
   seaTradeDistance: 42
   shipSpeed: 5
   shipYawOffset: 0
@@ -2879,7 +2877,6 @@ MonoBehaviour:
   roadWidth: 9
   chainBend: -0.34
   yardOut: 13
-  mineUnlockHaulBonus: 2
   seaTradeDistance: 42
   shipSpeed: 5
   shipYawOffset: 0
@@ -2986,7 +2983,6 @@ MonoBehaviour:
   roadWidth: 9
   chainBend: 0.38
   yardOut: 13
-  mineUnlockHaulBonus: 2
   seaTradeDistance: 42
   shipSpeed: 5
   shipYawOffset: 0
@@ -3093,7 +3089,6 @@ MonoBehaviour:
   roadWidth: 9
   chainBend: -0.24
   yardOut: 13
-  mineUnlockHaulBonus: 2
   seaTradeDistance: 42
   shipSpeed: 5
   shipYawOffset: 0
@@ -3200,7 +3195,6 @@ MonoBehaviour:
   roadWidth: 9
   chainBend: 0.16
   yardOut: 13
-  mineUnlockHaulBonus: 2
   seaTradeDistance: 42
   shipSpeed: 5
   shipYawOffset: 0
@@ -3307,7 +3301,6 @@ MonoBehaviour:
   roadWidth: 9
   chainBend: -0.3
   yardOut: 13
-  mineUnlockHaulBonus: 2
   seaTradeDistance: 42
   shipSpeed: 5
   shipYawOffset: 0
@@ -3414,7 +3407,6 @@ MonoBehaviour:
   roadWidth: 9
   chainBend: 0.3
   yardOut: 13
-  mineUnlockHaulBonus: 2
   seaTradeDistance: 42
   shipSpeed: 5
   shipYawOffset: 0
@@ -3470,15 +3462,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.StationBadges
   refreshInterval: 0.2
-  cardWidth: 176
-  cardHeight: 94
+  cardWidth: 178
+  cardHeight: 40
   worldYOffset: 5
-  pulseSpeed: 3.2
-  pulseAmount: 0.045
   safeTopPx: 470
   safeBottomPx: 170
   sideOffsetPx: 132
-  stackGapPx: 12
+  stackGapPx: 10
   badgesOnLeft: 1
 --- !u!114 &2135659114
 MonoBehaviour:

@@ -142,7 +142,6 @@ namespace Game.Gameplay
         // length. 0 is a straight spine; the sign picks the side. The smelter holds the corner.
         [SerializeField] private float chainBend = 0f;
         [SerializeField] private float yardOut = 13f;          // how far the stock yards sit beside the road
-        [SerializeField] private float mineUnlockHaulBonus = 2f;   // a bought mine unlock multiplies that line's haul
         [SerializeField] private float seaTradeDistance = 42f; // how far offshore the floating trade post anchors
         [SerializeField] private float shipSpeed = 5f;
         [SerializeField] private float shipYawOffset = 0f;     // authored ship meshes may not face +Z
@@ -287,8 +286,8 @@ namespace Game.Gameplay
                          UnlockPowerPlant = 8, UnlockDeepShaft = 9;
         private static readonly string[] UnlockList =
         {
-            "MINE 2 RICH VEIN (2x haul)", "SECOND SMELTER (2x smelt)", "TRADE POST (+50% price)", "MINE 3 RICH VEIN (2x haul)",
-            "WAREHOUSE (2x storage)", "TRAIN DEPOT (+25% train speed)", "EXPORT DOCK (+25% export price)", "MINE 4 RICH VEIN (2x haul)",
+            "SECOND MINE + RAIL LINE", "SECOND SMELTER (2x smelt)", "TRADE POST (+50% price)", "THIRD MINE + RAIL LINE",
+            "WAREHOUSE (2x storage)", "TRAIN DEPOT (+25% train speed)", "EXPORT DOCK (+25% export price)", "FOURTH MINE + RAIL LINE",
             "COAL POWER PLANT (new upgrades)", "DEEP SHAFT (+30% ore per trip)",
         };
         // scene objects belonging to each unlock, matched by name prefix ("ghostx_*" = placed with real
@@ -299,7 +298,7 @@ namespace Game.Gameplay
             new[] { "ghostx_warehouse" },
             new[] { "ghostx_depot" },
             new[] { "ghostx_dock", "ghostx_roadP" },
-            null,   // mine 4 runs from day one; its unlock enriches the haul instead
+            new[] { "ghostx_mine4" },
             new[] { "ghostx_power", "ghostx_roadW" },
             new[] { "ghostx_shaft" },
         };
@@ -406,7 +405,6 @@ namespace Game.Gameplay
             public Vector3[] path;          // [0]=mountain gate … [n-1]=storage gate
             public Transform mountain;      // the mine this line serves — sites the tunnel mouth
             public GameObject portal;       // tunnel mouth this line runs out of
-            public float cargoMult = 1f;    // mine unlocks enrich a line's haul instead of switching it on
             public GameObject track;        // its rail line - hidden with the portal until the mine is bought
             public int wp;
             public TR state; public float timer; public double carry;
@@ -495,6 +493,24 @@ namespace Game.Gameplay
         }
         /// <summary>The POWER PLANT station only upgrades once its ghost building is bought.</summary>
         public bool AxisLocked(int s, int a) => s == StPower && !_unlocked[UnlockPowerPlant];
+        /// <summary>
+        /// Whether this station is a building on the island. TRAIN, ORE TRUCKS and CARGO TRUCKS are
+        /// fleets: they own no structure, so a floating level chip for them hangs over open grass with
+        /// nothing under it. Their levels live in the upgrade panel, and on the island they read as more
+        /// wagons and more trucks on the road.
+        /// </summary>
+        public bool StationHasBody(int s) =>
+            s == StMine || s == StStorage || s == StSmelter || s == StMarket || s == StPower;
+        /// <summary>Levels bought across a station's axes — the "23" in a badge's "23/50".</summary>
+        public int StationLevelTotal(int s) => StationLevelSum(s);
+        /// <summary>The most levels that station can ever hold — the "50" in a badge's "23/50".</summary>
+        public int StationLevelCap(int s)
+        {
+            int cap = 0;
+            for (int a = 0; a < _lv[s].Length; a++)
+                cap += AxisMaxLv[s][a] > 0 ? Mathf.Min(AxisMaxLv[s][a], axisLevelCap) : axisLevelCap;
+            return cap;
+        }
 
         /// <summary>
         /// World point a floating station badge should hover over — the top of the station's silhouette.
@@ -777,16 +793,6 @@ namespace Game.Gameplay
             if (_ghostMine != null) _train3 = BuildTrain(CloneTrainRig(engine, "train3"), _ghostMine);
             if (_mine4 != null) _train4 = BuildTrain(CloneTrainRig(engine, "train4"), _mine4);
 
-            // Every mountain works from day one: all four lines run, and buying a mine unlock enriches
-            // that line's haul rather than switching it on. Eight peaks with one moving train read as a
-            // broken site, and dead grey track is a promise, not a feature.
-            ActivateTrain(_train2);
-            ActivateTrain(_train3);
-            ActivateTrain(_train4);
-            Solidify(_ghostMine2, _mountain);
-            Solidify(_ghostMine, _mountain);
-            SolidifyGhostRails();
-
             BuildTruckAgents();
             BuildUnlockRegistry();
             BuildSiteDressing();     // needs the rail paths the trains just resolved
@@ -981,7 +987,7 @@ namespace Game.Gameplay
                     a.timer -= dt;
                     if (a.timer <= 0f)
                     {
-                        a.carry = EffTrainOre * a.cargoMult;        // one trip's worth of ore, decided at load time
+                        a.carry = EffTrainOre;                      // one trip's worth of ore, decided at load time
                         ShowTrainAt(a, a.path[0], a.path[1]);       // pop into existence at the railhead, facing storage
                         SetWagonOre(a, true);                       // show the ore cubes sitting in the wagons
                         a.wp = 1; a.state = TR.Haul;
@@ -1476,7 +1482,8 @@ namespace Game.Gameplay
             switch (u)
             {
                 case UnlockSecondMine:
-                    if (_train2 != null) _train2.cargoMult = mineUnlockHaulBonus;
+                    Solidify(_ghostMine2, _mountain);
+                    ActivateTrain(_train2);
                     break;
                 case UnlockSecondSmelter:
                     Solidify(_ghostRefinery, _refinery);
@@ -1485,13 +1492,15 @@ namespace Game.Gameplay
                     Solidify(_ghostMarket, _market);
                     break;
                 case UnlockThirdMine:
-                    if (_train3 != null) _train3.cargoMult = mineUnlockHaulBonus;
+                    Solidify(_ghostMine, _mountain);
+                    SolidifyGhostRails();
+                    ActivateTrain(_train3);
                     break;
                 case UnlockExportDock:
                     ApplyFleetStates();   // wakes the export loop's trucks
                     break;
                 case UnlockFourthMine:
-                    if (_train4 != null) _train4.cargoMult = mineUnlockHaulBonus;
+                    ActivateTrain(_train4);
                     break;
             }
         }
@@ -2587,7 +2596,11 @@ namespace Game.Gameplay
         {
             if (a == null || a.path == null || a.path.Length < 2) return;
             Vector3 head = a.path[0], tail = a.path[a.path.Length - 1];
+            // A locked mine keeps its track hidden too: eight mountains with one running train and four
+            // finished rail lines read as a broken site, not a future one. Track and portal appear
+            // together the moment the mine is bought.
             a.track = RouteMesh.Rail(_dressing, "OpRail_" + id, head, tail, _deckY, a.engineY, ballast, sleeper, steel);
+            if (a.track != null) a.track.SetActive(a.active);
             if (portalPrefab == null || a.mountain == null) return;
 
             Vector3 dir = Flat(tail - head).normalized;
@@ -2609,6 +2622,7 @@ namespace Game.Gameplay
             // portal rock is wider than a whole ghost mine and swallowed it — a white peak with a door.
             p.transform.localScale = Vector3.one * (portalScale * Mathf.Clamp(face / 12f, 0.45f, 1f));
             a.portal = p;
+            p.SetActive(a.active);
         }
 
         /// <summary>Repaints a landmark's own mesh, leaving the generated children (the heap) alone.</summary>
