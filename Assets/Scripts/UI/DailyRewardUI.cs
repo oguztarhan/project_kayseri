@@ -27,6 +27,8 @@ namespace Game.UI
             public Image card;
             [Tooltip("Karo sprite'ları ikonu sabit bastığı için ödül tipine göre üstüne doğru ikon binmeli.")]
             public Image icon;
+            [Tooltip("Alınmış günün tiki. Karo sanatındaki tik madalyonun altında kaldığı için üste binen ayrı bir rozet.")]
+            public GameObject doneBadge;
             public TMP_Text dayLabel;
             public TMP_Text valueLabel;
         }
@@ -149,6 +151,7 @@ namespace Game.UI
                     t.icon.sprite = r != null && r.gems > 0 ? iconGem : iconGold;
                     t.icon.color = i < done ? claimedIconTint : Color.white;
                 }
+                if (t.doneBadge != null && t.doneBadge.activeSelf != (i < done)) t.doneBadge.SetActive(i < done);
                 if (t.dayLabel != null) t.dayLabel.text = (i + 1) + ". GÜN";
                 if (t.valueLabel != null) t.valueLabel.text = ValueText(i);
             }

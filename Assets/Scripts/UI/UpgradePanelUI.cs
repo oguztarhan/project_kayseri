@@ -34,7 +34,8 @@ namespace Game.UI
 
         [Header("Panel (UI_YukseltmePanel prefabında bağlı)")]
         [SerializeField] private GameObject panelRoot;
-        [SerializeField] private TMP_Text titleText;
+        [Tooltip("Şeridin altındaki ada adı. Ekranın kendi başlığı şeride sabit yazılıdır — diğer paneller gibi.")]
+        [SerializeField] private TMP_Text islandNameText;
         [SerializeField] private Button closeButton;
         [SerializeField] private RectTransform content;
         [Tooltip("Pasif şablon: istasyon başlığı satırı (İkon + Ad).")]
@@ -63,6 +64,7 @@ namespace Game.UI
         {
             public int station, axis;     // axis row when unlock < 0
             public int unlock = -1;       // unlock row when >= 0
+            public string note;           // unlock rows: the effect, shown on the level line
             public TMP_Text name, level, price;
             public Button buyBtn;
             public Image buyImg, badge;
@@ -106,12 +108,12 @@ namespace Game.UI
         }
 
         /// <summary>Retarget every row at another island's operation (world-map travel). The catalog is
-        /// identical on every island, so only the binding and the title change.</summary>
+        /// identical on every island, so only the binding and the island name change.</summary>
         public void SetOperation(CoalOperation op)
         {
             if (op == null) return;
             _op = op;
-            if (titleText != null) titleText.text = "YÜKSELTMELER — " + op.IslandDisplayName;
+            if (islandNameText != null) islandNameText.text = op.IslandDisplayName;
             if (panelRoot != null && panelRoot.activeSelf) Refresh();
         }
 
@@ -124,7 +126,12 @@ namespace Game.UI
             if (_op == null && ops.Length > 0) _op = ops[0];   // catalog shape for building rows pre-boot
         }
 
-        private Sprite IconFor(string label)
+        /// <summary>
+        /// First matching rule wins. Section headers pass <paramref name="useFallback"/> false: a
+        /// header with no rule of its own gets no icon at all rather than a stand-in, which is what
+        /// "GENİŞLETMELER" wants — it is a group of unlocks, not a station.
+        /// </summary>
+        private Sprite IconFor(string label, bool useFallback = true)
         {
             for (int i = 0; i < iconRules.Count; i++)
             {
@@ -133,7 +140,7 @@ namespace Game.UI
                     label.IndexOf(r.nameContains, StringComparison.OrdinalIgnoreCase) >= 0)
                     return r.icon;
             }
-            return fallbackIcon;
+            return useFallback ? fallbackIcon : null;
         }
 
         // ---------- construction ----------
@@ -162,8 +169,15 @@ namespace Game.UI
                 AddHeader("GENİŞLETMELER");
                 for (int u = 0; u < _op.UnlockCount; u++)
                 {
+                    // Unlock names carry their effect in brackets ("TRAIN DEPOT (+25% train speed)").
+                    // The whole string does not fit the title line and slides under the price button,
+                    // so the bracket goes to the level line — which for an unlock only said
+                    // "Tek seferlik" and had room to spare.
                     string unlockName = _op.UnlockName(u);
-                    Row row = AddCard(unlockName, unlockName);
+                    int paren = unlockName.IndexOf('(');
+                    string title = paren > 0 ? unlockName.Substring(0, paren).TrimEnd() : unlockName;
+                    Row row = AddCard(unlockName, title);
+                    row.note = paren > 0 ? unlockName.Substring(paren).Trim('(', ')', ' ') : null;
                     row.unlock = u;
                     int cu = u;
                     row.buyBtn.onClick.AddListener(() => { if (_op != null && _op.TryUnlock(cu)) Refresh(); });
@@ -180,7 +194,12 @@ namespace Game.UI
             if (iconT != null)
             {
                 Image img = iconT.GetComponent<Image>();
-                if (img != null) img.sprite = IconFor(label);
+                if (img != null)
+                {
+                    img.sprite = IconFor(label, false);
+                    // no sprite means no slot — an empty Image would draw a white square
+                    iconT.gameObject.SetActive(img.sprite != null);
+                }
             }
             Transform adT = go.transform.Find("Ad");
             if (adT != null)
@@ -268,7 +287,7 @@ namespace Game.UI
             BigDouble cost = _op.UnlockCost(r.unlock);
             bool afford = _wallet != null && _wallet.CanAfford(cost);
             SetState(r, true, false, false);
-            if (r.level != null) r.level.text = "Tek seferlik";
+            if (r.level != null) r.level.text = string.IsNullOrEmpty(r.note) ? "Tek seferlik" : r.note;
             if (r.price != null) r.price.text = "$" + NumberFormatter.Format(cost);
             if (r.buyImg != null) r.buyImg.sprite = afford ? priceGreen : priceGrey;
             if (r.buyBtn != null) r.buyBtn.interactable = afford;
