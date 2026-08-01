@@ -17,8 +17,8 @@ Shader "Kayseri/IslandVertexLit"
         // The bake carries Blender's procedural colour through faithfully, which reads
         // muted once URP lights it. These push it back toward the toy-bright look the
         // island is drawn in, without touching any of the 63 authored colours.
-        _Saturation("Saturation", Range(0,3)) = 1.35
-        _Vibrance("Brightness", Range(0.5,2)) = 1.12
+        _Saturation("Saturation", Range(0,3)) = 1.70
+        _Vibrance("Brightness", Range(0.5,2)) = 1.02
     }
 
     SubShader

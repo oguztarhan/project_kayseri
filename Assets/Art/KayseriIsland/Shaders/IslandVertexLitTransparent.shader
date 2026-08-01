@@ -6,8 +6,8 @@ Shader "Kayseri/IslandVertexLitTransparent"
     {
         _BaseColor("Base Color", Color) = (1,1,1,0.5)
         _VertexColorAmount("Vertex Color Amount", Range(0,1)) = 1.0
-        _Saturation("Saturation", Range(0,3)) = 1.35
-        _Vibrance("Brightness", Range(0.5,2)) = 1.12
+        _Saturation("Saturation", Range(0,3)) = 1.70
+        _Vibrance("Brightness", Range(0.5,2)) = 1.02
         _Metallic("Metallic", Range(0,1)) = 0.0
         _Smoothness("Smoothness", Range(0,1)) = 0.85
         [HDR]_EmissionColor("Emission Color", Color) = (0,0,0,0)
