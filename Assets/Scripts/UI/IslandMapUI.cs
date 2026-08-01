@@ -4,37 +4,76 @@ using Game.Gameplay;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Game.UI
 {
     /// <summary>
-    /// The world map (GDD §2 meta), reskinned with the Figma set. The archipelago is not a geography —
-    /// every island root sits at the same place in the scene and <see cref="WorldIslands.Travel"/> just
-    /// swaps which one is live — so the map is drawn as what the economy actually is: a ladder. One node
-    /// per island down a rope, each carrying a card that answers the only question the player has here,
-    /// "am I done with this island yet?", as a bar of live $/min against that island's cap.
+    /// The world map (GDD §2 meta) as a full-screen showcase: one island at a time, swiped
+    /// left and right. The archipelago is not a geography — every island root sits at the same
+    /// place in the scene and <see cref="WorldIslands.Travel"/> just swaps which one is live —
+    /// so a list of eight rows only ever read as a form. A single island filling the screen,
+    /// wearing its own ore colour and emblem, is what actually sells the next purchase.
     ///
-    /// Editor-authored like every other screen: the hierarchy lives in the UI_Harita prefab, rows are
-    /// cloned from an inactive template inside the scroll content, and every reference below is wired in
-    /// the Inspector. Buying costs billions, so it goes through a confirm popup rather than one tap.
+    /// Editor-authored like every other screen: the hierarchy lives in the UI_Harita prefab and
+    /// every reference below is wired in the Inspector. Motion is all code — the backdrop turns,
+    /// the aura breathes, sparkles orbit an owned island — but nothing here draws layout.
+    /// Buying costs billions, so it goes through a confirm popup rather than one tap.
     /// </summary>
-    public sealed class IslandMapUI : MonoBehaviour
+    public sealed class IslandMapUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         [Header("Panel (UI_Harita prefabında bağlı)")]
         [SerializeField] private GameObject panelRoot;
         [SerializeField] private Button closeButton;
-        [SerializeField] private RectTransform content;
-        [Tooltip("Pasif şablon satır: Dugum(+Kilit) · Halat · Ad · Durum · Yatak(DolguAlani/Dolgu) · RozetBurada · BtnGit · BtnFiyat(Fiyat).")]
-        [SerializeField] private GameObject rowTemplate;
+        [Tooltip("Tam ekran zemin; gösterilen adanın cevher rengine boyanır.")]
+        [SerializeField] private Image backdrop;
+        [Tooltip("Madalyonun arkasında yavaşça dönen ışın çarkı.")]
+        [SerializeField] private Image rays;
 
-        [Header("Durum görselleri")]
-        [SerializeField] private Sprite nodeOwned;     // madalyon
-        [SerializeField] private Sprite nodeLocked;    // madalyon_bekleme
-        [SerializeField] private Sprite priceGreen;    // btn_fiyat_yesil — para yetiyor
-        [SerializeField] private Sprite priceGrey;     // btn_fiyat_gri — yetmiyor
-        [Tooltip("Kilitli adaların düğüm rengi. Sahip olunanlar cevher rengiyle boyanır.")]
-        [SerializeField] private Color lockedNodeTint = new Color(0.62f, 0.67f, 0.78f, 1f);
+        [Header("Vitrin")]
+        [Tooltip("Madalyon, tabela ve butonu taşıyan kök. Kaydırma animasyonu bunu oynatır.")]
+        [SerializeField] private RectTransform stage;
+        [SerializeField] private CanvasGroup stageGroup;
+        [SerializeField] private Image aura;
+        [SerializeField] private Image disc;
+        [SerializeField] private Image emblem;
+        [SerializeField] private GameObject lockIcon;
+        [SerializeField] private RectTransform sparkleRing;
+        [SerializeField] private RectTransform[] sparkles;
+
+        [Header("Tabela")]
+        [SerializeField] private TMP_Text nameText;
+        [SerializeField] private TMP_Text statusText;
+        [Tooltip("Yatak/DolguAlani — genişliği doluluk oranıyla kısılır.")]
+        [SerializeField] private RectTransform barFillArea;
+
+        [Header("Sayfa noktaları")]
+        [SerializeField] private RectTransform pipRoot;
+        [SerializeField] private GameObject pipTemplate;
+        [SerializeField] private Sprite pipOn;
+        [SerializeField] private Sprite pipOff;
+
+        [Header("Yan geçiş")]
+        [SerializeField] private Button prevButton;
+        [SerializeField] private Button nextButton;
+        [SerializeField] private TMP_Text prevLabel;
+        [SerializeField] private TMP_Text nextLabel;
+
+        [Header("Ana buton")]
+        [SerializeField] private Button ctaButton;
+        [SerializeField] private Image ctaImage;
+        [SerializeField] private TMP_Text ctaLabel;
+        [SerializeField] private TMP_Text ctaSubLabel;
+        [SerializeField] private Sprite ctaGo;        // btn_git — sahip olunan başka ada
+        [SerializeField] private Sprite ctaBuy;       // btn_satinal — parası yetiyor
+        [SerializeField] private Sprite ctaIdle;      // btn_bekleme — buradasın ya da kilitli
+
+        [Header("Cevher görselleri")]
+        [Tooltip("Ada sırasıyla: kömür, bakır, demir, gümüş, altın, yakut, zümrüt, elmas.")]
+        [SerializeField] private Sprite[] oreEmblems;
+        [Tooltip("Kilitli adanın madalyon rengi. Sahip olunanlar cevher rengiyle boyanır.")]
+        [SerializeField] private Color lockedTint = new Color(0.42f, 0.47f, 0.58f, 1f);
 
         [Header("Satın alma onayı")]
         [SerializeField] private GameObject confirmRoot;
@@ -52,28 +91,42 @@ namespace Game.UI
         [SerializeField] private float fadeHoldSeconds = 0.1f;
         [SerializeField] private float fadeInSeconds = 0.3f;
 
+        [Header("Animasyon")]
+        [SerializeField] private float openSeconds = 0.32f;
+        [SerializeField] private float slideOutSeconds = 0.13f;
+        [SerializeField] private float slideInSeconds = 0.2f;
+        [Tooltip("Kaydırırken sahnenin kaçtığı mesafe.")]
+        [SerializeField] private float slideDistance = 560f;
+        [Tooltip("Ekran genişliğinin bu kadarını süpürünce ada değişir.")]
+        [SerializeField] private float swipeFraction = 0.16f;
+        [SerializeField] private float backdropSpin = 1.4f;
+        [SerializeField] private float auraPulseSeconds = 2.6f;
+        [SerializeField] private float sparkleSpin = 14f;
         [SerializeField] private float refreshInterval = 0.5f;
-
-        private sealed class Row
-        {
-            public int index;
-            public Image node, priceImage;
-            public GameObject lockIcon, hereBadge, rope, barRoot, goGO, priceGO;
-            public TMP_Text name, status, price;
-            public Button goButton, priceButton;
-            public RectTransform barFillArea;
-            public float barFullWidth;
-        }
 
         private WorldIslands _world;
         private WalletService _wallet;
-        private Row[] _rows;
-        private float _timer;
+        private Canvas _canvas;
+
+        private int _shown;             // island the showcase is displaying, not necessarily the live one
         private int _pending = -1;      // island waiting on the confirm popup
         private bool _sailing;
+        private bool _busy;             // a slide is playing; input is ignored
+        private bool _dragging;
+        private float _dragStart;
+        private float _timer;
+        private float _clock;
+        private Color _backTint = Color.white;
+        private Color _backWant = Color.white;
+        private Image[] _pips;
+        private Vector3 _auraBase = Vector3.one;
 
-        // Resolved on the first travel, not in Start: these screens build themselves at their own pace
-        // and a map that loads first would cache nulls forever.
+        // the backdrop is a flat fill, not art: deep enough that the lit medallion and the plate
+        // carry the screen, but still carrying a trace of the island's ore colour
+        private static readonly Color BackdropFloor = new Color(0.05f, 0.09f, 0.16f, 1f);
+
+        // Resolved on the first travel, not in Start: these screens build themselves at their own
+        // pace and a map that loads first would cache nulls forever.
         private OperationCameraBoot _camBoot;
         private UpgradePanelUI _upgrades;
         private StationBadges _badges;
@@ -83,12 +136,17 @@ namespace Game.UI
         {
             _world = FindAnyObjectByType<WorldIslands>();
             _wallet = ServiceLocator.Get<WalletService>();
+            _canvas = GetComponentInParent<Canvas>();
 
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
             if (confirmCancelButton != null) confirmCancelButton.onClick.AddListener(CloseConfirm);
             if (confirmBuyButton != null) confirmBuyButton.onClick.AddListener(OnConfirmBuy);
+            if (prevButton != null) prevButton.onClick.AddListener(StepBack);
+            if (nextButton != null) nextButton.onClick.AddListener(StepOn);
+            if (ctaButton != null) ctaButton.onClick.AddListener(OnCta);
 
-            BuildRows();
+            if (aura != null) _auraBase = aura.rectTransform.localScale;
+            BuildPips();
             CloseConfirm();
             if (fadeGroup != null) fadeGroup.gameObject.SetActive(false);
             if (panelRoot != null) panelRoot.SetActive(false);
@@ -100,8 +158,12 @@ namespace Game.UI
             if (_sailing || panelRoot == null) return;
             if (panelRoot.activeSelf) { Hide(); return; }
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
+            _shown = _world != null ? _world.ActiveIndex : 0;
             Refresh();
+            _backTint = _backWant;                       // open already wearing the right colour
             panelRoot.SetActive(true);
+            StopAllCoroutines();
+            StartCoroutine(OpenFx());
         }
 
         public void Hide()
@@ -111,153 +173,189 @@ namespace Game.UI
             if (panelRoot != null) panelRoot.SetActive(false);
         }
 
+        // ---------- construction ----------
+        private void BuildPips()
+        {
+            if (_world == null || pipRoot == null || pipTemplate == null) return;
+            pipTemplate.SetActive(false);
+            int n = _world.Count;
+            _pips = new Image[n];
+            for (int i = 0; i < n; i++)
+            {
+                GameObject go = Instantiate(pipTemplate, pipRoot);
+                go.name = "Nokta_" + i;
+                go.SetActive(true);
+                _pips[i] = go.GetComponent<Image>();
+            }
+        }
+
+        // ---------- per-frame motion ----------
         private void Update()
         {
             if (panelRoot == null || !panelRoot.activeSelf) return;
+            float dt = Time.unscaledDeltaTime;
+            _clock += dt;
+
+            if (rays != null) rays.rectTransform.Rotate(0f, 0f, backdropSpin * dt);
+            if (backdrop != null)
+            {
+                _backTint = Color.Lerp(_backTint, _backWant, dt * 5f);
+                backdrop.color = _backTint;
+            }
+
+            if (aura != null && aura.gameObject.activeSelf)
+            {
+                float p = 0.5f + 0.5f * Mathf.Sin(_clock * Mathf.PI * 2f / Mathf.Max(0.1f, auraPulseSeconds));
+                aura.rectTransform.localScale = _auraBase * (0.94f + p * 0.12f);
+                Color c = aura.color;
+                c.a = 0.42f + p * 0.30f;
+                aura.color = c;
+            }
+
+            if (sparkleRing != null && sparkleRing.gameObject.activeSelf)
+            {
+                sparkleRing.Rotate(0f, 0f, sparkleSpin * dt);
+                if (sparkles != null)
+                    for (int i = 0; i < sparkles.Length; i++)
+                    {
+                        if (sparkles[i] == null) continue;
+                        float s = 0.45f + 0.55f * Mathf.Abs(Mathf.Sin(_clock * 1.7f + i * 1.1f));
+                        sparkles[i].localScale = new Vector3(s, s, 1f);
+                    }
+            }
+
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
-            _timer -= Time.unscaledDeltaTime;
+            _timer -= dt;
             if (_timer > 0f) return;
             _timer = refreshInterval;
             Refresh();
         }
 
-        // ---------- construction ----------
-        private void BuildRows()
-        {
-            if (_world == null || content == null || rowTemplate == null) return;
-            rowTemplate.SetActive(false);
-
-            int n = _world.Count;
-            _rows = new Row[n];
-            for (int i = 0; i < n; i++)
-            {
-                GameObject go = Instantiate(rowTemplate, content);
-                go.name = "Satir_" + _world.IslandKey(i);
-                go.SetActive(true);
-
-                var row = new Row { index = i };
-                Transform t;
-                t = go.transform.Find("Dugum");
-                if (t != null)
-                {
-                    row.node = t.GetComponent<Image>();
-                    Transform k = t.Find("Kilit");
-                    if (k != null) row.lockIcon = k.gameObject;
-                }
-                t = go.transform.Find("Halat");      if (t != null) row.rope = t.gameObject;
-                t = go.transform.Find("Ad");         if (t != null) row.name = t.GetComponent<TMP_Text>();
-                t = go.transform.Find("Durum");      if (t != null) row.status = t.GetComponent<TMP_Text>();
-                t = go.transform.Find("RozetBurada");if (t != null) row.hereBadge = t.gameObject;
-                t = go.transform.Find("Yatak");
-                if (t != null)
-                {
-                    row.barRoot = t.gameObject;
-                    Transform fill = t.Find("DolguAlani");
-                    if (fill != null)
-                    {
-                        row.barFillArea = (RectTransform)fill;
-                        row.barFullWidth = row.barFillArea.rect.width;
-                    }
-                }
-                t = go.transform.Find("BtnGit");
-                if (t != null)
-                {
-                    row.goGO = t.gameObject;
-                    row.goButton = t.GetComponent<Button>();
-                    int ci = i;
-                    if (row.goButton != null) row.goButton.onClick.AddListener(() => OnSail(ci));
-                }
-                t = go.transform.Find("BtnFiyat");
-                if (t != null)
-                {
-                    row.priceGO = t.gameObject;
-                    row.priceButton = t.GetComponent<Button>();
-                    row.priceImage = t.GetComponent<Image>();
-                    Transform ft = t.Find("Fiyat");
-                    if (ft != null) row.price = ft.GetComponent<TMP_Text>();
-                    int ci = i;
-                    if (row.priceButton != null) row.priceButton.onClick.AddListener(() => OnAskBuy(ci));
-                }
-
-                // the rope joins this node to the next one, so the last island has nothing to join to
-                if (row.rope != null && i == n - 1) row.rope.SetActive(false);
-                _rows[i] = row;
-            }
-        }
-
         // ---------- refresh ----------
         private void Refresh()
         {
-            if (_world == null || _rows == null) return;
+            if (_world == null || _shown < 0 || _shown >= _world.Count) return;
+            int i = _shown;
+            bool owned = _world.IsOwned(i);
+            bool here = owned && i == _world.ActiveIndex;
 
             int next = -1;                                   // first island the player does not own yet
-            for (int i = 0; i < _rows.Length; i++)
-                if (!_world.IsOwned(i)) { next = i; break; }
-
-            for (int i = 0; i < _rows.Length; i++) RefreshRow(_rows[i], next);
-        }
-
-        private void RefreshRow(Row r, int next)
-        {
-            int i = r.index;
-            bool owned = _world.IsOwned(i);
-            bool active = owned && i == _world.ActiveIndex;
+            for (int k = 0; k < _world.Count; k++)
+                if (!_world.IsOwned(k)) { next = k; break; }
             bool buyable = !owned && i == next;
 
-            if (r.name != null) r.name.text = _world.IslandName(i);
-            if (r.node != null)
+            Color ore = _world.OreColor(i);
+            // ore colours run dark — coal is nearly black — so the disc is lifted toward the set's
+            // cream, or the medallion reads as a hole punched in the screen
+            Color face = owned ? Color.Lerp(ore, new Color(1f, 0.96f, 0.88f), 0.5f) : lockedTint;
+            if (disc != null) disc.color = face;
+            if (aura != null)
             {
-                r.node.sprite = owned ? nodeOwned : nodeLocked;
-                r.node.color = owned ? _world.OreColor(i) : lockedNodeTint;
+                aura.gameObject.SetActive(owned || buyable);
+                Color a = owned ? ore : new Color(0.98f, 0.82f, 0.32f);
+                aura.color = new Color(a.r, a.g, a.b, aura.color.a);
             }
-            SetOn(r.lockIcon, !owned && !buyable);
-            SetOn(r.hereBadge, active);
-
-            if (owned)
+            if (emblem != null)
             {
-                double rate = _world.RatePerMin(i);
-                double cap = _world.CapPerMin(i);
-                SetOn(r.barRoot, true);
-                if (r.barFillArea != null)
+                emblem.sprite = oreEmblems != null && i < oreEmblems.Length ? oreEmblems[i] : null;
+                emblem.enabled = emblem.sprite != null && owned;
+            }
+            SetOn(lockIcon, !owned);
+            if (sparkleRing != null) sparkleRing.gameObject.SetActive(owned);
+            if (rays != null) rays.color = new Color(ore.r, ore.g, ore.b, owned ? 0.42f : 0.18f);
+
+            _backWant = Color.Lerp(owned ? ore : lockedTint, BackdropFloor, 0.72f);
+
+            if (nameText != null) nameText.text = _world.IslandName(i);
+            double cap = _world.CapPerMin(i);
+            if (statusText != null)
+            {
+                if (owned)
                 {
-                    float p = cap > 0d ? Mathf.Clamp01((float)(rate / cap)) : 1f;
-                    r.barFillArea.sizeDelta = new Vector2(r.barFullWidth * p, r.barFillArea.sizeDelta.y);
-                }
-                if (r.status != null)
-                {
+                    double rate = _world.RatePerMin(i);
                     string money = "$" + NumberFormatter.Format(new BigDouble(rate)) + "/dk";
-                    r.status.text = _world.IsMaxed(i) ? money + " · TAVAN" : money + " · tavanın %" + Percent(rate, cap);
+                    statusText.text = _world.IsMaxed(i) ? money + " · TAVAN"
+                                                        : money + " · tavanın %" + Percent(rate, cap);
                 }
-                SetOn(r.goGO, !active);
-                SetOn(r.priceGO, false);
+                else
+                {
+                    statusText.text = "tavan $" + NumberFormatter.Format(new BigDouble(cap)) + "/dk";
+                }
+            }
+            if (barFillArea != null)
+            {
+                float full = ((RectTransform)barFillArea.parent).rect.width;
+                float p = owned && cap > 0d ? Mathf.Clamp01((float)(_world.RatePerMin(i) / cap)) : 0f;
+                barFillArea.sizeDelta = new Vector2(full * p, barFillArea.sizeDelta.y);
+            }
+
+            RefreshCta(owned, here, buyable, next);
+            RefreshSides(i);
+            RefreshPips(i);
+        }
+
+        private void RefreshCta(bool owned, bool here, bool buyable, int next)
+        {
+            if (ctaButton == null) return;
+            bool afford = false;
+            string label, sub;
+            Sprite art;
+
+            if (here)
+            {
+                label = "BURADASIN"; sub = ""; art = ctaIdle;
+            }
+            else if (owned)
+            {
+                label = "GİT"; sub = ""; art = ctaGo; afford = true;
             }
             else if (buyable)
             {
-                SetOn(r.barRoot, false);
-                // Only the island you can actually buy advertises its ceiling; showing all eight caps
-                // turns the ladder into a wall of numbers.
-                if (r.status != null)
-                    r.status.text = "tavan $" + NumberFormatter.Format(new BigDouble(_world.CapPerMin(i))) + "/dk";
-                SetOn(r.goGO, false);
-                SetOn(r.priceGO, true);
-
-                var cost = new BigDouble(_world.UnlockCost(i));
-                bool afford = _wallet != null && _wallet.CanAfford(cost);
-                if (r.price != null) r.price.text = "$" + NumberFormatter.Format(cost);
-                if (r.priceImage != null)
-                {
-                    r.priceImage.sprite = afford ? priceGreen : priceGrey;
-                    // the disabled tint latches on the target graphic; stamp the right colour now
-                    r.priceImage.CrossFadeColor(Color.white, 0f, true, true);
-                }
-                if (r.priceButton != null) r.priceButton.interactable = afford;
+                var cost = new BigDouble(_world.UnlockCost(_shown));
+                afford = _wallet != null && _wallet.CanAfford(cost);
+                label = "SATIN AL";
+                sub = "$" + NumberFormatter.Format(cost);
+                art = afford ? ctaBuy : ctaIdle;
             }
             else
             {
-                SetOn(r.barRoot, false);
-                if (r.status != null) r.status.text = "önce " + _world.IslandName(i - 1);
-                SetOn(r.goGO, false);
-                SetOn(r.priceGO, false);
+                label = "KİLİTLİ";
+                sub = "önce " + _world.IslandName(next < 0 ? _shown - 1 : next);
+                art = ctaIdle;
+            }
+
+            if (ctaLabel != null) ctaLabel.text = label;
+            if (ctaSubLabel != null)
+            {
+                ctaSubLabel.text = sub;
+                SetOn(ctaSubLabel.gameObject, sub.Length > 0);
+            }
+            if (ctaImage != null && art != null)
+            {
+                ctaImage.sprite = art;
+                // the disabled tint latches on the target graphic; stamp the right colour now
+                ctaImage.CrossFadeColor(Color.white, 0f, true, true);
+            }
+            ctaButton.interactable = afford;
+        }
+
+        private void RefreshSides(int i)
+        {
+            bool hasPrev = i > 0, hasNext = i < _world.Count - 1;
+            if (prevButton != null) SetOn(prevButton.gameObject, hasPrev);
+            if (nextButton != null) SetOn(nextButton.gameObject, hasNext);
+            if (prevLabel != null && hasPrev) prevLabel.text = _world.IslandName(i - 1);
+            if (nextLabel != null && hasNext) nextLabel.text = _world.IslandName(i + 1);
+        }
+
+        private void RefreshPips(int i)
+        {
+            if (_pips == null) return;
+            for (int k = 0; k < _pips.Length; k++)
+            {
+                if (_pips[k] == null) continue;
+                _pips[k].sprite = k == i ? pipOn : pipOff;
+                _pips[k].color = _world.IsOwned(k) ? Color.white : new Color(1f, 1f, 1f, 0.45f);
             }
         }
 
@@ -270,17 +368,114 @@ namespace Game.UI
         private static int Percent(double value, double of)
             => of > 0d ? Mathf.Clamp(Mathf.RoundToInt((float)(value / of * 100d)), 0, 100) : 100;
 
-        // ---------- actions ----------
-        private void OnSail(int i)
+        // ---------- paging ----------
+        private void StepBack() { Step(-1); }
+        private void StepOn() { Step(1); }
+
+        private void Step(int dir)
         {
-            if (_sailing || _world == null) return;
-            if (!_world.IsOwned(i) || i == _world.ActiveIndex) return;
-            StartCoroutine(Travel(i));
+            if (_busy || _sailing || _world == null) return;
+            int target = _shown + dir;
+            if (target < 0 || target >= _world.Count) { StartCoroutine(Settle()); return; }
+            StartCoroutine(Swap(target, dir));
         }
 
-        private void OnAskBuy(int i)
+        public void OnBeginDrag(PointerEventData e)
         {
-            if (_sailing || _world == null || confirmRoot == null) return;
+            if (_busy || _sailing) return;
+            _dragging = true;
+            _dragStart = e.position.x;
+        }
+
+        public void OnDrag(PointerEventData e)
+        {
+            if (!_dragging || stage == null) return;
+            float scale = _canvas != null && _canvas.scaleFactor > 0.01f ? _canvas.scaleFactor : 1f;
+            float dx = (e.position.x - _dragStart) / scale;
+            stage.anchoredPosition = new Vector2(Mathf.Clamp(dx * 0.7f, -260f, 260f), 0f);
+        }
+
+        public void OnEndDrag(PointerEventData e)
+        {
+            if (!_dragging) return;
+            _dragging = false;
+            float dx = e.position.x - _dragStart;
+            if (Mathf.Abs(dx) > Screen.width * swipeFraction) Step(dx < 0f ? 1 : -1);
+            else StartCoroutine(Settle());
+        }
+
+        /// <summary>Slide the stage out one way, redraw it for the new island, bring it in the other.</summary>
+        private IEnumerator Swap(int target, int dir)
+        {
+            _busy = true;
+            float from = stage != null ? stage.anchoredPosition.x : 0f;
+            yield return Glide(from, -dir * slideDistance, 1f, 0f, slideOutSeconds);
+            _shown = target;
+            Refresh();
+            yield return Glide(dir * slideDistance, 0f, 0f, 1f, slideInSeconds);
+            _busy = false;
+        }
+
+        /// <summary>Nothing changed — drop the half-swiped stage back into place.</summary>
+        private IEnumerator Settle()
+        {
+            if (stage == null) yield break;
+            _busy = true;
+            yield return Glide(stage.anchoredPosition.x, 0f, 1f, 1f, slideInSeconds);
+            _busy = false;
+        }
+
+        private IEnumerator Glide(float fromX, float toX, float fromA, float toA, float seconds)
+        {
+            if (stage == null) yield break;
+            float t = 0f;
+            while (t < seconds)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / seconds);
+                k = 1f - (1f - k) * (1f - k);                       // ease out
+                stage.anchoredPosition = new Vector2(Mathf.Lerp(fromX, toX, k), 0f);
+                if (stageGroup != null) stageGroup.alpha = Mathf.Lerp(fromA, toA, k);
+                yield return null;
+            }
+            stage.anchoredPosition = new Vector2(toX, 0f);
+            if (stageGroup != null) stageGroup.alpha = toA;
+        }
+
+        /// <summary>Opening pop: the stage overshoots past full size and settles back.</summary>
+        private IEnumerator OpenFx()
+        {
+            if (stage == null) yield break;
+            stage.anchoredPosition = Vector2.zero;
+            float t = 0f;
+            while (t < openSeconds)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / openSeconds);
+                float s = 0.86f + 0.14f * (1f + 2.2f * Mathf.Sin(k * Mathf.PI) * (1f - k)) * k;
+                stage.localScale = new Vector3(s, s, 1f);
+                if (stageGroup != null) stageGroup.alpha = Mathf.Clamp01(k * 2f);
+                yield return null;
+            }
+            stage.localScale = Vector3.one;
+            if (stageGroup != null) stageGroup.alpha = 1f;
+        }
+
+        // ---------- actions ----------
+        private void OnCta()
+        {
+            if (_busy || _sailing || _world == null) return;
+            if (_world.IsOwned(_shown))
+            {
+                if (_shown != _world.ActiveIndex) StartCoroutine(Travel(_shown));
+                return;
+            }
+            AskBuy(_shown);
+        }
+
+        private void AskBuy(int i)
+        {
+            if (confirmRoot == null) return;
             _pending = i;
             if (confirmTitle != null) confirmTitle.text = _world.IslandName(i);
             if (confirmNote != null)
@@ -291,7 +486,7 @@ namespace Game.UI
             if (confirmPrice != null) confirmPrice.text = "$" + NumberFormatter.Format(cost);
             if (confirmBuyImage != null)
             {
-                confirmBuyImage.sprite = afford ? priceGreen : priceGrey;
+                confirmBuyImage.sprite = afford ? ctaBuy : ctaIdle;
                 confirmBuyImage.CrossFadeColor(Color.white, 0f, true, true);
             }
             if (confirmBuyButton != null) confirmBuyButton.interactable = afford;
@@ -315,8 +510,8 @@ namespace Game.UI
 
         /// <summary>
         /// Sail to an island behind a full black screen. The swap itself — island roots, operation,
-        /// camera framing, and the three HUD screens that hold a per-island reference — happens at full
-        /// darkness, which is the whole point of the fade: none of it is watchable mid-frame.
+        /// camera framing, and the three HUD screens that hold a per-island reference — happens at
+        /// full darkness, which is the whole point of the fade: none of it is watchable mid-frame.
         /// </summary>
         private IEnumerator Travel(int i)
         {

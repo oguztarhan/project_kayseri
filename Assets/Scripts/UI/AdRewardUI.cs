@@ -222,6 +222,55 @@ namespace Game.UI
             return slot.chargesPerDay + (extra > 0 ? extra : 0);
         }
 
+        /// <summary>
+        /// The boost slot, if the designer authored one. The HUD's shortcut button drives this rather
+        /// than keeping its own charges and cooldown — two copies of the rules would disagree the
+        /// moment either one is spent.
+        /// </summary>
+        private Slot BoostSlot()
+        {
+            for (int i = 0; i < slots.Count; i++)
+                if (slots[i] != null && slots[i].kind == RewardKind.Boost) return slots[i];
+            return null;
+        }
+
+        /// <summary>Charges left, cooldown expired and an ad actually loaded.</summary>
+        public bool BoostReady
+        {
+            get
+            {
+                Slot s = BoostSlot();
+                return s != null && _free != null && _ad != null && _ad.Available
+                       && _free.CanWatch(s.id, Charges(s), s.cooldownSeconds);
+            }
+        }
+
+        /// <summary>Seconds until the boost is watchable again; 0 when it is ready or out for the day.</summary>
+        public float BoostCooldown
+        {
+            get
+            {
+                Slot s = BoostSlot();
+                return s != null && _free != null ? _free.CooldownLeft(s.id, s.cooldownSeconds) : 0f;
+            }
+        }
+
+        /// <summary>What the boost pays, so a shortcut button can label itself: "×2" for a 2× slot.</summary>
+        public double BoostMultiplier
+        {
+            get
+            {
+                Slot s = BoostSlot();
+                return s != null ? s.boostMultiplier : 1d;
+            }
+        }
+
+        /// <summary>Play the rewarded ad for the boost slot — the HUD shortcut, same rules as the row.</summary>
+        public void WatchBoost()
+        {
+            Watch(BoostSlot());
+        }
+
         private void Watch(Slot slot)
         {
             if (_free == null || slot == null) return;

@@ -45,6 +45,13 @@ namespace Game.UI
         [Header("Alt")]
         [SerializeField] private Button upgradeButton;
         [SerializeField] private Button prestigeButton;
+        [Tooltip("Yükseltmenin solundaki kısayol: reklam izle, gelir 2× olsun. Hak ve bekleme süresi UI_Reklam'daki yuvanın.")]
+        [SerializeField] private Button boostButton;
+        [SerializeField] private Image boostButtonImage;
+        [Tooltip("Butonun ne sattığını yazan üst satır: \"×2 GELİR\".")]
+        [SerializeField] private TMP_Text boostButtonTitle;
+        [Tooltip("Alt satır: hazırken bedeli, çalışırken ve beklerken sayaç.")]
+        [SerializeField] private TMP_Text boostButtonLabel;
 
         [Header("Ekran bağlantıları (sahne nesneleri)")]
         [SerializeField] private PremiumStoreUI store;
@@ -81,6 +88,7 @@ namespace Game.UI
             if (contractButton != null) contractButton.onClick.AddListener(OnContract);
             if (adButton != null) adButton.onClick.AddListener(OnAds);
             if (upgradeButton != null) upgradeButton.onClick.AddListener(OnUpgrades);
+            if (boostButton != null) boostButton.onClick.AddListener(OnBoost);
             if (prestigeButton != null) prestigeButton.onClick.AddListener(OnPrestige);
             if (settingsButton != null) settingsButton.onClick.AddListener(OnSettings);
 
@@ -156,16 +164,57 @@ namespace Game.UI
             if (contractTimerValue != null && _contract != null)
                 contractTimerValue.text = _contract.Claimable ? "HAZIR" : ContractUI.ClockText(_contract.SecondsLeft);
 
+            bool boosted = _boost != null && _boost.IsActive;
             if (boostIndicator != null)
             {
-                bool boosted = _boost != null && _boost.IsActive;
                 if (boostIndicator.activeSelf != boosted) boostIndicator.SetActive(boosted);
                 if (boosted && boostValue != null)
                     boostValue.text = "×" + _boost.ActiveMultiplier.ToString("0.#",
                         System.Globalization.CultureInfo.InvariantCulture)
                         + "  " + ContractUI.ClockText(_boost.SecondsLeft);
             }
+            RefreshBoostButton(boosted);
         }
+
+        /// <summary>
+        /// The shortcut next to the upgrade button. It has no state of its own — everything it shows
+        /// is read back off the ad screen's boost slot, so spending the charge from either place leaves
+        /// both looking the same.
+        /// </summary>
+        private void RefreshBoostButton(bool boosted)
+        {
+            if (boostButton == null) return;
+            bool ready = !boosted && adScreen != null && adScreen.BoostReady;
+            boostButton.interactable = ready;
+
+            if (boostButtonImage != null)
+                // uGUI's disabled tint latches onto the graphic; stamp the state's colour back on
+                boostButtonImage.CrossFadeColor(ready ? Color.white : DimBoost, 0f, true, true);
+
+            if (boostButtonTitle != null)
+            {
+                // While a boost runs, the headline is whatever is actually multiplying the income —
+                // a store offer can set a different one, and the button must not claim the slot's.
+                double mult = boosted ? _boost.ActiveMultiplier
+                                      : (adScreen != null ? adScreen.BoostMultiplier : 2d);
+                boostButtonTitle.text = "×" + mult.ToString("0.#",
+                    System.Globalization.CultureInfo.InvariantCulture) + " GELİR";
+            }
+
+            if (boostButtonLabel == null) return;
+            if (boosted)
+            {
+                boostButtonLabel.text = ContractUI.ClockText(_boost.SecondsLeft);
+                return;
+            }
+            // ready: say what it costs, because the ad badge no longer says it
+            if (ready) { boostButtonLabel.text = "REKLAM İZLE"; return; }
+            // not ready for one of two reasons, and the player needs to be able to tell them apart
+            float wait = adScreen != null ? adScreen.BoostCooldown : 0f;
+            boostButtonLabel.text = wait > 0f ? ContractUI.ClockText(wait) : "YARIN";
+        }
+
+        private static readonly Color DimBoost = new Color(0.55f, 0.58f, 0.66f, 1f);
 
         private void RefreshGems()
         {
@@ -210,6 +259,12 @@ namespace Game.UI
         private void OnAds()
         {
             if (adScreen != null) adScreen.Toggle();
+        }
+
+        /// <summary>Straight to the ad — the shortcut exists precisely to skip opening the ad screen.</summary>
+        private void OnBoost()
+        {
+            if (adScreen != null) adScreen.WatchBoost();
         }
     }
 }
