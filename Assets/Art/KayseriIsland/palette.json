@@ -1,0 +1,1075 @@
+{
+ "materials": [
+  {
+   "name": "asphalt",
+   "color": [
+    0.2674,
+    0.27082,
+    0.2817
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "asphalt_lt",
+   "color": [
+    0.32904,
+    0.3329,
+    0.34423
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "blue",
+   "color": [
+    0.26757,
+    0.42218,
+    0.62852
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.52,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "blue_lt",
+   "color": [
+    0.39559,
+    0.58722,
+    0.74287
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.52,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "bush",
+   "color": [
+    0.39687,
+    0.51694,
+    0.32238
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.1,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "chrome",
+   "color": [
+    0.87209,
+    0.88272,
+    0.90355
+   ],
+   "metallic": 1.0,
+   "smoothness": 0.82,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "clad",
+   "color": [
+    0.71121,
+    0.71836,
+    0.72874
+   ],
+   "metallic": 0.3,
+   "smoothness": 0.4,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "cliff",
+   "color": [
+    0.61793,
+    0.60435,
+    0.57466
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.1,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "coal",
+   "color": [
+    0.13221,
+    0.13221,
+    0.14491
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "coal_shiny",
+   "color": [
+    0.15192,
+    0.15192,
+    0.16505
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "concrete",
+   "color": [
+    0.63051,
+    0.62641,
+    0.61556
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.14,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "concrete_dk",
+   "color": [
+    0.47754,
+    0.47521,
+    0.46885
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.12,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "copper",
+   "color": [
+    0.72974,
+    0.50246,
+    0.35112
+   ],
+   "metallic": 1.0,
+   "smoothness": 0.65,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "cream",
+   "color": [
+    0.86129,
+    0.82217,
+    0.72974
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.4,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "dirt",
+   "color": [
+    0.52029,
+    0.43298,
+    0.32965
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.05,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "foam",
+   "color": [
+    0.95324,
+    0.97227,
+    0.98196
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.45,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ghost",
+   "color": [
+    0.48116,
+    0.8047,
+    0.92879
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.7,
+   "alpha": 0.3,
+   "emission": 1.4,
+   "emissionColor": [
+    0.53252,
+    0.85033,
+    0.97695
+   ]
+  },
+  {
+   "name": "glass",
+   "color": [
+    0.56067,
+    0.71632,
+    0.79279
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.92,
+   "alpha": 0.4,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "grass",
+   "color": [
+    0.43684,
+    0.62949,
+    0.33409
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.08,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "grass_dry",
+   "color": [
+    0.61343,
+    0.67736,
+    0.40273
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.07,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "gravel",
+   "color": [
+    0.46896,
+    0.4577,
+    0.4379
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.05,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "green_ind",
+   "color": [
+    0.27836,
+    0.51272,
+    0.38146
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.45,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "hazard",
+   "color": [
+    0.69795,
+    0.60507,
+    0.24965
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.38,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "headlight",
+   "color": [
+    0.98856,
+    0.97227,
+    0.87742
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.45,
+   "alpha": 1.0,
+   "emission": 9.0,
+   "emissionColor": [
+    1.0,
+    0.96281,
+    0.85033
+   ]
+  },
+  {
+   "name": "kerb",
+   "color": [
+    0.7026,
+    0.69912,
+    0.68855
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.2,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "lamp_glow",
+   "color": [
+    0.98856,
+    0.96755,
+    0.86129
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.45,
+   "alpha": 1.0,
+   "emission": 6.0,
+   "emissionColor": [
+    1.0,
+    0.95324,
+    0.82789
+   ]
+  },
+  {
+   "name": "linepaint",
+   "color": [
+    0.90355,
+    0.89321,
+    0.85033
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.4,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "linepaint_y",
+   "color": [
+    0.89321,
+    0.78067,
+    0.35112
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.4,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "metal_dark",
+   "color": [
+    0.49195,
+    0.50246,
+    0.52273
+   ],
+   "metallic": 1.0,
+   "smoothness": 0.58,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "metal_gal",
+   "color": [
+    0.78067,
+    0.79279,
+    0.81057
+   ],
+   "metallic": 1.0,
+   "smoothness": 0.7,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "offwhite",
+   "color": [
+    0.81639,
+    0.81174,
+    0.79579
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.38,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "orange",
+   "color": [
+    0.86129,
+    0.49724,
+    0.19686
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.56,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "pine",
+   "color": [
+    0.29466,
+    0.45044,
+    0.29738
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.1,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "pine_lt",
+   "color": [
+    0.37413,
+    0.53413,
+    0.34371
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.12,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "purple",
+   "color": [
+    0.45866,
+    0.3347,
+    0.53252
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "red",
+   "color": [
+    0.74287,
+    0.25152,
+    0.23151
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.52,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "rock",
+   "color": [
+    0.55174,
+    0.54487,
+    0.53091
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.12,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "rock_dark",
+   "color": [
+    0.42243,
+    0.41961,
+    0.41753
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.1,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "roof_blue",
+   "color": [
+    0.30146,
+    0.45282,
+    0.6364
+   ],
+   "metallic": 0.25,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "roof_green",
+   "color": [
+    0.35508,
+    0.56067,
+    0.39903
+   ],
+   "metallic": 0.25,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "roof_grey",
+   "color": [
+    0.42536,
+    0.43598,
+    0.45517
+   ],
+   "metallic": 0.25,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "roof_orange",
+   "color": [
+    0.81639,
+    0.52765,
+    0.24424
+   ],
+   "metallic": 0.25,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "roof_red",
+   "color": [
+    0.71463,
+    0.33215,
+    0.27518
+   ],
+   "metallic": 0.25,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "roof_teal",
+   "color": [
+    0.26757,
+    0.52273,
+    0.53252
+   ],
+   "metallic": 0.25,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "rust",
+   "color": [
+    0.59045,
+    0.41648,
+    0.27764
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.15,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "sand",
+   "color": [
+    0.67619,
+    0.62594,
+    0.53158
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.05,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "sea",
+   "color": [
+    0.21141,
+    0.44556,
+    0.52003
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "seabed",
+   "color": [
+    0.45534,
+    0.47167,
+    0.42734
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.06,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "smoke",
+   "color": [
+    0.93374,
+    0.93866,
+    0.94841
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.0,
+   "alpha": 0.24,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "steel",
+   "color": [
+    0.63888,
+    0.65179,
+    0.66973
+   ],
+   "metallic": 0.55,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "steel_dk",
+   "color": [
+    0.42629,
+    0.43479,
+    0.45032
+   ],
+   "metallic": 0.5,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "steel_lt",
+   "color": [
+    0.78591,
+    0.79627,
+    0.81016
+   ],
+   "metallic": 0.45,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "taillight",
+   "color": [
+    0.90355,
+    0.25623,
+    0.20313
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.45,
+   "alpha": 1.0,
+   "emission": 7.0,
+   "emissionColor": [
+    1.0,
+    0.35112,
+    0.25623
+   ]
+  },
+  {
+   "name": "tarp",
+   "color": [
+    0.62852,
+    0.60829,
+    0.5652
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.1,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "teal",
+   "color": [
+    0.23151,
+    0.55148,
+    0.56969
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.52,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "trunk",
+   "color": [
+    0.3437,
+    0.27773,
+    0.21706
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.05,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "water",
+   "color": [
+    0.18447,
+    0.37874,
+    0.48383
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "white",
+   "color": [
+    0.90355,
+    0.90355,
+    0.89839
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.48,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "winlight",
+   "color": [
+    0.98856,
+    0.93374,
+    0.78067
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.45,
+   "alpha": 1.0,
+   "emission": 3.6,
+   "emissionColor": [
+    1.0,
+    0.91374,
+    0.72974
+   ]
+  },
+  {
+   "name": "wood",
+   "color": [
+    0.46677,
+    0.36482,
+    0.26694
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.1,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "wood_lt",
+   "color": [
+    0.63954,
+    0.52775,
+    0.39492
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.12,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "yellow",
+   "color": [
+    0.85033,
+    0.68855,
+    0.20313
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.52,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "yellow_lt",
+   "color": [
+    0.93374,
+    0.79877,
+    0.27836
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.56,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  }
+ ]
+}
