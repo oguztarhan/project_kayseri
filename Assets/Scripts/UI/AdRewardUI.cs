@@ -148,7 +148,8 @@ namespace Game.UI
                 Slot slot = slots[i];
                 if (slot == null) continue;
 
-                int left = _free.ChargesLeft(slot.id, slot.chargesPerDay);
+                int charges = Charges(slot);
+                int left = _free.ChargesLeft(slot.id, charges);
                 float cooldown = _free.CooldownLeft(slot.id, slot.cooldownSeconds);
                 bool ready = left > 0 && cooldown <= 0f;
 
@@ -161,7 +162,7 @@ namespace Game.UI
                         if (slot.charges[c] == null) continue;
                         // A row with fewer charges than dots hides the spares rather than drawing a
                         // limit the slot does not actually have.
-                        bool exists = c < slot.chargesPerDay;
+                        bool exists = c < charges;
                         slot.charges[c].gameObject.SetActive(exists);
                         if (exists) slot.charges[c].sprite = c < left ? slot.chargeFull : slot.chargeEmpty;
                     }
@@ -210,10 +211,21 @@ namespace Game.UI
             return m > 0 ? m + " DK" : Mathf.RoundToInt(seconds) + " SN";
         }
 
+        /// <summary>
+        /// The slot's daily charges plus anything the store sold on top (the "Günlük Hazine" offer).
+        /// Every read of the limit goes through here, or the row would draw four dots and only let the
+        /// player spend three.
+        /// </summary>
+        private int Charges(Slot slot)
+        {
+            int extra = _data != null ? _data.freeRewardBonusCharges : 0;
+            return slot.chargesPerDay + (extra > 0 ? extra : 0);
+        }
+
         private void Watch(Slot slot)
         {
             if (_free == null || slot == null) return;
-            if (!_free.CanWatch(slot.id, slot.chargesPerDay, slot.cooldownSeconds)) return;
+            if (!_free.CanWatch(slot.id, Charges(slot), slot.cooldownSeconds)) return;
             if (_ad == null || !_ad.Available) return;
 
             _ad.ShowRewarded(() =>

@@ -71,6 +71,8 @@ namespace Game.UI
             public GameObject buyGO, badgeGO, lockGO;
         }
         private readonly List<Row> _rows = new List<Row>();
+        // One per station, in station order, so a tap on a building's chip can scroll straight to it.
+        private readonly List<RectTransform> _headers = new List<RectTransform>();
 
         private void Start()
         {
@@ -105,6 +107,51 @@ namespace Game.UI
         public void Hide()
         {
             if (panelRoot != null) panelRoot.SetActive(false);
+        }
+
+        /// <summary>
+        /// Opens the panel already scrolled to one station's rows — what a tap on that building's chip
+        /// out on the map does.
+        ///
+        /// Without it the map was something to watch rather than something to touch: every purchase meant
+        /// opening one long list and hunting for the building you were already looking at. Landing on the
+        /// right rows closes that loop, which is most of what makes a tycoon map feel playable.
+        /// </summary>
+        public void OpenAtStation(int station)
+        {
+            if (panelRoot == null) return;
+            panelRoot.SetActive(true);
+            Refresh();
+            ScrollTo(station);
+        }
+
+        /// <summary>
+        /// Puts a station's header at the top of the view.
+        ///
+        /// Measured from world corners rather than from anchoredPosition, because the rows are laid out by
+        /// a layout group and their pivots and anchors are whatever the template happened to carry — the
+        /// corners are the one reading that means the same thing for any of them.
+        /// </summary>
+        private void ScrollTo(int station)
+        {
+            if (content == null || station < 0 || station >= _headers.Count) return;
+            RectTransform header = _headers[station];
+            if (header == null) return;
+            var scroll = content.GetComponentInParent<ScrollRect>();
+            if (scroll == null || scroll.viewport == null) return;
+
+            // The rows were only just enabled, so their layout is still a frame behind.
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+
+            var c = new Vector3[4]; content.GetWorldCorners(c);
+            var v = new Vector3[4]; scroll.viewport.GetWorldCorners(v);
+            var h = new Vector3[4]; header.GetWorldCorners(h);
+
+            float span = (c[1].y - c[0].y) - (v[1].y - v[0].y);   // scrollable travel, in world units
+            if (span <= 0.001f) return;                            // whole list already fits
+            float fromTop = c[1].y - h[1].y;
+            scroll.verticalNormalizedPosition = Mathf.Clamp01(1f - fromTop / span);
         }
 
         /// <summary>Retarget every row at another island's operation (world-map travel). The catalog is
@@ -154,7 +201,7 @@ namespace Game.UI
             for (int s = 0; s < _op.StationCount; s++)
             {
                 string station = _op.StationName(s);
-                AddHeader(station);
+                _headers.Add((RectTransform)AddHeader(station).transform);
                 for (int a = 0; a < _op.AxisCount(s); a++)
                 {
                     Row row = AddCard(station, _op.AxisName(s, a));
@@ -185,7 +232,8 @@ namespace Game.UI
             }
         }
 
-        private void AddHeader(string label)
+        /// <summary>Adds a section header and returns it, so callers can keep it for scrolling.</summary>
+        private GameObject AddHeader(string label)
         {
             GameObject go = Instantiate(headerTemplate, content);
             go.name = "Baslik_" + label;
@@ -207,6 +255,7 @@ namespace Game.UI
                 TMP_Text t = adT.GetComponent<TMP_Text>();
                 if (t != null) t.text = label;
             }
+            return go;
         }
 
         private Row AddCard(string iconLabel, string title)

@@ -81,6 +81,9 @@ namespace Game.UI
 
         private void OnEnable()
         {
+            // Recompiling while the editor is playing re-runs OnEnable without Awake, so the set built
+            // there is gone. Skipping the reset is the whole fix: the stars resume on the next play.
+            if (_stars == null) return;
             for (int i = 0; i < _stars.Length; i++)
             {
                 Respawn(_stars[i]);
@@ -90,6 +93,7 @@ namespace Game.UI
 
         private void Update()
         {
+            if (_stars == null) return;
             bool visible = InView();
             if (visible != _on)
             {

@@ -41,6 +41,7 @@ namespace Game.UI
         {
             public int station;
             public RectTransform rt;
+            public Button button;
             public Text title;
             public Vector3 anchor;
             public bool hasAnchor;
@@ -82,7 +83,10 @@ namespace Game.UI
 
         private void Build()
         {
-            var go = new GameObject("StationBadgeCanvas", typeof(Canvas), typeof(CanvasScaler));
+            // The raycaster is what makes the chips tappable at all — a Canvas on its own receives no
+            // pointer events, so without it the buttons below would look pressable and do nothing.
+            var go = new GameObject("StationBadgeCanvas",
+                                    typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             go.transform.SetParent(transform, false);
             _canvas = go.GetComponent<Canvas>();
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -102,7 +106,7 @@ namespace Game.UI
         {
             var c = new Card { station = station };
 
-            var root = new GameObject("Badge_" + station, typeof(RectTransform), typeof(Image));
+            var root = new GameObject("Badge_" + station, typeof(RectTransform), typeof(Image), typeof(Button));
             root.transform.SetParent(parent, false);
             c.rt = (RectTransform)root.transform;
             c.rt.anchorMin = Vector2.zero; c.rt.anchorMax = Vector2.zero; c.rt.pivot = new Vector2(0.5f, 0f);
@@ -113,7 +117,20 @@ namespace Game.UI
             // The chip is the one place the kit art *is* tinted: it's a light sprite, and the station
             // name sits on it in white. Tinting keeps the rounded shape and outline but darkens the fill.
             bg.color = CardBg;
-            bg.raycastTarget = false;
+
+            // The chip is the building's handle. It used to be inert — every purchase meant opening one
+            // long list and finding the row for the building you were already looking at, which is why the
+            // map read as something to watch rather than something to play. Tapping it now opens the panel
+            // already scrolled to that station's upgrades.
+            bg.raycastTarget = true;
+            c.button = root.GetComponent<Button>();
+            c.button.targetGraphic = bg;
+            var colors = c.button.colors;
+            colors.highlightedColor = colors.pressedColor = new Color(1.35f, 1.35f, 1.35f, 1f);
+            colors.fadeDuration = 0.08f;
+            c.button.colors = colors;
+            int cs = station;
+            c.button.onClick.AddListener(() => OpenStation(cs));
 
             c.title = Label(c.rt, "Title", "", 15, TextAnchor.MiddleCenter);
             // "POWER PLANT 100/100" is half again the width of "MINE 4/100", so a fixed size either spills
@@ -131,6 +148,18 @@ namespace Game.UI
             c.title.rectTransform.offsetMax = new Vector2(-9f, 0f);
             return c;
         }
+
+        /// <summary>
+        /// Opens the upgrade panel on this station's rows. Looked up rather than wired in the Inspector
+        /// because the chips are built at runtime and the panel lives on its own scene root.
+        /// </summary>
+        private void OpenStation(int station)
+        {
+            if (_panel == null) _panel = FindAnyObjectByType<UpgradePanelUI>(FindObjectsInactive.Include);
+            if (_panel != null) _panel.OpenAtStation(station);
+        }
+
+        private UpgradePanelUI _panel;
 
         /// <summary>
         /// Station anchors are static geometry, so they're resolved once per island rather than per frame.

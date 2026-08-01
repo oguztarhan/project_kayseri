@@ -60,6 +60,49 @@ namespace Game.Gameplay
             for (int i = 0; i < srcTris.Length; i++) tris.Add(v0 + srcTris[i]);
         }
 
+        /// <summary>
+        /// A flat-shaded peak: an irregular cone from a base ring up to <paramref name="apex"/>, one
+        /// triangle per side. Every triangle carries its own three vertices and one normal, which is what
+        /// keeps the facets hard — shared vertices would smooth the silhouette into a dune.
+        ///
+        /// The rim radius wobbles by <paramref name="jitter"/> off a cheap deterministic hash of
+        /// <paramref name="seed"/>, so a range of these does not read as a row of identical tents and
+        /// still comes out the same on every launch without anything being stored.
+        /// </summary>
+        public void AddPeak(Vector3 baseCentre, Vector3 apex, float radius, int sides, float jitter,
+                            int seed, int submesh)
+        {
+            if (sides < 3) sides = 3;
+            List<int> tris = Tris(submesh);
+            for (int i = 0; i < sides; i++)
+            {
+                Vector3 p0 = Rim(baseCentre, radius, sides, i, jitter, seed);
+                Vector3 p1 = Rim(baseCentre, radius, sides, i + 1, jitter, seed);
+                // Wound to match AddFace's convention: cross(edge1, edge2) points along the normal.
+                Vector3 n = Vector3.Cross(apex - p0, p1 - apex);
+                n = n.sqrMagnitude > 1e-8f ? n.normalized : Vector3.up;
+                int v0 = _verts.Count;
+                _verts.Add(p0); _verts.Add(apex); _verts.Add(p1);
+                _norms.Add(n); _norms.Add(n); _norms.Add(n);
+                tris.Add(v0); tris.Add(v0 + 1); tris.Add(v0 + 2);
+            }
+        }
+
+        private static Vector3 Rim(Vector3 c, float radius, int sides, int i, float jitter, int seed)
+        {
+            int k = i % sides;
+            float ang = k / (float)sides * Mathf.PI * 2f;
+            float r = radius * (1f + (Hash(seed, k) - 0.5f) * 2f * jitter);
+            return c + new Vector3(Mathf.Cos(ang) * r, 0f, Mathf.Sin(ang) * r);
+        }
+
+        /// <summary>Deterministic 0..1 scatter. Enough disorder for scenery, and it allocates nothing.</summary>
+        public static float Hash(int seed, int i)
+        {
+            float v = Mathf.Sin(seed * 12.9898f + i * 78.233f) * 43758.5453f;
+            return v - Mathf.Floor(v);
+        }
+
         /// <summary>An upward-facing disc in the XZ plane — a ground decal, so it has no underside.</summary>
         public void AddDisc(Vector3 centre, float radius, int segments, int submesh)
         {

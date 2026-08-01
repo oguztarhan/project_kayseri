@@ -142,6 +142,9 @@ namespace Game.UI
             if (_data != null)
             {
                 _data.islandLevels.Clear();
+                // The idle islands' measured rates go with the levels that produced them; leaving them
+                // would have every island you are not standing on keep paying its pre-prestige number.
+                _data.islandRates.Clear();
                 ServiceLocator.Get<SaveService>()?.Save(_data);
             }
 

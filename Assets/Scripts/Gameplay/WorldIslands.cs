@@ -9,7 +9,8 @@ namespace Game.Gameplay
     /// full copy of the player-built operation, retinted per ore, with its own <see cref="CoalOperation"/>
     /// component on this same object. Exactly one island is ACTIVE: its root + tiles are enabled and its
     /// operation simulates visually. Every other OWNED island earns in the background at its last measured
-    /// $/min (persisted by its operation as <c>rate#&lt;key&gt;</c>, clamped to that island's cap), so buying
+    /// $/min (persisted by its operation into <see cref="SaveData.islandRates"/>, clamped to that island's
+    /// prestige-scaled cap), so buying
     /// the next island never abandons the previous ones. The summed rate also feeds
     /// <see cref="SaveData.incomeRatePerSec"/> so offline earnings cover the whole empire.
     /// UI-free by design (assembly order): <c>IslandMapUI</c> drives Travel/TryBuy and re-frames the camera.
@@ -113,7 +114,7 @@ namespace Game.Gameplay
         ///
         /// Only one island simulates at a time — running eight full operations would cost eight times the
         /// CPU for seven islands nobody is looking at. So each operation measures its own $/min while
-        /// active and saves it (<c>rate#&lt;key&gt;</c>); the moment you sail away, that saved number becomes
+        /// active and saves it (<see cref="SaveData.islandRates"/>); the moment you sail away, that becomes
         /// the island's payout rate. The result is an empire that keeps earning without simulating.
         ///
         /// This is why the whole "buy the next island" loop works: previous islands never go quiet.
@@ -147,10 +148,13 @@ namespace Game.Gameplay
         }
 
         // ---- persistence helpers (same islandLevels store the operations use) ----
-        private int SavedRate(int i)
+        private double SavedRate(int i)
         {
-            StationLevel e = FindLevel("rate#" + islands[i].key);
-            return e != null ? e.level : 0;
+            if (_data == null || _data.islandRates == null) return 0d;
+            string id = islands[i].key;
+            for (int r = 0; r < _data.islandRates.Count; r++)
+                if (_data.islandRates[r].id == id) return _data.islandRates[r].perMin;
+            return 0d;
         }
 
         private StationLevel FindLevel(string id)
@@ -173,14 +177,14 @@ namespace Game.Gameplay
         /// far — paces the full 8-island arc across roughly a month of casual play (GDD §5).</summary>
         private static Entry[] DefaultLadder() => new[]
         {
-            E("coal",    "COAL ISLAND",    "Island_Coal",    "",              0d,      50000d,   new Color(0.10f, 0.10f, 0.12f)),
-            E("copper",  "COPPER ISLAND",  "Island_Copper",  "Tiles_Copper",  20e6d,   150000d,  new Color(0.72f, 0.45f, 0.20f)),
-            E("iron",    "IRON ISLAND",    "Island_Iron",    "Tiles_Iron",    100e6d,  450000d,  new Color(0.62f, 0.63f, 0.68f)),
-            E("silver",  "SILVER ISLAND",  "Island_Silver",  "Tiles_Silver",  500e6d,  1.35e6d,  new Color(0.85f, 0.87f, 0.92f)),
-            E("gold",    "GOLD ISLAND",    "Island_Gold",    "Tiles_Gold",    2.2e9d,  4.05e6d,  new Color(0.95f, 0.78f, 0.22f)),
-            E("ruby",    "RUBY ISLAND",    "Island_Ruby",    "Tiles_Ruby",    9e9d,    12.15e6d, new Color(0.85f, 0.15f, 0.25f)),
-            E("emerald", "EMERALD ISLAND", "Island_Emerald", "Tiles_Emerald", 36e9d,   36.45e6d, new Color(0.15f, 0.75f, 0.35f)),
-            E("diamond", "DIAMOND ISLAND", "Island_Diamond", "Tiles_Diamond", 140e9d,  110e6d,   new Color(0.75f, 0.95f, 1f)),
+            E("coal",    "KÖMÜR ADASI",  "Island_Coal",    "",              0d,      50000d,   new Color(0.10f, 0.10f, 0.12f)),
+            E("copper",  "BAKIR ADASI",  "Island_Copper",  "Tiles_Copper",  20e6d,   150000d,  new Color(0.72f, 0.45f, 0.20f)),
+            E("iron",    "DEMİR ADASI",  "Island_Iron",    "Tiles_Iron",    100e6d,  450000d,  new Color(0.62f, 0.63f, 0.68f)),
+            E("silver",  "GÜMÜŞ ADASI",  "Island_Silver",  "Tiles_Silver",  500e6d,  1.35e6d,  new Color(0.85f, 0.87f, 0.92f)),
+            E("gold",    "ALTIN ADASI",  "Island_Gold",    "Tiles_Gold",    2.2e9d,  4.05e6d,  new Color(0.95f, 0.78f, 0.22f)),
+            E("ruby",    "YAKUT ADASI",  "Island_Ruby",    "Tiles_Ruby",    9e9d,    12.15e6d, new Color(0.85f, 0.15f, 0.25f)),
+            E("emerald", "ZÜMRÜT ADASI", "Island_Emerald", "Tiles_Emerald", 36e9d,   36.45e6d, new Color(0.15f, 0.75f, 0.35f)),
+            E("diamond", "ELMAS ADASI",  "Island_Diamond", "Tiles_Diamond", 140e9d,  110e6d,   new Color(0.75f, 0.95f, 1f)),
         };
 
         private static Entry E(string key, string name, string root, string tiles, double cost, double cap, Color c) =>

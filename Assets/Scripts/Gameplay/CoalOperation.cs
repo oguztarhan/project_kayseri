@@ -118,18 +118,30 @@ namespace Game.Gameplay
         [SerializeField] private float routeLaneWidth = 6f;   // gap between the out and back lanes of a truck route
         [SerializeField] private int queueSpacing = 2;           // loop points a queued truck stops short of the truck ahead
 
-        [Header("Layout spread")]
-        // The authored islands were composed for the starting chain alone. Everything added since —
-        // yards pulled in beside their buildings, six expansion buildings, a rock ridge, tunnel portals,
-        // generated roads and rails — competes for the same strip of land, and the result reads as one
-        // pile of overlapping geometry. So the site is spread apart at startup and the ground grown to
-        // match, which fixes every island at once instead of hand-editing eight compositions.
-        [SerializeField] private float siteSpread = 1.7f;        // push landmarks out from the site centre
-        [SerializeField] private float groundScale = 2.1f;       // grow isle/lagoon so the spread stays on land
+        [Header("Ring layout")]
+        // The four stations stand at the corners of a ring: mountains top-left, the ore drop top-right,
+        // the refinery bottom-right, the market bottom-left with the sea beyond it. Ore therefore enters
+        // at one corner and travels the whole frame before it is sold.
+        //
+        // The previous layout ran the chain down one straight spine. On a portrait screen that put every
+        // building the player watches on a thin line down the middle with empty grass on both flanks,
+        // which was the single biggest reason the map read as unfinished. A ring uses the whole frame.
+        //
+        // The corners are fractions of the island's own land ellipse rather than absolute distances, so
+        // one set of numbers composes all eight islands from their own meshes.
+        [SerializeField] private float ringHeight = 0.60f;       // corner distance up-screen, as a fraction of the land
+        [SerializeField] private float ringWidth = 0.55f;        // and across-screen
+        [SerializeField] private float yardInset = 13f;          // how far inside the ring the stock yards pull off the road
+        // The extra mines are the same 21-metre mountain mesh as the primary. At full size four of them
+        // swamp the corner and crowd the ore drop; as foothills of the one range they read as more of the
+        // same mountain, which is what they are meant to be.
+        [SerializeField] private float secondaryMineScale = 0.62f;
+        [SerializeField] private float siteSpread = 1f;          // push landmarks out from the site centre (1 = leave alone)
+        [SerializeField] private float groundScale = 1f;         // grow isle/lagoon to match (1 = leave alone)
         [SerializeField] private float railSeparation = 13f;     // side-by-side gap where rail lines reach storage
         [SerializeField] private float routeClearance = 6f;      // gap a building keeps off a road or rail centreline
         [SerializeField] private float tidyGap = 8f;             // gap TidySite opens between two overlapping buildings
-        [SerializeField] private float mineRowSpacing = 36f;     // shoulder gap between mines in the back row
+        [SerializeField] private float mineRowSpacing = 26f;     // shoulder gap between mines along the top edge
 
         [Header("Site dressing")]
         // The islands ship with painted road and rail, but it was authored against a layout the sim no
@@ -138,20 +150,20 @@ namespace Game.Gameplay
         // never disagree with the motion, on any island, whatever its mesh happens to carry.
         [SerializeField] private bool generateTrack = true;
         [SerializeField] private float roadWidth = 9f;
-        // Each island's signature: how far the haul road bows sideways, as a fraction of the chain
-        // length. 0 is a straight spine; the sign picks the side. The smelter holds the corner.
-        [SerializeField] private float chainBend = 0f;
-        [SerializeField] private float yardOut = 13f;          // how far the stock yards sit beside the road
         [SerializeField] private float seaTradeDistance = 42f; // how far offshore the floating trade post anchors
+        [SerializeField] private float harborOut = 0.55f;      // pier position past the market, as a fraction of the land
+        // The lagoon mesh is barely wider than the island, so at any zoom that frames the whole site the
+        // water ran out and the rest of the screen was empty background. Grown, the island sits in a sea
+        // that reaches past the edge of the frame, which is the difference between a place and a diorama.
+        [SerializeField] private float seaScale = 3.4f;
         [SerializeField] private float shipSpeed = 5f;
         [SerializeField] private float shipYawOffset = 0f;     // authored ship meshes may not face +Z
         [SerializeField] private int scatterProps = 16;        // cloned scenery pieces that fill the empty grass
         [SerializeField] private GameObject portalPrefab;     // tunnel mouth each rail line emerges from
-        [SerializeField] private GameObject ridgeRockPrefab;  // massed behind the mine to close off the map edge
-        [SerializeField] private int ridgeRocks = 6;
-        [SerializeField] private float ridgeDistance = 26f;   // behind the mine row, before mine-clearing
-        [SerializeField] private float ridgeClearance = 15f;  // keep rocks off any mine head
-        [SerializeField] private float ridgeScale = 1.35f;
+        [SerializeField] private int ridgeRocks = 14;         // peaks in the generated range
+        [SerializeField] private float ridgeDistance = 26f;   // how far the range reaches past the mine cluster
+        [SerializeField] private float ridgeClearance = 15f;  // keep peaks off any mine head or tunnel mouth
+        [SerializeField] private float ridgeScale = 1.35f;    // peak size, relative to the mine spacing
         [SerializeField] private float portalScale = 3.4f;
         [SerializeField] private Color roadColor = new Color(0.47f, 0.40f, 0.32f);   // packed-dirt haul road
         [SerializeField] private Color roadLineColor = new Color(0.93f, 0.88f, 0.72f);
@@ -159,6 +171,8 @@ namespace Game.Gameplay
         [SerializeField] private Color sleeperColor = new Color(0.23f, 0.17f, 0.12f);
         [SerializeField] private Color steelColor = new Color(0.60f, 0.62f, 0.66f);
         [SerializeField] private Color sitePadColor = new Color(0.33f, 0.30f, 0.26f);
+        [SerializeField] private Color plotPadColor = new Color(0.40f, 0.37f, 0.31f);    // surveyed but unbuilt ground
+        [SerializeField] private Color plotMarkColor = new Color(0.97f, 0.83f, 0.30f);   // its dashes and plus
 
         [Header("Expansion buildings")]
         // The authored island meshes only carry the starting chain. Without these, six of the ten one-time
@@ -290,11 +304,15 @@ namespace Game.Gameplay
             "WAREHOUSE (2x storage)", "TRAIN DEPOT (+25% train speed)", "EXPORT DOCK (+25% export price)", "FOURTH MINE + RAIL LINE",
             "COAL POWER PLANT (new upgrades)", "DEEP SHAFT (+30% ore per trip)",
         };
-        // scene objects belonging to each unlock, matched by name prefix ("ghostx_*" = placed with real
-        // materials; the code ghosts them at runtime until bought)
+        // Scene objects belonging to each unlock, matched by name. A trailing '=' means match the name
+        // EXACTLY — needed because "ghost_mine" is a prefix of "ghost_mine (1)", so a prefix match would
+        // hand the second mine's building to the third mine's unlock as well.
         private static readonly string[][] UnlockPrefixes =
         {
-            null, null, null, null,
+            new[] { "ghost_mine (1)=" },
+            new[] { "ghost_refinery=" },
+            new[] { "ghost_market=" },
+            new[] { "ghost_mine=" },
             new[] { "ghostx_warehouse" },
             new[] { "ghostx_depot" },
             new[] { "ghostx_dock", "ghostx_roadP" },
@@ -302,8 +320,15 @@ namespace Game.Gameplay
             new[] { "ghostx_power", "ghostx_roadW" },
             new[] { "ghostx_shaft" },
         };
+
+        private static bool NameMatches(string name, string pattern)
+        {
+            int last = pattern.Length - 1;
+            return pattern[last] == '=' ? name == pattern.Substring(0, last) : name.StartsWith(pattern);
+        }
         private readonly bool[] _unlocked = new bool[10];
-        private Renderer[][] _unlockRends; private Material[][][] _unlockMats;   // per unlock: ghosted renderers + originals
+        private Renderer[][] _unlockRends;   // per unlock: the bodies hidden while it is locked
+        private GameObject[] _plots;         // and the surveyed plot shown in their place
 
         // ---- landmarks (found by name under the island root) ----
         private Transform _islandRoot;
@@ -338,9 +363,11 @@ namespace Game.Gameplay
         }
         private readonly List<RouteLeg> _legs = new List<RouteLeg>();
         private Transform _exportBend;   // waypoint the export run swings around the market on
-        private Transform _elbow;        // corner of a bent chain; null on straight islands
+        private Transform[] _chainNodes; // the ring, in flow order: mine → storage → refinery → market
         private Transform _viaOre, _viaBar;   // where each yard's driveway meets the haul road
         private float _yardSign = 1f;    // which flank of the road the stock yards live on
+        private Vector3 _ringUp, _ringCol;  // screen-up, and the flank the water (so the market) is on
+        private float _ringH, _ringW;    // corner offsets along those two axes
 
         // ---- harbour life: authored ships shuttling between the pier and the offshore trade post ----
         private struct Ship { public Transform t; public Vector3 pier, sea; public float prog, dwell, phase; public bool toSea; }
@@ -362,6 +389,7 @@ namespace Game.Gameplay
         private PrestigeService _prestige;
         private BoostService _boost;
         private double _incomeMult = 1d;   // prestige × active boost, refreshed once a second
+        private double _prestigeMult = 1d; // the prestige half on its own — it is what lifts the ceiling
         private float _deckY;              // ground height every vehicle drives at
         private SaveData _data;
         private Material _oreMat, _barMat, _ghostMat, _srcMat;
@@ -479,7 +507,13 @@ namespace Game.Gameplay
         public string IslandKey => islandKey;
         public string IslandDisplayName => displayName;
         public string PowerPlantName => OreWord + " POWER PLANT";
-        public double IncomeCapPerMinute => incomeCapPerMin;
+        /// <summary>
+        /// The ceiling this island can actually earn against. Investors raise it: a prestige multiplier
+        /// the cap clamped straight back off made prestige a pure loss — you wiped the run and the
+        /// island still paid its old maximum. Rewarded-ad boosts are deliberately left out, so they
+        /// keep doing what they were meant to do, which is speed up the climb rather than lift the roof.
+        /// </summary>
+        public double IncomeCapPerMinute => incomeCapPerMin * _prestigeMult;
         private string OreWord => islandKey.ToUpperInvariant();
         public int StationCount => StationList.Length;
         public string StationName(int s) => StationList[s];
@@ -576,6 +610,12 @@ namespace Game.Gameplay
             for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
             return b;
         }
+
+        /// <summary>
+        /// Raised when a truck sells a load: where it happened, and what it earned. The floating cash
+        /// labels ride on this. The simulation has no opinion about who listens, or whether anyone does.
+        /// </summary>
+        public event System.Action<Vector3, double> Sold;
 
         public BigDouble AxisCost(int s, int a) => new BigDouble(AxisBaseCost[s][a] * costMultiplier * System.Math.Pow(upgradeCostGrowth, _lv[s][a]));
         public int UnlockCount => UnlockList.Length;
@@ -752,6 +792,7 @@ namespace Game.Gameplay
             _ghostMat = ghostRend != null ? ghostRend.sharedMaterial : MakeMat(null, new Color(1f, 1f, 1f, 0.35f));
 
             MeasureLand();   // after the spread grew the ground: every shove below is clamped to it
+            GrowSea();       // and after it, so widening the water can never widen the buildable land
             ArrangeChain();  // the working chain first — its first arm dictates the mine row's facing
             ArrangeMines();  // then every mine into one back row at the head of that arm
 
@@ -794,8 +835,8 @@ namespace Game.Gameplay
             if (_mine4 != null) _train4 = BuildTrain(CloneTrainRig(engine, "train4"), _mine4);
 
             BuildTruckAgents();
-            BuildUnlockRegistry();
             BuildSiteDressing();     // needs the rail paths the trains just resolved
+            BuildUnlockRegistry();   // and this needs the dressing parent, to hang the build plots off
             BuildSiteLife();
             ApplyFleetStates();
             for (int u = 0; u < _unlocked.Length; u++) if (_unlocked[u]) ApplyUnlock(u);
@@ -1366,13 +1407,18 @@ namespace Game.Gameplay
                         // Prestige investors and rewarded-ad boosts multiply the sale *before* the cap, so
                         // they speed up the climb without letting an island out-earn its own ceiling.
                         double sale = a.carry * EffBarPrice * (a.route == Route.Export ? exportPriceBonus : 1f) * _incomeMult;
-                        // island income ceiling: this island can never out-earn its cap — the next island is the growth path
-                        double headroom = incomeCapPerMin - (_trailing + _earnedThisSecond);
+                        // island income ceiling: this island can never out-earn its cap — the next island is
+                        // the growth path, and prestige raises the cap itself (see IncomeCapPerMinute)
+                        double headroom = IncomeCapPerMinute - (_trailing + _earnedThisSecond);
                         if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
                         if (sale > 0d)
                         {
                             _wallet.AddCash(new BigDouble(sale));
                             _earnedThisSecond += sale;
+                            // The UI hangs its floating cash labels off this. Raised rather than called,
+                            // because Game.Gameplay is deliberately below Game.UI in the assembly order —
+                            // the simulation does not get to know what a label is.
+                            if (Sold != null) Sold(a.body != null ? a.body.position : _market.position, sale);
                         }
                     }
                     a.carry = 0d; Show(a.load, false);
@@ -1436,44 +1482,90 @@ namespace Game.Gameplay
         private void BuildUnlockRegistry()
         {
             _unlockRends = new Renderer[UnlockList.Length][];
-            _unlockMats = new Material[UnlockList.Length][][];
+            _plots = new GameObject[UnlockList.Length];
             var rendList = new List<Renderer>();
+            var bodies = new List<Transform>();
             var roots = TileScanObjects();
+            Material padMat = MakeMat(_srcMat, plotPadColor), markMat = MakeMat(_srcMat, plotMarkColor);
+
             for (int u = 0; u < UnlockList.Length; u++)
             {
                 string[] prefixes = UnlockPrefixes[u];
                 if (prefixes == null) continue;
                 rendList.Clear();
+                bodies.Clear();
                 foreach (Transform t in _islandRoot)
                     for (int p = 0; p < prefixes.Length; p++)
-                        if (t.name.StartsWith(prefixes[p])) { rendList.AddRange(t.GetComponentsInChildren<Renderer>(true)); break; }
+                        if (NameMatches(t.name, prefixes[p]))
+                        { rendList.AddRange(t.GetComponentsInChildren<Renderer>(true)); bodies.Add(t); break; }
                 for (int i = 0; i < roots.Length; i++)
                     for (int p = 0; p < prefixes.Length; p++)
-                        if (roots[i].name.StartsWith(prefixes[p])) { rendList.AddRange(roots[i].GetComponentsInChildren<Renderer>(true)); break; }
-                var rends = rendList.ToArray();
-                var mats = new Material[rends.Length][];
-                for (int r = 0; r < rends.Length; r++) mats[r] = rends[r].sharedMaterials;
-                _unlockRends[u] = rends;
-                _unlockMats[u] = mats;
+                        if (NameMatches(roots[i].name, prefixes[p]))
+                        { rendList.AddRange(roots[i].GetComponentsInChildren<Renderer>(true)); break; }
+                _unlockRends[u] = rendList.ToArray();
+                _plots[u] = MakePlot(u, bodies, padMat, markMat);
                 if (!_unlocked[u]) SetGhosted(u, true);
             }
         }
 
+        /// <summary>
+        /// Surveys the ground each of a locked unlock's buildings will stand on, and returns the parent
+        /// holding them so the whole unlock can be shown or hidden at once.
+        ///
+        /// One plot PER BUILDING, not one per unlock. Several unlocks own two buildings placed on opposite
+        /// sides of the site — WAREHOUSE builds a pair — and a single plot spanning their combined bounds
+        /// covered a quarter of the island.
+        ///
+        /// Every plot is squared to the RING, not to the island centre. Facing the centre gave each one a
+        /// different angle depending on where it stood, and a dozen rectangles at a dozen angles is most of
+        /// what made the map look untidy. On one shared axis they read as a surveyed site.
+        /// </summary>
+        private GameObject MakePlot(int u, List<Transform> bodies, Material pad, Material mark)
+        {
+            if (bodies.Count == 0) return null;
+            var holder = new GameObject("OpPlot_" + u);
+            holder.transform.SetParent(_dressing, true);
+            holder.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+
+            int made = 0;
+            for (int i = 0; i < bodies.Count; i++)
+            {
+                // Some unlocks own a stretch of access road as well as a building. Marking that out as a
+                // plot would draw a dashed rectangle across the carriageway.
+                if (bodies[i].name.Contains("road")) continue;
+                Bounds b = WorldBounds(bodies[i]);
+                if (b.size.x < 0.5f && b.size.z < 0.5f) continue;
+                // Square, and squared to the ring. Taking width and depth from the building's world bounds
+                // gave a different rectangle for every rotation it happened to have; one measure for both
+                // means identical buildings get identical plots.
+                float half = Mathf.Max(5f, Mathf.Max(b.extents.x, b.extents.z) * 1.02f + 1.5f);
+                BuildPlot.Build(holder.transform, "Plot" + i, b.center, _ringUp, half, half,
+                                _deckY + 0.07f, pad, mark);
+                made++;
+            }
+            if (made > 0) return holder;
+            Destroy(holder);
+            return null;
+        }
+
+        /// <summary>
+        /// Shows a locked expansion as a surveyed plot rather than as the building itself.
+        ///
+        /// This used to swap the building's materials for a translucent one. A dozen see-through buildings
+        /// standing about on open grass read as rendering faults rather than as plans, and they were the
+        /// untidiest thing on the map. Hiding the body and marking the ground says the same thing — this
+        /// is spoken for, it is not built yet — with none of the noise.
+        ///
+        /// The renderers are switched off rather than the GameObjects, because the placement passes and the
+        /// road builder both measure these objects' bounds whether or not they are visible.
+        /// </summary>
         private void SetGhosted(int u, bool ghost)
         {
             Renderer[] rends = _unlockRends != null ? _unlockRends[u] : null;
-            if (rends == null) return;
-            for (int r = 0; r < rends.Length; r++)
-            {
-                if (rends[r] == null) continue;
-                if (ghost)
-                {
-                    var arr = new Material[_unlockMats[u][r].Length];
-                    for (int m = 0; m < arr.Length; m++) arr[m] = _ghostMat;
-                    rends[r].sharedMaterials = arr;
-                }
-                else rends[r].sharedMaterials = _unlockMats[u][r];
-            }
+            if (rends != null)
+                for (int r = 0; r < rends.Length; r++)
+                    if (rends[r] != null) rends[r].enabled = !ghost;
+            if (_plots != null && _plots[u] != null) _plots[u].SetActive(ghost);
         }
 
         private void ApplyUnlock(int u)
@@ -1565,15 +1657,15 @@ namespace Game.Gameplay
             if (_minAccum < 1f) return;
             _minAccum -= 1f;
             // once a second is often enough for a boost timer, and keeps service lookups out of the sale path
-            _incomeMult = (_prestige != null ? _prestige.IncomeMultiplier : 1d)
-                        * (_boost != null ? _boost.ActiveMultiplier : 1d);
+            _prestigeMult = _prestige != null ? _prestige.IncomeMultiplier : 1d;
+            _incomeMult = _prestigeMult * (_boost != null ? _boost.ActiveMultiplier : 1d);
             _trailing += _earnedThisSecond - _minuteBuckets[_minIdx];
             _minuteBuckets[_minIdx] = _earnedThisSecond;
             _earnedThisSecond = 0d;
             _minIdx = (_minIdx + 1) % _minuteBuckets.Length;
             if (_minFilled < _minuteBuckets.Length) _minFilled++;
             // clamp the extrapolated warm-up value: earning can never exceed the cap per rolling minute
-            CashPerMinute = System.Math.Min(_trailing * (60.0 / _minFilled), incomeCapPerMin);
+            CashPerMinute = System.Math.Min(_trailing * (60.0 / _minFilled), IncomeCapPerMinute);
             // persist the measured rate so this island keeps earning while another one is active (and
             // offline) — only once the window is half-full, so a warm-up spike can't inflate it
             if (--_rateSaveCountdown <= 0 && _minFilled >= RateSaveMinSeconds)
@@ -1587,7 +1679,7 @@ namespace Game.Gameplay
 
         private void PersistRate()
         {
-            SaveLevel("rate#" + islandKey, (int)System.Math.Min(CashPerMinute, incomeCapPerMin));
+            SaveRate(islandKey, System.Math.Min(CashPerMinute, IncomeCapPerMinute));
         }
 
         // Travelling away freezes this island (visuals off, component disabled); the meter must restart
@@ -1654,25 +1746,23 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// Pulls every mine into one row along the back of the site, flanking the primary.
+        /// Gathers every mine into one massif in the top-left corner, around the primary.
         ///
-        /// The authored islands scatter the locked mines around the map - one behind storage, one out by
-        /// the refinery - so each unlock added a rail line arriving from a new direction and the middle
-        /// of the island read as a knot of track. In a row, the map reads top to bottom the way the ore
-        /// flows: mountains at the back, a symmetric fan of rails down to the shed, the haul road
-        /// through the middle, the market and the water at the front.
+        /// The authored islands scatter the locked mines around the map — one behind storage, one out by
+        /// the refinery — so each unlock added a rail line arriving from a new direction and the middle of
+        /// the island read as a knot of track. Clustered instead, they become one mountain range with a
+        /// bundle of rails leaving its face, which is what the corner is supposed to read as.
         ///
-        /// Slots alternate flanks - first one side of the primary, then the other, then two out - so
-        /// the row stays centred over the spine instead of marching off toward one coast. A first
-        /// version extended one way only, and three slots of that walked the far mines into the sea.
+        /// The cluster is deliberately STAGGERED rather than a straight line. A mine mesh is over 20 m
+        /// across and the ring's top edge is only about twice that, so a single row of four would run
+        /// straight through the ore drop at the far end. Set two at a time, some further back into the
+        /// corner, they read as a range with depth and still leave the edge clear.
         /// </summary>
         private void ArrangeMines()
         {
             if (_mountain == null || _market == null) return;
-            Vector3 back = Flat(_mountain.position - (_elbow != null ? _elbow.position : _market.position));
-            if (back.sqrMagnitude < 0.01f) return;
-            back.Normalize();
-            _mineRow = new Vector3(-back.z, 0f, back.x);
+            if (_ringCol.sqrMagnitude < 0.01f) return;   // ArrangeChain sets the frame; nothing to line up without it
+            _mineRow = -_ringCol;                        // along the top edge, away from the coast
             _mineRowNextSlot = 0;
 
             // Nearest authored mine takes the first slot, so nothing swaps sides on the way in.
@@ -1684,10 +1774,17 @@ namespace Game.Gameplay
             for (int i = 0; i < secondaries.Length; i++)
             {
                 if (secondaries[i] == null) continue;
+                Shrink(secondaries[i]);   // before the slot search, so the clearance tests see the real size
                 Vector3 want = NextRowSlot();
                 want.y = secondaries[i].position.y;
                 secondaries[i].position = want;
             }
+        }
+
+        /// <summary>Takes a locked mine down to foothill size. See <see cref="secondaryMineScale"/>.</summary>
+        private void Shrink(Transform mine)
+        {
+            if (mine != null && secondaryMineScale > 0.01f) mine.localScale *= secondaryMineScale;
         }
 
         /// <summary>
@@ -1697,22 +1794,45 @@ namespace Game.Gameplay
         /// </summary>
         private readonly List<Vector3> _rowUsed = new List<Vector3>();
 
-        /// <summary>A candidate is dead if it would stand inside a mine the row already placed.</summary>
+        /// <summary>
+        /// A candidate is dead if it would stand inside a mine the row already placed, or on top of the
+        /// ore drop at the far end of the edge — the row marches toward that building, so without the
+        /// second test the last mine parks on the shed it is supposed to deliver to.
+        /// </summary>
         private bool RowSlotClear(Vector3 p)
         {
             float min = mineRowSpacing * 0.75f;
             if (SqrXZ(p, _mountain.position) < min * min) return false;
+            if (_storage != null)
+            {
+                float keep = min + FootprintRadius(WorldBounds(_storage));
+                if (SqrXZ(p, _storage.position) < keep * keep) return false;
+            }
             for (int i = 0; i < _rowUsed.Count; i++)
                 if (SqrXZ(p, _rowUsed[i]) < min * min) return false;
             return true;
         }
 
+        // Where each extra mine sits relative to the primary, as multiples of mineRowSpacing: x runs along
+        // the top edge toward the ore drop, y runs back into the corner away from the ring.
+        //
+        // Weighted toward DEPTH rather than along the edge. The edge is only about two mine-widths of
+        // usable ground before the ore drop, so a row that mostly marched sideways put its last mine on
+        // the shed. Set back into the corner instead, they build the range outward from the ring.
+        private static readonly Vector2[] MineSlots =
+        {
+            new Vector2(0.15f, 0.95f), new Vector2(1.05f, 0.20f),
+            new Vector2(0.95f, 1.15f), new Vector2(0.30f, 1.85f), new Vector2(1.75f, 0.90f),
+        };
+
         private Vector3 NextRowSlot()
         {
-            int[] pattern = { 1, -1, 2, -2, 3, -3 };
-            while (_mineRowNextSlot < pattern.Length)
+            Vector3 back = _ringUp.sqrMagnitude > 0.01f ? _ringUp : Vector3.zero;
+            while (_mineRowNextSlot < MineSlots.Length)
             {
-                Vector3 pos = _mountain.position + _mineRow * (mineRowSpacing * pattern[_mineRowNextSlot]);
+                Vector2 slot = MineSlots[_mineRowNextSlot];
+                Vector3 pos = _mountain.position + _mineRow * (mineRowSpacing * slot.x)
+                                                 + back * (mineRowSpacing * slot.y);
                 _mineRowNextSlot++;
                 // Mines may stand right up at the coast — a mountain at the waterline reads as terrain —
                 // so the test is the near-full footprint, not the cautious inset the buildings use.
@@ -1734,58 +1854,118 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// Lays the working chain out along one straight spine from the primary mine to the market.
+        /// Stands the four stations at the corners of a ring and hangs the stock yards off its inside edge.
         ///
-        /// The authored islands park storage, the refinery and the yards wherever the composition looked
-        /// nice, so the haul road between them was a chain of slabs at odd angles - every leg its own
-        /// direction, a kink at every joint. On a straight spine the legs are collinear, so the five
-        /// roads render as one continuous ribbon down the island and the trucks drive it end to end.
-        /// The mine and the market stay where the artist put them, which keeps each island's own
-        /// orientation and coastline composition.
+        /// Ore enters at the top-left, crosses the top edge by rail to the drop at the top-right, turns
+        /// down the right-hand side to the refinery at the bottom-right, crosses the bottom edge and is
+        /// sold at the market in the bottom-left, where the sea is. So the goods travel the whole frame
+        /// and every edge of the screen is doing something.
         ///
-        /// The yard pads go ON the spine, halfway to the next building, so a pile reads as a loading
-        /// bay on the road rather than a prop dropped beside it.
+        /// The chain used to run down one straight spine. On a portrait screen that stacked every
+        /// building on a thin line down the middle and left both flanks as empty grass — the main reason
+        /// the map read as unfinished rather than as a working site.
+        ///
+        /// Corners come from the island's own land ellipse, so this composes all eight islands from their
+        /// own meshes instead of needing eight hand-made layouts.
         /// </summary>
         private void ArrangeChain()
         {
-            Vector3 a = _mountain.position, b = _market.position;
-            Vector3 whole = Flat(b - a);
-            if (whole.sqrMagnitude < 1f) return;
-            float len = whole.magnitude;
-            Vector3 dir = whole / len;
-            Vector3 side = new Vector3(-dir.z, 0f, dir.x);
+            // Screen-up is the mine→market axis, because that is the axis OperationCameraBoot aims the
+            // camera down. The ring keeps both of those stations in the same column, so the direction the
+            // camera reads stays the direction meant here.
+            Vector3 up = Flat(_mountain.position - _market.position);
+            _ringUp = up.sqrMagnitude > 1f ? up.normalized : Vector3.forward;
+            // The camera's own right-hand axis for that yaw. Deriving it the same way the camera does is
+            // what keeps "top-left" in this method meaning top-left on the player's screen.
+            Vector3 right = new Vector3(_ringUp.z, 0f, -_ringUp.x);
+            // Mirror the whole ring onto whichever flank the water is on: the market has to end up on the
+            // coast, because the harbour is built off it.
+            _ringCol = right * SeaSide(right);
 
-            // The bend is the island's signature. Zero keeps a straight spine; a bent island puts its
-            // smelter at the corner, so the building itself fills the junction.
-            _elbow = null;
-            if (Mathf.Abs(chainBend) > 0.02f)
+            _ringH = LandExtent(_ringUp) * ringHeight;
+            _ringW = LandExtent(_ringCol) * ringWidth;
+            Vector3 c = _landCentre;
+
+            MoveXZ(_mountain, c + _ringUp * _ringH + _ringCol * _ringW);   // top-left: the mountains
+            MoveXZ(_storage,  c + _ringUp * _ringH - _ringCol * _ringW);   // top-right: the train unloads here
+            MoveXZ(_refinery, c - _ringUp * _ringH - _ringCol * _ringW);   // bottom-right: and it is processed
+            MoveXZ(_market,   c - _ringUp * _ringH + _ringCol * _ringW);   // bottom-left: sold, sea beyond
+
+            _chainNodes = new[] { _mountain, _storage, _refinery, _market };
+
+            // The ring runs clockwise on screen, so its inside is to the RIGHT of travel — and ChainPoint
+            // measures lateral to the left. Hence the negative: the yards pull off into the middle of the
+            // ring, which is both where the room is and the part of the frame a ring leaves empty.
+            _yardSign = -1f;
+            PlaceOnChain(_orePile, 0.42f, -yardInset);
+            PlaceOnChain(_refinedPile, 0.78f, -yardInset);
+            _viaOre = Waypoint("OpVia_Ore", ChainPoint(0.42f, 0f));
+            _viaBar = Waypoint("OpVia_Bar", ChainPoint(0.78f, 0f));
+        }
+
+        /// <summary>
+        /// Widens the lagoon so the sea runs past the edge of the frame.
+        ///
+        /// The authored water disc is barely bigger than the island it surrounds, so at any zoom that
+        /// showed the whole site the sea ran out and the rest of the screen was flat background — the
+        /// island read as a model on a table rather than as somewhere. Only the water is touched: the land
+        /// ellipse has already been measured, so nothing downstream thinks it has more room to build on.
+        /// </summary>
+        private void GrowSea()
+        {
+            if (seaScale <= 1.001f) return;
+            foreach (Transform t in _islandRoot)
             {
-                Vector3 e = Vector3.Lerp(a, b, 0.55f) + side * (chainBend * len);
-                if (!OnLand(e, 0.9f)) e = Vector3.Lerp(a, b, 0.55f) + side * (chainBend * len * 0.5f);
-                _elbow = Waypoint("OpElbow", e);
+                if (!t.name.StartsWith("lagoon_")) continue;
+                Vector3 s = t.localScale;
+                t.localScale = new Vector3(s.x * seaScale, s.y, s.z * seaScale);
+                // A disc scaled about an off-centre pivot also drifts, so re-anchor it under the island.
+                Vector3 p = t.position;
+                t.position = new Vector3(_landCentre.x + (p.x - _landCentre.x) * seaScale, p.y,
+                                         _landCentre.z + (p.z - _landCentre.z) * seaScale);
             }
+        }
 
-            // Yards go on the outside of the bend (open ground); on a straight island, on whichever
-            // flank still has land a yard-width out.
-            Vector3 mid = _elbow != null ? _elbow.position : Vector3.Lerp(a, b, 0.55f);
-            _yardSign = _elbow != null ? Mathf.Sign(chainBend)
-                      : OnLand(mid + side * (yardOut + 8f), 0.9f) ? 1f
-                      : OnLand(mid - side * (yardOut + 8f), 0.9f) ? -1f : 1f;
+        /// <summary>
+        /// How far the land reaches from its centre along <paramref name="dir"/>. This is the ellipse's
+        /// support radius rather than a bounding-box half-extent, because the island meshes are rounded
+        /// and their box corners are open water.
+        /// </summary>
+        private float LandExtent(Vector3 dir)
+        {
+            if (_landHalfX <= 0.01f || _landHalfZ <= 0.01f) return 60f;   // no island mesh: a workable default
+            float x = _landHalfX * dir.x, z = _landHalfZ * dir.z;
+            return Mathf.Sqrt(x * x + z * z);
+        }
 
-            PlaceOnChain(_storage, 0.30f, 0f);
-            if (_elbow != null)
-            {
-                Vector3 e = _elbow.position;
-                _refinery.position = new Vector3(e.x, _refinery.position.y, e.z);
-            }
-            else PlaceOnChain(_refinery, 0.62f, 0f);
+        /// <summary>
+        /// Which flank the water is on, as ±1 along <paramref name="right"/>. Taken from the authored port
+        /// where there is one and from a moored ship otherwise; an island with neither falls back to the
+        /// left, which is where the reference composition puts the sea.
+        /// </summary>
+        private float SeaSide(Vector3 right)
+        {
+            Transform mark = null;
+            foreach (Transform t in _islandRoot) if (t.name.StartsWith("port_")) { mark = t; break; }
+            if (mark == null)
+                foreach (Transform t in _islandRoot) if (t.name.StartsWith("ship")) { mark = t; break; }
+            if (mark == null) return -1f;
+            return Vector3.Dot(Flat(mark.position - _landCentre), right) >= 0f ? 1f : -1f;
+        }
 
-            // The stock yards sit BESIDE the road in their own aprons, joined to it by a short driveway
-            // — a pile in the middle of the carriageway read as an obstruction, not a depot.
-            PlaceOnChain(_orePile, 0.45f, _yardSign * yardOut);
-            PlaceOnChain(_refinedPile, 0.80f, _yardSign * yardOut);
-            _viaOre = Waypoint("OpVia_Ore", ChainPoint(0.45f, 0f));
-            _viaBar = Waypoint("OpVia_Bar", ChainPoint(0.80f, 0f));
+        /// <summary>
+        /// A point in the ring's own frame, as fractions of its half-height and half-width. (0,0) is the
+        /// middle of the ring, (1,1) its top-left corner, and anything past ±1 is outside the roads.
+        /// </summary>
+        private Vector3 RingSlot(float upFrac, float colFrac)
+        {
+            return _landCentre + _ringUp * (_ringH * upFrac) + _ringCol * (_ringW * colFrac);
+        }
+
+        /// <summary>Moves a landmark in the ground plane, leaving whatever height it was authored at.</summary>
+        private static void MoveXZ(Transform t, Vector3 p)
+        {
+            if (t != null) t.position = new Vector3(p.x, t.position.y, p.z);
         }
 
         /// <summary>Finds or creates a named routing marker under the island root, at deck height.</summary>
@@ -1803,31 +1983,36 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// A point at fraction <paramref name="t"/> of the chain's arc length, offset sideways by
-        /// <paramref name="lateral"/> from the local road direction. The chain is the one- or two-segment
-        /// polyline mine — (elbow) — market.
+        /// A point at fraction <paramref name="t"/> of the ring's arc length, offset sideways by
+        /// <paramref name="lateral"/> from the local direction of travel. Negative lateral is the inside
+        /// of the ring — see <see cref="ArrangeChain"/> for why.
+        ///
+        /// Measured by arc length rather than by leg index: the ring's edges differ in length, so
+        /// stepping leg by leg would bunch everything placed by fraction onto the short ones.
         /// </summary>
         private Vector3 ChainPoint(float t, float lateral)
         {
-            Vector3 a = Flat(_mountain.position), b = Flat(_market.position);
-            if (_elbow == null)
+            Transform[] n = _chainNodes;
+            if (n == null || n.Length < 2) return Flat(_market != null ? _market.position : Vector3.zero);
+
+            float total = 0f;
+            for (int i = 0; i < n.Length - 1; i++)
+                total += Vector3.Distance(Flat(n[i].position), Flat(n[i + 1].position));
+            if (total < 0.01f) return Flat(n[0].position);
+
+            float along = Mathf.Clamp01(t) * total;
+            for (int i = 0; i < n.Length - 1; i++)
             {
-                Vector3 d = (b - a).normalized;
-                Vector3 sd = new Vector3(-d.z, 0f, d.x);
-                return a + (b - a) * t + sd * lateral;
+                Vector3 a = Flat(n[i].position), b = Flat(n[i + 1].position);
+                float len = Vector3.Distance(a, b);
+                if (len < 0.01f) continue;
+                // Everything past the last leg's end clamps onto it rather than falling off the loop.
+                if (along > len && i < n.Length - 2) { along -= len; continue; }
+                Vector3 d = (b - a) / len;
+                Vector3 side = new Vector3(-d.z, 0f, d.x);
+                return a + d * Mathf.Min(along, len) + side * lateral;
             }
-            Vector3 e = Flat(_elbow.position);
-            float l1 = (e - a).magnitude, l2 = (b - e).magnitude;
-            float along = t * (l1 + l2);
-            if (along <= l1)
-            {
-                Vector3 d1 = (e - a) / Mathf.Max(0.01f, l1);
-                Vector3 s1 = new Vector3(-d1.z, 0f, d1.x);
-                return a + d1 * along + s1 * lateral;
-            }
-            Vector3 d2 = (b - e) / Mathf.Max(0.01f, l2);
-            Vector3 s2 = new Vector3(-d2.z, 0f, d2.x);
-            return e + d2 * (along - l1) + s2 * lateral;
+            return Flat(n[n.Length - 1].position);
         }
 
         private void PlaceOnChain(Transform t, float f, float lateral)
@@ -1997,6 +2182,7 @@ namespace Game.Gameplay
             Vector3 mine4Want = _mineRow.sqrMagnitude > 0.01f ? NextRowSlot()
                                                               : _mountain.position + free * 30f;
             Expansion("ghostx_mine4", _mountain != null ? _mountain.gameObject : null, mine4Want, true, true);
+            Shrink(Child(_islandRoot, "ghostx_mine4"));   // a clone of the primary, so it arrives full size
             AddRailLeg(Child(_islandRoot, "ghostx_mine4"));
 
             // The dock joins the authored port pier when the island has one — the harbour becomes one
@@ -2032,17 +2218,20 @@ namespace Game.Gameplay
             // Down-chain of the shed, not level with it: every rail line converges on storage from the
             // mine side, so the ground straight out to the shed's flank is the one place a building is
             // guaranteed to foul the track.
-            Expansion("ghostx_warehouse", warehousePrefab, _storage.position + free * 14f + chain * 10f);
-            // The depot and the shaft are the two that start life closest to a mine, and the mines are by
-            // far the widest things on the island — 22 m across on some. Offsets that clear a refinery
-            // leave these two inside the mountain, so both start further out.
-            Expansion("ghostx_depot", depotPrefab, Vector3.Lerp(_mountain.position, _storage.position, 0.55f) + free * 27f);
-            Expansion("ghostx_power", powerPrefab, _refinery.position + free * 16f);
-            // Second warehouse and a market-side depot ride along on the same unlocks (the registry
-            // matches by name prefix), so WAREHOUSE builds a complex and TRAIN DEPOT gains an out-station
-            // — more future on the map for the same purchases.
-            Expansion("ghostx_warehouse2", warehousePrefab, _storage.position + free * 26f + chain * 18f);
-            Expansion("ghostx_depot2", depotPrefab, _market.position + free * 24f - chain * 12f);
+            // The five yard buildings go on FIXED slots in the ring's own frame rather than being offset
+            // from a neighbour and then shoved until they stop overlapping.
+            //
+            // The shove works, but what it produces is only ever "not touching" — buildings end up at
+            // whatever angle and spacing the walk happened to stop at, and the site reads as scattered.
+            // Named slots put them on one grid, aligned with the roads and with each other, which is the
+            // difference between a site that has been laid out and one that has merely been de-collided.
+            //
+            // Slots are fractions of the ring, so they hold their proportions on every island.
+            Expansion("ghostx_warehouse", warehousePrefab, RingSlot(0.42f, 0.88f), false, true);
+            Expansion("ghostx_warehouse2", warehousePrefab, RingSlot(-0.30f, 0.88f), false, true);
+            Expansion("ghostx_depot", depotPrefab, RingSlot(0.38f, 0.10f), false, true);
+            Expansion("ghostx_depot2", depotPrefab, RingSlot(-0.34f, 0.10f), false, true);
+            Expansion("ghostx_power", powerPrefab, RingSlot(0.06f, -1.62f), false, true);
             // The shaft is another mine mouth, so it joins the row like the mines do - the whole
             // mining district in one line, everything below it working ground.
             Vector3 shaftWant = _mineRow.sqrMagnitude > 0.01f ? NextRowSlot()
@@ -2078,7 +2267,12 @@ namespace Game.Gameplay
                                     : ShoveClear(want, half, expansionGap, go.transform, outward * 0.4f, false);
 
             go.transform.position = new Vector3(pos.x, _deckY, pos.z);
-            go.transform.rotation = Quaternion.LookRotation(Flat(_islandRoot.position - pos).normalized, Vector3.up);
+            // All square to the ring. Turning each one to face the island centre gave every building its
+            // own angle, so a row of them fanned instead of lining up — the same thing that made the build
+            // plots look scattered.
+            go.transform.rotation = _ringUp.sqrMagnitude > 0.01f
+                ? Quaternion.LookRotation(-_ringUp, Vector3.up)
+                : Quaternion.LookRotation(Flat(_islandRoot.position - pos).normalized, Vector3.up);
         }
 
         /// <summary>
@@ -2200,6 +2394,10 @@ namespace Game.Gameplay
                 {
                     if (t.name.StartsWith("Dressing") || t.name.StartsWith("Op")) continue;
                     if (t.name.StartsWith("isle_") || t.name.StartsWith("lagoon_")) continue;
+                    // The yard buildings now stand on named slots in the ring's frame, chosen to clear the
+                    // roads and each other. Letting the settle rounds have them undid exactly that: they
+                    // came off the grid and the site went back to looking scattered.
+                    if (t.name.StartsWith("ghostx_")) continue;
                     bool anchor = false;
                     for (int i = 0; i < anchors.Length; i++) if (anchors[i] == t) { anchor = true; break; }
                     if (anchor) continue;
@@ -2268,6 +2466,19 @@ namespace Game.Gameplay
             StationLevel e = FindLevel(id);
             if (e == null) { e = new StationLevel { id = id }; _data.islandLevels.Add(e); }
             e.level = level;
+        }
+
+        /// <summary>
+        /// What this island pays while the player is standing somewhere else. Kept in its own double-backed
+        /// list rather than alongside the integer levels: prestige scales the cap, and the top islands run
+        /// past what an int holds.
+        /// </summary>
+        private void SaveRate(string id, double perMin)
+        {
+            if (_data == null || _data.islandRates == null) return;
+            for (int i = 0; i < _data.islandRates.Count; i++)
+                if (_data.islandRates[i].id == id) { _data.islandRates[i].perMin = perMin; return; }
+            _data.islandRates.Add(new IslandRate { id = id, perMin = perMin });
         }
 
         // ---------------- geometry helpers ----------------
@@ -2415,9 +2626,27 @@ namespace Game.Gameplay
 
             Transform port = null;
             foreach (Transform t in _islandRoot) if (t.name.StartsWith("port_")) { port = t; break; }
+
+            // The harbour belongs beside the market, which the ring puts in the bottom-left corner with
+            // open water beyond it. Each island's authored port sits wherever its original composition
+            // wanted it, so it is moved onto the market's own stretch of coast — otherwise the island
+            // sells its goods at one end and ships them from the other.
+            if (port != null && _ringCol.sqrMagnitude > 0.01f)
+            {
+                // Measured out from the island CENTRE, not from the market. Adding the offset to the market
+                // — which already stands most of the way out to that shore — put the pier well past the
+                // waterline and off the bottom of the frame.
+                float outward = LandExtent(_ringCol) * harborOut;
+                Vector3 want = _landCentre + _ringCol * outward
+                             + _ringUp * Vector3.Dot(Flat(_market.position - _landCentre), _ringUp);
+                port.position = new Vector3(want.x, port.position.y, want.z);
+                port.rotation = Quaternion.LookRotation(-_ringCol, Vector3.up);
+            }
+
             Vector3 coast = port != null ? port.position : (_dock != null ? _dock.position : _market.position);
             Vector3 seaward = Flat(coast - _landCentre);
             seaward = seaward.sqrMagnitude < 0.01f ? Vector3.forward : seaward.normalized;
+            BuildPier(Flat(coast), seaward);
 
             Vector3 raft = Flat(coast) + seaward * seaTradeDistance;
             raft.y = _waterY;
@@ -2442,6 +2671,64 @@ namespace Game.Gameplay
                 sh.t.position = Vector3.Lerp(sh.toSea ? sh.pier : sh.sea, sh.toSea ? sh.sea : sh.pier, sh.prog);
                 _ships.Add(sh);
             }
+        }
+
+        /// <summary>
+        /// The working pier beside the market: a plank jetty out over the water on piles, a loading crane,
+        /// and cargo stacked ready to go. It is what turns the corner where the goods are sold into a place
+        /// they visibly leave from, instead of a red building standing on grass next to some blue.
+        /// </summary>
+        private void BuildPier(Vector3 shore, Vector3 seaward)
+        {
+            Vector3 f = seaward, r = new Vector3(-seaward.z, 0f, seaward.x), up = Vector3.up;
+            Vector3 root = new Vector3(shore.x, _waterY, shore.z);
+            const float deckHalfW = 5.5f, reach = 17f;
+
+            var mb = new BoxMeshBuilder();
+            Vector3 deck = root + f * (reach * 0.5f) + up * 1.15f;
+            mb.AddBox(deck, r, up, f, new Vector3(deckHalfW, 0.32f, reach * 0.5f), 0);
+
+            // Piles down both sides, dropping from the deck into the water.
+            for (int i = 0; i < 4; i++)
+            {
+                float t = (i + 0.5f) / 4f;
+                for (int s = -1; s <= 1; s += 2)
+                    mb.AddBox(root + f * (t * reach) + r * (deckHalfW - 0.6f) * s + up * 0.1f,
+                              r, up, f, new Vector3(0.34f, 1.3f, 0.34f), 1);
+            }
+            // Bollards along the seaward end, which is what makes it read as a mooring rather than a ramp.
+            for (int s = -1; s <= 1; s += 2)
+                mb.AddBox(root + f * (reach - 2f) + r * (deckHalfW - 1f) * s + up * 1.9f,
+                          r, up, f, new Vector3(0.3f, 0.6f, 0.3f), 1);
+
+            // Crane: mast, jib out over the water, and the hoist hanging off its end.
+            Vector3 mast = root + f * (reach * 0.34f) + r * (deckHalfW - 1.3f) + up * 1.45f;
+            mb.AddBox(mast + up * 3.1f, r, up, f, new Vector3(0.4f, 3.1f, 0.4f), 2);
+            mb.AddBox(mast + up * 6.0f + f * 2.2f, r, up, f, new Vector3(0.28f, 0.28f, 2.6f), 2);
+            mb.AddBox(mast + up * 4.9f + f * 4.5f, r, up, f, new Vector3(0.5f, 0.5f, 0.5f), 2);
+
+            // Cargo waiting on the quay.
+            for (int i = 0; i < 3; i++)
+                mb.AddBox(root + f * (2.5f + i * 2.6f) - r * (deckHalfW - 1.6f) + up * (1.9f + (i % 2) * 1.1f),
+                          r, up, f, new Vector3(0.95f, 0.75f, 0.95f), 3);
+
+            // On the island rather than in the dressing, for the same reason as the range: the camera
+            // frames what it can see, and the harbour is half the point of the market's corner.
+            var go = new GameObject("OpPier");
+            go.transform.SetParent(_islandRoot, true);
+            go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            var mesh = new Mesh { name = "OpPier" };
+            mb.Apply(mesh);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterials = new[]
+            {
+                MakeMat(_srcMat, new Color(0.60f, 0.46f, 0.31f)),   // deck planks
+                MakeMat(_srcMat, new Color(0.36f, 0.26f, 0.18f)),   // piles and bollards
+                MakeMat(_srcMat, new Color(0.88f, 0.60f, 0.18f)),   // crane
+                MakeMat(_srcMat, barColor),                          // crates, in the island's product colour
+            };
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
         }
 
         /// <summary>A wooden trading raft out at sea: deck, posts, hut, mast, and a lane of buoys.</summary>
@@ -2649,41 +2936,83 @@ namespace Game.Gameplay
         /// Masses rock behind the mine so the map ends in a mountain wall instead of trailing off into
         /// empty terrain, and gives the rail line somewhere to come from.
         /// </summary>
+        /// <summary>
+        /// Grows the mountain range that fills the mining corner, wrapped around and behind the mine heads.
+        ///
+        /// The corner used to be dressed with copies of the mine mesh dropped in a line behind the row.
+        /// They were the wrong thing at any size — full scale they read as more mines, shrunk they read as
+        /// boulders — and the line was measured in fixed metres, so on a re-composed layout it walked
+        /// straight off the island and left rocks floating over open water.
+        ///
+        /// A generated band solves both: it is sized from the cluster it is filling in, and it is
+        /// explicitly told which ground to leave alone, so the heads and their tunnel mouths stay clear.
+        /// </summary>
         private void BuildRidge()
         {
-            if (ridgeRockPrefab == null || ridgeRocks <= 0) return;
-            Vector3 back = Flat(_mountain.position - _market.position).normalized;
-            Vector3 row = _mineRow.sqrMagnitude > 0.01f ? _mineRow : new Vector3(-back.z, 0f, back.x);
+            if (ridgeRocks <= 0 || _ringUp.sqrMagnitude < 0.01f) return;
+            Vector3 along = _mineRow.sqrMagnitude > 0.01f ? _mineRow : -_ringCol;
+            Vector3 back = _ringUp;
+
+            // Every mine head, plus the ground its tunnel mouth opens onto — a peak on either one buries
+            // the building the range is there to frame.
             Transform[] mines = { _mountain, _ghostMine, _ghostMine2, _mine4 };
-
-            // The rocks are the same mesh as the mines, so scale is what separates scenery from
-            // station: at 2.2 they read as six more mines nobody can use. Kept visibly smaller and a
-            // step behind the row, they read as the range the mines are dug into.
-            for (int i = 0; i < ridgeRocks; i++)
+            var clear = new List<Vector3>();
+            var anchors = new List<Vector3>();
+            float spanMin = 0f, spanMax = 0f, depthMax = 0f, headRadius = 0f;
+            for (int i = 0; i < mines.Length; i++)
             {
-                float t = ridgeRocks == 1 ? 0.5f : i / (float)(ridgeRocks - 1);
-                float slotPos = -2.75f + t * 5.5f;   // just past each end of the widest possible row
-                Vector3 pos = _mountain.position + row * (slotPos * mineRowSpacing)
-                                                + back * (ridgeDistance + (i % 2) * 9f);
-                // Walk a rock back until it clears every mine head - a rock dropped on one would bury
-                // the building the player is about to unlock.
-                for (int guard = 0; guard < 10 && NearAny(mines, pos, ridgeClearance); guard++)
-                    pos += back * 5f;
-
-                var r = Instantiate(ridgeRockPrefab, _dressing);
-                r.name = "Dressing_Rock" + i;
-                r.transform.position = new Vector3(pos.x, _deckY - 2.5f, pos.z);
-                r.transform.rotation = Quaternion.Euler(0f, i * 137f, 0f);
-                r.transform.localScale = Vector3.one * (ridgeScale * (0.85f + 0.05f * (i * 37 % 7)));
+                if (mines[i] == null) continue;
+                Vector3 p = Flat(mines[i].position);
+                // The head itself is buried in its own peak rather than kept clear of one — that is what
+                // makes the train come out of the mountain instead of out of a shed in front of it. Only
+                // the ground the tunnel mouth opens onto stays free, or the range walls the portal in.
+                anchors.Add(new Vector3(p.x, _deckY, p.z));
+                clear.Add(p - back * (ridgeClearance * 1.6f));
+                headRadius = Mathf.Max(headRadius, FootprintRadius(WorldBounds(mines[i])));
+                Vector3 rel = p - Flat(_mountain.position);
+                float a = Vector3.Dot(rel, along), d = Vector3.Dot(rel, back);
+                if (a < spanMin) spanMin = a;
+                if (a > spanMax) spanMax = a;
+                if (d > depthMax) depthMax = d;
             }
+            if (clear.Count == 0) return;
+
+            // The band covers the cluster and reaches on past it, out toward the shore behind.
+            float halfSpan = (spanMax - spanMin) * 0.5f + ridgeDistance;
+            Vector3 front = Flat(_mountain.position) + along * ((spanMin + spanMax) * 0.5f);
+
+            // Stop the band at the coast rather than at whatever the cluster's own depth suggests. Sized
+            // from the mines alone it reached a good 15 m past the waterline, and since a peak that lands
+            // in the sea is dropped rather than pulled in, most of the range simply never got built.
+            float roomBehind = (LandExtent(back) * 0.94f - Vector3.Dot(front - _landCentre, back)) * 0.78f;
+            float depth = Mathf.Max(ridgeDistance * 0.5f, Mathf.Min(depthMax + ridgeDistance, roomBehind));
+            front.y = _deckY - 1.5f;
+
+            // Parented to the island rather than to the dressing, and "Op"-prefixed. The camera skips the
+            // whole dressing object when it works out what to frame, so a range built in there hung off
+            // the top of the screen; the prefix is what keeps the placement passes off it.
+            MountainRange.Build(_islandRoot, "OpRange_Mountains", front, along, back,
+                                halfSpan, depth, mineRowSpacing * 0.42f * ridgeScale,
+                                mineRowSpacing * 0.62f * ridgeScale, ridgeRocks,
+                                islandKey.GetHashCode() & 0xFFFF,
+                                // Wide enough to swallow the widest mine head and still show rock around it.
+                                anchors.ToArray(), headRadius * 1.55f, headRadius * 1.5f,
+                                clear.ToArray(), ridgeClearance,
+                                _landCentre, _landHalfX * 0.97f, _landHalfZ * 0.97f,
+                                MakeMat(_srcMat, RockShade(0.85f)),
+                                MakeMat(_srcMat, RockShade(0.62f)),
+                                MakeMat(_srcMat, RockShade(1.45f)));
         }
 
-        private static bool NearAny(Transform[] ts, Vector3 p, float radius)
+        /// <summary>
+        /// The range's rock colour: the island's own ore tint, lifted well toward grey so it reads as the
+        /// stone the ore is dug out of rather than as eight mountains made of solid diamond.
+        /// </summary>
+        private Color RockShade(float value)
         {
-            float r2 = radius * radius;
-            for (int i = 0; i < ts.Length; i++)
-                if (ts[i] != null && SqrXZ(ts[i].position, p) < r2) return true;
-            return false;
+            Color baseRock = Color.Lerp(oreColor, new Color(0.44f, 0.42f, 0.45f), 0.62f);
+            return new Color(Mathf.Clamp01(baseRock.r * value), Mathf.Clamp01(baseRock.g * value),
+                             Mathf.Clamp01(baseRock.b * value), 1f);
         }
 
         /// <summary>Turns off the painted decoration the generated track replaces, so they can't double up.</summary>

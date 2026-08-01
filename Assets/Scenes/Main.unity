@@ -952,6 +952,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 381673906468372845, guid: ca80562c257053c4b8bad90f8bf2a76f, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4287786846
+      objectReference: {fileID: 0}
+    - target: {fileID: 381673906468372845, guid: ca80562c257053c4b8bad90f8bf2a76f, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 1265896225304037005, guid: ca80562c257053c4b8bad90f8bf2a76f, type: 3}
       propertyPath: m_Name
       value: UI_YukseltmePanel
@@ -962,7 +970,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4200426781137437064, guid: ca80562c257053c4b8bad90f8bf2a76f, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 24
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4252107217090786347, guid: ca80562c257053c4b8bad90f8bf2a76f, type: 3}
       propertyPath: m_Pivot.x
@@ -1356,7 +1364,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1866062076442189187, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1866062076442189187, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.x
@@ -1364,15 +1372,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1866062076442189187, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1866062076442189187, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 470.40253
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1866062076442189187, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -266
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2004165584123203405, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -1384,7 +1392,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2162591452795393671, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2162591452795393671, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.x
@@ -1392,15 +1400,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2162591452795393671, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2162591452795393671, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 470.40253
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2162591452795393671, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -2149.5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2203485810235180049, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.x
@@ -1408,7 +1416,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2203485810235180049, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2203485810235180049, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.x
@@ -1416,15 +1424,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2203485810235180049, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2203485810235180049, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 470.40253
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2203485810235180049, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -1838
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2450549946333181339, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -1468,7 +1476,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4556890389137034411, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4556890389137034411, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.x
@@ -1476,15 +1484,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4556890389137034411, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4556890389137034411, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 470.40253
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4556890389137034411, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -790
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4882080554192559110, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.x
@@ -1492,7 +1500,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4882080554192559110, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4882080554192559110, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.x
@@ -1500,15 +1508,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4882080554192559110, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4882080554192559110, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 470.40253
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4882080554192559110, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -1314
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5129631456189329865, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 5320846454775873356, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -1632,7 +1644,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6133922240265336258, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 3862
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6546755171169001220, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -1656,7 +1668,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7303340963903471508, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7303340963903471508, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.x
@@ -1664,15 +1676,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7303340963903471508, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7303340963903471508, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 470.40253
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7303340963903471508, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -2587
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7350873235899623614, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -1684,7 +1696,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7518275737475003154, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7518275737475003154, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.x
@@ -1692,15 +1704,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7518275737475003154, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7518275737475003154, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 470.40253
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7518275737475003154, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -3024.5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7553953156127994051, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_fontColor32.rgba
@@ -1716,7 +1728,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7764276522268948960, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7764276522268948960, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.x
@@ -1724,15 +1736,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7764276522268948960, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7764276522268948960, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 470.40253
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7764276522268948960, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -3462
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7880063506100342987, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -2569,6 +2581,7 @@ GameObject:
   - component: {fileID: 2135659113}
   - component: {fileID: 2135659114}
   - component: {fileID: 2135659115}
+  - component: {fileID: 2135659116}
   m_Layer: 0
   m_Name: CoalController
   m_TagString: Untagged
@@ -2630,26 +2643,29 @@ MonoBehaviour:
   exportPriceBonus: 1.25
   routeLaneWidth: 6
   queueSpacing: 2
-  siteSpread: 1.7
-  groundScale: 2.1
+  ringHeight: 0.46
+  ringWidth: 0.44
+  yardInset: 19
+  secondaryMineScale: 0.62
+  siteSpread: 1
+  groundScale: 1.85
   railSeparation: 13
   routeClearance: 6
   tidyGap: 8
-  mineRowSpacing: 36
+  mineRowSpacing: 30
   generateTrack: 1
   roadWidth: 9
-  chainBend: 0
-  yardOut: 13
   seaTradeDistance: 42
+  harborOut: 0.58
+  seaScale: 3.4
   shipSpeed: 5
   shipYawOffset: 0
-  scatterProps: 16
+  scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
-  ridgeRockPrefab: {fileID: 919132149155446097, guid: aa27a3fc4fe882a40979c988c6dccc56, type: 3}
-  ridgeRocks: 6
+  ridgeRocks: 26
   ridgeDistance: 26
-  ridgeClearance: 15
-  ridgeScale: 1.35
+  ridgeClearance: 14
+  ridgeScale: 1.25
   portalScale: 3.4
   roadColor: {r: 0.33, g: 0.31, b: 0.3, a: 1}
   roadLineColor: {r: 0.95, g: 0.87, b: 0.55, a: 1}
@@ -2657,6 +2673,8 @@ MonoBehaviour:
   sleeperColor: {r: 0.23, g: 0.17, b: 0.12, a: 1}
   steelColor: {r: 0.6, g: 0.62, b: 0.66, a: 1}
   sitePadColor: {r: 0.33, g: 0.3, b: 0.26, a: 1}
+  plotPadColor: {r: 0.4, g: 0.37, b: 0.31, a: 1}
+  plotMarkColor: {r: 0.97, g: 0.83, b: 0.3, a: 1}
   warehousePrefab: {fileID: 919132149155446097, guid: 0d22971eb10a0da448ac9b94993acf40, type: 3}
   depotPrefab: {fileID: 919132149155446097, guid: 91bb5e7b0cf162d44b810ecc7d8ce41f, type: 3}
   dockPrefab: {fileID: 919132149155446097, guid: 14cc3cbeb006e4a4ab3e8b6ee1effc24, type: 3}
@@ -2710,11 +2728,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.OperationCameraBoot
   operationRootName: Island_Coal
-  pitch: 56
+  pitch: 52
   yaw: 90
   fieldOfView: 30
   edgeMargin: 0.06
-  defaultZoomFraction: 0.72
+  defaultZoomFraction: 0.97
   hudTopFraction: 0.09
   hudBottomFraction: 0.17
   zoomInFactor: 0.3
@@ -2732,8 +2750,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b21595651bf06ca4082b2ac6ac4663f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.IslandMapUI
+  panelRoot: {fileID: 0}
+  closeButton: {fileID: 0}
+  content: {fileID: 0}
+  rowTemplate: {fileID: 0}
+  nodeOwned: {fileID: 0}
+  nodeLocked: {fileID: 0}
+  priceGreen: {fileID: 0}
+  priceGrey: {fileID: 0}
+  lockedNodeTint: {r: 0.62, g: 0.67, b: 0.78, a: 1}
+  confirmRoot: {fileID: 0}
+  confirmTitle: {fileID: 0}
+  confirmNote: {fileID: 0}
+  confirmPrice: {fileID: 0}
+  confirmBuyButton: {fileID: 0}
+  confirmBuyImage: {fileID: 0}
+  confirmCancelButton: {fileID: 0}
+  fadeGroup: {fileID: 0}
+  fadeOutSeconds: 0.25
+  fadeHoldSeconds: 0.1
+  fadeInSeconds: 0.3
   refreshInterval: 0.5
-  sailSeconds: 1.3
 --- !u!114 &2135659105
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2801,26 +2838,29 @@ MonoBehaviour:
   exportPriceBonus: 1.25
   routeLaneWidth: 6
   queueSpacing: 2
-  siteSpread: 1.7
-  groundScale: 2.1
+  ringHeight: 0.46
+  ringWidth: 0.44
+  yardInset: 19
+  secondaryMineScale: 0.62
+  siteSpread: 1
+  groundScale: 1.85
   railSeparation: 13
   routeClearance: 6
   tidyGap: 8
-  mineRowSpacing: 32
+  mineRowSpacing: 30
   generateTrack: 1
   roadWidth: 9
-  chainBend: 0
-  yardOut: 13
   seaTradeDistance: 42
+  harborOut: 0.58
+  seaScale: 3.4
   shipSpeed: 5
   shipYawOffset: 0
-  scatterProps: 16
+  scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
-  ridgeRockPrefab: {fileID: 919132149155446097, guid: 4f8370ec7edf78044803ff5846bfdb2d, type: 3}
-  ridgeRocks: 6
+  ridgeRocks: 26
   ridgeDistance: 26
-  ridgeClearance: 15
-  ridgeScale: 1.35
+  ridgeClearance: 14
+  ridgeScale: 1.25
   portalScale: 3.4
   roadColor: {r: 0.49, g: 0.52, b: 0.57, a: 1}
   roadLineColor: {r: 0.95, g: 0.97, b: 1, a: 1}
@@ -2828,6 +2868,8 @@ MonoBehaviour:
   sleeperColor: {r: 0.23, g: 0.17, b: 0.12, a: 1}
   steelColor: {r: 0.6, g: 0.62, b: 0.66, a: 1}
   sitePadColor: {r: 0.33, g: 0.3, b: 0.26, a: 1}
+  plotPadColor: {r: 0.4, g: 0.37, b: 0.31, a: 1}
+  plotMarkColor: {r: 0.97, g: 0.83, b: 0.3, a: 1}
   warehousePrefab: {fileID: 919132149155446097, guid: 0d22971eb10a0da448ac9b94993acf40, type: 3}
   depotPrefab: {fileID: 919132149155446097, guid: 91bb5e7b0cf162d44b810ecc7d8ce41f, type: 3}
   dockPrefab: {fileID: 919132149155446097, guid: 14cc3cbeb006e4a4ab3e8b6ee1effc24, type: 3}
@@ -2907,26 +2949,29 @@ MonoBehaviour:
   exportPriceBonus: 1.25
   routeLaneWidth: 6
   queueSpacing: 2
-  siteSpread: 1.7
-  groundScale: 2.1
+  ringHeight: 0.46
+  ringWidth: 0.44
+  yardInset: 19
+  secondaryMineScale: 0.62
+  siteSpread: 1
+  groundScale: 1.85
   railSeparation: 13
   routeClearance: 6
   tidyGap: 8
-  mineRowSpacing: 36
+  mineRowSpacing: 30
   generateTrack: 1
   roadWidth: 9
-  chainBend: -0.34
-  yardOut: 13
   seaTradeDistance: 42
+  harborOut: 0.58
+  seaScale: 3.4
   shipSpeed: 5
   shipYawOffset: 0
-  scatterProps: 16
+  scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
-  ridgeRockPrefab: {fileID: 919132149155446097, guid: 17b7c8f5030ca8042a2c798530db8d81, type: 3}
-  ridgeRocks: 6
+  ridgeRocks: 26
   ridgeDistance: 26
-  ridgeClearance: 15
-  ridgeScale: 1.35
+  ridgeClearance: 14
+  ridgeScale: 1.25
   portalScale: 3.4
   roadColor: {r: 0.4, g: 0.43, b: 0.31, a: 1}
   roadLineColor: {r: 0.9, g: 0.92, b: 0.75, a: 1}
@@ -2934,6 +2979,8 @@ MonoBehaviour:
   sleeperColor: {r: 0.23, g: 0.17, b: 0.12, a: 1}
   steelColor: {r: 0.6, g: 0.62, b: 0.66, a: 1}
   sitePadColor: {r: 0.33, g: 0.3, b: 0.26, a: 1}
+  plotPadColor: {r: 0.4, g: 0.37, b: 0.31, a: 1}
+  plotMarkColor: {r: 0.97, g: 0.83, b: 0.3, a: 1}
   warehousePrefab: {fileID: 919132149155446097, guid: 0d22971eb10a0da448ac9b94993acf40, type: 3}
   depotPrefab: {fileID: 919132149155446097, guid: 91bb5e7b0cf162d44b810ecc7d8ce41f, type: 3}
   dockPrefab: {fileID: 919132149155446097, guid: 14cc3cbeb006e4a4ab3e8b6ee1effc24, type: 3}
@@ -3013,26 +3060,29 @@ MonoBehaviour:
   exportPriceBonus: 1.25
   routeLaneWidth: 6
   queueSpacing: 2
-  siteSpread: 1.7
-  groundScale: 2.1
+  ringHeight: 0.46
+  ringWidth: 0.44
+  yardInset: 19
+  secondaryMineScale: 0.62
+  siteSpread: 1
+  groundScale: 1.85
   railSeparation: 13
   routeClearance: 6
   tidyGap: 8
-  mineRowSpacing: 36
+  mineRowSpacing: 30
   generateTrack: 1
   roadWidth: 9
-  chainBend: 0.38
-  yardOut: 13
   seaTradeDistance: 42
+  harborOut: 0.58
+  seaScale: 3.4
   shipSpeed: 5
   shipYawOffset: 0
-  scatterProps: 16
+  scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
-  ridgeRockPrefab: {fileID: 919132149155446097, guid: c531787435d5dda489d80e4da69b9fcd, type: 3}
-  ridgeRocks: 6
+  ridgeRocks: 26
   ridgeDistance: 26
-  ridgeClearance: 15
-  ridgeScale: 1.35
+  ridgeClearance: 14
+  ridgeScale: 1.25
   portalScale: 3.4
   roadColor: {r: 0.47, g: 0.34, b: 0.32, a: 1}
   roadLineColor: {r: 0.95, g: 0.85, b: 0.8, a: 1}
@@ -3040,6 +3090,8 @@ MonoBehaviour:
   sleeperColor: {r: 0.23, g: 0.17, b: 0.12, a: 1}
   steelColor: {r: 0.6, g: 0.62, b: 0.66, a: 1}
   sitePadColor: {r: 0.33, g: 0.3, b: 0.26, a: 1}
+  plotPadColor: {r: 0.4, g: 0.37, b: 0.31, a: 1}
+  plotMarkColor: {r: 0.97, g: 0.83, b: 0.3, a: 1}
   warehousePrefab: {fileID: 919132149155446097, guid: 0d22971eb10a0da448ac9b94993acf40, type: 3}
   depotPrefab: {fileID: 919132149155446097, guid: 91bb5e7b0cf162d44b810ecc7d8ce41f, type: 3}
   dockPrefab: {fileID: 919132149155446097, guid: 14cc3cbeb006e4a4ab3e8b6ee1effc24, type: 3}
@@ -3119,26 +3171,29 @@ MonoBehaviour:
   exportPriceBonus: 1.25
   routeLaneWidth: 6
   queueSpacing: 2
-  siteSpread: 1.7
-  groundScale: 2.1
+  ringHeight: 0.46
+  ringWidth: 0.44
+  yardInset: 19
+  secondaryMineScale: 0.62
+  siteSpread: 1
+  groundScale: 1.85
   railSeparation: 13
   routeClearance: 6
   tidyGap: 8
-  mineRowSpacing: 36
+  mineRowSpacing: 30
   generateTrack: 1
   roadWidth: 9
-  chainBend: -0.24
-  yardOut: 13
   seaTradeDistance: 42
+  harborOut: 0.58
+  seaScale: 3.4
   shipSpeed: 5
   shipYawOffset: 0
-  scatterProps: 16
+  scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
-  ridgeRockPrefab: {fileID: 919132149155446097, guid: 96ddd899ff3b44d40bac0e4de18f0bfd, type: 3}
-  ridgeRocks: 6
+  ridgeRocks: 26
   ridgeDistance: 26
-  ridgeClearance: 15
-  ridgeScale: 1.35
+  ridgeClearance: 14
+  ridgeScale: 1.25
   portalScale: 3.4
   roadColor: {r: 0.54, g: 0.46, b: 0.3, a: 1}
   roadLineColor: {r: 0.99, g: 0.92, b: 0.6, a: 1}
@@ -3146,6 +3201,8 @@ MonoBehaviour:
   sleeperColor: {r: 0.23, g: 0.17, b: 0.12, a: 1}
   steelColor: {r: 0.6, g: 0.62, b: 0.66, a: 1}
   sitePadColor: {r: 0.33, g: 0.3, b: 0.26, a: 1}
+  plotPadColor: {r: 0.4, g: 0.37, b: 0.31, a: 1}
+  plotMarkColor: {r: 0.97, g: 0.83, b: 0.3, a: 1}
   warehousePrefab: {fileID: 919132149155446097, guid: 0d22971eb10a0da448ac9b94993acf40, type: 3}
   depotPrefab: {fileID: 919132149155446097, guid: 91bb5e7b0cf162d44b810ecc7d8ce41f, type: 3}
   dockPrefab: {fileID: 919132149155446097, guid: 14cc3cbeb006e4a4ab3e8b6ee1effc24, type: 3}
@@ -3225,26 +3282,29 @@ MonoBehaviour:
   exportPriceBonus: 1.25
   routeLaneWidth: 6
   queueSpacing: 2
-  siteSpread: 1.7
-  groundScale: 2.1
+  ringHeight: 0.46
+  ringWidth: 0.44
+  yardInset: 19
+  secondaryMineScale: 0.62
+  siteSpread: 1
+  groundScale: 1.85
   railSeparation: 13
   routeClearance: 6
   tidyGap: 8
-  mineRowSpacing: 40
+  mineRowSpacing: 30
   generateTrack: 1
   roadWidth: 9
-  chainBend: 0.16
-  yardOut: 13
   seaTradeDistance: 42
+  harborOut: 0.58
+  seaScale: 3.4
   shipSpeed: 5
   shipYawOffset: 0
-  scatterProps: 16
+  scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
-  ridgeRockPrefab: {fileID: 919132149155446097, guid: 68e7eacfb22b1f64aa32f0d4e1c18170, type: 3}
-  ridgeRocks: 6
+  ridgeRocks: 26
   ridgeDistance: 26
-  ridgeClearance: 15
-  ridgeScale: 1.35
+  ridgeClearance: 14
+  ridgeScale: 1.25
   portalScale: 3.4
   roadColor: {r: 0.55, g: 0.56, b: 0.6, a: 1}
   roadLineColor: {r: 0.97, g: 0.97, b: 0.98, a: 1}
@@ -3252,6 +3312,8 @@ MonoBehaviour:
   sleeperColor: {r: 0.23, g: 0.17, b: 0.12, a: 1}
   steelColor: {r: 0.6, g: 0.62, b: 0.66, a: 1}
   sitePadColor: {r: 0.33, g: 0.3, b: 0.26, a: 1}
+  plotPadColor: {r: 0.4, g: 0.37, b: 0.31, a: 1}
+  plotMarkColor: {r: 0.97, g: 0.83, b: 0.3, a: 1}
   warehousePrefab: {fileID: 919132149155446097, guid: 0d22971eb10a0da448ac9b94993acf40, type: 3}
   depotPrefab: {fileID: 919132149155446097, guid: 91bb5e7b0cf162d44b810ecc7d8ce41f, type: 3}
   dockPrefab: {fileID: 919132149155446097, guid: 14cc3cbeb006e4a4ab3e8b6ee1effc24, type: 3}
@@ -3331,26 +3393,29 @@ MonoBehaviour:
   exportPriceBonus: 1.25
   routeLaneWidth: 6
   queueSpacing: 2
-  siteSpread: 1.7
-  groundScale: 2.1
+  ringHeight: 0.46
+  ringWidth: 0.44
+  yardInset: 19
+  secondaryMineScale: 0.62
+  siteSpread: 1
+  groundScale: 1.85
   railSeparation: 13
   routeClearance: 6
   tidyGap: 8
-  mineRowSpacing: 36
+  mineRowSpacing: 30
   generateTrack: 1
   roadWidth: 9
-  chainBend: -0.3
-  yardOut: 13
   seaTradeDistance: 42
+  harborOut: 0.58
+  seaScale: 3.4
   shipSpeed: 5
   shipYawOffset: 0
-  scatterProps: 16
+  scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
-  ridgeRockPrefab: {fileID: 919132149155446097, guid: 0d402d7d23760ce43beaa00fe3cb0247, type: 3}
-  ridgeRocks: 6
+  ridgeRocks: 26
   ridgeDistance: 26
-  ridgeClearance: 15
-  ridgeScale: 1.35
+  ridgeClearance: 14
+  ridgeScale: 1.25
   portalScale: 3.4
   roadColor: {r: 0.42, g: 0.41, b: 0.43, a: 1}
   roadLineColor: {r: 0.93, g: 0.88, b: 0.7, a: 1}
@@ -3358,6 +3423,8 @@ MonoBehaviour:
   sleeperColor: {r: 0.23, g: 0.17, b: 0.12, a: 1}
   steelColor: {r: 0.6, g: 0.62, b: 0.66, a: 1}
   sitePadColor: {r: 0.33, g: 0.3, b: 0.26, a: 1}
+  plotPadColor: {r: 0.4, g: 0.37, b: 0.31, a: 1}
+  plotMarkColor: {r: 0.97, g: 0.83, b: 0.3, a: 1}
   warehousePrefab: {fileID: 919132149155446097, guid: 0d22971eb10a0da448ac9b94993acf40, type: 3}
   depotPrefab: {fileID: 919132149155446097, guid: 91bb5e7b0cf162d44b810ecc7d8ce41f, type: 3}
   dockPrefab: {fileID: 919132149155446097, guid: 14cc3cbeb006e4a4ab3e8b6ee1effc24, type: 3}
@@ -3437,26 +3504,29 @@ MonoBehaviour:
   exportPriceBonus: 1.25
   routeLaneWidth: 6
   queueSpacing: 2
-  siteSpread: 1.7
-  groundScale: 2.1
+  ringHeight: 0.46
+  ringWidth: 0.44
+  yardInset: 19
+  secondaryMineScale: 0.62
+  siteSpread: 1
+  groundScale: 1.85
   railSeparation: 13
   routeClearance: 6
   tidyGap: 8
-  mineRowSpacing: 36
+  mineRowSpacing: 30
   generateTrack: 1
   roadWidth: 9
-  chainBend: 0.3
-  yardOut: 13
   seaTradeDistance: 42
+  harborOut: 0.58
+  seaScale: 3.4
   shipSpeed: 5
   shipYawOffset: 0
-  scatterProps: 16
+  scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
-  ridgeRockPrefab: {fileID: 919132149155446097, guid: 10362c64f91ada248aa5709cab08ff66, type: 3}
-  ridgeRocks: 6
+  ridgeRocks: 26
   ridgeDistance: 26
-  ridgeClearance: 15
-  ridgeScale: 1.35
+  ridgeClearance: 14
+  ridgeScale: 1.25
   portalScale: 3.4
   roadColor: {r: 0.49, g: 0.38, b: 0.29, a: 1}
   roadLineColor: {r: 0.93, g: 0.88, b: 0.7, a: 1}
@@ -3464,6 +3534,8 @@ MonoBehaviour:
   sleeperColor: {r: 0.23, g: 0.17, b: 0.12, a: 1}
   steelColor: {r: 0.6, g: 0.62, b: 0.66, a: 1}
   sitePadColor: {r: 0.33, g: 0.3, b: 0.26, a: 1}
+  plotPadColor: {r: 0.4, g: 0.37, b: 0.31, a: 1}
+  plotMarkColor: {r: 0.97, g: 0.83, b: 0.3, a: 1}
   warehousePrefab: {fileID: 919132149155446097, guid: 0d22971eb10a0da448ac9b94993acf40, type: 3}
   depotPrefab: {fileID: 919132149155446097, guid: 91bb5e7b0cf162d44b810ecc7d8ce41f, type: 3}
   dockPrefab: {fileID: 919132149155446097, guid: 14cc3cbeb006e4a4ab3e8b6ee1effc24, type: 3}
@@ -3548,6 +3620,24 @@ MonoBehaviour:
   coinsPerPop: 3
   coinSeconds: 0.65
   coinSize: 54
+--- !u!114 &2135659116
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2135659099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63212275452a6144a921c17a4720e836, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.SaleFx
+  poolSize: 14
+  riseSeconds: 1.15
+  risePixels: 120
+  fontSize: 30
+  spreadPixels: 42
+  cashColor: {r: 0.42, g: 0.92, b: 0.4, a: 1}
 --- !u!33 &1358364995091767
 MeshFilter:
   m_ObjectHideFlags: 0

@@ -22,9 +22,32 @@ namespace Game.Systems
         public List<string> unlockedMountains = new List<string>();  // mountain ids the player has bought (GDD §4/§8)
         public List<string> unlockedIslands = new List<string>();    // island ids the player has bought (archipelago progression)
         public List<StationLevel> islandLevels = new List<StationLevel>();  // per-island upgrade level (archipelago progression)
+        public List<IslandRate> islandRates = new List<IslandRate>();       // what each idle island pays while you are away
         public int freeRewardDay;                    // UTC day number the free-reward charges were last reset on
         public List<FreeRewardState> freeRewards = new List<FreeRewardState>();  // rewarded-ad slots (GDD §10)
         public bool adsRemoved;                      // the remove-ads purchase, so it survives a restart
+        public List<string> purchasedOffers = new List<string>();  // one-time offer skus already owned
+        public double offlineEfficiencyBonus;        // permanent offline perks bought from the store, added
+        public long offlineCapBonusSeconds;          // on top of OfflineConfig's base efficiency and cap
+        public long starterOfferSeenUnix;            // first time the store was opened; starts the starter
+                                                     // offer's 48h window (0 = never opened, clock not running)
+        public double dailyRewardBonusMult;          // permanent daily-reward multiplier bought from the store;
+                                                     // the effective multiplier is 1 + this, so 1 means doubled
+        public int freeRewardBonusCharges;           // extra rewarded-ad charges per slot per day, bought
+        public long dailyGemStipend;                 // flat gems added to every daily-reward claim, bought;
+                                                     // deliberately outside dailyRewardBonusMult, see the card
+    }
+
+    /// <summary>
+    /// An idle island's measured $/min, kept while the player is standing somewhere else. It is a
+    /// double rather than a <see cref="StationLevel"/> because prestige lifts the income ceiling: the
+    /// top islands cap at 110M/min, which overflows an int once the multiplier passes about 19×.
+    /// </summary>
+    [Serializable]
+    public class IslandRate
+    {
+        public string id;
+        public double perMin;
     }
 
     /// <summary>One rewarded-ad slot's daily state: how many of today's charges are spent, and when.</summary>

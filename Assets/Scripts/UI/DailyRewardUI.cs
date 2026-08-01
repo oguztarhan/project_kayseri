@@ -67,12 +67,14 @@ namespace Game.UI
         private HapticService _haptic;
         private WorldIslands _world;
         private CoalOperation _op;
+        private SaveData _data;
 
         private void Start()
         {
             _daily = ServiceLocator.Get<DailyRewardService>();
             _wallet = ServiceLocator.Get<WalletService>();
             _haptic = ServiceLocator.Get<HapticService>();
+            _data = ServiceLocator.Get<SaveData>();
             _world = FindAnyObjectByType<WorldIslands>();
 
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
@@ -101,12 +103,15 @@ namespace Game.UI
             if (day < 0) return;
 
             DayReward reward = day < ladder.Count ? ladder[day] : null;
+            double mult = RewardMultiplier();
+            long gems = Stipend();   // the store's permanent daily gems ride every claim, ladder or not
             if (reward != null)
             {
-                if (reward.gems > 0) _wallet.AddGems(reward.gems);
+                gems += (long)(reward.gems * mult);
                 if (reward.incomeMinutes > 0f)
-                    _wallet.AddCash(new BigDouble(reward.incomeMinutes * IncomePerMinute()));
+                    _wallet.AddCash(new BigDouble(reward.incomeMinutes * mult * IncomePerMinute()));
             }
+            if (gems > 0) _wallet.AddGems(gems);
             if (_haptic != null) _haptic.Light();
             Refresh();
         }
@@ -169,13 +174,31 @@ namespace Game.UI
             if (claimLabel != null) claimLabel.text = canClaim ? "ÖDÜL AL" : "YARIN GEL";
         }
 
+        /// <summary>
+        /// Permanent store-bought multiplier on the daily reward (the "Günlük Hazine" offer). Both the
+        /// claim and the tile labels run through it, or the ladder would advertise one number and pay
+        /// another.
+        /// </summary>
+        private double RewardMultiplier() => _data != null ? 1d + _data.dailyRewardBonusMult : 1d;
+
+        /// <summary>
+        /// Flat gems the store sells on top of the ladder (the "Günlük Hazine" offer), paid on every
+        /// claim. It is not multiplied: the card sells the stipend and the ×2 as two separate lines,
+        /// so doubling this as well would hand out more than the card promises.
+        /// </summary>
+        private long Stipend() => _data != null ? _data.dailyGemStipend : 0L;
+
         private string ValueText(int day)
         {
             DayReward r = day < ladder.Count ? ladder[day] : null;
             if (r == null) return "";
-            if (r.gems > 0 && r.incomeMinutes > 0f) return r.gems + " ELMAS + " + Mathf.RoundToInt(r.incomeMinutes) + " DK";
-            if (r.gems > 0) return r.gems + (day == DailyRewardService.CycleDays - 1 ? " ELMAS" : "");
-            return Mathf.RoundToInt(r.incomeMinutes) + " DK";
+            double mult = RewardMultiplier();
+            // the tile prints what the claim will actually pay, so both perks have to be folded in here
+            long gems = (long)(r.gems * mult) + Stipend();
+            int minutes = Mathf.RoundToInt((float)(r.incomeMinutes * mult));
+            if (gems > 0 && minutes > 0) return gems + " ELMAS + " + minutes + " DK";
+            if (gems > 0) return gems + (day == DailyRewardService.CycleDays - 1 ? " ELMAS" : "");
+            return minutes + " DK";
         }
     }
 }

@@ -20,9 +20,13 @@ namespace Game.UI
         [SerializeField] private float yaw = 90f;              // aligned with the mine→market axis so the chain runs down-screen
         [SerializeField] private float fieldOfView = 30f;      // narrow: less perspective distortion, reads closer
         [SerializeField] private float edgeMargin = 0.06f;     // breathing room as a fraction of the fitted span
-        // The whole-operation fit is the "survey" distance. Idle tycoons open much closer than that and
-        // let you pull back, so the opening shot is a fraction of it. Measured by screenshot, not guessed.
-        [SerializeField] private float defaultZoomFraction = 0.52f;
+        // The whole-operation fit is the "survey" distance, and the opening shot is a fraction of it.
+        //
+        // It used to open at about half, which framed a close, chunky view of the middle of a chain that
+        // ran in a straight line. With the stations at the corners of a ring that same fraction cropped
+        // two of them off the sides, so the player's first sight of the island was a road going nowhere.
+        // Opening on very nearly the whole loop is what makes the layout legible; zooming in is a pinch.
+        [SerializeField] private float defaultZoomFraction = 0.82f;
 
         [Header("HUD-safe area")]
         [SerializeField] private float hudTopFraction = 0.09f;    // screen height hidden by the top bar
@@ -35,7 +39,19 @@ namespace Game.UI
 
         // Children whose bounds must not influence the framing: locked expansions the player can't act on
         // for hours, the ground/water discs, scenery, and the decorative port out to sea.
-        private static readonly string[] SkipPrefixes = { "ghost", "isle_", "lagoon_", "Dressing", "port_", "ship", "Tiles_" };
+        //
+        // The authored scenery matters as much as the rest. Dead trees, loose miners and stray ore props
+        // are scattered right across the island mesh, so counting them made the framing fit the whole
+        // island however tightly the working site was composed — which is why the operation kept ending
+        // up as a small knot in the middle of a large empty field.
+        // "port_" is deliberately NOT in this list. The harbour is where the island's goods leave from, so
+        // it has to be on screen; skipping it framed the market against a strip of grass with the pier
+        // just off the edge.
+        private static readonly string[] SkipPrefixes =
+        {
+            "ghost", "isle_", "lagoon_", "Dressing", "ship", "Tiles_",
+            "dead", "miner", "orepile", "orecrystal", "bush", "tree", "cloud",
+        };
 
         private bool _framed;
 

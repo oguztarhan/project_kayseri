@@ -119,15 +119,22 @@ namespace Game.Systems
         {
             if (offlineConfig == null || !offlineConfig.Enabled || Data.savedUnixSeconds <= 0L) return;
             long elapsed = _time.ElapsedSince(Data.savedUnixSeconds);
-            BigDouble earned = OfflineEarnings.Compute(new BigDouble(Data.incomeRatePerSec), elapsed, offlineConfig.Efficiency, offlineConfig.CapSeconds);
+
+            // The store sells permanent offline upgrades (the "Gece Vardiyasi" offer), so the config is
+            // the floor rather than the whole story. Efficiency is clamped: paying past 100% would mean
+            // earning more asleep than awake.
+            double efficiency = offlineConfig.Efficiency + Data.offlineEfficiencyBonus;
+            if (efficiency > 1d) efficiency = 1d;
+            long cap = offlineConfig.CapSeconds + Data.offlineCapBonusSeconds;
+
+            BigDouble earned = OfflineEarnings.Compute(new BigDouble(Data.incomeRatePerSec), elapsed, efficiency, cap);
             if (earned.Mantissa > 0d)
             {
-                long cap = offlineConfig.CapSeconds;
                 Wallet.AddCash(earned);
                 Offline.Amount = earned;
                 Offline.AwaySeconds = elapsed;
                 Offline.CreditedSeconds = (cap > 0L && elapsed > cap) ? cap : elapsed;
-                Offline.Efficiency = offlineConfig.Efficiency;
+                Offline.Efficiency = efficiency;
                 Offline.Pending = true;
             }
         }
