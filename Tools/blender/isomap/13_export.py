@@ -36,19 +36,53 @@ def is_vehicle(name):
     return any(k in name for k in DROP)
 
 
-removed = 0
-for ob in list(bpy.data.objects):
-    if ob.type != 'MESH':
-        continue
-    # hidden source/master objects sit at the origin and must never export
-    if ob.hide_render or ob.hide_viewport or is_vehicle(ob.name):
-        bpy.data.objects.remove(ob, do_unlink=True)
-        removed += 1
-vc = bpy.data.collections.get("Vehicles")
-if vc:
-    for ob in list(vc.objects):
-        bpy.data.objects.remove(ob, do_unlink=True)
-        removed += 1
+def collect_vehicles():
+    """Vehicle meshes, gathered before the strip below deletes them."""
+    out = []
+    for ob in bpy.data.objects:
+        if ob.type != 'MESH' or ob.data is None or not len(ob.data.polygons):
+            continue
+        if ob.hide_render or ob.hide_viewport:
+            continue
+        if is_vehicle(ob.name):
+            out.append(ob)
+    vc = bpy.data.collections.get("Vehicles")
+    if vc:
+        for ob in vc.objects:
+            if ob.type == 'MESH' and ob.data and len(ob.data.polygons) \
+                    and ob not in out:
+                out.append(ob)
+    return out
+
+
+VEHICLES = collect_vehicles()
+
+
+def strip_vehicles():
+    n = 0
+    # By identity, not by name: the export above renames these to train/wagon/truck_roadN
+    # for Unity, after which is_vehicle() no longer recognises them and a second copy of
+    # the whole train was surviving into the Rail district as scenery.
+    for ob in list(VEHICLES):
+        try:
+            bpy.data.objects.remove(ob, do_unlink=True)
+            n += 1
+        except ReferenceError:
+            pass
+
+    for ob in list(bpy.data.objects):
+        if ob.type != 'MESH':
+            continue
+        # hidden source/master objects sit at the origin and must never export
+        if ob.hide_render or ob.hide_viewport or is_vehicle(ob.name):
+            bpy.data.objects.remove(ob, do_unlink=True)
+            n += 1
+    vc = bpy.data.collections.get("Vehicles")
+    if vc:
+        for ob in list(vc.objects):
+            bpy.data.objects.remove(ob, do_unlink=True)
+            n += 1
+    return n
 
 # ------------------------------------------------------- material colour model
 def ramp_of(m):
@@ -167,11 +201,60 @@ for ob in bpy.data.objects:
         done.add(ob.data.name)
         bake_vertex_colours(ob.data)
 
+# ------------------------------------------------------------------ vehicles
+# Exported before the strip below removes them. The gameplay layer drives these,
+# so they are renamed to the names CoalOperation resolves under the island root:
+# one "train", "wagon"/"wagon.NNN" for the rake, and "truck_roadN" for the fleet.
+# Positions are kept - the operation assigns each truck to the route it is
+# parked nearest.
+view = bpy.context.view_layer
+
+
+def export_selection(path, objs):
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in objs:
+        ob.select_set(True)
+        view.objects.active = ob
+    bpy.ops.export_scene.fbx(
+        filepath=path, use_selection=True, object_types={'MESH'},
+        apply_scale_options='FBX_SCALE_NONE', global_scale=1.0,
+        axis_forward='-Z', axis_up='Y', bake_space_transform=False,
+        use_mesh_modifiers=True, mesh_smooth_type='FACE', use_triangles=True,
+        colors_type='SRGB', prioritize_active_color=True,
+        path_mode='STRIP', use_custom_props=False, use_active_collection=False)
+
+
+loco = [o for o in VEHICLES if "Train.loco" in o.name or "Loco." in o.name]
+wagons = sorted([o for o in VEHICLES if "Train.wagon" in o.name], key=lambda o: o.name)
+trucks = sorted([o for o in VEHICLES if o.name.startswith(("V.ore", "V.cargo"))],
+                key=lambda o: o.name)
+
+veh = []
+if loco:
+    loco[0].name = "train"
+    veh.append(loco[0])
+for i, w in enumerate(wagons):
+    w.name = "wagon" if i == 0 else "wagon.%03d" % i
+    veh.append(w)
+for i, t in enumerate(trucks):
+    t.name = "truck_road%d" % i
+    veh.append(t)
+
+if veh:
+    vpath = "%s/Vehicles_P%d.fbx" % (OUT, PHASE)
+    export_selection(vpath, veh)
+    print("   vehicles  %4d objs  %6d KB   (%s)"
+          % (len(veh), os.path.getsize(vpath) // 1024,
+             ", ".join(o.name for o in veh[:6])))
+else:
+    print("   WARNING: no vehicle meshes found to export")
+
+removed = strip_vehicles()
+
 # --------------------------------------------------------------------- export
 GROUPS = ("Terrain", "Roads", "Rail", "Mine", "Depot", "Refinery", "Market",
           "Port", "Sites", "Props", "Foliage")
 
-view = bpy.context.view_layer
 written = []
 for gname in GROUPS:
     col = bpy.data.collections.get(gname)

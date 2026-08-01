@@ -110,6 +110,30 @@ namespace Game.UI
         }
 
         /// <summary>
+        /// Steps out of the way when a district rebuilds. A phase change is the biggest thing
+        /// the player's spending produces, and it happens on the map - which is exactly what
+        /// this panel is covering at the moment of purchase, so it went unseen.
+        /// </summary>
+        private void OnDistrictPhaseChanged(string district, int phase)
+        {
+            Hide();
+        }
+
+        private void OnEnable()
+        {
+            _phases = FindAnyObjectByType<Kayseri.Island.IslandPhaseController>();
+            if (_phases != null) _phases.PhaseChanged += OnDistrictPhaseChanged;
+        }
+
+        private void OnDisable()
+        {
+            if (_phases != null) _phases.PhaseChanged -= OnDistrictPhaseChanged;
+            _phases = null;
+        }
+
+        private Kayseri.Island.IslandPhaseController _phases;
+
+        /// <summary>
         /// Opens the panel already scrolled to one station's rows — what a tap on that building's chip
         /// out on the map does.
         ///

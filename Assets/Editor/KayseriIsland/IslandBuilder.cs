@@ -32,7 +32,10 @@ namespace Kayseri.IslandTools
         private static readonly string[] Groups =
         {
             "Terrain", "Roads", "Rail", "Mine", "Depot", "Refinery",
-            "Market", "Port", "Sites", "Props", "Foliage"
+            "Market", "Port", "Sites", "Props", "Foliage",
+            // Driven by the gameplay layer rather than scenery: the train rake and the
+            // road fleet, which CoalOperation lifts onto the island root at startup.
+            "Vehicles"
         };
 
         private const int PhaseCount = 3;
@@ -307,7 +310,11 @@ namespace Kayseri.IslandTools
                     instance.transform.localPosition = Vector3.zero;
                     instance.transform.localRotation = Quaternion.identity;
                     instance.transform.localScale = Vector3.one;
-                    SetStaticRecursive(instance, true);
+                    // The vehicles are driven every frame by the gameplay layer. Marking them
+                    // static gets them folded into a combined world-space mesh, after which the
+                    // drawn geometry stops following the transform - the train's position moves
+                    // while its body stays behind, rendering as an untextured slab.
+                    SetStaticRecursive(instance, group != "Vehicles");
                     added++;
                 }
 

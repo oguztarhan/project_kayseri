@@ -22,8 +22,12 @@ MARKED = PHASE >= 2
 
 
 def carriageway(pts, w, name, z=Z_ROAD):
+    # One narrow verge rather than a wide separate band. The old shoulder stood out as
+    # far as 4 units either side in its own gravel colour, so the road read as three
+    # parallel stripes; trimmed back it just softens the edge and the carriageway reads
+    # as a single solid surface.
     p3 = [(p[0], p[1], 0.0) for p in pts]
-    strip(p3, w + PK(2.0, 3.0, 4.0), z=z - 0.06, name=name + ".shoulder",
+    strip(p3, w + PK(0.9, 1.2, 1.6), z=z - 0.03, name=name + ".shoulder",
           material=mat(SHOULDER), collection=CR)
     return strip(p3, w, z=z, name=name, material=mat(SURF), collection=CR)
 
@@ -41,9 +45,13 @@ for pts, w, name in roads:
 
 
 def junction(cx, cy, size, name, m=None):
+    # A small round fillet flush with the carriageway, not a raised pad. The disc only
+    # has to round off the corner where two roads meet - drawn any wider it bulged out
+    # past the tarmac into the grass, and drawn proud of the surface it read as a
+    # separate slab dropped on the road instead of part of it.
     b = B()
     b.use(m or SURF)
-    b.box((size, size, 0.14), (cx, cy, Z_ROAD + 0.04))
+    b.cyl(r=size * 0.46, h=0.05, loc=(cx, cy, Z_ROAD), seg=28)
     return b.make(name, collection=CR)
 
 

@@ -1,4 +1,4 @@
-time            : 23:27:18
+time            : 01:52:49
 colorSpace      : Linear
 activeBuildTgt  : iOS
 
@@ -7,8 +7,8 @@ MESH VERTEX COLOURS: 1104/1104 meshes have colours (from 6 fbx)
     Depot.Shed1 verts=210 cols=210 first=(120,120,118) mid=(102,104,108)
     Depot.Lamp0 verts=96 cols=96 first=(251,246,219) mid=(157,160,165)
 
-PREFAB RENDERERS: 1628
-    kayseriShader=2493 default=0 other=0 null=0
+PREFAB RENDERERS: 1640
+    kayseriShader=2570 default=0 other=0 null=0
     Foam -> mat 'foam' shader 'Kayseri/IslandVertexLit'
     Ground -> mat 'seabed' shader 'Kayseri/IslandVertexLit'
     Ground -> mat 'sand' shader 'Kayseri/IslandVertexLit'

@@ -6,6 +6,8 @@ Shader "Kayseri/IslandVertexLitTransparent"
     {
         _BaseColor("Base Color", Color) = (1,1,1,0.5)
         _VertexColorAmount("Vertex Color Amount", Range(0,1)) = 1.0
+        _Saturation("Saturation", Range(0,3)) = 1.35
+        _Vibrance("Brightness", Range(0.5,2)) = 1.12
         _Metallic("Metallic", Range(0,1)) = 0.0
         _Smoothness("Smoothness", Range(0,1)) = 0.85
         [HDR]_EmissionColor("Emission Color", Color) = (0,0,0,0)
@@ -50,7 +52,16 @@ Shader "Kayseri/IslandVertexLitTransparent"
                 half _VertexColorAmount;
                 half _Metallic;
                 half _Smoothness;
+                half _Saturation;
+                half _Vibrance;
             CBUFFER_END
+
+            // Matches IslandVertexLit so glass and smoke are graded with everything else.
+            half3 IslandGrade(half3 c)
+            {
+                half l = dot(c, half3(0.2126h, 0.7152h, 0.0722h));
+                return saturate(lerp(l.xxx, c, _Saturation) * _Vibrance);
+            }
 
             struct Attributes
             {
@@ -94,7 +105,7 @@ Shader "Kayseri/IslandVertexLitTransparent"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
 
                 // Blend, not multiply - see IslandVertexLit for why.
-                half3 albedo = lerp(_BaseColor.rgb, IN.color.rgb, _VertexColorAmount);
+                half3 albedo = IslandGrade(lerp(_BaseColor.rgb, IN.color.rgb, _VertexColorAmount));
 
                 InputData inputData = (InputData)0;
                 inputData.positionWS = IN.positionWS;

@@ -16,7 +16,10 @@ CRail = coll("Rail")
 
 RZ = 1.9
 NCARS = PK(5, 11, 17)
-TRACK_END = PK(0.55, 1.0, 1.0)      # phase 1 line only reaches partway
+# Full line at every phase: the train hauls mine -> depot from level 0, so the
+# track has to connect. Phase 1 still reads as the early game through its lighter
+# furniture - timber sleepers, no ballast profile, 5 wagons instead of 17.
+TRACK_END = PK(1.0, 1.0, 1.0)
 DOUBLE = PHASE >= 3
 
 dg = bpy.context.evaluated_depsgraph_get()
@@ -44,6 +47,12 @@ SAMP = SAMP_ALL[i0:i1]
 PATH = [(p.x, p.y, 0.0) for p, _ in SAMP[::18]]
 if len(PATH) < 3:
     PATH = [(p.x, p.y, 0.0) for p, _ in SAMP]
+
+# Hand the finished centreline to 14_routes. It cannot be re-derived from
+# layout.RAIL alone: the head is trimmed by a raycast against the built massif
+# and the tail by TRACK_END, so at phase 1 the track stops well short of the
+# depot. The train has to run on exactly the rail that was laid.
+bpy.context.scene["rail_centreline"] = [[float(p.x), float(p.y)] for p, _ in SAMP]
 
 
 def at(f):

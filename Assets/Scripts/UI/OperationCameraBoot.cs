@@ -26,15 +26,18 @@ namespace Game.UI
         // ran in a straight line. With the stations at the corners of a ring that same fraction cropped
         // two of them off the sides, so the player's first sight of the island was a road going nowhere.
         // Opening on very nearly the whole loop is what makes the layout legible; zooming in is a pinch.
-        [SerializeField] private float defaultZoomFraction = 0.82f;
+        [SerializeField] private float defaultZoomFraction = 0.30f;
 
         [Header("HUD-safe area")]
         [SerializeField] private float hudTopFraction = 0.09f;    // screen height hidden by the top bar
         [SerializeField] private float hudBottomFraction = 0.17f; // screen height hidden by the bottom bar
 
         [Header("Limits")]
-        [SerializeField] private float zoomInFactor = 0.30f;   // closest dolly, as a fraction of the whole-operation fit
-        [SerializeField] private float zoomOutFactor = 1.15f;  // just past "see the whole island"
+        // A deliberately narrow band around the opening shot: the playfield is composed to be
+        // read at one distance, so zoom is for a closer look at a station rather than a way to
+        // pull back to a map view. Opening sits at defaultZoomFraction, roughly mid-band.
+        [SerializeField] private float zoomInFactor = 0.22f;   // closest dolly, as a fraction of the whole-operation fit
+        [SerializeField] private float zoomOutFactor = 0.44f;  // a step back, not a map view
         [SerializeField] private float panPadding = 40f;       // slack beyond the operation footprint
 
         // Children whose bounds must not influence the framing: locked expansions the player can't act on
@@ -52,6 +55,17 @@ namespace Game.UI
             "ghost", "isle_", "lagoon_", "Dressing", "ship", "Tiles_",
             "dead", "miner", "orepile", "orecrystal", "bush", "tree", "cloud",
         };
+
+        // District groups excluded from an AUTHORED island's framing only, so the generated
+        // islands keep the framing they had. Terrain carries a 640-unit ground plane and the
+        // sea, which framed the island as a speck in an ocean; Foliage is scenery; Rail runs
+        // out to a tunnel in the massif far past the working site, and the train is meant to
+        // vanish into it rather than drag the whole playfield back to keep it on screen.
+        // Roads is excluded for the same reason as Rail: the two main arms run out to the
+        // island edge at +/-196, three times past the ring road the operation sits on, so
+        // counting them framed a playfield of mostly empty grass. The districts and the ring
+        // they enclose are what the player watches.
+        private static readonly string[] SkipDistricts = { "Terrain", "Foliage", "Rail", "Roads" };
 
         private bool _framed;
 
@@ -171,14 +185,41 @@ namespace Game.UI
             foreach (Transform ch in root)
             {
                 if (Skip(ch.name)) continue;
-                var rs = ch.GetComponentsInChildren<Renderer>();
-                for (int i = 0; i < rs.Length; i++)
+
+                // An authored island keeps its districts one level down, under the active
+                // phase root. Measuring that root whole would defeat every skip below it,
+                // so step through it and judge each district on its own name.
+                if (ch.name.StartsWith("Island_Phase"))
                 {
-                    if (!have) { b = rs[i].bounds; have = true; }
-                    else b.Encapsulate(rs[i].bounds);
+                    if (!ch.gameObject.activeSelf) continue;
+                    foreach (Transform district in ch)
+                    {
+                        if (Skip(district.name) || SkipDistrict(district.name)) continue;
+                        Accumulate(district, ref b, ref have);
+                    }
+                    continue;
                 }
+
+                Accumulate(ch, ref b, ref have);
             }
             return have;
+        }
+
+        private static void Accumulate(Transform t, ref Bounds b, ref bool have)
+        {
+            var rs = t.GetComponentsInChildren<Renderer>();
+            for (int i = 0; i < rs.Length; i++)
+            {
+                if (!have) { b = rs[i].bounds; have = true; }
+                else b.Encapsulate(rs[i].bounds);
+            }
+        }
+
+        private static bool SkipDistrict(string n)
+        {
+            for (int i = 0; i < SkipDistricts.Length; i++)
+                if (n.Equals(SkipDistricts[i], System.StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
         }
 
         private static bool Skip(string n)

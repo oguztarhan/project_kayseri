@@ -27,8 +27,10 @@ Material:
     m_Ints: []
     m_Floats:
     - _Metallic: 0
+    - _Saturation: 1.35
     - _Smoothness: 0.45
     - _VertexColorAmount: 1
+    - _Vibrance: 1.12
     m_Colors:
     - _BaseColor: {r: 0.97417283, g: 0.92776304, b: 0.7129731, a: 1}
     - _EmissionColor: {r: 6, g: 5.3814435, b: 3.9131021, a: 1}

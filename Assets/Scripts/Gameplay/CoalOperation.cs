@@ -88,6 +88,14 @@ namespace Game.Gameplay
         [SerializeField] private float depotBonus = 1.10f;
         [SerializeField] private float deepShaftBonus = 1.12f;
 
+        [Header("Authored map (empty = generate the layout, as every island did originally)")]
+        // Routes exported from the Blender generator (Tools/blender/isomap/14_routes.py).
+        // When set, the island's geometry is taken as authored: the layout passes that
+        // move buildings and synthesise roads and rail are skipped, and the train and
+        // trucks run on the exported centrelines instead. Landmarks are created at the
+        // exported district anchors. Leave empty and the island behaves exactly as before.
+        [SerializeField] private TextAsset authoredRoutes;
+
         [Header("Island identity (world map — one component per ore island)")]
         [SerializeField] private string islandKey = "coal";        // save-key prefix + unlockedIslands id
         [SerializeField] private string displayName = "COAL ISLAND";
@@ -158,6 +166,14 @@ namespace Game.Gameplay
         [SerializeField] private float seaScale = 3.4f;
         [SerializeField] private float shipSpeed = 5f;
         [SerializeField] private float shipYawOffset = 0f;     // authored ship meshes may not face +Z
+        // Same problem for the land fleet. LookRotation aims a mesh's +Z down the road, but the
+        // authored island's train and trucks are modelled with their length along local X, so
+        // they drove broadside until this turned them. 0 on the generated islands, whose
+        // vehicles already face +Z.
+        [SerializeField] private float vehicleYawOffset = 0f;
+        // The model's upright pose, read off the imported vehicles. Identity on the generated
+        // islands, whose vehicles are authored in Unity space already.
+        private Quaternion _vehicleBaseRot = Quaternion.identity;
         [SerializeField] private int scatterProps = 16;        // cloned scenery pieces that fill the empty grass
         [SerializeField] private GameObject portalPrefab;     // tunnel mouth each rail line emerges from
         [SerializeField] private int ridgeRocks = 14;         // peaks in the generated range
@@ -331,6 +347,9 @@ namespace Game.Gameplay
         private GameObject[] _plots;         // and the surveyed plot shown in their place
 
         // ---- landmarks (found by name under the island root) ----
+        private Game.Data.IslandRoutes _routes;       // null on a generated island
+        private Kayseri.Island.IslandPhaseController _phases;   // null unless the island has phase art
+        private bool Authored => _routes != null;
         private Transform _islandRoot;
         private Transform _mountain, _ghostMine, _ghostMine2, _storage, _orePile, _refinery, _ghostRefinery, _refinedPile, _market, _ghostMarket, _waitSpot;
         private Transform _dock, _mine4;
@@ -654,6 +673,9 @@ namespace Game.Gameplay
             SaveLevel(islandKey + "#" + s + "#" + a, _lv[s][a]);
             if (_punch != null) _punch[s] = punchSeconds;   // the station pops, then settles at its new size
             if ((s == StOreTrucks || s == StCargoTrucks) && a == 0) ApplyFleetStates();
+            // This level may have carried its district over a phase threshold - the mine yard
+            // rebuilds on its own, without waiting for the rest of the island.
+            if (_phases != null) _phases.Refresh();
             return true;
         }
 
@@ -759,6 +781,15 @@ namespace Game.Gameplay
             if (root == null) { Debug.LogWarning("CoalOperation: '" + islandRootName + "' not found — disabled."); enabled = false; return; }
             _islandRoot = root.transform;
 
+            // An authored island brings its own geometry. Resolve the routes first: every
+            // layout pass below keys off Authored, and the landmarks the lookups need are
+            // created from the exported anchors.
+            _routes = authoredRoutes != null ? Game.Data.IslandRoutes.Parse(authoredRoutes) : null;
+            if (authoredRoutes != null && _routes == null)
+            { Debug.LogError("CoalOperation: authored routes failed to load — disabled.", this); enabled = false; return; }
+            _phases = _islandRoot.GetComponent<Kayseri.Island.IslandPhaseController>();
+            if (Authored) PrepareAuthoredIsland();
+
             _mountain = Child(_islandRoot, mineObjectName);
             _ghostMine = Child(_islandRoot, "ghost_mine");
             _ghostMine2 = Child(_islandRoot, "ghost_mine (1)");
@@ -774,7 +805,9 @@ namespace Game.Gameplay
 
             // First thing after the landmarks resolve, before anything measures a position: give the site
             // room. Everything downstream (yards, roads, rails, expansions, ridge) keys off these.
-            SpreadSite();
+            // Authored islands are already laid out to scale - spreading them would pull the
+            // buildings off the roads and pads they were modelled onto.
+            if (!Authored) SpreadSite();
 
             if (_mountain == null || _storage == null || _orePile == null ||
                 _refinery == null || _refinedPile == null || _market == null)
@@ -791,20 +824,30 @@ namespace Game.Gameplay
             var ghostRend = _ghostMarket != null ? _ghostMarket.GetComponentInChildren<Renderer>() : null;
             _ghostMat = ghostRend != null ? ghostRend.sharedMaterial : MakeMat(null, new Color(1f, 1f, 1f, 0.35f));
 
-            MeasureLand();   // after the spread grew the ground: every shove below is clamped to it
-            GrowSea();       // and after it, so widening the water can never widen the buildable land
-            ArrangeChain();  // the working chain first — its first arm dictates the mine row's facing
-            ArrangeMines();  // then every mine into one back row at the head of that arm
+            // Every pass in this block rearranges the island: it measures the land, then shoves the
+            // chain, the mines, the roads and the rails into a computed layout. An authored island is
+            // already arranged - its roads and rails are modelled geometry, and the exported
+            // centrelines describe them - so the whole block is skipped there.
+            if (!Authored)
+            {
+                MeasureLand();   // after the spread grew the ground: every shove below is clamped to it
+                GrowSea();       // and after it, so widening the water can never widen the buildable land
+                ArrangeChain();  // the working chain first — its first arm dictates the mine row's facing
+                ArrangeMines();  // then every mine into one back row at the head of that arm
 
-            // The route plan comes first and is then read by everything that places geometry. Rails are
-            // planned before the yards move, because a yard picks which side of its building to sit on
-            // partly by which side keeps it off the track.
-            PlanRails();
-            PlanRoads();       // yards were placed on the spine by ArrangeChain, so the plan is final
+                // The route plan comes first and is then read by everything that places geometry. Rails are
+                // planned before the yards move, because a yard picks which side of its building to sit on
+                // partly by which side keeps it off the track.
+                PlanRails();
+                PlanRoads();       // yards were placed on the spine by ArrangeChain, so the plan is final
+            }
 
             // After the yards move (so expansions never land on one) and before the dock / fourth-mine
             // lookups, which resolve buildings this may have just created.
-            SpawnExpansions();
+            // Expansions clone buildings into computed positions. The authored map already
+            // carries its own unlockable sites (quarry, store, plant), so spawning them
+            // would drop duplicate sheds onto the island.
+            if (!Authored) SpawnExpansions();
             _dock = Child(_islandRoot, "ghostx_dock");
             _mine4 = Child(_islandRoot, "ghostx_mine4");
             // Buildings grow with the levels already bought — by up to a fifth — so they have to reach
@@ -815,9 +858,13 @@ namespace Game.Gameplay
 
             // The designed skeleton is already final - chain on the spine, mines in the row - so the
             // bays and corridors are computed once and everything loose settles against them.
-            AssignRailLanes();
-            ReplanRails();
-            TidySite();
+            // None of it applies to an authored island: the track is where it was modelled.
+            if (!Authored)
+            {
+                AssignRailLanes();
+                ReplanRails();
+                TidySite();
+            }
 
             // A level-0 yard reads as ten chunks; a fully upgraded one needs the widest grid to hold what
             // it can now store, which is the whole point of buying Capacity.
@@ -835,12 +882,17 @@ namespace Game.Gameplay
             if (_mine4 != null) _train4 = BuildTrain(CloneTrainRig(engine, "train4"), _mine4);
 
             BuildTruckAgents();
+            if (Authored) PruneUnusedVehicles();
             BuildSiteDressing();     // needs the rail paths the trains just resolved
             BuildUnlockRegistry();   // and this needs the dressing parent, to hang the build plots off
             BuildSiteLife();
             ApplyFleetStates();
             for (int u = 0; u < _unlocked.Length; u++) if (_unlocked[u]) ApplyUnlock(u);
             ApplyStationScale();     // show the levels already bought, without the purchase pop
+            // The controller's own Awake ran before LoadLevels, so it saw a level-0 island.
+            // Re-read now that the save is in: a returning player opens on the districts they
+            // have actually built up, not on phase 1 everywhere.
+            if (_phases != null) _phases.Refresh();
 
             _ready = true;
         }
@@ -1009,8 +1061,139 @@ namespace Game.Gameplay
             return side * (railSeparation * (lane - (_railLaneCount - 1) * 0.5f));
         }
 
+        /// <summary>
+        /// Makes an authored island resolvable by the landmark lookups in Start.
+        ///
+        /// The map exports as district groups, so the vehicles arrive parented under a
+        /// "Vehicles" group while <see cref="Child"/> only looks one level down - they are
+        /// lifted onto the root. The working landmarks (mine face, storage yard, refinery,
+        /// market, truck wait spot) are not modelled objects at all, so they are created as
+        /// empties at the district anchors the exporter wrote. Anything already present
+        /// under the root by that name wins, so the map can author its own later.
+        /// </summary>
+        private void PrepareAuthoredIsland()
+        {
+            // The group sits under the active phase root, so look one level deeper too.
+            Transform vehicles = Child(_islandRoot, "Vehicles");
+            if (vehicles == null)
+            {
+                foreach (Transform phase in _islandRoot)
+                {
+                    if (!phase.gameObject.activeSelf) continue;
+                    vehicles = Child(phase, "Vehicles");
+                    if (vehicles != null) break;
+                }
+            }
+            if (vehicles != null)
+            {
+                var move = new List<Transform>();
+                foreach (Transform t in vehicles) move.Add(t);
+
+                // Capture the upright pose before anything drives these. Pitch and roll are the
+                // Z-up -> Y-up conversion and belong to the model; the yaw is only where the
+                // generator happened to park it, and gets replaced by the heading each frame.
+                if (move.Count > 0)
+                {
+                    Vector3 e = move[0].localRotation.eulerAngles;
+                    _vehicleBaseRot = Quaternion.Euler(e.x, 0f, e.z);
+                }
+
+                for (int i = 0; i < move.Count; i++) move[i].SetParent(_islandRoot, true);
+                vehicles.gameObject.SetActive(false);
+            }
+            else
+            {
+                Debug.LogWarning("[Island] No Vehicles group found under " + _islandRoot.name
+                                 + " — the train and trucks will be missing.", this);
+            }
+
+            // Offsets pull the yards off their building centre so trucks stop beside the shed
+            // rather than inside it - the same job StopInset does on a generated island.
+            EnsureAnchor(mineObjectName, "mine", Vector3.zero);
+            EnsureAnchor("storage", "depot", Vector3.zero);
+            EnsureAnchor("storage ore pile here", "depot", new Vector3(0f, 0f, 14f));
+            EnsureAnchor("refinery", "refinery", Vector3.zero);
+            EnsureAnchor("refined ores pile here", "refinery", new Vector3(-14f, 0f, 0f));
+            EnsureAnchor("market", "market", Vector3.zero);
+            EnsureAnchor("waiting ore trucks wait here", "depot", new Vector3(16f, 0f, 0f));
+        }
+
+        /// <summary>
+        /// Deletes the vehicles nothing drives.
+        ///
+        /// The map exports its whole authored fleet - parked lorries, spare wagons, yard vans -
+        /// and the operation only ever binds a train, its rake and one truck per route. The rest
+        /// sat on the roads as scenery that never moved, which reads as broken rather than busy.
+        /// Anything an agent holds is kept, including the locked trucks that later upgrades turn
+        /// on; everything else goes.
+        /// </summary>
+        private void PruneUnusedVehicles()
+        {
+            var keep = new HashSet<Transform>();
+
+            var trains = new[] { _train1, _train2, _train3, _train4 };
+            for (int i = 0; i < trains.Length; i++)
+            {
+                var tr = trains[i];
+                if (tr == null) continue;
+                if (tr.engine != null) keep.Add(tr.engine);
+                if (tr.wagons != null)
+                    for (int w = 0; w < tr.wagons.Length; w++)
+                        if (tr.wagons[w] != null) keep.Add(tr.wagons[w]);
+            }
+            if (_agents != null)
+                for (int i = 0; i < _agents.Length; i++)
+                    if (_agents[i] != null && _agents[i].body != null) keep.Add(_agents[i].body);
+
+            var doomed = new List<GameObject>();
+            foreach (Transform t in _islandRoot)
+            {
+                if (keep.Contains(t)) continue;
+                if (!t.name.StartsWith("truck_road") && !t.name.StartsWith("wagon") && t.name != "train") continue;
+                doomed.Add(t.gameObject);
+            }
+            for (int i = 0; i < doomed.Count; i++) Destroy(doomed[i]);
+
+            if (doomed.Count > 0)
+                Debug.Log("[Island] Removed " + doomed.Count + " unused vehicle props; "
+                          + keep.Count + " working vehicles kept.");
+        }
+
+        /// <summary>Creates a named landmark at an exported anchor, unless the map authored one.</summary>
+        private void EnsureAnchor(string objectName, string anchorName, Vector3 offset)
+        {
+            if (Child(_islandRoot, objectName) != null) return;
+
+            Vector3 pos;
+            if (!_routes.TryGetAnchor(anchorName, out pos))
+            {
+                Debug.LogWarning("[Island] No '" + anchorName + "' anchor for landmark '" + objectName + "'.", this);
+                return;
+            }
+
+            var go = new GameObject(objectName);
+            go.transform.SetParent(_islandRoot, false);
+            go.transform.position = pos + offset;
+        }
+
         private Vector3[] BuildRailPath(Transform mountain, Transform storage)
         {
+            // Authored island: run on the track that was actually laid. The exported
+            // centreline is ordered tunnel-mouth -> depot, so it is flipped when this
+            // train's mine sits nearer the far end.
+            if (Authored)
+            {
+                var laid = _routes.GetPath("rail");
+                if (laid != null && laid.Length >= 2)
+                {
+                    if (Flat(laid[0] - mountain.position).sqrMagnitude >
+                        Flat(laid[laid.Length - 1] - mountain.position).sqrMagnitude)
+                        System.Array.Reverse(laid);
+                    return laid;
+                }
+                Debug.LogWarning("[Island] No authored rail path — falling back to a straight run.", this);
+            }
+
             Vector3 a = mountain.position, b = storage.position + RailBay(mountain);
             float len = Flat(b - a).magnitude;
             int n = Mathf.Clamp(Mathf.RoundToInt(len / 6f), 1, 16);
@@ -1089,7 +1272,7 @@ namespace Game.Gameplay
                 else { pos += dir * budget; budget = 0f; }
             }
             a.engine.position = pos;
-            a.engine.rotation = Quaternion.LookRotation(dir, Vector3.up);
+            a.engine.rotation = VehicleFacing(dir);
             PlaceWagons(a, dir);
             return arrived;
         }
@@ -1111,8 +1294,28 @@ namespace Game.Gameplay
             Vector3 d = towards - pos; d.y = 0f; if (d.sqrMagnitude < 1e-4f) d = a.engine.forward; d.Normalize();
             SetTrainVisible(a, true);
             a.engine.position = new Vector3(pos.x, a.engineY, pos.z);
-            a.engine.rotation = Quaternion.LookRotation(d, Vector3.up);
+            a.engine.rotation = VehicleFacing(d);
             PlaceWagons(a, d);
+        }
+
+        /// <summary>
+        /// Heading for a road/rail vehicle, corrected for how its mesh was modelled.
+        ///
+        /// The authored island's vehicles import with a -90 pitch baked into their transform -
+        /// that is Blender's Z-up being converted to Unity's Y-up, and it is part of the model
+        /// standing upright, not part of its heading. Assigning LookRotation straight onto the
+        /// transform threw that away and laid every vehicle on its side; no amount of yaw could
+        /// put it back, because the error was about a different axis. So the base pose is
+        /// re-applied last, and only the yaw comes from the direction of travel.
+        /// </summary>
+        private Quaternion VehicleFacing(Vector3 dir)
+        {
+            // Standing still (loading, queued, parked) is not a reason to lose the model's
+            // upright pose - returning identity here laid every stopped truck on its back.
+            if (dir.sqrMagnitude < 1e-6f) return _vehicleBaseRot;
+            return Quaternion.LookRotation(dir, Vector3.up)
+                 * Quaternion.Euler(0f, vehicleYawOffset, 0f)
+                 * _vehicleBaseRot;
         }
 
         private void SetTrainVisible(TrainAgent a, bool on)
@@ -1215,7 +1418,10 @@ namespace Game.Gameplay
                         sceneFleet = sceneFleet,
                         state = TK.ToIdle,
                         bayPos = bayBase + along * (4.5f * slot),
-                        bayRot = along.sqrMagnitude > 0.01f ? Quaternion.LookRotation(along, Vector3.up) : body.rotation,
+                        // Through VehicleFacing like every other heading: a raw LookRotation here
+                        // wiped the model's upright pose, so trucks waiting in the bay lay on
+                        // their side while the moving ones looked right.
+                        bayRot = along.sqrMagnitude > 0.01f ? VehicleFacing(along) : body.rotation,
                     };
                     var rends = body.GetComponentsInChildren<Renderer>(true);
                     a.rends = rends;
@@ -1297,11 +1503,138 @@ namespace Game.Gameplay
         private List<List<Vector3>> BuildRoadLoops()
         {
             var loops = new List<List<Vector3>>();
+
+            // Authored island: every route drives the modelled ring road. The ring already
+            // passes all four districts, and BuildTruckAgents picks each route's pickup and
+            // drop-off by nearest point on the loop it is handed - so one shared ring gives
+            // each route the right stops while keeping the trucks on visible tarmac.
+            if (Authored)
+            {
+                // Ore runs storage -> refinery, cargo runs refinery -> market. Each goes out
+                // along the ring and comes back through the middle crossroads, so a route is a
+                // real circuit on the tarmac rather than a lap of the whole island.
+                var ore = AuthoredRouteLoop(_orePile, _refinery);
+                var bar = AuthoredRouteLoop(_refinedPile, _market);
+                if (ore != null && bar != null)
+                {
+                    loops.Add(ore);                                   // Route.Ore
+                    loops.Add(bar);                                   // Route.Market
+                    if (_dock != null)
+                    {
+                        var exp = AuthoredRouteLoop(_refinedPile, _dock);
+                        if (exp != null) loops.Add(exp);              // Route.Export
+                    }
+                    return loops;
+                }
+                Debug.LogWarning("[Island] Could not build authored truck routes — falling back to straight runs.", this);
+            }
+
             loops.Add(RouteLoop(_orePile, _viaOre, _refinery));              // Route.Ore
             loops.Add(RouteLoop(_refinedPile, _viaBar, _market));            // Route.Market
             // Export bends around the market rather than driving through it — see SpawnExpansions.
             if (_dock != null) loops.Add(RouteLoop(_refinedPile, _exportBend, _dock));   // Route.Export
             return loops;
+        }
+
+        /// <summary>
+        /// A circuit between two buildings on the authored roads: out the short way round the
+        /// ring, back through the middle crossroads.
+        ///
+        /// Driving the whole ring for every route sent an ore truck three quarters of the way
+        /// round the island to reach a refinery on the next corner. The return leg uses the two
+        /// main roads that cross at the island's centre - which is what they are there for -
+        /// so the run reads as a lap of a district rather than a tour.
+        /// </summary>
+        private List<Vector3> AuthoredRouteLoop(Transform from, Transform to)
+        {
+            if (from == null || to == null) return null;
+
+            var ring = AuthoredRing();
+            if (ring == null || ring.Count < 6) return null;
+
+            Vector3 centre;
+            if (!_routes.TryGetAnchor("center", out centre)) centre = Centroid(ring);
+            centre.y = _deckY;
+
+            // Leave and rejoin the ring where the two middle roads actually cross it, not at
+            // whatever point happens to be nearest the yard. The return leg is a straight run
+            // through the centre, and it only lies on tarmac if it starts on an axis - snapping
+            // to the crossing is what stops trucks cutting the corner across the grass.
+            int i0 = RingAxisCrossing(ring, centre, from.position);
+            int i1 = RingAxisCrossing(ring, centre, to.position);
+            if (i0 == i1) return ring;
+
+            int n = ring.Count;
+            int fwd = (i1 - i0 + n) % n;
+
+            // Walk the ring the short way from pickup to drop-off.
+            var path = new List<Vector3>();
+            if (fwd <= n - fwd)
+                for (int k = 0; k <= fwd; k++) path.Add(ring[(i0 + k) % n]);
+            else
+                for (int k = 0; k <= n - fwd; k++) path.Add(ring[(i0 - k + n) % n]);
+
+            // Return leg: off the ring, in along the middle road, across the junction and back
+            // out to where we started. Sampled so a truck steers it rather than snapping.
+            AppendLeg(path, path[path.Count - 1], centre, 6f);
+            AppendLeg(path, centre, ring[i0], 6f);
+            return path;
+        }
+
+        /// <summary>
+        /// The point on the ring where the middle road toward <paramref name="target"/> crosses
+        /// it — the ring's furthest point along whichever axis that district lies on.
+        /// </summary>
+        private static int RingAxisCrossing(List<Vector3> ring, Vector3 centre, Vector3 target)
+        {
+            Vector3 d = Flat(target - centre);
+            Vector3 axis = Mathf.Abs(d.x) >= Mathf.Abs(d.z)
+                ? new Vector3(Mathf.Sign(d.x), 0f, 0f)
+                : new Vector3(0f, 0f, Mathf.Sign(d.z));
+
+            // Where the ring actually crosses that middle road: the point on the target's side
+            // sitting closest to the road's centre line. NOT the ring's furthest point along the
+            // axis - the ring is a curve through four corners and comes out lopsided, so its
+            // extreme +Z point sits 33 units off centre. Leaving from there sent the return leg
+            // diagonally across the grass instead of straight down the road.
+            int best = -1;
+            float bestOffset = float.MaxValue;
+            for (int i = 0; i < ring.Count; i++)
+            {
+                Vector3 v = Flat(ring[i] - centre);
+                if (Vector3.Dot(v, axis) <= 0f) continue;            // behind the centre
+                float offset = Vector3.Cross(v, axis).magnitude;     // distance to the road's line
+                if (offset < bestOffset) { bestOffset = offset; best = i; }
+            }
+            return best >= 0 ? best : NearestIndex(ring, target);
+        }
+
+        /// <summary>Adds points from a to b at roughly one every <paramref name="step"/> metres, b included.</summary>
+        private static void AppendLeg(List<Vector3> path, Vector3 a, Vector3 b, float step)
+        {
+            float len = Flat(b - a).magnitude;
+            int n = Mathf.Clamp(Mathf.RoundToInt(len / Mathf.Max(1f, step)), 1, 40);
+            for (int i = 1; i <= n; i++) path.Add(Vector3.Lerp(a, b, i / (float)n));
+        }
+
+        /// <summary>
+        /// The authored ring road as a closed driving circuit, lifted to the deck height the
+        /// trucks sit at. Returns null when the island has no exported "loop".
+        /// </summary>
+        private List<Vector3> AuthoredRing()
+        {
+            var pts = _routes.GetPath("loop");
+            if (pts == null || pts.Length < 3) return null;
+
+            var ring = new List<Vector3>(pts.Length);
+            for (int i = 0; i < pts.Length; i++)
+            {
+                // The exporter closes the ring by repeating the first point; a duplicate stop
+                // would make a truck pause twice in the same place.
+                if (i == pts.Length - 1 && Flat(pts[i] - pts[0]).sqrMagnitude < 0.01f) break;
+                ring.Add(new Vector3(pts[i].x, _deckY, pts[i].z));
+            }
+            return ring;
         }
 
         /// <summary>
@@ -1456,7 +1789,7 @@ namespace Game.Gameplay
                 else { pos += dir * budget; budget = 0f; }
             }
             a.body.position = pos;
-            a.body.rotation = Quaternion.LookRotation(dir, Vector3.up);
+            a.body.rotation = VehicleFacing(dir);
             return arrived;
         }
 
@@ -2530,13 +2863,46 @@ namespace Game.Gameplay
 
         private GameObject MakeChunk(Transform parent, Material mat, Vector3 localPos, Vector3 localScale)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "OpLoad";
-            var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
-            go.GetComponent<Renderer>().sharedMaterial = mat;
+            // Use the island's authored ore chunk rather than a primitive: a plain cube riding
+            // every wagon and truck is what read as "little boxes" on the map. The mesh is
+            // normalised into the requested box below, so callers still think in world sizes.
+            GameObject go;
+            Mesh chunk = MeshOf(oreChunkPrefab);
+            if (chunk != null)
+            {
+                go = new GameObject("OpLoad");
+                go.AddComponent<MeshFilter>().sharedMesh = chunk;
+                go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+
+                Vector3 ms = chunk.bounds.size;
+                localScale = new Vector3(
+                    localScale.x / Mathf.Max(0.0001f, ms.x),
+                    localScale.y / Mathf.Max(0.0001f, ms.y),
+                    localScale.z / Mathf.Max(0.0001f, ms.z));
+            }
+            else
+            {
+                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                go.name = "OpLoad";
+                var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
+                go.GetComponent<Renderer>().sharedMaterial = mat;
+            }
             go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = localScale;
+
+            // localPos/localScale are authored in world units. Authored map meshes come out of
+            // the FBX pipeline with a localScale of 100, so a chunk parented straight to a wagon
+            // inherited that and rendered as a 190-unit block across the island. Dividing by the
+            // parent's lossy scale keeps the load the size it is meant to be; on a generated
+            // island the parent scale is 1 and this is a no-op.
+            Vector3 ls = parent != null ? parent.lossyScale : Vector3.one;
+            go.transform.localPosition = new Vector3(
+                localPos.x / Mathf.Max(0.0001f, ls.x),
+                localPos.y / Mathf.Max(0.0001f, ls.y),
+                localPos.z / Mathf.Max(0.0001f, ls.z));
+            go.transform.localScale = new Vector3(
+                localScale.x / Mathf.Max(0.0001f, ls.x),
+                localScale.y / Mathf.Max(0.0001f, ls.y),
+                localScale.z / Mathf.Max(0.0001f, ls.z));
             go.SetActive(false);
             return go;
         }
@@ -2556,7 +2922,10 @@ namespace Game.Gameplay
             go.transform.localScale = Vector3.one;
             _dressing = go.transform;
 
-            if (!generateTrack) return;
+            // An authored island already has its roads, rail, junctions and props modelled.
+            // Generating a second set on top is what put stray tarmac and buildings across
+            // the map - the holder above is still made, because the build plots hang off it.
+            if (!generateTrack || Authored) return;
             HideAuthoredTrack();
 
             Material road = MakeMat(_srcMat, roadColor), line = MakeMat(_srcMat, roadLineColor);

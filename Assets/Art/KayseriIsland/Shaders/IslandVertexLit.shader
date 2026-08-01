@@ -13,6 +13,12 @@ Shader "Kayseri/IslandVertexLit"
         _Metallic("Metallic", Range(0,1)) = 0.0
         _Smoothness("Smoothness", Range(0,1)) = 0.15
         [HDR]_EmissionColor("Emission Color", Color) = (0,0,0,0)
+
+        // The bake carries Blender's procedural colour through faithfully, which reads
+        // muted once URP lights it. These push it back toward the toy-bright look the
+        // island is drawn in, without touching any of the 63 authored colours.
+        _Saturation("Saturation", Range(0,3)) = 1.35
+        _Vibrance("Brightness", Range(0.5,2)) = 1.12
     }
 
     SubShader
@@ -34,7 +40,17 @@ Shader "Kayseri/IslandVertexLit"
             half _VertexColorAmount;
             half _Metallic;
             half _Smoothness;
+            half _Saturation;
+            half _Vibrance;
         CBUFFER_END
+
+        // Pull the colour away from its own grey, then lift it. Luminance-preserving so a
+        // saturation push brightens the hue rather than washing the whole island out.
+        half3 IslandGrade(half3 c)
+        {
+            half l = dot(c, half3(0.2126h, 0.7152h, 0.0722h));
+            return saturate(lerp(l.xxx, c, _Saturation) * _Vibrance);
+        }
         ENDHLSL
 
         Pass
@@ -109,7 +125,7 @@ Shader "Kayseri/IslandVertexLit"
                 // (grass 0.44*0.44, coal 0.02*0.02 -> black).
                 //   amount 1 = baked colour + all its procedural detail
                 //   amount 0 = flat _BaseColor fallback
-                half3 albedo = lerp(_BaseColor.rgb, IN.color.rgb, _VertexColorAmount);
+                half3 albedo = IslandGrade(lerp(_BaseColor.rgb, IN.color.rgb, _VertexColorAmount));
 
                 InputData inputData = (InputData)0;
                 inputData.positionWS = IN.positionWS;
