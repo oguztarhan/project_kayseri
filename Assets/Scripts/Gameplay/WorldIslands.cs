@@ -25,7 +25,7 @@ namespace Game.Gameplay
             public string rootName;       // island root object in the scene
             public string tilesRootName;  // "" = tiles at scene root (the coal original)
             public double unlockCost;
-            public double capPerMin;
+            public double capPerMin;         // fully-upgraded $/min — and the ceiling it earns against
             public Color oreColor = Color.white;
         }
 
@@ -52,7 +52,12 @@ namespace Game.Gameplay
         /// <summary>The island's earning rate: live meter when active, last persisted rate otherwise.</summary>
         public double RatePerMin(int i)
         {
-            if (i == _active && _ops[i] != null && _ops[i].enabled) return _ops[i].CashPerMinute;
+            if (i != _active || _ops[i] == null || !_ops[i].enabled) return SavedRate(i);
+            if (_ops[i].MeterTrustworthy) return _ops[i].CashPerMinute;
+            // The meter is still warming up and reads zero. Handing that zero back would push it into
+            // incomeRatePerSec below, so closing the game inside the first half minute would save an
+            // empire that earns nothing and the next launch would grant no offline income at all.
+            // The island's last measured rate is the honest stand-in until a real sale lands.
             return SavedRate(i);
         }
 
@@ -173,18 +178,29 @@ namespace Game.Gameplay
             e.level = level;
         }
 
-        /// <summary>Default balance ladder: caps ×3 per tier, unlock ≈ 6–45 cap-hours of everything owned so
-        /// far — paces the full 8-island arc across roughly a month of casual play (GDD §5).</summary>
+        /// <summary>
+        /// Default balance ladder (GDD §5). <c>capPerMin</c> is both what an island earns fully upgraded and
+        /// the ceiling it earns against — the same number, on purpose. It is measured, not chosen: coal
+        /// meters 27.3k–29k $/min with every axis at its level cap and all ten buildings bought, and the
+        /// rest of the ladder is that scaled by each tier's value multiplier. Keep these in step with each
+        /// island's <c>incomeCapPerMin</c>; the map's progress bar reads rate against this number, so it now
+        /// reaches 100% exactly when an island is finished instead of stopping at 58% as it did against the
+        /// old 50k cap that no island could reach.
+        ///
+        /// Unlock costs are roughly 6–45 hours of what you already own. They used to be derived from that
+        /// cap, which no island ever reached, so each unlock silently cost about 1.7× the play the pacing
+        /// intended; these are rebased on income the player can actually earn.
+        /// </summary>
         private static Entry[] DefaultLadder() => new[]
         {
-            E("coal",    "KÖMÜR ADASI",  "Island_Coal",    "",              0d,      50000d,   new Color(0.10f, 0.10f, 0.12f)),
-            E("copper",  "BAKIR ADASI",  "Island_Copper",  "Tiles_Copper",  20e6d,   150000d,  new Color(0.72f, 0.45f, 0.20f)),
-            E("iron",    "DEMİR ADASI",  "Island_Iron",    "Tiles_Iron",    100e6d,  450000d,  new Color(0.62f, 0.63f, 0.68f)),
-            E("silver",  "GÜMÜŞ ADASI",  "Island_Silver",  "Tiles_Silver",  500e6d,  1.35e6d,  new Color(0.85f, 0.87f, 0.92f)),
-            E("gold",    "ALTIN ADASI",  "Island_Gold",    "Tiles_Gold",    2.2e9d,  4.05e6d,  new Color(0.95f, 0.78f, 0.22f)),
-            E("ruby",    "YAKUT ADASI",  "Island_Ruby",    "Tiles_Ruby",    9e9d,    12.15e6d, new Color(0.85f, 0.15f, 0.25f)),
-            E("emerald", "ZÜMRÜT ADASI", "Island_Emerald", "Tiles_Emerald", 36e9d,   36.45e6d, new Color(0.15f, 0.75f, 0.35f)),
-            E("diamond", "ELMAS ADASI",  "Island_Diamond", "Tiles_Diamond", 140e9d,  110e6d,   new Color(0.75f, 0.95f, 1f)),
+            E("coal",    "KÖMÜR ADASI",  "Island_Coal",    "",              0d,      29000d,   new Color(0.10f, 0.10f, 0.12f)),
+            E("copper",  "BAKIR ADASI",  "Island_Copper",  "Tiles_Copper",  12e6d,   93000d,   new Color(0.72f, 0.45f, 0.20f)),
+            E("iron",    "DEMİR ADASI",  "Island_Iron",    "Tiles_Iron",    62e6d,   297000d,  new Color(0.62f, 0.63f, 0.68f)),
+            E("silver",  "GÜMÜŞ ADASI",  "Island_Silver",  "Tiles_Silver",  330e6d,  950000d,  new Color(0.85f, 0.87f, 0.92f)),
+            E("gold",    "ALTIN ADASI",  "Island_Gold",    "Tiles_Gold",    1.55e9d, 3.04e6d,  new Color(0.95f, 0.78f, 0.22f)),
+            E("ruby",    "YAKUT ADASI",  "Island_Ruby",    "Tiles_Ruby",    6.75e9d, 9.72e6d,  new Color(0.85f, 0.15f, 0.25f)),
+            E("emerald", "ZÜMRÜT ADASI", "Island_Emerald", "Tiles_Emerald", 29e9d,   31.1e6d,  new Color(0.15f, 0.75f, 0.35f)),
+            E("diamond", "ELMAS ADASI",  "Island_Diamond", "Tiles_Diamond", 120e9d,  99.5e6d,  new Color(0.75f, 0.95f, 1f)),
         };
 
         private static Entry E(string key, string name, string root, string tiles, double cost, double cap, Color c) =>

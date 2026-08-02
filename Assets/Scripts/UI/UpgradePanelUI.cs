@@ -222,8 +222,15 @@ namespace Game.UI
             headerTemplate.SetActive(false);
             cardTemplate.SetActive(false);
 
+            // The four buildings moved out to <see cref="StationScreenUI"/>, which shows the model
+            // being bought. Listing them here too would give one purchase two homes and undo the
+            // point of moving them. A null header keeps the list indexed by station, so a chip that
+            // still routes here (the power plant) scrolls to the right place.
+            var screen = FindAnyObjectByType<StationScreenUI>(FindObjectsInactive.Include);
+
             for (int s = 0; s < _op.StationCount; s++)
             {
+                if (screen != null && screen.Handles(s)) { _headers.Add(null); continue; }
                 string station = _op.StationName(s);
                 _headers.Add((RectTransform)AddHeader(station).transform);
                 for (int a = 0; a < _op.AxisCount(s); a++)

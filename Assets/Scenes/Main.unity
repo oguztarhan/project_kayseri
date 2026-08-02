@@ -1476,6 +1476,30 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 665529825986038305, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 665529825986038305, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 665529825986038305, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 665529825986038305, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 665529825986038305, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 665529825986038305, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 935213291454336507, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -1591,6 +1615,30 @@ PrefabInstance:
     - target: {fileID: 3708244485229544514, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 3818740915383444901, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3818740915383444901, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3818740915383444901, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3818740915383444901, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3818740915383444901, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3818740915383444901, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3847965895062013127, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_Name
@@ -1800,6 +1848,10 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 7299908571121653118, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 7303340963903471508, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0
@@ -1965,6 +2017,10 @@ MonoBehaviour:
   - {fileID: 866613772}
   - {fileID: 358284299}
   - {fileID: 1851337841}
+  _phasePrefabs:
+  - {fileID: 4132612574977358400, guid: 93f0e4ac4135e40a8bbcaeea1cad5a02, type: 3}
+  - {fileID: 8482112942557743311, guid: 6327264bb019d48adb4b1750201dc2b3, type: 3}
+  - {fileID: 1016067352958232128, guid: c94ca5785bafa4b8fb7268100cef0ba5, type: 3}
   _operation: {fileID: 2135659100}
   _growSeconds: 0.55
   _overshoot: 1.12
@@ -2000,6 +2056,14 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 291868371051772653, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 2684351332656700717, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293326847
+      objectReference: {fileID: 0}
+    - target: {fileID: 2684351332656700717, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
@@ -2128,6 +2192,18 @@ PrefabInstance:
       value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 7766570725324934674, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 8029884282778059891, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
+      propertyPath: m_fontSize
+      value: 38.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 8029884282778059891, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4293326847
+      objectReference: {fileID: 0}
+    - target: {fileID: 8029884282778059891, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
@@ -2848,7 +2924,7 @@ MonoBehaviour:
   barPrice: 45
   dwellSeconds: 0.7
   wagonGap: 2.2
-  upgradeCostGrowth: 1.13
+  upgradeCostGrowth: 1.06
   islandRootName: Island_Coal
   mineObjectName: mine_Coal
   axisEffectScale: 0.085
@@ -2865,8 +2941,9 @@ MonoBehaviour:
   barColor: {r: 0.88, g: 0.55, b: 0.18, a: 1}
   valueMultiplier: 1
   costMultiplier: 1
-  incomeCapPerMin: 50000
   axisLevelCap: 50
+  incomeCapPerMin: 29000
+  warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
   tradePostCost: 15000
@@ -3012,7 +3089,7 @@ MonoBehaviour:
   barPrice: 45
   dwellSeconds: 0.7
   wagonGap: 2.2
-  upgradeCostGrowth: 1.13
+  upgradeCostGrowth: 1.06
   islandRootName: Island_Diamond
   mineObjectName: mine_Diamond
   axisEffectScale: 0.085
@@ -3029,8 +3106,9 @@ MonoBehaviour:
   barColor: {r: 0.85, g: 0.97, b: 1, a: 1}
   valueMultiplier: 3435.97
   costMultiplier: 16384
-  incomeCapPerMin: 110000000
   axisLevelCap: 50
+  incomeCapPerMin: 99500000
+  warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
   tradePostCost: 15000
@@ -3125,7 +3203,7 @@ MonoBehaviour:
   barPrice: 45
   dwellSeconds: 0.7
   wagonGap: 2.2
-  upgradeCostGrowth: 1.13
+  upgradeCostGrowth: 1.06
   islandRootName: Island_Emerald
   mineObjectName: mine_Emerald
   axisEffectScale: 0.085
@@ -3142,8 +3220,9 @@ MonoBehaviour:
   barColor: {r: 0.49, g: 0.85, b: 0.61, a: 1}
   valueMultiplier: 1073.74
   costMultiplier: 4096
-  incomeCapPerMin: 36450000
   axisLevelCap: 50
+  incomeCapPerMin: 31100000
+  warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
   tradePostCost: 15000
@@ -3238,7 +3317,7 @@ MonoBehaviour:
   barPrice: 45
   dwellSeconds: 0.7
   wagonGap: 2.2
-  upgradeCostGrowth: 1.13
+  upgradeCostGrowth: 1.06
   islandRootName: Island_Ruby
   mineObjectName: mine_Ruby
   axisEffectScale: 0.085
@@ -3255,8 +3334,9 @@ MonoBehaviour:
   barColor: {r: 0.91, g: 0.49, b: 0.55, a: 1}
   valueMultiplier: 335.544
   costMultiplier: 1024
-  incomeCapPerMin: 12150000
   axisLevelCap: 50
+  incomeCapPerMin: 9720000
+  warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
   tradePostCost: 15000
@@ -3351,7 +3431,7 @@ MonoBehaviour:
   barPrice: 45
   dwellSeconds: 0.7
   wagonGap: 2.2
-  upgradeCostGrowth: 1.13
+  upgradeCostGrowth: 1.06
   islandRootName: Island_Gold
   mineObjectName: mine_Gold
   axisEffectScale: 0.085
@@ -3368,8 +3448,9 @@ MonoBehaviour:
   barColor: {r: 0.97, g: 0.87, b: 0.53, a: 1}
   valueMultiplier: 104.858
   costMultiplier: 256
-  incomeCapPerMin: 4050000
   axisLevelCap: 50
+  incomeCapPerMin: 3040000
+  warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
   tradePostCost: 15000
@@ -3464,7 +3545,7 @@ MonoBehaviour:
   barPrice: 45
   dwellSeconds: 0.7
   wagonGap: 2.2
-  upgradeCostGrowth: 1.13
+  upgradeCostGrowth: 1.06
   islandRootName: Island_Silver
   mineObjectName: mine_Silver
   axisEffectScale: 0.085
@@ -3481,8 +3562,9 @@ MonoBehaviour:
   barColor: {r: 0.91, g: 0.92, b: 0.95, a: 1}
   valueMultiplier: 32.768
   costMultiplier: 64
-  incomeCapPerMin: 1350000
   axisLevelCap: 50
+  incomeCapPerMin: 950000
+  warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
   tradePostCost: 15000
@@ -3577,7 +3659,7 @@ MonoBehaviour:
   barPrice: 45
   dwellSeconds: 0.7
   wagonGap: 2.2
-  upgradeCostGrowth: 1.13
+  upgradeCostGrowth: 1.06
   islandRootName: Island_Iron
   mineObjectName: mine_Iron
   axisEffectScale: 0.085
@@ -3594,8 +3676,9 @@ MonoBehaviour:
   barColor: {r: 0.77, g: 0.78, b: 0.81, a: 1}
   valueMultiplier: 10.24
   costMultiplier: 16
-  incomeCapPerMin: 450000
   axisLevelCap: 50
+  incomeCapPerMin: 297000
+  warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
   tradePostCost: 15000
@@ -3690,7 +3773,7 @@ MonoBehaviour:
   barPrice: 45
   dwellSeconds: 0.7
   wagonGap: 2.2
-  upgradeCostGrowth: 1.13
+  upgradeCostGrowth: 1.06
   islandRootName: Island_Copper
   mineObjectName: mine_Copper
   axisEffectScale: 0.085
@@ -3707,8 +3790,9 @@ MonoBehaviour:
   barColor: {r: 0.83, g: 0.67, b: 0.52, a: 1}
   valueMultiplier: 3.2
   costMultiplier: 4
-  incomeCapPerMin: 150000
   axisLevelCap: 50
+  incomeCapPerMin: 93000
+  warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
   tradePostCost: 15000
@@ -43815,6 +43899,103 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1001 &6635116245618731502
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4367587183433445797, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_Name
+      value: UI_IstasyonEkrani
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_Pivot.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_Pivot.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6605657844973996045, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
 --- !u!4 &6637828213992711955
 Transform:
   m_ObjectHideFlags: 0
@@ -60670,3 +60851,4 @@ SceneRoots:
   - {fileID: 19888705}
   - {fileID: 8311216238134171968}
   - {fileID: 1596364324}
+  - {fileID: 6635116245618731502}

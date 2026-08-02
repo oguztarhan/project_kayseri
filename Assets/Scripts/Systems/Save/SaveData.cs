@@ -36,6 +36,9 @@ namespace Game.Systems
         public int freeRewardBonusCharges;           // extra rewarded-ad charges per slot per day, bought
         public long dailyGemStipend;                 // flat gems added to every daily-reward claim, bought;
                                                      // deliberately outside dailyRewardBonusMult, see the card
+        public double boostMultiplier;               // running income boost and when it expires, as wall-clock
+        public long boostEndUnix;                    // unix — the store sells boosts measured in hours, and an
+                                                     // idle player spends most of those hours with the app shut
     }
 
     /// <summary>

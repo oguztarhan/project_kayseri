@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Gameplay;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
@@ -135,6 +136,13 @@ namespace Game.UI
             }
 
             _prestige.DoPrestige();
+
+            // Retire the live operation before touching the save. Scene teardown fires CoalOperation's
+            // OnDisable, which persists that island's measured rate — so clearing the rates and *then*
+            // reloading let the pre-prestige number write itself straight back into the list that had
+            // just been emptied. Disabling here puts that write before the wipe instead of after it.
+            var ops = FindObjectsByType<CoalOperation>(FindObjectsSortMode.None);
+            for (int i = 0; i < ops.Length; i++) ops[i].enabled = false;
 
             // PrestigeService clears stationLevels, which is the single-mountain schema. The archipelago
             // keeps its upgrades in islandLevels, so without this the reset would take the player's cash

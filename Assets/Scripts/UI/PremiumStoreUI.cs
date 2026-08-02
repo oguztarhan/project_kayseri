@@ -79,6 +79,28 @@ namespace Game.UI
             [Tooltip("Yalnızca bir kez satın alınır. Kalıcı bir şey veren her teklif bunu işaretlemeli — " +
                      "yoksa oyuncu aynı kalıcı yükseltmeyi üst üste alıp istifler.")]
             public bool oneTime = false;
+
+            // ---- elmasla satılanlar (gemOffers listesi) ----
+            // Bunlar hiyerarşide kart olarak durmaz; ızgaraya cellTemplate'ten klonlanır ve gerçek para
+            // yerine elmasla ödenir. sku yine kimliktir: oneTime takibi purchasedOffers üzerinden gider.
+            [Tooltip("0'dan büyükse kart IAP yerine ELMAS ile ödenir ve elmas ızgarasına eklenir.")]
+            public long gemPrice = 0;
+            [Tooltip("Kart zemini — elmas ızgarasındaki hücrenin arka planı olur (kahramansız).")]
+            public Sprite icon;
+            [Tooltip("Zeminin üstüne konan kahraman ikon. Boşsa hücrenin Ikon çocuğu kapalı kalır.")]
+            public Sprite hero;
+            [Tooltip("Kahramanın boştaki hareketi — ürüne uygun olanı seç.")]
+            public StoreHeroFx.Motion heroMotion = StoreHeroFx.Motion.Bob;
+            [Tooltip("Hücrede yazan başlık, ör. \"×2 · 8 SAAT\".")]
+            public string title = "";
+            [Tooltip("Kartın altındaki tek satırlık açıklama. Boşsa satır hiç görünmez — bir rakamın " +
+                     "kendini anlattığı kartlarda (süre, tutar) boş bırak.")]
+            [TextArea(2, 3)] public string description = "";
+            [Tooltip("Bu kadar dakikalık imparatorluk geliri kadar anında nakit verir (0 = nakit yok).")]
+            public float incomeMinutes = 0f;
+            [Tooltip("Prestij yapsa kazanacağı yatırımcının bu oranını verir (0.5 = yarısı). " +
+                     "Ömür boyu kazançtan karşılığını yakar, bkz. PrestigeService.TakeInvestorShare.")]
+            [Range(0f, 1f)] public float investorShare = 0f;
         }
 
         [Header("Panel (UI_Magaza prefabında bağlı)")]
@@ -90,12 +112,16 @@ namespace Game.UI
         [SerializeField] private RectTransform goldGrid;
         [Tooltip("GemPackIAP hücrelerinin eklendiği ızgara.")]
         [SerializeField] private RectTransform diamondGrid;
+        [Tooltip("ELMAS İLE AL bölümü: elmasla ödenen tekliflerin eklendiği ızgara.")]
+        [SerializeField] private RectTransform gemSpendGrid;
         [Tooltip("Pasif şablon hücre; katalogdaki her paket için bir kopya açılır.")]
         [SerializeField] private GameObject cellTemplate;
 
         [Header("Katalog (serbestçe düzenle)")]
         [SerializeField] private List<StoreItem> items = new List<StoreItem>();
         [SerializeField] private List<OfferBinding> offers = new List<OfferBinding>();
+        [Tooltip("Elmasla satın alınanlar. gemPrice > 0 olmalı; hücreleri gemSpendGrid'e klonlanır.")]
+        [SerializeField] private List<OfferBinding> gemOffers = new List<OfferBinding>();
 
         [Tooltip("Editör testi: IAP stub'ı her satın almayı reddettiği için, bu açıkken ödüller IAP'siz anında verilir. Cihaz sürümünde yok sayılır.")]
         [SerializeField] private bool devFreeIAP;
@@ -110,6 +136,8 @@ namespace Game.UI
         private FreeRewardService _free;
         private SaveData _data;
         private SaveService _save;
+        private PrestigeService _prestige;
+        private Game.Gameplay.WorldIslands _world;
         private bool _built;
 
         /// <summary>
@@ -147,6 +175,24 @@ namespace Game.UI
             if (_free == null) _free = ServiceLocator.Get<FreeRewardService>();
             if (_data == null) _data = ServiceLocator.Get<SaveData>();
             if (_save == null) _save = ServiceLocator.Get<SaveService>();
+            if (_prestige == null) _prestige = ServiceLocator.Get<PrestigeService>();
+            if (_world == null) _world = FindAnyObjectByType<Game.Gameplay.WorldIslands>();
+        }
+
+        /// <summary>
+        /// What the empire earns a minute — prices the "instant cash" gem cards, exactly as the rewarded-ad
+        /// screen prices its own. Sold as minutes rather than a fixed sum so a card is worth the same
+        /// share of progress on coal as it is on diamond.
+        /// </summary>
+        private double IncomePerMinute()
+        {
+            if (_world != null)
+            {
+                double sum = 0d;
+                for (int i = 0; i < _world.Count; i++) if (_world.IsOwned(i)) sum += _world.RatePerMin(i);
+                if (sum > 0d) return sum;
+            }
+            return 0d;
         }
 
         /// <summary>Has this one-time offer already been bought? Untracked skus are always buyable.</summary>
@@ -226,6 +272,70 @@ namespace Game.UI
                 RectTransform cardRt = (RectTransform)go.transform;   // the fx launches off the cell
                 if (btn != null) btn.onClick.AddListener(() => Buy(captured, cardRt));
             }
+
+            // The ELMAS İLE AL section. Same template, same grant path as the hierarchy-authored offer
+            // cards — only the till differs. Wiring each offer's `button` here is what lets RefreshOffers
+            // grey them out without knowing where the card came from.
+            if (gemSpendGrid == null) return;
+            for (int i = 0; i < gemOffers.Count; i++)
+            {
+                OfferBinding offer = gemOffers[i];
+                if (offer == null || offer.gemPrice <= 0) continue;
+
+                GameObject go = Instantiate(cellTemplate, gemSpendGrid);
+                go.name = "Elmas_" + offer.sku;
+                go.SetActive(true);
+
+                Image bg = go.GetComponent<Image>();
+                if (bg != null && offer.icon != null) bg.sprite = offer.icon;
+
+                Transform amountT = go.transform.Find("Adet");
+                if (amountT != null)
+                {
+                    TMP_Text amountTxt = amountT.GetComponent<TMP_Text>();
+                    if (amountTxt != null) amountTxt.text = offer.title;
+                }
+
+                Transform priceT = go.transform.Find("Fiyat");
+                if (priceT != null)
+                {
+                    TMP_Text priceTxt = priceT.GetComponent<TMP_Text>();
+                    if (priceTxt != null) priceTxt.text = offer.gemPrice.ToString();
+                }
+
+                // A price and a duration explain themselves; "×2" and "%50" do not. Only the cards that
+                // sell a rule rather than an amount carry a line, and the rest leave it switched off
+                // rather than showing an empty strip.
+                Transform noteT = go.transform.Find("Aciklama");
+                if (noteT != null)
+                {
+                    TMP_Text noteTxt = noteT.GetComponent<TMP_Text>();
+                    bool hasNote = !string.IsNullOrEmpty(offer.description) && noteTxt != null;
+                    if (hasNote) noteTxt.text = offer.description;
+                    noteT.gameObject.SetActive(hasNote);
+                }
+
+                // The pack cells bake their hero into the card art, so the template's Ikon child ships
+                // switched off and only a gem cell turns it on. Phase is the cell's own index, which is
+                // what keeps six cards in a grid from bobbing and rattling in lockstep.
+                Transform heroT = go.transform.Find("Ikon");
+                if (heroT != null)
+                {
+                    Image heroImg = heroT.GetComponent<Image>();
+                    if (offer.hero != null && heroImg != null)
+                    {
+                        heroImg.sprite = offer.hero;
+                        heroT.gameObject.SetActive(true);
+                        StoreHeroFx fx = heroT.GetComponent<StoreHeroFx>();
+                        if (fx != null) fx.Configure(offer.heroMotion, i * 0.37f);
+                    }
+                    else heroT.gameObject.SetActive(false);
+                }
+
+                offer.button = go.GetComponent<Button>();
+                OfferBinding captured = offer;
+                if (offer.button != null) offer.button.onClick.AddListener(() => BuyOffer(captured));
+            }
         }
 
         // ---------- purchase handling ----------
@@ -257,24 +367,48 @@ namespace Game.UI
         private void BuyOffer(OfferBinding offer)
         {
             if (Owned(offer)) return;
-            PurchaseFlow(offer.sku, ok =>
+            // Two tills, one till-slip. A gem card is paid for out of the wallet and either succeeds or
+            // does not, so there is nothing to wait for; a money card goes out to the store and comes
+            // back later. Both hand the same offer to the same grant.
+            if (offer.gemPrice > 0)
             {
-                if (!ok) return;
-                if (_wallet != null && offer.cashAmount > 0d) _wallet.AddCash(new BigDouble(offer.cashAmount));
-                if (_wallet != null && offer.gemAmount > 0) _wallet.AddGems(offer.gemAmount);
-                if (_boost != null && offer.boostMultiplier > 1d && offer.boostSeconds > 0d)
-                    _boost.SetBoost(offer.boostMultiplier, offer.boostSeconds);
-                if (offer.removeAds) AdsRemoved = true;
-                GrantPermanent(offer);
-                RefreshOffers();
+                // A card priced in minutes of income pays nothing while the empire has not reported a
+                // rate yet — the first seconds after a launch, before the meter is trustworthy and with
+                // no saved rate behind it. Refuse the sale instead of taking the gems for an empty grant.
+                if (offer.incomeMinutes > 0f && IncomePerMinute() <= 0d) return;
+                if (_wallet == null || !_wallet.TrySpendGems(offer.gemPrice)) return;
+                Grant(offer);
+            }
+            else
+            {
+                PurchaseFlow(offer.sku, ok => { if (ok) Grant(offer); });
+            }
+        }
 
-                if (purchaseFx != null && offer.button != null)
-                {
-                    RectTransform card = (RectTransform)offer.button.transform;
-                    if (offer.cashAmount > 0d) purchaseFx.PlayCash(card);
-                    if (offer.gemAmount > 0) purchaseFx.PlayGems(card);
-                }
-            });
+        private void Grant(OfferBinding offer)
+        {
+            if (_wallet != null && offer.cashAmount > 0d) _wallet.AddCash(new BigDouble(offer.cashAmount));
+            if (_wallet != null && offer.gemAmount > 0) _wallet.AddGems(offer.gemAmount);
+            // Priced in minutes of the empire's own income, so one card is worth the same share of
+            // progress whichever island the player is standing on.
+            if (_wallet != null && offer.incomeMinutes > 0f)
+            {
+                double perMin = IncomePerMinute();
+                if (perMin > 0d) _wallet.AddCash(new BigDouble(perMin * offer.incomeMinutes));
+            }
+            if (_boost != null && offer.boostMultiplier > 1d && offer.boostSeconds > 0d)
+                _boost.SetBoost(offer.boostMultiplier, offer.boostSeconds);
+            if (_prestige != null && offer.investorShare > 0f) _prestige.TakeInvestorShare(offer.investorShare);
+            if (offer.removeAds) AdsRemoved = true;
+            GrantPermanent(offer);
+            RefreshOffers();
+
+            if (purchaseFx != null && offer.button != null)
+            {
+                RectTransform card = (RectTransform)offer.button.transform;
+                if (offer.cashAmount > 0d || offer.incomeMinutes > 0f) purchaseFx.PlayCash(card);
+                if (offer.gemAmount > 0) purchaseFx.PlayGems(card);
+            }
         }
 
         /// <summary>
@@ -294,14 +428,25 @@ namespace Game.UI
             if (_save != null) _save.Save(_data);
         }
 
-        /// <summary>A card greys out once what it sells is already owned; everything else stays buyable.</summary>
+        /// <summary>
+        /// A card greys out once what it sells is already owned; everything else stays buyable. Gem cards
+        /// grey out for a second reason too — not enough gems — which is the honest way to say "not yet"
+        /// on a currency the player earns rather than buys.
+        /// </summary>
         private void RefreshOffers()
         {
-            for (int i = 0; i < offers.Count; i++)
+            Grey(offers);
+            Grey(gemOffers);
+        }
+
+        private void Grey(List<OfferBinding> list)
+        {
+            long gems = _wallet != null ? _wallet.Gems : 0L;
+            for (int i = 0; i < list.Count; i++)
             {
-                OfferBinding o = offers[i];
+                OfferBinding o = list[i];
                 if (o == null || o.button == null) continue;
-                bool spent = Owned(o) || (o.removeAds && AdsRemoved);
+                bool spent = Owned(o) || (o.removeAds && AdsRemoved) || (o.gemPrice > 0 && gems < o.gemPrice);
                 o.button.interactable = !spent;
                 // The disabled tint latches when the panel opens and the state changes in the same
                 // frame; push the right colour straight away, as the other screens do.

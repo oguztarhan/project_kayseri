@@ -798,6 +798,8 @@ RectTransform:
   - {fileID: 7303340963903471508}
   - {fileID: 7518275737475003154}
   - {fileID: 7764276522268948960}
+  - {fileID: 665529825986038305}
+  - {fileID: 3818740915383444901}
   m_Father: {fileID: 2391362430273689342}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
@@ -1312,6 +1314,66 @@ MonoBehaviour:
   areaSize: {x: 0.41, y: 0.61}
   areaOffset: {x: -0.26, y: 0.086}
   cullMargin: 60
+--- !u!1 &1466886739116653558
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3818740915383444901}
+  - component: {fileID: 709262045460438037}
+  m_Layer: 5
+  m_Name: IzgaraElmasAl
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &3818740915383444901
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1466886739116653558}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6133922240265336258}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 892, y: 1536}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &709262045460438037
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1466886739116653558}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a8695521f0d02e499659fee002a26c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.GridLayoutGroup
+  m_Padding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
+  m_ChildAlignment: 1
+  m_StartCorner: 0
+  m_StartAxis: 0
+  m_CellSize: {x: 280, y: 360}
+  m_Spacing: {x: 26, y: 32}
+  m_Constraint: 1
+  m_ConstraintCount: 3
 --- !u!1 &1583998061282419195
 GameObject:
   m_ObjectHideFlags: 0
@@ -2923,6 +2985,82 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &2821488803219557344
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 665529825986038305}
+  - component: {fileID: 6441550531531163411}
+  - component: {fileID: 579889277917560667}
+  m_Layer: 5
+  m_Name: BaslikElmasAl
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &665529825986038305
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2821488803219557344}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 64155891317138833}
+  m_Father: {fileID: 6133922240265336258}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 892, y: 75}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &6441550531531163411
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2821488803219557344}
+  m_CullTransparentMesh: 1
+--- !u!114 &579889277917560667
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2821488803219557344}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: edafc2a646462684fa2bf0cdf8f1723d, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
 --- !u!1 &2883071245686198571
 GameObject:
   m_ObjectHideFlags: 0
@@ -3060,6 +3198,143 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &2963767056088820534
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6102869772120627602}
+  - component: {fileID: 1110274028485755608}
+  - component: {fileID: 8514456353328107311}
+  m_Layer: 0
+  m_Name: Aciklama
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!224 &6102869772120627602
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2963767056088820534}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 562603579156356050}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: -28}
+  m_SizeDelta: {x: 244, y: 44}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &1110274028485755608
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2963767056088820534}
+  m_CullTransparentMesh: 1
+--- !u!114 &8514456353328107311
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2963767056088820534}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: 
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
+  m_sharedMaterial: {fileID: 2520262441863566105, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: 0
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: -99
+  m_fontSizeBase: 36
+  m_fontWeight: 400
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 12
+  m_fontSizeMax: 20
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_characterHorizontalScale: 1
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 00000000
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 0
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
 --- !u!1 &3174941281526704844
 GameObject:
   m_ObjectHideFlags: 0
@@ -3180,6 +3455,143 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!1 &3292058183936732032
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 64155891317138833}
+  - component: {fileID: 2927581220765797988}
+  - component: {fileID: 7299908571121653118}
+  m_Layer: 5
+  m_Name: Etiket
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &64155891317138833
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3292058183936732032}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 665529825986038305}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &2927581220765797988
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3292058183936732032}
+  m_CullTransparentMesh: 1
+--- !u!114 &7299908571121653118
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3292058183936732032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: "ELMAS \u0130LE AL"
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
+  m_sharedMaterial: {fileID: 2520262441863566105, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: 0
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 36
+  m_fontSizeBase: 36
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_characterHorizontalScale: 1
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 0
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 6e72656b
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
 --- !u!1 &3400176991459602152
 GameObject:
   m_ObjectHideFlags: 0
@@ -3701,6 +4113,7 @@ MonoBehaviour:
   closeButton: {fileID: 7993668526003352780}
   goldGrid: {fileID: 7303340963903471508}
   diamondGrid: {fileID: 7764276522268948960}
+  gemSpendGrid: {fileID: 3818740915383444901}
   cellTemplate: {fileID: 6883283046300941261}
   items:
   - title: 2.5K
@@ -3802,6 +4215,14 @@ MonoBehaviour:
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
     oneTime: 1
+    gemPrice: 0
+    icon: {fileID: 0}
+    hero: {fileID: 0}
+    heroMotion: 1
+    title: 
+    description: 
+    incomeMinutes: 0
+    investorShare: 0
   - name: Reklam Yok
     button: {fileID: 6838375703838413410}
     sku: offer_reklamyok
@@ -3816,6 +4237,14 @@ MonoBehaviour:
     freeRewardBonusCharges: 1
     dailyGemStipend: 25
     oneTime: 1
+    gemPrice: 0
+    icon: {fileID: 0}
+    hero: {fileID: 0}
+    heroMotion: 1
+    title: 
+    description: 
+    incomeMinutes: 0
+    investorShare: 0
   - name: "Gece Vardiyas\u0131"
     button: {fileID: 3015335990691894417}
     sku: offer_gecevardiyasi
@@ -3830,6 +4259,14 @@ MonoBehaviour:
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
     oneTime: 1
+    gemPrice: 0
+    icon: {fileID: 0}
+    hero: {fileID: 0}
+    heroMotion: 1
+    title: 
+    description: 
+    incomeMinutes: 0
+    investorShare: 0
   - name: Maden Patronu
     button: {fileID: 3836880484917672375}
     sku: offer_madenpatronu
@@ -3844,6 +4281,235 @@ MonoBehaviour:
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
     oneTime: 0
+    gemPrice: 0
+    icon: {fileID: 0}
+    hero: {fileID: 0}
+    heroMotion: 1
+    title: 
+    description: 
+    incomeMinutes: 0
+    investorShare: 0
+  gemOffers:
+  - name: gem_boost_2h
+    button: {fileID: 0}
+    sku: gem_boost_2h
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 2
+    boostSeconds: 7200
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 35
+    icon: {fileID: 21300000, guid: 89e5de4b9a691a442b582ef45ddde515, type: 3}
+    hero: {fileID: 21300000, guid: 51adb7312158f584cb5cb62bf807ecc2, type: 3}
+    heroMotion: 6
+    title: 2 SAAT
+    description: 
+    incomeMinutes: 0
+    investorShare: 0
+  - name: gem_boost_8h
+    button: {fileID: 0}
+    sku: gem_boost_8h
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 2
+    boostSeconds: 28800
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 130
+    icon: {fileID: 21300000, guid: 89e5de4b9a691a442b582ef45ddde515, type: 3}
+    hero: {fileID: 21300000, guid: 51adb7312158f584cb5cb62bf807ecc2, type: 3}
+    heroMotion: 6
+    title: 8 SAAT
+    description: 
+    incomeMinutes: 0
+    investorShare: 0
+  - name: gem_boost_24h
+    button: {fileID: 0}
+    sku: gem_boost_24h
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 2
+    boostSeconds: 86400
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 350
+    icon: {fileID: 21300000, guid: 89e5de4b9a691a442b582ef45ddde515, type: 3}
+    hero: {fileID: 21300000, guid: 51adb7312158f584cb5cb62bf807ecc2, type: 3}
+    heroMotion: 6
+    title: 24 SAAT
+    description: 
+    incomeMinutes: 0
+    investorShare: 0
+  - name: gem_cash_30m
+    button: {fileID: 0}
+    sku: gem_cash_30m
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 15
+    icon: {fileID: 21300000, guid: cd09ff5451509844ba64d0bc52794fbf, type: 3}
+    hero: {fileID: 21300000, guid: 4b06ff80b74b2fa4c8efcb21b6b2c105, type: 3}
+    heroMotion: 1
+    title: 30 DK
+    description: 
+    incomeMinutes: 30
+    investorShare: 0
+  - name: gem_cash_2h
+    button: {fileID: 0}
+    sku: gem_cash_2h
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 55
+    icon: {fileID: 21300000, guid: cd09ff5451509844ba64d0bc52794fbf, type: 3}
+    hero: {fileID: 21300000, guid: 4b06ff80b74b2fa4c8efcb21b6b2c105, type: 3}
+    heroMotion: 1
+    title: 2 SAAT
+    description: 
+    incomeMinutes: 120
+    investorShare: 0
+  - name: gem_cash_8h
+    button: {fileID: 0}
+    sku: gem_cash_8h
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 200
+    icon: {fileID: 21300000, guid: cd09ff5451509844ba64d0bc52794fbf, type: 3}
+    hero: {fileID: 21300000, guid: 4b06ff80b74b2fa4c8efcb21b6b2c105, type: 3}
+    heroMotion: 1
+    title: 8 SAAT
+    description: 
+    incomeMinutes: 480
+    investorShare: 0
+  - name: gem_offline_2h
+    button: {fileID: 0}
+    sku: gem_offline_2h
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 2
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 1
+    gemPrice: 500
+    icon: {fileID: 21300000, guid: 211253b264b288141b16e56873bf2bed, type: 3}
+    hero: {fileID: 21300000, guid: ba0a9257f109af54cacebfd5e2679dc8, type: 3}
+    heroMotion: 4
+    title: +2 SAAT
+    description: "Oyun kapal\u0131yken\nkazan\xE7 s\xFCresi uzar"
+    incomeMinutes: 0
+    investorShare: 0
+  - name: gem_ad_charge
+    button: {fileID: 0}
+    sku: gem_ad_charge
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 1
+    dailyGemStipend: 0
+    oneTime: 1
+    gemPrice: 400
+    icon: {fileID: 21300000, guid: 4cff34b3ac9403d48a0941191e22a038, type: 3}
+    hero: {fileID: 21300000, guid: a9981dfd3e196a4459b505bb427f3163, type: 3}
+    heroMotion: 2
+    title: +1 HAK
+    description: "Her reklam yuvas\u0131na\ng\xFCnde bir hak daha"
+    incomeMinutes: 0
+    investorShare: 0
+  - name: gem_daily_x2
+    button: {fileID: 0}
+    sku: gem_daily_x2
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 1
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 1
+    gemPrice: 450
+    icon: {fileID: 21300000, guid: 95bc2de0792b5bb41b2803a441fc8f7e, type: 3}
+    hero: {fileID: 21300000, guid: 78ce755dcb4b7304a9b900205d12b723, type: 3}
+    heroMotion: 5
+    title: "\xD72"
+    description: "G\xFCnl\xFCk \xF6d\xFCller\nkal\u0131c\u0131 olarak iki kat\u0131"
+    incomeMinutes: 0
+    investorShare: 0
+  - name: gem_investor
+    button: {fileID: 0}
+    sku: gem_investor
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 600
+    icon: {fileID: 21300000, guid: d7c377d99a93e0f44b0967b47f66fd9d, type: 3}
+    hero: {fileID: 21300000, guid: d2b99a9d4d3272f4a9f9b75c924b1968, type: 3}
+    heroMotion: 3
+    title: '%50'
+    description: "Prestij kazanc\u0131n\u0131n yar\u0131s\u0131,\nadalar\u0131n kal\u0131r"
+    incomeMinutes: 0
+    investorShare: 0.5
   devFreeIAP: 0
   purchaseFx: {fileID: 5059351080587554020}
 --- !u!114 &5059351080587554020
@@ -5442,6 +6108,98 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &6260622212796734383
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 152347885876787315}
+  - component: {fileID: 1497217474189424712}
+  - component: {fileID: 6853177625821675277}
+  - component: {fileID: 2040442506553680732}
+  m_Layer: 0
+  m_Name: Ikon
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!224 &152347885876787315
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6260622212796734383}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 562603579156356050}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 70}
+  m_SizeDelta: {x: 146, y: 146}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &1497217474189424712
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6260622212796734383}
+  m_CullTransparentMesh: 1
+--- !u!114 &6853177625821675277
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6260622212796734383}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 1
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!114 &2040442506553680732
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6260622212796734383}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77ac8812c2278c488d5f98aedcaac6c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.StoreHeroFx
+  motion: 1
+  speed: 1
+  strength: 1
+  phase: 0
 --- !u!1 &6356260490262385950
 GameObject:
   m_ObjectHideFlags: 0
@@ -5629,6 +6387,8 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 152347885876787315}
+  - {fileID: 6102869772120627602}
   - {fileID: 5593767811874726413}
   - {fileID: 8718365682597695251}
   m_Father: {fileID: 7303340963903471508}

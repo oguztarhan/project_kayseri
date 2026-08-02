@@ -23,6 +23,8 @@ namespace Game.Systems
         [SerializeField] private AccessibilityConfig accessibilityConfig;
         [SerializeField] private string mainSceneName = "Main";
         [SerializeField] private bool loadMainOnStart = true;
+        [Tooltip("Boşsa Main tek karede yüklenir ve açılış görseli görünmez.")]
+        [SerializeField] private LoadingScreen loadingScreen;
 
         public GameClock Clock { get; private set; }
         public SaveService Save { get; private set; }
@@ -95,7 +97,7 @@ namespace Game.Systems
             _time = new TimeService();
             ServiceLocator.Register(_time);
 
-            ServiceLocator.Register(new BoostService());
+            ServiceLocator.Register(new BoostService(Data, _time));
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
             var contract = contractConfig != null
@@ -128,6 +130,19 @@ namespace Game.Systems
             long cap = offlineConfig.CapSeconds + Data.offlineCapBonusSeconds;
 
             BigDouble earned = OfflineEarnings.Compute(new BigDouble(Data.incomeRatePerSec), elapsed, efficiency, cap);
+
+            // A boost bought with gems is sold in hours, and an idle player spends most of those hours
+            // with the app closed — so the part of the credited window the boost was still running for
+            // pays at its multiplier. Only the EXTRA is added here; the line above already paid the
+            // whole window at ×1. The credited window starts when the player left, so the overlap is
+            // measured from savedUnixSeconds forward, not backward from now.
+            long credited = (cap > 0L && elapsed > cap) ? cap : elapsed;
+            long boosted = Data.boostEndUnix - Data.savedUnixSeconds;
+            if (boosted > credited) boosted = credited;
+            if (boosted > 0L && Data.boostMultiplier > 1d)
+                earned += OfflineEarnings.Compute(new BigDouble(Data.incomeRatePerSec), boosted,
+                                                  efficiency * (Data.boostMultiplier - 1d), 0L);
+
             if (earned.Mantissa > 0d)
             {
                 Wallet.AddCash(earned);
@@ -141,8 +156,11 @@ namespace Game.Systems
 
         private void Start()
         {
-            if (loadMainOnStart && !string.IsNullOrEmpty(mainSceneName))
-                SceneManager.LoadScene(mainSceneName, LoadSceneMode.Single);
+            if (!loadMainOnStart || string.IsNullOrEmpty(mainSceneName)) return;
+            // Synchronous LoadScene finishes inside one frame, which is why the splash was never visible.
+            // The loading screen owns the async load so it can hold itself up until Main is actually there.
+            if (loadingScreen != null) loadingScreen.Begin(mainSceneName, Data);
+            else SceneManager.LoadScene(mainSceneName, LoadSceneMode.Single);
         }
 
         private void Update() => Clock?.Advance(Time.deltaTime);

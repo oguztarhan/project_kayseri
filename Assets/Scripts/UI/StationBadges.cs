@@ -1,13 +1,21 @@
+using Game.Core;
 using Game.Gameplay;
+using Game.Systems;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Game.UI
 {
     /// <summary>
-    /// Small floating level chips over each station — "REFINERY 23/50". Purely informative: buying
-    /// happens in the upgrade panel, so the chips carry no button and no price, just how far along
-    /// each building is.
+    /// The upgrade handle floating over each building — "REFINERY 23/50". It is how the four
+    /// buildings are bought: tapping one opens <see cref="StationScreenUI"/> on that building, with
+    /// the model of it on a turntable. The power plant, which has a body but no screen of its own,
+    /// still opens the old panel at its rows.
+    ///
+    /// The chip turns green the moment anything on that building is affordable. It carries no price
+    /// because a station has two or three axes at different costs and naming one of them would be a
+    /// promise about which — green says "there is something to buy here", which is all a chip this
+    /// size can say honestly.
     ///
     /// Screen-space canvas anchored to world points via <see cref="Camera.WorldToScreenPoint"/> rather than
     /// a world-space canvas: the chips stay a constant, readable pixel size at every zoom level, and there
@@ -42,12 +50,14 @@ namespace Game.UI
             public int station;
             public RectTransform rt;
             public Button button;
+            public Image bg;
             public Text title;
             public Vector3 anchor;
             public bool hasAnchor;
             public float punch;           // decays after a level-up, drives the confirm pop
             public int lastTotal = -1;
             public string lastTitle;
+            public int lastAfford = -1;   // -1 = never drawn, so the first refresh always paints
         }
         private Card[] _cards;
 
@@ -57,6 +67,7 @@ namespace Game.UI
         {
             _cam = Camera.main;
             _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _wallet = ServiceLocator.Get<WalletService>();
             BindEnabledOp();
             Build();
             Refresh();
@@ -112,6 +123,7 @@ namespace Game.UI
             c.rt.anchorMin = Vector2.zero; c.rt.anchorMax = Vector2.zero; c.rt.pivot = new Vector2(0.5f, 0f);
             c.rt.sizeDelta = new Vector2(cardWidth, cardHeight);
             var bg = root.GetComponent<Image>();
+            c.bg = bg;
             bg.sprite = UiSkin.Panel; bg.type = Image.Type.Sliced;
             bg.pixelsPerUnitMultiplier = 2.2f;   // keep the 9-slice corners from swallowing a small chip
             // The chip is the one place the kit art *is* tinted: it's a light sprite, and the station
@@ -120,8 +132,7 @@ namespace Game.UI
 
             // The chip is the building's handle. It used to be inert — every purchase meant opening one
             // long list and finding the row for the building you were already looking at, which is why the
-            // map read as something to watch rather than something to play. Tapping it now opens the panel
-            // already scrolled to that station's upgrades.
+            // map read as something to watch rather than something to play.
             bg.raycastTarget = true;
             c.button = root.GetComponent<Button>();
             c.button.targetGraphic = bg;
@@ -150,16 +161,33 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// Opens the upgrade panel on this station's rows. Looked up rather than wired in the Inspector
-        /// because the chips are built at runtime and the panel lives on its own scene root.
+        /// Opens whatever owns this station: its own screen for the four buildings, the old panel
+        /// scrolled to its rows for anything else. Both are looked up rather than wired in the
+        /// Inspector, because the chips are built at runtime and each screen lives on its own root.
         /// </summary>
         private void OpenStation(int station)
         {
+            if (_screen == null) _screen = FindAnyObjectByType<StationScreenUI>(FindObjectsInactive.Include);
+            if (_screen != null && _screen.Handles(station)) { _screen.Open(station); return; }
             if (_panel == null) _panel = FindAnyObjectByType<UpgradePanelUI>(FindObjectsInactive.Include);
             if (_panel != null) _panel.OpenAtStation(station);
         }
 
         private UpgradePanelUI _panel;
+        private StationScreenUI _screen;
+        private WalletService _wallet;
+
+        /// <summary>Whether anything on this building can be bought right now — what turns the chip green.</summary>
+        private bool CanUpgrade(int station)
+        {
+            if (_op == null || _wallet == null) return false;
+            for (int a = 0; a < _op.AxisCount(station); a++)
+            {
+                if (_op.AxisLocked(station, a) || _op.AxisMaxed(station, a)) continue;
+                if (_wallet.CanAfford(_op.AxisCost(station, a))) return true;
+            }
+            return false;
+        }
 
         /// <summary>
         /// Station anchors are static geometry, so they're resolved once per island rather than per frame.
@@ -185,6 +213,7 @@ namespace Game.UI
         private void Update()
         {
             if (_cam == null) _cam = Camera.main;
+            if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
             if (_op == null || !_op.enabled) { BindEnabledOp(); _anchorsResolved = CacheAnchors(); }
             if (_cards == null || _cam == null) return;
             // keep retrying until the operation has resolved its landmarks
@@ -322,6 +351,16 @@ namespace Game.UI
                 c.lastTotal = total;
 
                 if (c.lastTitle != title) { c.title.text = title; c.lastTitle = title; }
+
+                // The kit's green button is pre-coloured art, so it goes on untinted; the dark chip is
+                // the neutral panel sprite tinted down. Only touched when the state actually flips.
+                int afford = CanUpgrade(c.station) ? 1 : 0;
+                if (c.lastAfford != afford)
+                {
+                    c.lastAfford = afford;
+                    c.bg.sprite = afford == 1 ? UiSkin.ButtonGreen : UiSkin.Panel;
+                    c.bg.color = afford == 1 ? Color.white : CardBg;
+                }
                 // scale is owned by Position() every frame (punch) — don't stomp it here
             }
         }

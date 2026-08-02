@@ -24,6 +24,9 @@ namespace Kayseri.Island
     public sealed class IslandPhaseController : MonoBehaviour
     {
         [SerializeField] private GameObject[] _phaseRoots;
+        [Tooltip("Faz köklerinin PREFAB varlıkları — istasyon ekranı modeli buradan kopyalar. Boş bırakılırsa " +
+                 "sahnedeki kopya kullanılır ve model kıpırdayamaz (aşağıdaki nota bak).")]
+        [SerializeField] private GameObject[] _phasePrefabs;
         [SerializeField] private Game.Gameplay.CoalOperation _operation;
 
         [Header("Phase change")]
@@ -244,10 +247,54 @@ namespace Kayseri.Island
         }
 
         /// <summary>
+        /// The scene object holding one station's district art at a given phase. All three variants sit
+        /// in the scene at once with only one active, so this can hand out the phase the player is
+        /// leaving and the one they just bought at the same moment. Null when the station drives no
+        /// district, or when that phase does not build it.
+        /// </summary>
+        public Transform DistrictArt(string stationName, int phase)
+        {
+            return District(_phaseRoots, stationName, phase);
+        }
+
+        /// <summary>
+        /// The same district, but taken from the PREFAB ASSET — what the station screen clones onto its
+        /// turntable.
+        ///
+        /// It cannot clone the scene copy. The island's art is marked Batching Static, so at load Unity
+        /// welds every district into one combined mesh whose vertices are already in world space; a
+        /// renderer in that batch ignores its own transform completely, and a clone of it inherits the
+        /// batch and stands immovably out on the island no matter where it is parented. (The same fact
+        /// is why <see cref="Grow"/> below has never actually been visible.) The prefab asset was never
+        /// batched, so a clone of it is ordinary geometry that moves when it is told to.
+        ///
+        /// Falls back to the scene object when the prefabs are not wired, which draws the right building
+        /// and simply cannot animate it.
+        /// </summary>
+        public Transform DistrictModel(string stationName, int phase)
+        {
+            Transform t = District(_phasePrefabs, stationName, phase);
+            return t != null ? t : District(_phaseRoots, stationName, phase);
+        }
+
+        private static Transform District(GameObject[] roots, string stationName, int phase)
+        {
+            if (roots == null || phase < 1 || phase > roots.Length) return null;
+            GameObject root = roots[phase - 1];
+            if (root == null) return null;
+            for (int d = 0; d < Districts.Length; d++)
+                if (Drivers[d] == stationName) return root.transform.Find(Districts[d]);
+            return null;
+        }
+
+        /// <summary>
         /// The station's phase: its total level across every axis, against its own cap, in
         /// thirds. A 150-cap station steps at 50 and 100; a 100-cap one at 33 and 67.
+        ///
+        /// Public because the station screen draws the bar toward the next rebuild from it, and a
+        /// second copy of the rule in the UI is a second place for it to drift.
         /// </summary>
-        private int PhaseForStation(string stationName)
+        public int PhaseForStation(string stationName)
         {
             if (_operation == null) return 1;
 

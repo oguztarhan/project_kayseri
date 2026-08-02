@@ -274,12 +274,12 @@ namespace Game.UI
                 {
                     double rate = _world.RatePerMin(i);
                     string money = "$" + NumberFormatter.Format(new BigDouble(rate)) + "/dk";
-                    statusText.text = _world.IsMaxed(i) ? money + " · TAVAN"
-                                                        : money + " · tavanın %" + Percent(rate, cap);
+                    statusText.text = _world.IsMaxed(i) ? money + " · TAMAMLANDI"
+                                                        : money + " · kapasitenin %" + Percent(rate, cap);
                 }
                 else
                 {
-                    statusText.text = "tavan $" + NumberFormatter.Format(new BigDouble(cap)) + "/dk";
+                    statusText.text = "$" + NumberFormatter.Format(new BigDouble(cap)) + "/dk'ya kadar";
                 }
             }
             if (barFillArea != null)
@@ -479,7 +479,7 @@ namespace Game.UI
             _pending = i;
             if (confirmTitle != null) confirmTitle.text = _world.IslandName(i);
             if (confirmNote != null)
-                confirmNote.text = "tavan $" + NumberFormatter.Format(new BigDouble(_world.CapPerMin(i))) + "/dk";
+                confirmNote.text = "$" + NumberFormatter.Format(new BigDouble(_world.CapPerMin(i))) + "/dk'ya kadar";
 
             var cost = new BigDouble(_world.UnlockCost(i));
             bool afford = _wallet != null && _wallet.CanAfford(cost);

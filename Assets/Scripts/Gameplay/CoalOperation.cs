@@ -49,8 +49,9 @@ namespace Game.Gameplay
     /// match (see <see cref="BuildSiteDressing"/>), so the two can never disagree.</para>
     ///
     /// <para>Cash goes to <see cref="WalletService"/>; levels persist in <see cref="SaveData"/> under keys
-    /// prefixed by <c>islandKey</c>. <c>incomeCapPerMin</c> and <c>axisLevelCap</c> deliberately cap each
-    /// island, so buying the <i>next</i> island (via <see cref="WorldIslands"/>) is the only way to grow.</para>
+    /// prefixed by <c>islandKey</c>. Two caps wall an island: <c>axisLevelCap</c> ends the upgrade track and
+    /// <c>incomeCapPerMin</c> ends what it can earn. They are set to meet — a fully upgraded island sits at
+    /// its ceiling — so buying the <i>next</i> one (via <see cref="WorldIslands"/>) is the only way to grow.</para>
     /// </summary>
     public sealed class CoalOperation : MonoBehaviour
     {
@@ -66,7 +67,11 @@ namespace Game.Gameplay
         [SerializeField] private float barPrice = 45f;
         [SerializeField] private float dwellSeconds = 0.7f;   // base pause at every load/unload stop
         [SerializeField] private float wagonGap = 2.2f;
-        [SerializeField] private float upgradeCostGrowth = 1.13f;
+        // Was 1.13, which stacked 71% of an island's whole upgrade bill into its last ten levels: the
+        // fastest way to play was to stop buying around level 36 and just hoard for the next island, so
+        // the top of the track was dead. Income only grows ~8% a level, so the price curve has to sit
+        // near that or it outruns what a level is worth.
+        [SerializeField] private float upgradeCostGrowth = 1.06f;
         [SerializeField] private string islandRootName = "Island_Coal";
         // The authored island meshes name their primary mine per ore (mine_Copper, mine_Gold, …); every
         // other landmark is generic. Everything else in this class finds objects by exact name and
@@ -106,8 +111,16 @@ namespace Game.Gameplay
         [Header("Tier scaling & caps (archipelago progression)")]
         [SerializeField] private float valueMultiplier = 1f;       // ore tier value (GDD §5: ~×3.2 per tier)
         [SerializeField] private float costMultiplier = 1f;        // every upgrade + unlock cost on this island
-        [SerializeField] private double incomeCapPerMin = 50000d;  // island $/min ceiling — the next island is the only way past it
-        [SerializeField] private int axisLevelCap = 50;            // per-axis level cap on this island
+        [SerializeField] private int axisLevelCap = 50;            // per-axis level cap — ends the upgrade track
+        // What a fully upgraded island actually produces, measured rather than guessed: coal at every axis
+        // 50 and every ghost building bought meters 27.3k–29k $/min, so its ceiling is 29000 and the rest of
+        // the ladder is that number times valueMultiplier. Setting it anywhere ABOVE the measured output is
+        // what made the old 50000 pointless — it never bound, and its only live effect was quietly eating
+        // rewarded-ad boosts. Keep the two in step: change axisEffectScale and this has to be re-measured.
+        [SerializeField] private double incomeCapPerMin = 29000d;
+
+        [Tooltip("Sahne yüklenirken cevher ve külçe depoları bu oranda dolu başlar. 0 = bomboş başla.")]
+        [SerializeField, Range(0f, 1f)] private float warmStartFill = 0.5f;
 
         [Header("Ghost-building unlock prices")]
         [SerializeField] private float secondMineCost = 25000f;
@@ -271,16 +284,22 @@ namespace Game.Gameplay
             new[] { "Price", "Sell Speed" },
             new[] { "Generators", "Turbines" },
         };
+        // Level-1 prices, before costMultiplier. Measured against a level-0 coal island's 540 $/min, so
+        // every number here reads as a wait: MINE → Richness is under a minute, CARGO TRUCKS → Trucks is
+        // twenty-two. The three fleet-count axes are deliberately the expensive ones — they cap after two
+        // or three levels and between them they QUADRUPLE a fresh island's output, which at the old 400 /
+        // 500 / 600 made the strongest purchase in the game also the cheapest, and left every upgrade
+        // after it feeling like small change.
         private static readonly double[][] AxisBaseCost =
         {
-            new[] { 60d, 80d },
-            new[] { 80d, 400d, 100d },
-            new[] { 100d, 90d },
-            new[] { 500d, 70d, 85d },
-            new[] { 120d, 110d },
-            new[] { 600d, 90d, 95d },
-            new[] { 150d, 120d },
-            new[] { 2000d, 1500d },
+            new[] { 500d, 650d },
+            new[] { 650d, 6000d, 800d },
+            new[] { 800d, 700d },
+            new[] { 8000d, 550d, 700d },
+            new[] { 1000d, 900d },
+            new[] { 12000d, 700d, 750d },
+            new[] { 1200d, 1000d },
+            new[] { 16000d, 12000d },
         };
         // Per-axis hard caps. 0 means "no special cap" — that axis then stops at the island-wide
         // axisLevelCap instead. The non-zero entries are the axes limited by physical scene objects:
@@ -407,8 +426,8 @@ namespace Game.Gameplay
         private WalletService _wallet;
         private PrestigeService _prestige;
         private BoostService _boost;
-        private double _incomeMult = 1d;   // prestige × active boost, refreshed once a second
-        private double _prestigeMult = 1d; // the prestige half on its own — it is what lifts the ceiling
+        private double _boostMult = 1d;    // rewarded-ad multiplier, refreshed once a second
+        private double _prestigeMult = 1d; // investors: multiplies the sale, and lifts the ceiling with it
         private float _deckY;              // ground height every vehicle drives at
         private SaveData _data;
         private Material _oreMat, _barMat, _ghostMat, _srcMat;
@@ -416,9 +435,30 @@ namespace Game.Gameplay
         // ---- income meter ($ earned per trailing minute) ----
         private readonly double[] _minuteBuckets = new double[60];
         private int _minIdx, _minFilled; private float _minAccum; private double _earnedThisSecond;
-        private double _trailing;          // running sum of the buckets — also enforces incomeCapPerMin
+        private double _trailing;          // running sum of the buckets — also what the income cap is measured against
         private int _rateSaveCountdown;
+        /// <summary>
+        /// What this island sustains per minute, boost excluded. That exclusion is the point: this is the
+        /// figure persisted for offline earnings and shown on the world map, and a rewarded ad running at
+        /// the moment you close the game should not bank a doubled rate for the next eight hours.
+        /// </summary>
         public double CashPerMinute { get; private set; }
+
+        /// <summary>
+        /// The ceiling this island earns against. Investors raise it: a prestige multiplier the cap clamped
+        /// straight back off would make prestige a pure loss — you wipe the run and the island still pays
+        /// its old maximum. Rewarded-ad boosts are deliberately outside it, applied to whatever gets through
+        /// (see the sale path), so a ×2 ad pays ×2 instead of the ×1.73 the old clamp let through.
+        /// </summary>
+        public double IncomeCapPerMinute => incomeCapPerMin * _prestigeMult;
+
+        /// <summary>
+        /// Whether <see cref="CashPerMinute"/> is worth believing yet. For the first seconds after a
+        /// scene load the mine → storage → truck → sale pipeline has delivered nothing, so the meter
+        /// honestly reads zero — and a zero here is indistinguishable from an island that earns nothing.
+        /// Anything that persists or reports this rate has to wait for it.
+        /// </summary>
+        public bool MeterTrustworthy => _minFilled >= RateSaveMinSeconds && CashPerMinute > 0d;
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
         //  TRAINS — the mine → storage leg
@@ -525,14 +565,10 @@ namespace Game.Gameplay
         public double Bars => _bars;
         public string IslandKey => islandKey;
         public string IslandDisplayName => displayName;
+        /// <summary>This island's phase art, or null on a generated island. The station screen shoots
+        /// its districts on a turntable and reads how far a building is from its next rebuild.</summary>
+        public Kayseri.Island.IslandPhaseController Phases => _phases;
         public string PowerPlantName => OreWord + " POWER PLANT";
-        /// <summary>
-        /// The ceiling this island can actually earn against. Investors raise it: a prestige multiplier
-        /// the cap clamped straight back off made prestige a pure loss — you wiped the run and the
-        /// island still paid its old maximum. Rewarded-ad boosts are deliberately left out, so they
-        /// keep doing what they were meant to do, which is speed up the climb rather than lift the roof.
-        /// </summary>
-        public double IncomeCapPerMinute => incomeCapPerMin * _prestigeMult;
         private string OreWord => islandKey.ToUpperInvariant();
         public int StationCount => StationList.Length;
         public string StationName(int s) => StationList[s];
@@ -775,6 +811,7 @@ namespace Game.Gameplay
             _boost = ServiceLocator.Get<BoostService>();
             _data = ServiceLocator.Get<SaveData>();
             LoadLevels();
+            WarmStart();
             GameObject root = null;   // scene-root scan (not Find) so an island activated this very frame still resolves
             var sceneRoots = gameObject.scene.GetRootGameObjects();
             for (int i = 0; i < sceneRoots.Length; i++) if (sceneRoots[i].name == islandRootName) { root = sceneRoots[i]; break; }
@@ -1737,21 +1774,23 @@ namespace Game.Gameplay
                     if (ore) _refOre += a.carry;
                     else if (a.carry > 0.001d && _wallet != null)
                     {
-                        // Prestige investors and rewarded-ad boosts multiply the sale *before* the cap, so
-                        // they speed up the climb without letting an island out-earn its own ceiling.
-                        double sale = a.carry * EffBarPrice * (a.route == Route.Export ? exportPriceBonus : 1f) * _incomeMult;
-                        // island income ceiling: this island can never out-earn its cap — the next island is
-                        // the growth path, and prestige raises the cap itself (see IncomeCapPerMinute)
+                        // The island's ceiling applies to what it EARNS — prestige included, because
+                        // IncomeCapPerMinute scales with investors too, so the ratio never moves.
+                        double sale = a.carry * EffBarPrice * (a.route == Route.Export ? exportPriceBonus : 1f) * _prestigeMult;
                         double headroom = IncomeCapPerMinute - (_trailing + _earnedThisSecond);
                         if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
                         if (sale > 0d)
                         {
-                            _wallet.AddCash(new BigDouble(sale));
+                            // Meter first, un-boosted: it is the sustained rate, and it is what the cap
+                            // above measures itself against. The ad boost then multiplies whatever got
+                            // through, so it is never the thing the ceiling eats.
                             _earnedThisSecond += sale;
+                            double paid = sale * _boostMult;
+                            _wallet.AddCash(new BigDouble(paid));
                             // The UI hangs its floating cash labels off this. Raised rather than called,
                             // because Game.Gameplay is deliberately below Game.UI in the assembly order —
                             // the simulation does not get to know what a label is.
-                            if (Sold != null) Sold(a.body != null ? a.body.position : _market.position, sale);
+                            if (Sold != null) Sold(a.body != null ? a.body.position : _market.position, paid);
                         }
                     }
                     a.carry = 0d; Show(a.load, false);
@@ -1991,13 +2030,14 @@ namespace Game.Gameplay
             _minAccum -= 1f;
             // once a second is often enough for a boost timer, and keeps service lookups out of the sale path
             _prestigeMult = _prestige != null ? _prestige.IncomeMultiplier : 1d;
-            _incomeMult = _prestigeMult * (_boost != null ? _boost.ActiveMultiplier : 1d);
+            _boostMult = _boost != null ? _boost.ActiveMultiplier : 1d;
             _trailing += _earnedThisSecond - _minuteBuckets[_minIdx];
             _minuteBuckets[_minIdx] = _earnedThisSecond;
             _earnedThisSecond = 0d;
             _minIdx = (_minIdx + 1) % _minuteBuckets.Length;
             if (_minFilled < _minuteBuckets.Length) _minFilled++;
-            // clamp the extrapolated warm-up value: earning can never exceed the cap per rolling minute
+            // Clamp the extrapolation rather than the buckets: while the window is still filling, one
+            // lucky second scaled up by 60/_minFilled reads far above anything the island can sustain.
             CashPerMinute = System.Math.Min(_trailing * (60.0 / _minFilled), IncomeCapPerMinute);
             // persist the measured rate so this island keeps earning while another one is active (and
             // offline) — only once the window is half-full, so a warm-up spike can't inflate it
@@ -2012,7 +2052,7 @@ namespace Game.Gameplay
 
         private void PersistRate()
         {
-            SaveRate(islandKey, System.Math.Min(CashPerMinute, IncomeCapPerMinute));
+            SaveRate(islandKey, CashPerMinute);
         }
 
         // Travelling away freezes this island (visuals off, component disabled); the meter must restart
@@ -2021,7 +2061,7 @@ namespace Game.Gameplay
         // nothing in the background, which quietly broke the whole passive-empire premise.
         private void OnDisable()
         {
-            if (_minFilled >= RateSaveMinSeconds && CashPerMinute > 0d) PersistRate();
+            if (MeterTrustworthy) PersistRate();
             for (int i = 0; i < _minuteBuckets.Length; i++) _minuteBuckets[i] = 0d;
             _minIdx = 0; _minFilled = 0; _minAccum = 0f;
             _trailing = 0d; _earnedThisSecond = 0d;
@@ -2767,6 +2807,24 @@ namespace Game.Gameplay
                 }
                 if (!moved) break;
             }
+        }
+
+        /// <summary>
+        /// Start the yards part-full, the way you left them. A scene load empties every buffer, so the
+        /// first coin cannot land until ore has been mined, railed, trucked, smelted and driven to market
+        /// — about half a minute during which the game shows a number that does not move. That is merely
+        /// dull on an ordinary launch; after a prestige, where the balance really is zero, it reads as a
+        /// game that has broken.
+        ///
+        /// This is a fraction of storage rather than a time-based grant, so relaunching cannot farm it:
+        /// the yards hold well under a minute of production at any upgrade level, and what they hold is
+        /// goods, not cash — trucks still have to carry it to market. It also means you arrive at a
+        /// working island instead of an empty lot, since the visible heaps are drawn from these two.
+        /// </summary>
+        private void WarmStart()
+        {
+            _storeOre = EffStorageFull * warmStartFill;
+            _bars = EffBarCap * warmStartFill;
         }
 
         // ---- persistence ----
