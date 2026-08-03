@@ -1442,16 +1442,16 @@ MonoBehaviour:
   phaseBannerText: {fileID: 9057502753021796796}
   stations:
   - station: 0
-    title: MADEN
+    title: 
     icon: {fileID: 21300000, guid: 2bb79e9405f727f4a816f624d462feb6, type: 3}
   - station: 2
-    title: DEPO
+    title: 
     icon: {fileID: 21300000, guid: 186564efa66d02d4393a21202a473b80, type: 3}
   - station: 4
-    title: "\u0130ZABE"
+    title: 
     icon: {fileID: 21300000, guid: 3ce5d9916f6fe8a4298a8cf813245816, type: 3}
   - station: 6
-    title: PAZAR
+    title: 
     icon: {fileID: 21300000, guid: e3e11c87903fd134f9cf978628db2df3, type: 3}
   refreshInterval: 0.25
 --- !u!1 &4387293616685311360

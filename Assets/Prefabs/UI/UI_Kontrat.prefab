@@ -907,6 +907,7 @@ GameObject:
   - component: {fileID: 4860603123594933743}
   - component: {fileID: 8888550491162304048}
   - component: {fileID: 6947243185721375217}
+  - component: {fileID: 7181192777424538184}
   m_Layer: 5
   m_Name: Baslik
   m_TagString: Untagged
@@ -1033,6 +1034,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &7181192777424538184
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2931976241746422413}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: kontrat.siradaki
 --- !u!1 &3315873483518540681
 GameObject:
   m_ObjectHideFlags: 0
@@ -2668,6 +2682,7 @@ GameObject:
   - component: {fileID: 50441332884510561}
   - component: {fileID: 1999845204128522290}
   - component: {fileID: 887847518398670185}
+  - component: {fileID: 6900273504888469706}
   m_Layer: 5
   m_Name: Baslik
   m_TagString: Untagged
@@ -2794,6 +2809,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &6900273504888469706
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6289717599147230416}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: kontrat.baslik
 --- !u!1 &6346951264222968696
 GameObject:
   m_ObjectHideFlags: 0

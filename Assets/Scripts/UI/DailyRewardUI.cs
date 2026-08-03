@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Game.Core;
+using Game.Data;
 using Game.Gameplay;
 using Game.Systems;
 using TMPro;
@@ -81,6 +82,7 @@ namespace Game.UI
             if (claimButton != null) claimButton.onClick.AddListener(OnClaim);
 
             if (panelRoot != null) panelRoot.SetActive(false);
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
         public void Toggle()
@@ -112,7 +114,9 @@ namespace Game.UI
                     _wallet.AddCash(new BigDouble(reward.incomeMinutes * mult * IncomePerMinute()));
             }
             if (gems > 0) _wallet.AddGems(gems);
-            if (_haptic != null) _haptic.Light();
+            if (_haptic != null) _haptic.Medium();
+            var audio = ServiceLocator.Get<AudioService>();
+            if (audio != null) audio.Play(SoundId.Reward);
             Refresh();
         }
 
@@ -157,7 +161,7 @@ namespace Game.UI
                     t.icon.color = i < done ? claimedIconTint : Color.white;
                 }
                 if (t.doneBadge != null && t.doneBadge.activeSelf != (i < done)) t.doneBadge.SetActive(i < done);
-                if (t.dayLabel != null) t.dayLabel.text = (i + 1) + ". GÜN";
+                if (t.dayLabel != null) t.dayLabel.text = string.Format(Loc.T("gunluk.gun"), i + 1);
                 if (t.valueLabel != null) t.valueLabel.text = ValueText(i);
             }
             if (heroValueLabel != null) heroValueLabel.text = ValueText(DailyRewardService.CycleDays - 1);
@@ -171,7 +175,7 @@ namespace Game.UI
                     claimButton.targetGraphic.CrossFadeColor(
                         canClaim ? Color.white : claimButton.colors.disabledColor, 0f, true, true);
             }
-            if (claimLabel != null) claimLabel.text = canClaim ? "ÖDÜL AL" : "YARIN GEL";
+            if (claimLabel != null) claimLabel.text = Loc.T(canClaim ? "ortak.odul_al" : "gunluk.yarin_gel");
         }
 
         /// <summary>
@@ -196,9 +200,10 @@ namespace Game.UI
             // the tile prints what the claim will actually pay, so both perks have to be folded in here
             long gems = (long)(r.gems * mult) + Stipend();
             int minutes = Mathf.RoundToInt((float)(r.incomeMinutes * mult));
-            if (gems > 0 && minutes > 0) return gems + " ELMAS + " + minutes + " DK";
-            if (gems > 0) return gems + (day == DailyRewardService.CycleDays - 1 ? " ELMAS" : "");
-            return minutes + " DK";
+            if (gems > 0 && minutes > 0) return string.Format(Loc.T("gunluk.elmas_dk"), gems, minutes);
+            if (gems > 0) return day == DailyRewardService.CycleDays - 1
+                ? string.Format(Loc.T("gunluk.elmas"), gems) : gems.ToString();
+            return string.Format(Loc.T("ortak.sure_dk"), minutes);
         }
     }
 }

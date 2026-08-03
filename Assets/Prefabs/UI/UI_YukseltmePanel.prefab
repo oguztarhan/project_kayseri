@@ -599,6 +599,7 @@ GameObject:
   - component: {fileID: 586538576714599265}
   - component: {fileID: 7324195759240195355}
   - component: {fileID: 5203739361871337221}
+  - component: {fileID: 6791617613373085890}
   m_Layer: 0
   m_Name: Baslik
   m_TagString: Untagged
@@ -725,6 +726,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &6791617613373085890
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2865220813011037319}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: yukseltme.baslik
 --- !u!1 &3554912749743563912
 GameObject:
   m_ObjectHideFlags: 0

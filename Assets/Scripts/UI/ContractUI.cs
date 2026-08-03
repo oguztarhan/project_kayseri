@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Data;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
@@ -69,6 +70,7 @@ namespace Game.UI
             if (claimButton != null) claimButton.onClick.AddListener(OnClaim);
 
             if (panelRoot != null) panelRoot.SetActive(false);
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
         private void Update()
@@ -112,7 +114,7 @@ namespace Game.UI
 
             if (targetText != null)
                 targetText.text = done
-                    ? "HEDEF TUTTU"
+                    ? Loc.T("kontrat.hedef_tuttu")
                     : "$" + NumberFormatter.Format(_contract.Earned) + " / $" + NumberFormatter.Format(_contract.Target);
             if (timerText != null) timerText.text = ClockText(_contract.SecondsLeft);
 
@@ -121,16 +123,20 @@ namespace Game.UI
 
             if (rewardCashText != null) rewardCashText.text = "$" + NumberFormatter.Format(_contract.Reward);
             if (rewardGemsText != null) rewardGemsText.text = "+" + _contract.RewardGems;
-            if (claimLabel != null) claimLabel.text = "ÖDÜLÜ AL";
+            if (claimLabel != null) claimLabel.text = Loc.T("ortak.odulu_al");
 
             if (streakText != null)
-                streakText.text = _contract.Streak > 0 ? "SERİ ×" + _contract.Streak : "İLK KONTRAT";
+                streakText.text = _contract.Streak > 0
+                    ? string.Format(Loc.T("kontrat.seri"), _contract.Streak)
+                    : Loc.T("kontrat.ilk");
         }
 
         private void OnClaim()
         {
             if (_contract == null || !_contract.Claimable) return;
             _contract.Claim();
+            var audio = ServiceLocator.Get<AudioService>();
+            if (audio != null) audio.Play(SoundId.Coin);
             Refresh();
         }
 

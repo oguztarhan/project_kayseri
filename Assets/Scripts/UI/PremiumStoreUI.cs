@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Game.Core;
+using Game.Data;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
@@ -165,6 +166,7 @@ namespace Game.UI
             BuildCells();
             RefreshOffers();
             if (panelRoot != null) panelRoot.SetActive(false);
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
         private void ResolveServices()
@@ -233,6 +235,48 @@ namespace Game.UI
         }
 
         // ---------- construction ----------
+        private void OnEnable()
+        {
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += Rebuild;
+        }
+
+        private void OnDisable()
+        {
+            if (_loc != null) _loc.Changed -= Rebuild;
+        }
+
+        /// <summary>
+        /// Cell captions are written once as the grid is built, so a language change has to build it
+        /// again. Cheap and rare — the alternative is re-writing every caption on every refresh tick.
+        /// </summary>
+        private void Rebuild()
+        {
+            if (!_built) return;
+            Clear(goldGrid);
+            Clear(diamondGrid);
+            Clear(gemSpendGrid);
+            _built = false;
+            BuildCells();
+            RefreshOffers();
+        }
+
+        private void Clear(RectTransform grid)
+        {
+            if (grid == null) return;
+            // Destroy sona ertelendiği için önce ayır ve kapat, yoksa eski hücreler bir kare daha ızgarada durur.
+            for (int i = grid.childCount - 1; i >= 0; i--)
+            {
+                GameObject child = grid.GetChild(i).gameObject;
+                if (child == cellTemplate) continue;
+                child.SetActive(false);
+                child.transform.SetParent(null, false);
+                Destroy(child);
+            }
+        }
+
+        private LocalizationService _loc;
+
         private void BuildCells()
         {
             if (_built || cellTemplate == null) return;
@@ -289,11 +333,13 @@ namespace Game.UI
                 Image bg = go.GetComponent<Image>();
                 if (bg != null && offer.icon != null) bg.sprite = offer.icon;
 
+                // Kart yazıları sku'ya göre çevrilir ("magaza.gem_boost_2h"). Satırı olmayan bir sku
+                // Inspector'daki metniyle kalır, yani yeni bir ürün eklenince kart boş çıkmaz.
                 Transform amountT = go.transform.Find("Adet");
                 if (amountT != null)
                 {
                     TMP_Text amountTxt = amountT.GetComponent<TMP_Text>();
-                    if (amountTxt != null) amountTxt.text = offer.title;
+                    if (amountTxt != null) amountTxt.text = Line("magaza." + offer.sku, offer.title);
                 }
 
                 Transform priceT = go.transform.Find("Fiyat");
@@ -311,7 +357,7 @@ namespace Game.UI
                 {
                     TMP_Text noteTxt = noteT.GetComponent<TMP_Text>();
                     bool hasNote = !string.IsNullOrEmpty(offer.description) && noteTxt != null;
-                    if (hasNote) noteTxt.text = offer.description;
+                    if (hasNote) noteTxt.text = Line("magaza." + offer.sku + ".aciklama", offer.description);
                     noteT.gameObject.SetActive(hasNote);
                 }
 
@@ -336,6 +382,14 @@ namespace Game.UI
                 OfferBinding captured = offer;
                 if (offer.button != null) offer.button.onClick.AddListener(() => BuyOffer(captured));
             }
+        }
+
+        /// <summary>Translated line for <paramref name="key"/>, or the authored text when the table has
+        /// no row for it — a card added in the Inspector shows something either way.</summary>
+        private static string Line(string key, string authored)
+        {
+            string v = Loc.T(key);
+            return v == key ? authored : v;
         }
 
         // ---------- purchase handling ----------
@@ -402,6 +456,11 @@ namespace Game.UI
             if (offer.removeAds) AdsRemoved = true;
             GrantPermanent(offer);
             RefreshOffers();
+
+            var audio = ServiceLocator.Get<AudioService>();
+            if (audio != null) audio.Play(SoundId.Purchase);
+            var haptic = ServiceLocator.Get<HapticService>();
+            if (haptic != null) haptic.Medium();
 
             if (purchaseFx != null && offer.button != null)
             {

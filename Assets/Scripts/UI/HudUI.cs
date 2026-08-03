@@ -95,6 +95,9 @@ namespace Game.UI
             if (_wallet != null) _wallet.GemsChanged += RefreshGems;
             RefreshGems();
             Refresh();
+
+            // HUD hiç açılıp kapanmaz — sadece tıklama sesi, whoosh yok.
+            UiPanelSound.AttachButtonsOnly(gameObject);
         }
 
         private void OnDestroy()
@@ -160,9 +163,10 @@ namespace Game.UI
         private void Refresh()
         {
             if (rateValue != null && _op != null)
-                rateValue.text = "$" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)) + "/dk";
+                rateValue.text = string.Format(Loc.T("ortak.dakika_basina"),
+                                               "$" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)));
             if (contractTimerValue != null && _contract != null)
-                contractTimerValue.text = _contract.Claimable ? "HAZIR" : ContractUI.ClockText(_contract.SecondsLeft);
+                contractTimerValue.text = _contract.Claimable ? Loc.T("ortak.hazir") : ContractUI.ClockText(_contract.SecondsLeft);
 
             bool boosted = _boost != null && _boost.IsActive;
             if (boostIndicator != null)
@@ -197,8 +201,8 @@ namespace Game.UI
                 // a store offer can set a different one, and the button must not claim the slot's.
                 double mult = boosted ? _boost.ActiveMultiplier
                                       : (adScreen != null ? adScreen.BoostMultiplier : 2d);
-                boostButtonTitle.text = "×" + mult.ToString("0.#",
-                    System.Globalization.CultureInfo.InvariantCulture) + " GELİR";
+                boostButtonTitle.text = string.Format(Loc.T("hud.gelir"),
+                    mult.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
             }
 
             if (boostButtonLabel == null) return;
@@ -208,10 +212,10 @@ namespace Game.UI
                 return;
             }
             // ready: say what it costs, because the ad badge no longer says it
-            if (ready) { boostButtonLabel.text = "REKLAM İZLE"; return; }
+            if (ready) { boostButtonLabel.text = Loc.T("hud.reklam_izle"); return; }
             // not ready for one of two reasons, and the player needs to be able to tell them apart
             float wait = adScreen != null ? adScreen.BoostCooldown : 0f;
-            boostButtonLabel.text = wait > 0f ? ContractUI.ClockText(wait) : "YARIN";
+            boostButtonLabel.text = wait > 0f ? ContractUI.ClockText(wait) : Loc.T("ortak.yarin");
         }
 
         private static readonly Color DimBoost = new Color(0.55f, 0.58f, 0.66f, 1f);

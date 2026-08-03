@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Game.Core;
+using Game.Data;
 using Game.Gameplay;
 using Game.Systems;
 using TMPro;
@@ -109,6 +110,7 @@ namespace Game.UI
             if (removeAdsButton != null) removeAdsButton.onClick.AddListener(BuyRemoveAds);
 
             if (panelRoot != null) panelRoot.SetActive(false);
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
         private void Update()
@@ -180,8 +182,8 @@ namespace Game.UI
 
             bool owned = _free.AdsRemoved;
             if (removeAdsButton != null) removeAdsButton.interactable = !owned;
-            if (removeAdsLabel != null) removeAdsLabel.text = "REKLAMLARI KALDIR";
-            if (removeAdsPrice != null) removeAdsPrice.text = owned ? "SENİN" : "SATIN AL";
+            if (removeAdsLabel != null) removeAdsLabel.text = Loc.T("reklam.reklamlari_kaldir");
+            if (removeAdsPrice != null) removeAdsPrice.text = Loc.T(owned ? "ortak.senin" : "ortak.satin_al");
         }
 
         /// <summary>
@@ -191,24 +193,26 @@ namespace Game.UI
         /// </summary>
         private string LabelFor(Slot slot, int chargesLeft, float cooldown)
         {
-            if (chargesLeft <= 0) return "YARIN TEKRAR GEL";
-            if (cooldown > 0f) return ContractUI.ClockText(cooldown) + " SONRA";
+            if (chargesLeft <= 0) return Loc.T("reklam.yarin_gel");
+            if (cooldown > 0f) return string.Format(Loc.T("reklam.sonra"), ContractUI.ClockText(cooldown));
             switch (slot.kind)
             {
                 case RewardKind.Gems:
-                    return "+" + slot.gems + " ELMAS";
+                    return string.Format(Loc.T("reklam.elmas"), slot.gems);
                 case RewardKind.IncomeMinutes:
                     return "+$" + NumberFormatter.Format(new BigDouble(IncomePerMinute() * slot.incomeMinutes));
                 default:
-                    return "×" + slot.boostMultiplier.ToString("0.#",
-                        System.Globalization.CultureInfo.InvariantCulture) + " GELİR · " + Minutes(slot.boostSeconds);
+                    return string.Format(Loc.T("reklam.gelir"),
+                        slot.boostMultiplier.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture),
+                        Minutes(slot.boostSeconds));
             }
         }
 
         private static string Minutes(float seconds)
         {
             int m = Mathf.RoundToInt(seconds / 60f);
-            return m > 0 ? m + " DK" : Mathf.RoundToInt(seconds) + " SN";
+            return m > 0 ? string.Format(Loc.T("ortak.sure_dk"), m)
+                         : string.Format(Loc.T("ortak.sure_sn"), Mathf.RoundToInt(seconds));
         }
 
         /// <summary>
@@ -292,6 +296,10 @@ namespace Game.UI
                         break;
                 }
                 _free.Consume(slot.id);
+                var audio = ServiceLocator.Get<AudioService>();
+                if (audio != null) audio.Play(SoundId.Reward);
+                var haptic = ServiceLocator.Get<HapticService>();
+                if (haptic != null) haptic.Medium();
                 // Charges are the thing a player would reload the app to get back; write them now.
                 if (_save != null && _data != null) _save.Save(_data);
                 Refresh();

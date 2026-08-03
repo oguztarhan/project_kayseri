@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Data;
 using Game.Systems;
 using UnityEngine;
 using UnityEngine.UI;
@@ -37,15 +38,23 @@ namespace Game.UI
         [SerializeField] private Sprite switchOff;     // anahtar_kapali
 
         [Header("Liste satırları")]
-        [SerializeField] private Button languageButton;   // dil seçimi ekranı gelince bağlanacak
+        [SerializeField] private Button languageButton;
         [SerializeField] private Button privacyButton;
         [SerializeField] private Button restoreButton;    // gerçek IAP SDK'sı gelince bağlanacak
         [Tooltip("Gizlilik politikası adresi — boşken satır hiçbir şey yapmaz.")]
         [SerializeField] private string privacyUrl = "";
 
+        [Header("Dil paneli")]
+        [Tooltip("Dil seçim ekranının parçaları. Çalışma anında kurulduğu için kendi Inspector'ı yok, " +
+                 "sanatı buradan devralıyor. Boş bırakılan yuva UiSkin'e düşer.")]
+        [SerializeField] private LanguageMenuUI.Skin languageSkin;
+
+        private const float PreviewInterval = 0.14f;
+
         private AudioService _audio;
         private HapticService _haptic;
         private bool _hapticOn;
+        private float _nextPreview;
 
         private void Start()
         {
@@ -63,9 +72,11 @@ namespace Game.UI
             if (hapticButton != null) hapticButton.onClick.AddListener(OnHaptic);
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
             if (privacyButton != null) privacyButton.onClick.AddListener(OnPrivacy);
+            if (languageButton != null) languageButton.onClick.AddListener(OnLanguage);
             RefreshSwitch();
 
             if (panelRoot != null) panelRoot.SetActive(false);
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
         public void Toggle()
@@ -76,6 +87,9 @@ namespace Game.UI
         public void Hide()
         {
             if (panelRoot != null) panelRoot.SetActive(false);
+            // Ses tercihleri PlayerPrefs'te ve Unity onları normalde çıkışta yazar. Android'de uygulama
+            // öldürülerek kapatılabildiği için, panel kapanırken diske indir.
+            PlayerPrefs.Save();
         }
 
         private void Apply(float sfx, float music, bool haptic)
@@ -86,7 +100,19 @@ namespace Game.UI
 
         private void OnSfx(float v)
         {
-            if (_audio != null) _audio.Sfx = v;
+            if (_audio != null)
+            {
+                _audio.Sfx = v;
+                // Efekt sürgüsünü sessizce sürüklemek kör bir iş olurdu — müzik yatağı anında duyulur
+                // ama efektler yalnızca bir şey olduğunda çalar. Sürüklerken tık ver ki ayarladığın
+                // seviyeyi duyasın. Sesin kendi tekrar kapısı 0.03 sn, sürüklemek için fazla sık.
+                float now = Time.unscaledTime;
+                if (now >= _nextPreview)
+                {
+                    _nextPreview = now + PreviewInterval;
+                    _audio.Play(SoundId.Tick);
+                }
+            }
             PlayerPrefs.SetFloat(KeySfx, v);
         }
 
@@ -117,5 +143,18 @@ namespace Game.UI
         {
             if (!string.IsNullOrEmpty(privacyUrl)) Application.OpenURL(privacyUrl);
         }
+
+        /// <summary>
+        /// Opens the language picker, which builds itself on first use. Held on this object rather than
+        /// authored, because its rows come from the string table's columns and there is nothing for a
+        /// prefab to hold.
+        /// </summary>
+        private void OnLanguage()
+        {
+            if (_languages == null) _languages = gameObject.AddComponent<LanguageMenuUI>();
+            _languages.Show(languageSkin);
+        }
+
+        private LanguageMenuUI _languages;
     }
 }

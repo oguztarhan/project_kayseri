@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Game.Core;
+using Game.Data;
 using Game.Gameplay;
 using Game.Systems;
 using TMPro;
@@ -124,7 +125,23 @@ namespace Game.UI
             BindEnabledOp();
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
             if (panelRoot != null) panelRoot.SetActive(false);
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
+
+        private void Sound(SoundId id)
+        {
+            Bind();
+            if (_audio != null) _audio.Play(id);
+        }
+
+        private void Bind()
+        {
+            if (_audio == null) _audio = ServiceLocator.Get<AudioService>();
+            if (_haptic == null) _haptic = ServiceLocator.Get<HapticService>();
+        }
+
+        private AudioService _audio;
+        private HapticService _haptic;
 
         private void Update()
         {
@@ -172,10 +189,27 @@ namespace Game.UI
             if (panelRoot != null) panelRoot.SetActive(false);
         }
 
+        private void OnEnable()
+        {
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += OnLanguageChanged;
+        }
+
         private void OnDisable()
         {
             if (stage != null) stage.Live = false;
+            if (_loc != null) _loc.Changed -= OnLanguageChanged;
         }
+
+        /// <summary>Axis names are stamped onto the cards as they are cloned, so the next open has to
+        /// clone them again.</summary>
+        private void OnLanguageChanged()
+        {
+            _builtFor = -1;
+            if (panelRoot != null && panelRoot.activeSelf) { BuildCards(); Refresh(); }
+        }
+
+        private LocalizationService _loc;
 
         /// <summary>Retarget at another island's operation — the catalog is identical everywhere.</summary>
         public void SetOperation(CoalOperation op)
@@ -286,7 +320,7 @@ namespace Game.UI
                 t = go.transform.Find("Kilit");
                 if (t != null) t.gameObject.SetActive(false);   // nothing on these four is ever locked
 
-                if (row.name != null) row.name.text = _op.AxisName(_station, a);
+                if (row.name != null) row.name.text = Loc.Id("eksen", _op.AxisName(_station, a));
                 if (row.buyBtn != null)
                 {
                     Row captured = row;
@@ -308,7 +342,7 @@ namespace Game.UI
             for (int i = 0; i < stations.Count; i++)
                 if (stations[i] != null && stations[i].station == station && !string.IsNullOrEmpty(stations[i].title))
                     return stations[i].title;
-            return _op != null ? _op.StationName(station) : "";
+            return _op != null ? Loc.Id("istasyon", _op.StationName(station)) : "";
         }
 
         // ---------- refresh ----------
@@ -331,14 +365,15 @@ namespace Game.UI
             float hi = phase < 3 ? phase * third : cap;
             float p = hi > lo ? Mathf.Clamp01((lv - lo) / (hi - lo)) : 1f;
 
-            if (phaseText != null) phaseText.text = "FAZ " + phase + " / 3";
+            if (phaseText != null) phaseText.text = string.Format(Loc.T("istasyon_ekrani.faz"), phase);
             if (phaseFill != null) phaseFill.fillAmount = p;
             if (phaseHint != null)
             {
                 int need = Mathf.Max(0, Mathf.CeilToInt(hi) - lv);
                 phaseHint.text = phase < 3
-                    ? "SONRAKİ FAZA " + need + " SEVİYE"
-                    : (need > 0 ? "TAM DOLUYA " + need + " SEVİYE" : "TAMAMLANDI");
+                    ? string.Format(Loc.T("istasyon_ekrani.sonraki_faz"), need)
+                    : (need > 0 ? string.Format(Loc.T("istasyon_ekrani.tam_dolu"), need)
+                                : Loc.T("ortak.tamamlandi"));
             }
             if (phasePips != null)
                 for (int i = 0; i < phasePips.Length; i++)
@@ -354,7 +389,7 @@ namespace Game.UI
         private void RefreshRow(Row r)
         {
             int lv = _op.AxisLevel(_station, r.axis);
-            if (r.level != null) r.level.text = "Sv " + lv;
+            if (r.level != null) r.level.text = string.Format(Loc.T("yukseltme.seviye"), lv);
 
             if (_op.AxisMaxed(_station, r.axis))
             {
@@ -379,12 +414,21 @@ namespace Game.UI
         {
             if (_busy || _op == null) return;
             int before = CurrentPhase();
-            if (!_op.TryUpgrade(_station, row.axis)) return;
+            if (!_op.TryUpgrade(_station, row.axis)) { Sound(SoundId.Denied); return; }
             Refresh();
 
             int after = CurrentPhase();
-            if (after != before) StartCoroutine(PhaseSequence(after));
-            else StartCoroutine(LevelPunch(row));
+            if (after != before)
+            {
+                // Faz sesi PhaseSequence'in kendi içinde, yükselişin tepesinde çalar.
+                StartCoroutine(PhaseSequence(after));
+            }
+            else
+            {
+                Sound(SoundId.Upgrade);
+                if (_haptic != null) _haptic.Medium();
+                StartCoroutine(LevelPunch(row));
+            }
         }
 
         // ---------- animation ----------
@@ -459,6 +503,10 @@ namespace Game.UI
             _busy = true;
             SetButtons(false);
             if (closeButton != null) closeButton.interactable = false;
+            // Sesi UpgradePanelUI çalıyor — PhaseChanged'i dinleyen ve hep açık olan tek yer orası.
+            // Buradaki iş sadece elde hissedilen kısım.
+            Bind();
+            if (_haptic != null) _haptic.Heavy();
 
             // 1 · clear the stage
             yield return SlideSheet(_sheetHome.y, HiddenSheetY(), SheetOutSeconds);
@@ -529,7 +577,7 @@ namespace Game.UI
             Refresh();
             if (phaseBanner != null)
             {
-                if (phaseBannerText != null) phaseBannerText.text = "FAZ " + phase;
+                if (phaseBannerText != null) phaseBannerText.text = string.Format(Loc.T("istasyon_ekrani.faz_bant"), phase);
                 phaseBanner.gameObject.SetActive(true);
                 float from = StageHalfWidth() * 2f + 400f;
                 t = 0f;

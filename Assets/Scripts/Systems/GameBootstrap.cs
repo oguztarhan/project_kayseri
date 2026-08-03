@@ -49,9 +49,12 @@ namespace Game.Systems
                 qualityConfig != null ? qualityConfig.TargetFrameRate : 60,
                 qualityConfig != null && qualityConfig.VSync));
 
-            // Presentation facades (silent/no-op until content is supplied)
+            // Text first: everything built after this can ask for a translated line while it is building.
+            ServiceLocator.Register(new LocalizationService());
+
+            // Presentation. Audio plays for real once the config carries a library; VFX is still a facade.
             ServiceLocator.Register(audioConfig != null
-                ? new AudioService(audioConfig.Master, audioConfig.Music, audioConfig.Sfx)
+                ? new AudioService(audioConfig.Master, audioConfig.Music, audioConfig.Sfx, audioConfig.Library)
                 : new AudioService(1f, 0.6f, 0.8f));
             ServiceLocator.Register(new VFXService());
             ServiceLocator.Register(new HapticService(juiceConfig == null || juiceConfig.Haptics));

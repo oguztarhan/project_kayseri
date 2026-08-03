@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1015628320238516820}
   - component: {fileID: 5926851620669884625}
   - component: {fileID: 7010210340723565902}
+  - component: {fileID: 290784208251104606}
   m_Layer: 5
   m_Name: Aciklama2
   m_TagString: Untagged
@@ -137,6 +138,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &290784208251104606
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 147044230372928528}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.hazine.a2
 --- !u!1 &278908108287649389
 GameObject:
   m_ObjectHideFlags: 0
@@ -148,6 +162,7 @@ GameObject:
   - component: {fileID: 8359171637688807731}
   - component: {fileID: 2654747936486621335}
   - component: {fileID: 3708244485229544514}
+  - component: {fileID: 7666229952112125512}
   m_Layer: 5
   m_Name: Etiket
   m_TagString: Untagged
@@ -274,6 +289,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &7666229952112125512
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 278908108287649389}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.altin_paketleri
 --- !u!1 &542366460659496755
 GameObject:
   m_ObjectHideFlags: 0
@@ -285,6 +313,7 @@ GameObject:
   - component: {fileID: 1814715446627817780}
   - component: {fileID: 5577308407565707906}
   - component: {fileID: 278971857650221531}
+  - component: {fileID: 4815362066327947638}
   m_Layer: 5
   m_Name: Baslik
   m_TagString: Untagged
@@ -411,6 +440,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &4815362066327947638
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 542366460659496755}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.baslangic.baslik
 --- !u!1 &760730307358367342
 GameObject:
   m_ObjectHideFlags: 0
@@ -422,6 +464,7 @@ GameObject:
   - component: {fileID: 4829671148852583964}
   - component: {fileID: 5079927107336796933}
   - component: {fileID: 7880063506100342987}
+  - component: {fileID: 3751763528277183222}
   m_Layer: 5
   m_Name: Aciklama1
   m_TagString: Untagged
@@ -548,6 +591,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &3751763528277183222
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 760730307358367342}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.baslangic.a1
 --- !u!1 &1170571094551242877
 GameObject:
   m_ObjectHideFlags: 0
@@ -858,6 +914,7 @@ GameObject:
   - component: {fileID: 4741540377008824867}
   - component: {fileID: 7478271484577093097}
   - component: {fileID: 571515325759610253}
+  - component: {fileID: 1499032900580150024}
   m_Layer: 5
   m_Name: Aciklama2
   m_TagString: Untagged
@@ -984,6 +1041,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &1499032900580150024
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1356369378551491663}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.baslangic.a2
 --- !u!1 &1407677860410870857
 GameObject:
   m_ObjectHideFlags: 0
@@ -1852,6 +1922,7 @@ GameObject:
   - component: {fileID: 5218116459104063552}
   - component: {fileID: 6267121186089416155}
   - component: {fileID: 474240712949731752}
+  - component: {fileID: 2868723627473631682}
   m_Layer: 5
   m_Name: Ozellik3
   m_TagString: Untagged
@@ -1978,6 +2049,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &2868723627473631682
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1698575654175509484}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.gece.o3
 --- !u!1 &1763026540168348716
 GameObject:
   m_ObjectHideFlags: 0
@@ -1989,6 +2073,7 @@ GameObject:
   - component: {fileID: 3714843083488447932}
   - component: {fileID: 1714993376242169042}
   - component: {fileID: 8858381729828581747}
+  - component: {fileID: 5238632688677777946}
   m_Layer: 5
   m_Name: Ozellik2
   m_TagString: Untagged
@@ -2115,6 +2200,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &5238632688677777946
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1763026540168348716}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.patron.o2
 --- !u!1 &1856346653198502280
 GameObject:
   m_ObjectHideFlags: 0
@@ -2126,6 +2224,7 @@ GameObject:
   - component: {fileID: 5956901062781431370}
   - component: {fileID: 2337987913306473361}
   - component: {fileID: 4514146509059688565}
+  - component: {fileID: 8182318005874347757}
   m_Layer: 5
   m_Name: Ozellik1
   m_TagString: Untagged
@@ -2252,6 +2351,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &8182318005874347757
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1856346653198502280}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.gece.o1
 --- !u!1 &1931660835135292644
 GameObject:
   m_ObjectHideFlags: 0
@@ -2263,6 +2375,7 @@ GameObject:
   - component: {fileID: 1288500620024064678}
   - component: {fileID: 6511241592540323121}
   - component: {fileID: 7350873235899623614}
+  - component: {fileID: 6127129597979401639}
   m_Layer: 5
   m_Name: Aciklama1
   m_TagString: Untagged
@@ -2389,6 +2502,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &6127129597979401639
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1931660835135292644}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.patron.a1
 --- !u!1 &1963003232192698953
 GameObject:
   m_ObjectHideFlags: 0
@@ -2475,6 +2601,7 @@ GameObject:
   - component: {fileID: 3052324969199517296}
   - component: {fileID: 8656007046342812}
   - component: {fileID: 8932530096351595387}
+  - component: {fileID: 2361468896589375808}
   m_Layer: 5
   m_Name: Aciklama2
   m_TagString: Untagged
@@ -2601,6 +2728,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &2361468896589375808
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2315719437101554804}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.gece.a2
 --- !u!1 &2440417938979783092
 GameObject:
   m_ObjectHideFlags: 0
@@ -2647,6 +2787,7 @@ GameObject:
   - component: {fileID: 6144162374857431406}
   - component: {fileID: 2149225042627925347}
   - component: {fileID: 9087624364622558578}
+  - component: {fileID: 6645494111127365249}
   m_Layer: 5
   m_Name: Ozellik1
   m_TagString: Untagged
@@ -2773,6 +2914,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &6645494111127365249
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2443762303475350113}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.patron.o1
 --- !u!1 &2626214949207866528
 GameObject:
   m_ObjectHideFlags: 0
@@ -2859,6 +3013,7 @@ GameObject:
   - component: {fileID: 3558727012895033169}
   - component: {fileID: 5525080376848338702}
   - component: {fileID: 5320846454775873356}
+  - component: {fileID: 3035155303252401125}
   m_Layer: 5
   m_Name: Baslik
   m_TagString: Untagged
@@ -2985,6 +3140,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &3035155303252401125
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2759954303111038728}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.hazine.baslik
 --- !u!1 &2821488803219557344
 GameObject:
   m_ObjectHideFlags: 0
@@ -3466,6 +3634,7 @@ GameObject:
   - component: {fileID: 64155891317138833}
   - component: {fileID: 2927581220765797988}
   - component: {fileID: 7299908571121653118}
+  - component: {fileID: 7429457056971077977}
   m_Layer: 5
   m_Name: Etiket
   m_TagString: Untagged
@@ -3592,6 +3761,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &7429457056971077977
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3292058183936732032}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.elmas_ile_al
 --- !u!1 &3400176991459602152
 GameObject:
   m_ObjectHideFlags: 0
@@ -3654,6 +3836,7 @@ GameObject:
   - component: {fileID: 1993366745371105586}
   - component: {fileID: 3880565931445176478}
   - component: {fileID: 6546755171169001220}
+  - component: {fileID: 2424947557318952835}
   m_Layer: 5
   m_Name: Ozellik1
   m_TagString: Untagged
@@ -3780,6 +3963,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &2424947557318952835
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3447716657121356275}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.hazine.o1
 --- !u!1 &3489244991239473853
 GameObject:
   m_ObjectHideFlags: 0
@@ -4543,6 +4739,7 @@ GameObject:
   - component: {fileID: 1665343021498008511}
   - component: {fileID: 2833452039951146749}
   - component: {fileID: 5578099782892227419}
+  - component: {fileID: 5364525403479308918}
   m_Layer: 5
   m_Name: Ozellik2
   m_TagString: Untagged
@@ -4669,6 +4866,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &5364525403479308918
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4112047656492126986}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.hazine.o2
 --- !u!1 &4130799099927407179
 GameObject:
   m_ObjectHideFlags: 0
@@ -4680,6 +4890,7 @@ GameObject:
   - component: {fileID: 855559388567969091}
   - component: {fileID: 4247371629918305177}
   - component: {fileID: 1803633098662538969}
+  - component: {fileID: 9115713719796843370}
   m_Layer: 5
   m_Name: Ozellik1
   m_TagString: Untagged
@@ -4806,6 +5017,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &9115713719796843370
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4130799099927407179}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.baslangic.o1
 --- !u!1 &4389233669058494605
 GameObject:
   m_ObjectHideFlags: 0
@@ -5086,6 +5310,7 @@ GameObject:
   - component: {fileID: 1671238631351312453}
   - component: {fileID: 4592063246653452226}
   - component: {fileID: 8556760327382689396}
+  - component: {fileID: 7029343668244670292}
   m_Layer: 5
   m_Name: Baslik
   m_TagString: Untagged
@@ -5212,6 +5437,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &7029343668244670292
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5028512433359405485}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.gece.baslik
 --- !u!1 &5279185779608992788
 GameObject:
   m_ObjectHideFlags: 0
@@ -5421,6 +5659,7 @@ GameObject:
   - component: {fileID: 189693356915663013}
   - component: {fileID: 3117514735068909051}
   - component: {fileID: 5805406440091701337}
+  - component: {fileID: 1038480866246601737}
   m_Layer: 5
   m_Name: Ozellik3
   m_TagString: Untagged
@@ -5547,6 +5786,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &1038480866246601737
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5598169846995391227}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.hazine.o3
 --- !u!1 &5787345661983996044
 GameObject:
   m_ObjectHideFlags: 0
@@ -5633,6 +5885,7 @@ GameObject:
   - component: {fileID: 4195500758778661527}
   - component: {fileID: 8718129453746107907}
   - component: {fileID: 6768240507741323577}
+  - component: {fileID: 6835468884283309279}
   m_Layer: 5
   m_Name: Aciklama2
   m_TagString: Untagged
@@ -5759,6 +6012,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &6835468884283309279
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5820541398602128492}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.patron.a2
 --- !u!1 &6101890547538866674
 GameObject:
   m_ObjectHideFlags: 0
@@ -6552,6 +6818,7 @@ GameObject:
   - component: {fileID: 2940588157506235702}
   - component: {fileID: 4193007081961397006}
   - component: {fileID: 7895953836617697335}
+  - component: {fileID: 666928894649805530}
   m_Layer: 5
   m_Name: Baslik
   m_TagString: Untagged
@@ -6678,6 +6945,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &666928894649805530
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7135655074563102550}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.patron.baslik
 --- !u!1 &7281121844994477913
 GameObject:
   m_ObjectHideFlags: 0
@@ -6826,6 +7106,7 @@ GameObject:
   - component: {fileID: 8980747557908922928}
   - component: {fileID: 37670042885906459}
   - component: {fileID: 4044070028306556594}
+  - component: {fileID: 6700330251958073854}
   m_Layer: 5
   m_Name: Aciklama1
   m_TagString: Untagged
@@ -6952,6 +7233,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &6700330251958073854
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7295945403265142329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.hazine.a1
 --- !u!1 &7736016899373178917
 GameObject:
   m_ObjectHideFlags: 0
@@ -6963,6 +7257,7 @@ GameObject:
   - component: {fileID: 7162850159896411875}
   - component: {fileID: 3045813989503264074}
   - component: {fileID: 9190512726745015573}
+  - component: {fileID: 3558453468460226793}
   m_Layer: 5
   m_Name: Aciklama1
   m_TagString: Untagged
@@ -7089,6 +7384,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &3558453468460226793
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7736016899373178917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.gece.a1
 --- !u!1 &7875805457815243465
 GameObject:
   m_ObjectHideFlags: 0
@@ -7374,6 +7682,7 @@ GameObject:
   - component: {fileID: 7633561493788851321}
   - component: {fileID: 1685345508609300940}
   - component: {fileID: 2004165584123203405}
+  - component: {fileID: 6952017571118409637}
   m_Layer: 5
   m_Name: Ozellik2
   m_TagString: Untagged
@@ -7500,6 +7809,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &6952017571118409637
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8152599148963214069}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.baslangic.o2
 --- !u!1 &8164372166603636233
 GameObject:
   m_ObjectHideFlags: 0
@@ -7511,6 +7833,7 @@ GameObject:
   - component: {fileID: 75535363628186231}
   - component: {fileID: 5274253448326207496}
   - component: {fileID: 5326432433269738331}
+  - component: {fileID: 7755066600783260188}
   m_Layer: 5
   m_Name: Ozellik2
   m_TagString: Untagged
@@ -7637,6 +7960,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &7755066600783260188
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8164372166603636233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.gece.o2
 --- !u!1 &8357325881657917220
 GameObject:
   m_ObjectHideFlags: 0
@@ -8336,6 +8672,7 @@ GameObject:
   - component: {fileID: 4213936805162381226}
   - component: {fileID: 1633686354347486895}
   - component: {fileID: 330638320638418506}
+  - component: {fileID: 1967683404485905875}
   m_Layer: 5
   m_Name: Etiket
   m_TagString: Untagged
@@ -8462,3 +8799,16 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &1967683404485905875
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9041074942296955421}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: magaza.elmas_paketleri

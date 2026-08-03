@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Data;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
@@ -54,6 +55,7 @@ namespace Game.UI
             if (adButton != null) adButton.onClick.AddListener(OnDouble);
 
             if (panelRoot != null) panelRoot.SetActive(false);
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
         private void Update()
@@ -73,6 +75,8 @@ namespace Game.UI
             if (capNoteText != null) capNoteText.text = RuleText();
             if (adButton != null) adButton.gameObject.SetActive(_ad != null && _ad.Available);
             panelRoot.SetActive(true);
+            var audio = ServiceLocator.Get<AudioService>();
+            if (audio != null) audio.Play(SoundId.Coin);
         }
 
         private void OnDouble()
@@ -99,8 +103,9 @@ namespace Game.UI
             if (minutes < 1L) minutes = 1L;
             long hours = minutes / 60L;
             minutes -= hours * 60L;
-            if (hours <= 0L) return minutes + " DK";
-            return minutes > 0L ? hours + " SA " + minutes + " DK" : hours + " SA";
+            if (hours <= 0L) return string.Format(Loc.T("ortak.sure_dk"), minutes);
+            return minutes > 0L ? string.Format(Loc.T("ortak.sure_sa_dk"), hours, minutes)
+                                : string.Format(Loc.T("ortak.sure_sa"), hours);
         }
 
         /// <summary>
@@ -113,9 +118,9 @@ namespace Game.UI
         /// </summary>
         private string RuleText()
         {
-            string s = "ÇEVRİMDIŞI VERİM %" + Mathf.RoundToInt((float)(_report.Efficiency * 100d));
+            string s = string.Format(Loc.T("hosgeldin.verim"), Mathf.RoundToInt((float)(_report.Efficiency * 100d)));
             if (_report.CreditedSeconds > 0L && _report.AwaySeconds > _report.CreditedSeconds)
-                s += Separator() + "EN FAZLA " + CapText(_report.CreditedSeconds);
+                s += Separator() + string.Format(Loc.T("hosgeldin.en_fazla"), CapText(_report.CreditedSeconds));
             return s;
         }
 
@@ -136,9 +141,11 @@ namespace Game.UI
         {
             long minutes = seconds / 60L;
             long hours = minutes / 60L;
-            if (hours <= 0L) return minutes + " DAKİKA";
+            if (hours <= 0L) return string.Format(Loc.T("hosgeldin.dakika"), minutes);
             long rest = minutes - hours * 60L;
-            return rest > 0L ? hours + " SAAT " + rest + " DAKİKA" : hours + " SAAT";
+            return rest > 0L
+                ? string.Format(Loc.T("hosgeldin.saat_dakika"), hours, rest)
+                : string.Format(Loc.T("hosgeldin.saat"), hours);
         }
     }
 }

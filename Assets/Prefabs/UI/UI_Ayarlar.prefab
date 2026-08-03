@@ -1178,6 +1178,15 @@ MonoBehaviour:
   privacyButton: {fileID: 1320363146530454763}
   restoreButton: {fileID: 2538542893411177590}
   privacyUrl: 
+  languageSkin:
+    Panel: {fileID: 21300000, guid: 54089e8be6306e041ba5c95acf66ee6d, type: 3}
+    Ribbon: {fileID: 21300000, guid: dd988dc1d62a392469b820556a8d87ca, type: 3}
+    Close: {fileID: 21300000, guid: 4c0073cd05eea9d459341e9183201d66, type: 3}
+    Row: {fileID: 21300000, guid: c8c11abc27f210542b83de97a3985693, type: 3}
+    Medallion: {fileID: 21300000, guid: d5ecd521a2f84724d914b4126b12ca19, type: 3}
+    PipOn: {fileID: 21300000, guid: 5d5f19413de43274a9c6f368d6227e46, type: 3}
+    PipOff: {fileID: 21300000, guid: 692c1467bea57064ea33e3176a0119fd, type: 3}
+    Font: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
 --- !u!1 &2370532432508277481
 GameObject:
   m_ObjectHideFlags: 0
@@ -1735,6 +1744,7 @@ GameObject:
   - component: {fileID: 3846820008355955891}
   - component: {fileID: 3425962768012614048}
   - component: {fileID: 5326266456014585613}
+  - component: {fileID: 3552218668056721}
   m_Layer: 0
   m_Name: Baslik
   m_TagString: Untagged
@@ -1861,6 +1871,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &3552218668056721
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4656696635596092433}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: ayarlar.baslik
 --- !u!1 &4787692534835865670
 GameObject:
   m_ObjectHideFlags: 0

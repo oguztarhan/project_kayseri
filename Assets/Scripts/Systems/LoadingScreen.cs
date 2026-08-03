@@ -29,6 +29,10 @@ namespace Game.Systems
         [Tooltip("Ada sırasıyla: kömür, bakır, demir, gümüş, altın, yakut, zümrüt, elmas.")]
         [SerializeField] private Sprite[] islandBackgrounds;
 
+        [Tooltip("Alttaki çubuğun dolan parçası. Sola dayalı gerili olmalı — genişliği anchorMax.x " +
+                 "ile sürülüyor. Boşken çubuk hiç çizilmez, ekranın gerisi aynı çalışır.")]
+        [SerializeField] private RectTransform barFill;
+
         [Tooltip("Ekran en az bu kadar durur. Yükleme daha erken biterse bile göz görsün diye.")]
         [SerializeField, Min(0f)] private float minimumSeconds = 1.4f;
 
@@ -53,6 +57,14 @@ namespace Game.Systems
             if (islandBackgrounds[index] != null) background.sprite = islandBackgrounds[index];
         }
 
+        /// <summary>Drives the fill's right edge; the track is whatever rect the fill sits in.</summary>
+        private void Progress(float t)
+        {
+            if (barFill == null) return;
+            Vector2 max = barFill.anchorMax;
+            barFill.anchorMax = new Vector2(Mathf.Clamp01(t), max.y);
+        }
+
         private static int ActiveIsland(SaveData data)
         {
             if (data == null || data.islandLevels == null) return 0;
@@ -69,11 +81,19 @@ namespace Game.Systems
             // Unity parks a scene that is loaded but not yet activated at 0.9 — it never reaches 1
             // until activation is allowed, so waiting for isDone here would deadlock.
             float held = 0f;
+            Progress(0f);
             while (op.progress < 0.9f || held < minimumSeconds)
             {
                 held += Time.unscaledDeltaTime;
+                // Whichever of the two is further behind is what the bar shows, so it arrives at full
+                // exactly when this loop lets go. Drawing raw progress instead would throw the bar to
+                // the end on the first frame and leave it sitting there — Main loads in well under the
+                // minimum hold — and a bar driven by the clock alone would lie on a slow device.
+                Progress(Mathf.Min(op.progress / 0.9f,
+                                   minimumSeconds > 0f ? held / minimumSeconds : 1f));
                 yield return null;
             }
+            Progress(1f);
 
             op.allowSceneActivation = true;
             while (!op.isDone) yield return null;

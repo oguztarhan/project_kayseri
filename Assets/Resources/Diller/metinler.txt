@@ -1,0 +1,186 @@
+anahtar	tr	en	de	fr	es	pt	it	pl	ru	id	vi
+_dil_adi	Türkçe	English	Deutsch	Français	Español	Português	Italiano	Polski	Русский	Indonesia	Tiếng Việt
+# ortak
+ortak.topla	TOPLA	COLLECT	EINSAMMELN	RÉCUPÉRER	RECOGER	COLETAR	RACCOGLI	ODBIERZ	ЗАБРАТЬ	AMBIL	NHẬN
+ortak.satin_al	SATIN AL	BUY	KAUFEN	ACHETER	COMPRAR	COMPRAR	ACQUISTA	KUP	КУПИТЬ	BELI	MUA
+ortak.git	GİT	GO	LOS	ALLER	IR	IR	VAI	RUSZAJ	ВПЕРЁД	PERGI	ĐI
+ortak.odul_al	ÖDÜL AL	CLAIM	ABHOLEN	RÉCLAMER	RECLAMAR	RESGATAR	RISCUOTI	ODBIERZ	ЗАБРАТЬ	KLAIM	NHẬN THƯỞNG
+ortak.odulu_al	ÖDÜLÜ AL	CLAIM REWARD	BELOHNUNG	RÉCOMPENSE	RECOMPENSA	RECOMPENSA	PREMIO	NAGRODA	НАГРАДА	AMBIL HADIAH	NHẬN THƯỞNG
+ortak.senin	SENİN	OWNED	GEKAUFT	ACQUIS	ADQUIRIDO	ADQUIRIDO	POSSEDUTO	POSIADANE	КУПЛЕНО	DIMILIKI	ĐÃ CÓ
+ortak.kilitli	KİLİTLİ	LOCKED	GESPERRT	VERROUILLÉ	BLOQUEADO	BLOQUEADO	BLOCCATO	ZABLOKOWANE	ЗАКРЫТО	TERKUNCI	ĐÃ KHÓA
+ortak.tamamlandi	TAMAMLANDI	COMPLETE	FERTIG	TERMINÉ	COMPLETO	COMPLETO	COMPLETATO	UKOŃCZONE	ЗАВЕРШЕНО	SELESAI	HOÀN TẤT
+ortak.hazir	HAZIR	READY	BEREIT	PRÊT	LISTO	PRONTO	PRONTO	GOTOWE	ГОТОВО	SIAP	SẴN SÀNG
+ortak.yarin	YARIN	TOMORROW	MORGEN	DEMAIN	MAÑANA	AMANHÃ	DOMANI	JUTRO	ЗАВТРА	BESOK	NGÀY MAI
+ortak.elmas	ELMAS	GEMS	DIAMANTEN	GEMMES	GEMAS	GEMAS	GEMME	KLEJNOTY	АЛМАЗЫ	PERMATA	KIM CƯƠNG
+ortak.adalar	ADALAR	ISLANDS	INSELN	ÎLES	ISLAS	ILHAS	ISOLE	WYSPY	ОСТРОВА	PULAU	ĐẢO
+ortak.nakit	NAKİT	CASH	GELD	ARGENT	DINERO	DINHEIRO	CONTANTI	GOTÓWKA	ДЕНЬГИ	UANG	TIỀN
+ortak.seviyeler	SEVİYELER	LEVELS	STUFEN	NIVEAUX	NIVELES	NÍVEIS	LIVELLI	POZIOMY	УРОВНИ	LEVEL	CẤP
+ortak.dakika_basina	{0}/dk	{0}/min	{0}/Min	{0}/min	{0}/min	{0}/min	{0}/min	{0}/min	{0}/мин	{0}/mnt	{0}/phút
+ortak.sure_dk	{0} DK	{0} MIN	{0} MIN	{0} MIN	{0} MIN	{0} MIN	{0} MIN	{0} MIN	{0} МИН	{0} MNT	{0} PHÚT
+ortak.sure_sn	{0} SN	{0} SEC	{0} SEK	{0} SEC	{0} SEG	{0} SEG	{0} SEC	{0} SEK	{0} СЕК	{0} DTK	{0} GIÂY
+ortak.sure_sa	{0} SA	{0} H	{0} STD	{0} H	{0} H	{0} H	{0} H	{0} GODZ	{0} Ч	{0} JAM	{0} GIỜ
+ortak.sure_sa_dk	{0} SA {1} DK	{0} H {1} MIN	{0} STD {1} MIN	{0} H {1} MIN	{0} H {1} MIN	{0} H {1} MIN	{0} H {1} MIN	{0} GODZ {1} MIN	{0} Ч {1} МИН	{0} JAM {1} MNT	{0} GIỜ {1} PHÚT
+# ayarlar
+ayarlar.baslik	AYARLAR	SETTINGS	EINSTELLUNGEN	RÉGLAGES	AJUSTES	AJUSTES	IMPOSTAZIONI	USTAWIENIA	НАСТРОЙКИ	PENGATURAN	CÀI ĐẶT
+ayarlar.dil	DİL	LANGUAGE	SPRACHE	LANGUE	IDIOMA	IDIOMA	LINGUA	JĘZYK	ЯЗЫК	BAHASA	NGÔN NGỮ
+# gunluk odul
+gunluk.baslik	GÜNLÜK ÖDÜL	DAILY REWARD	TAGESBELOHNUNG	RÉCOMPENSE DU JOUR	RECOMPENSA DIARIA	RECOMPENSA DIÁRIA	PREMIO GIORNALIERO	NAGRODA DZIENNA	ЕЖЕДНЕВНАЯ НАГРАДА	HADIAH HARIAN	THƯỞNG HẰNG NGÀY
+gunluk.gun	{0}. GÜN	DAY {0}	TAG {0}	JOUR {0}	DÍA {0}	DIA {0}	GIORNO {0}	DZIEŃ {0}	ДЕНЬ {0}	HARI {0}	NGÀY {0}
+gunluk.yarin_gel	YARIN GEL	COME BACK TOMORROW	MORGEN WIEDER	REVENEZ DEMAIN	VUELVE MAÑANA	VOLTE AMANHÃ	TORNA DOMANI	WRÓĆ JUTRO	ЗАЙДИ ЗАВТРА	KEMBALI BESOK	QUAY LẠI MAI
+gunluk.elmas	{0} ELMAS	{0} GEMS	{0} DIAMANTEN	{0} GEMMES	{0} GEMAS	{0} GEMAS	{0} GEMME	{0} KLEJNOTÓW	{0} АЛМАЗОВ	{0} PERMATA	{0} KIM CƯƠNG
+gunluk.elmas_dk	{0} ELMAS + {1} DK	{0} GEMS + {1} MIN	{0} DIAMANTEN + {1} MIN	{0} GEMMES + {1} MIN	{0} GEMAS + {1} MIN	{0} GEMAS + {1} MIN	{0} GEMME + {1} MIN	{0} KLEJNOTÓW + {1} MIN	{0} АЛМАЗОВ + {1} МИН	{0} PERMATA + {1} MNT	{0} KIM CƯƠNG + {1} PHÚT
+# kontrat
+kontrat.baslik	KONTRAT	CONTRACT	AUFTRAG	CONTRAT	CONTRATO	CONTRATO	CONTRATTO	KONTRAKT	КОНТРАКТ	KONTRAK	HỢP ĐỒNG
+kontrat.siradaki	SIRADAKİ KONTRAT	NEXT CONTRACT	NÄCHSTER AUFTRAG	CONTRAT SUIVANT	SIGUIENTE CONTRATO	PRÓXIMO CONTRATO	PROSSIMO CONTRATTO	NASTĘPNY KONTRAKT	СЛЕДУЮЩИЙ КОНТРАКТ	KONTRAK BERIKUTNYA	HỢP ĐỒNG TIẾP THEO
+kontrat.hedef_tuttu	HEDEF TUTTU	TARGET MET	ZIEL ERREICHT	OBJECTIF ATTEINT	OBJETIVO LOGRADO	META ATINGIDA	OBIETTIVO RAGGIUNTO	CEL OSIĄGNIĘTY	ЦЕЛЬ ДОСТИГНУТА	TARGET TERCAPAI	ĐẠT MỤC TIÊU
+kontrat.seri	SERİ ×{0}	STREAK ×{0}	SERIE ×{0}	SÉRIE ×{0}	RACHA ×{0}	SEQUÊNCIA ×{0}	SERIE ×{0}	SERIA ×{0}	СЕРИЯ ×{0}	BERUNTUN ×{0}	CHUỖI ×{0}
+kontrat.ilk	İLK KONTRAT	FIRST CONTRACT	ERSTER AUFTRAG	PREMIER CONTRAT	PRIMER CONTRATO	PRIMEIRO CONTRATO	PRIMO CONTRATTO	PIERWSZY KONTRAKT	ПЕРВЫЙ КОНТРАКТ	KONTRAK PERTAMA	HỢP ĐỒNG ĐẦU
+# prestij
+prestij.baslik	PRESTİJ	PRESTIGE	PRESTIGE	PRESTIGE	PRESTIGIO	PRESTÍGIO	PRESTIGIO	PRESTIŻ	ПРЕСТИЖ	PRESTISE	DANH VỌNG
+prestij.yatirimci_kazanc	+{0} YATIRIMCI	+{0} INVESTORS	+{0} INVESTOREN	+{0} INVESTISSEURS	+{0} INVERSORES	+{0} INVESTIDORES	+{0} INVESTITORI	+{0} INWESTORÓW	+{0} ИНВЕСТОРОВ	+{0} INVESTOR	+{0} NHÀ ĐẦU TƯ
+prestij.hazir	PRESTİJ HAZIR	PRESTIGE READY	PRESTIGE BEREIT	PRESTIGE PRÊT	PRESTIGIO LISTO	PRESTÍGIO PRONTO	PRESTIGIO PRONTO	PRESTIŻ GOTOWY	ПРЕСТИЖ ГОТОВ	PRESTISE SIAP	SẴN SÀNG DANH VỌNG
+prestij.esik	PRESTİJ İÇİN ${0} DAHA KAZAN	EARN ${0} MORE TO PRESTIGE	NOCH ${0} FÜR PRESTIGE	GAGNEZ ${0} DE PLUS	GANA ${0} MÁS	GANHE MAIS ${0}	GUADAGNA altri ${0}	ZAROB JESZCZE ${0}	ЗАРАБОТАЙ ЕЩЁ ${0}	KUMPULKAN ${0} LAGI	KIẾM THÊM ${0}
+prestij.yap	PRESTİJ YAP	PRESTIGE	PRESTIGE	PRESTIGE	PRESTIGIAR	PRESTIGIAR	PRESTIGIA	ZRÓB PRESTIŻ	ПРЕСТИЖ	PRESTISE	DANH VỌNG
+prestij.henuz_degil	HENÜZ DEĞİL	NOT YET	NOCH NICHT	PAS ENCORE	TODAVÍA NO	AINDA NÃO	NON ANCORA	JESZCZE NIE	ПОКА НЕТ	BELUM	CHƯA ĐỦ
+prestij.onayla	ONAYLAMAK İÇİN TEKRAR BAS	TAP AGAIN TO CONFIRM	ZUM BESTÄTIGEN ERNEUT TIPPEN	APPUYEZ ENCORE POUR CONFIRMER	PULSA OTRA VEZ PARA CONFIRMAR	TOQUE DE NOVO PARA CONFIRMAR	TOCCA ANCORA PER CONFERMARE	DOTKNIJ PONOWNIE, BY POTWIERDZIĆ	НАЖМИ ЕЩЁ РАЗ ДЛЯ ПОДТВЕРЖДЕНИЯ	KETUK LAGI UNTUK KONFIRMASI	CHẠM LẦN NỮA ĐỂ XÁC NHẬN
+prestij.gider	GİDER	YOU LOSE	DU VERLIERST	VOUS PERDEZ	PIERDES	VOCÊ PERDE	PERDI	TRACISZ	ТЕРЯЕШЬ	HILANG	MẤT
+prestij.kalir	KALIR	YOU KEEP	DU BEHÄLTST	VOUS GARDEZ	CONSERVAS	VOCÊ MANTÉM	MANTIENI	ZACHOWUJESZ	ОСТАЁТСЯ	TETAP	GIỮ LẠI
+prestij.yatirimci	YATIRIMCI	INVESTORS	INVESTOREN	INVESTISSEURS	INVERSORES	INVESTIDORES	INVESTITORI	INWESTORZY	ИНВЕСТОРЫ	INVESTOR	NHÀ ĐẦU TƯ
+# dunya haritasi
+harita.baslik	DÜNYA HARİTASI	WORLD MAP	WELTKARTE	CARTE DU MONDE	MAPA DEL MUNDO	MAPA-MÚNDI	MAPPA DEL MONDO	MAPA ŚWIATA	КАРТА МИРА	PETA DUNIA	BẢN ĐỒ THẾ GIỚI
+harita.buradasin	BURADASIN	YOU ARE HERE	DU BIST HIER	VOUS ÊTES ICI	ESTÁS AQUÍ	VOCÊ ESTÁ AQUI	SEI QUI	TU JESTEŚ	ТЫ ЗДЕСЬ	ANDA DI SINI	BẠN Ở ĐÂY
+harita.once	Önce {0}	First {0}	Zuerst {0}	D'abord {0}	Primero {0}	Primeiro {0}	Prima {0}	Najpierw {0}	Сначала {0}	Dulu {0}	Trước hết {0}
+harita.tamamlandi	{0} · TAMAMLANDI	{0} · COMPLETE	{0} · FERTIG	{0} · TERMINÉ	{0} · COMPLETO	{0} · COMPLETO	{0} · COMPLETATO	{0} · UKOŃCZONE	{0} · ЗАВЕРШЕНО	{0} · SELESAI	{0} · HOÀN TẤT
+harita.soru	Bu adayı açmak istiyor musun?	Unlock this island?	Diese Insel freischalten?	Débloquer cette île ?	¿Desbloquear esta isla?	Desbloquear esta ilha?	Sbloccare quest'isola?	Odblokować tę wyspę?	Открыть этот остров?	Buka pulau ini?	Mở khóa đảo này?
+harita.oran	{0} · %{1}	{0} · {1}%	{0} · {1} %	{0} · {1} %	{0} · {1} %	{0} · {1}%	{0} · {1}%	{0} · {1}%	{0} · {1} %	{0} · {1}%	{0} · {1}%
+harita.tavana_kadar	{0}/dk'ya kadar	up to {0}/min	bis zu {0}/Min	jusqu'à {0}/min	hasta {0}/min	até {0}/min	fino a {0}/min	do {0}/min	до {0}/мин	hingga {0}/mnt	tối đa {0}/phút
+# reklam odulu
+reklam.baslik	BEDAVA ÖDÜL	FREE REWARD	GRATIS-BELOHNUNG	RÉCOMPENSE GRATUITE	RECOMPENSA GRATIS	RECOMPENSA GRÁTIS	PREMIO GRATIS	DARMOWA NAGRODA	БЕСПЛАТНАЯ НАГРАДА	HADIAH GRATIS	THƯỞNG MIỄN PHÍ
+reklam.reklamlari_kaldir	REKLAMLARI KALDIR	REMOVE ADS	WERBUNG ENTFERNEN	SUPPRIMER LES PUBS	QUITAR ANUNCIOS	REMOVER ANÚNCIOS	RIMUOVI ANNUNCI	USUŃ REKLAMY	УБРАТЬ РЕКЛАМУ	HAPUS IKLAN	GỠ QUẢNG CÁO
+reklam.yarin_gel	YARIN TEKRAR GEL	COME BACK TOMORROW	MORGEN WIEDER	REVENEZ DEMAIN	VUELVE MAÑANA	VOLTE AMANHÃ	TORNA DOMANI	WRÓĆ JUTRO	ЗАЙДИ ЗАВТРА	KEMBALI BESOK	QUAY LẠI MAI
+reklam.sonra	{0} SONRA	IN {0}	IN {0}	DANS {0}	EN {0}	EM {0}	TRA {0}	ZA {0}	ЧЕРЕЗ {0}	DALAM {0}	SAU {0}
+reklam.elmas	+{0} ELMAS	+{0} GEMS	+{0} DIAMANTEN	+{0} GEMMES	+{0} GEMAS	+{0} GEMAS	+{0} GEMME	+{0} KLEJNOTÓW	+{0} АЛМАЗОВ	+{0} PERMATA	+{0} KIM CƯƠNG
+reklam.gelir	×{0} GELİR · {1}	×{0} INCOME · {1}	×{0} EINKOMMEN · {1}	×{0} REVENU · {1}	×{0} INGRESOS · {1}	×{0} RENDA · {1}	×{0} ENTRATE · {1}	×{0} DOCHÓD · {1}	×{0} ДОХОД · {1}	×{0} PENGHASILAN · {1}	×{0} THU NHẬP · {1}
+# hos geldin / cevrimdisi
+hosgeldin.baslik	TEKRAR HOŞ GELDİN	WELCOME BACK	WILLKOMMEN ZURÜCK	BON RETOUR	BIENVENIDO DE NUEVO	BEM-VINDO DE VOLTA	BENTORNATO	WITAJ Z POWROTEM	С ВОЗВРАЩЕНИЕМ	SELAMAT DATANG KEMBALI	CHÀO MỪNG TRỞ LẠI
+hosgeldin.ikiye_katla	2 KATINA ÇIKAR	DOUBLE IT	VERDOPPELN	DOUBLER	DUPLICAR	DOBRAR	RADDOPPIA	PODWÓJ	УДВОИТЬ	GANDAKAN	NHÂN ĐÔI
+hosgeldin.verim	ÇEVRİMDIŞI VERİM %{0}	OFFLINE RATE {0}%	OFFLINE-RATE {0}%	TAUX HORS LIGNE {0}%	TASA SIN CONEXIÓN {0}%	TAXA OFFLINE {0}%	TASSO OFFLINE {0}%	TEMPO OFFLINE {0}%	ОФЛАЙН-ДОХОД {0}%	RASIO OFFLINE {0}%	TỶ LỆ NGOẠI TUYẾN {0}%
+hosgeldin.en_fazla	EN FAZLA {0}	UP TO {0}	BIS ZU {0}	JUSQU'À {0}	HASTA {0}	ATÉ {0}	FINO A {0}	DO {0}	ДО {0}	MAKS {0}	TỐI ĐA {0}
+hosgeldin.dakika	{0} DAKİKA	{0} MINUTES	{0} MINUTEN	{0} MINUTES	{0} MINUTOS	{0} MINUTOS	{0} MINUTI	{0} MINUT	{0} МИНУТ	{0} MENIT	{0} PHÚT
+hosgeldin.saat	{0} SAAT	{0} HOURS	{0} STUNDEN	{0} HEURES	{0} HORAS	{0} HORAS	{0} ORE	{0} GODZIN	{0} ЧАСОВ	{0} JAM	{0} GIỜ
+hosgeldin.saat_dakika	{0} SAAT {1} DAKİKA	{0} H {1} MIN	{0} STD {1} MIN	{0} H {1} MIN	{0} H {1} MIN	{0} H {1} MIN	{0} H {1} MIN	{0} G {1} MIN	{0} Ч {1} МИН	{0} JAM {1} MNT	{0} GIỜ {1} PHÚT
+# HUD
+hud.reklam_izle	REKLAM İZLE	WATCH AD	VIDEO ANSEHEN	VOIR UNE PUB	VER ANUNCIO	VER ANÚNCIO	GUARDA UN AD	OBEJRZYJ REKLAMĘ	СМОТРЕТЬ РЕКЛАМУ	TONTON IKLAN	XEM QUẢNG CÁO
+hud.gelir	×{0} GELİR	×{0} INCOME	×{0} EINKOMMEN	×{0} REVENU	×{0} INGRESOS	×{0} RENDA	×{0} ENTRATE	×{0} DOCHÓD	×{0} ДОХОД	×{0} PENGHASILAN	×{0} THU NHẬP
+# istasyon ekrani
+istasyon_ekrani.faz	FAZ {0} / 3	PHASE {0} / 3	PHASE {0} / 3	PHASE {0} / 3	FASE {0} / 3	FASE {0} / 3	FASE {0} / 3	FAZA {0} / 3	ФАЗА {0} / 3	FASE {0} / 3	GIAI ĐOẠN {0} / 3
+istasyon_ekrani.faz_bant	FAZ {0}	PHASE {0}	PHASE {0}	PHASE {0}	FASE {0}	FASE {0}	FASE {0}	FAZA {0}	ФАЗА {0}	FASE {0}	GIAI ĐOẠN {0}
+istasyon_ekrani.sonraki_faz	SONRAKİ FAZA {0} SEVİYE	{0} LEVELS TO NEXT PHASE	{0} STUFEN BIS ZUR NÄCHSTEN PHASE	{0} NIVEAUX AVANT LA PHASE SUIVANTE	{0} NIVELES PARA LA SIGUIENTE FASE	{0} NÍVEIS PARA A PRÓXIMA FASE	{0} LIVELLI ALLA PROSSIMA FASE	{0} POZIOMÓW DO NASTĘPNEJ FAZY	{0} УРОВНЕЙ ДО СЛЕДУЮЩЕЙ ФАЗЫ	{0} LEVEL KE FASE BERIKUTNYA	{0} CẤP ĐẾN GIAI ĐOẠN SAU
+istasyon_ekrani.tam_dolu	TAM DOLUYA {0} SEVİYE	{0} LEVELS TO MAX	{0} STUFEN BIS MAX	{0} NIVEAUX AVANT LE MAX	{0} NIVELES PARA EL MÁXIMO	{0} NÍVEIS PARA O MÁXIMO	{0} LIVELLI AL MASSIMO	{0} POZIOMÓW DO MAKSIMUM	{0} УРОВНЕЙ ДО МАКСИМУМА	{0} LEVEL KE MAKS	{0} CẤP ĐẾN TỐI ĐA
+# yukseltme paneli
+yukseltme.baslik	YÜKSELTMELER	UPGRADES	UPGRADES	AMÉLIORATIONS	MEJORAS	MELHORIAS	POTENZIAMENTI	ULEPSZENIA	УЛУЧШЕНИЯ	PENINGKATAN	NÂNG CẤP
+yukseltme.genisletmeler	GENİŞLETMELER	EXPANSIONS	ERWEITERUNGEN	EXTENSIONS	EXPANSIONES	EXPANSÕES	ESPANSIONI	ROZBUDOWY	РАСШИРЕНИЯ	PERLUASAN	MỞ RỘNG
+yukseltme.kilitli_ile	KİLİTLİ · {0}	LOCKED · {0}	GESPERRT · {0}	VERROUILLÉ · {0}	BLOQUEADO · {0}	BLOQUEADO · {0}	BLOCCATO · {0}	ZABLOKOWANE · {0}	ЗАКРЫТО · {0}	TERKUNCI · {0}	ĐÃ KHÓA · {0}
+yukseltme.insa_edildi	İnşa edildi	Built	Gebaut	Construit	Construido	Construído	Costruito	Zbudowane	Построено	Dibangun	Đã xây
+yukseltme.seviye	Sv {0}	Lv {0}	St {0}	Niv {0}	Niv {0}	Nív {0}	Liv {0}	Poz {0}	Ур {0}	Lv {0}	Cấp {0}
+yukseltme.tek_seferlik	Tek seferlik	One-time	Einmalig	Une seule fois	Una sola vez	Uma vez	Una tantum	Jednorazowo	Один раз	Sekali saja	Một lần
+# magaza
+magaza.altin_paketleri	ALTIN PAKETLERİ	GOLD PACKS	GOLD-PAKETE	PACKS D'OR	PAQUETES DE ORO	PACOTES DE OURO	PACCHETTI D'ORO	PAKIETY ZŁOTA	НАБОРЫ ЗОЛОТА	PAKET EMAS	GÓI VÀNG
+magaza.elmas_paketleri	ELMAS PAKETLERİ	GEM PACKS	DIAMANT-PAKETE	PACKS DE GEMMES	PAQUETES DE GEMAS	PACOTES DE GEMAS	PACCHETTI DI GEMME	PAKIETY KLEJNOTÓW	НАБОРЫ АЛМАЗОВ	PAKET PERMATA	GÓI KIM CƯƠNG
+magaza.elmas_ile_al	ELMAS İLE AL	BUY WITH GEMS	MIT DIAMANTEN KAUFEN	ACHETER AVEC DES GEMMES	COMPRAR CON GEMAS	COMPRAR COM GEMAS	ACQUISTA CON GEMME	KUP ZA KLEJNOTY	КУПИТЬ ЗА АЛМАЗЫ	BELI DENGAN PERMATA	MUA BẰNG KIM CƯƠNG
+magaza.baslangic.baslik	BAŞLANGIÇ	STARTER	STARTER	STARTER	INICIAL	INICIAL	STARTER	STARTER	СТАРТОВЫЙ	PEMULA	KHỞI ĐẦU
+magaza.baslangic.o1	2× GELİR	2× INCOME	2× EINKOMMEN	2× REVENU	2× INGRESOS	2× RENDA	2× ENTRATE	2× DOCHÓD	2× ДОХОД	2× PENGHASILAN	2× THU NHẬP
+magaza.baslangic.o2	4 GÜN	4 DAYS	4 TAGE	4 JOURS	4 DÍAS	4 DIAS	4 GIORNI	4 DNI	4 ДНЯ	4 HARI	4 NGÀY
+magaza.baslangic.a1	2× GELİR, SATIN ALIR ALMAZ 4 GÜN BOYUNCA.	2× INCOME FOR 4 DAYS, STARTING NOW.	2× EINKOMMEN FÜR 4 TAGE, AB SOFORT.	2× REVENU PENDANT 4 JOURS, DÈS MAINTENANT.	2× INGRESOS DURANTE 4 DÍAS, DESDE YA.	2× RENDA POR 4 DIAS, A PARTIR DE AGORA.	2× ENTRATE PER 4 GIORNI, DA SUBITO.	2× DOCHÓD PRZEZ 4 DNI, OD ZARAZ.	2× ДОХОД НА 4 ДНЯ, ПРЯМО СЕЙЧАС.	2× PENGHASILAN SELAMA 4 HARI, MULAI SEKARANG.	2× THU NHẬP TRONG 4 NGÀY, NGAY BÂY GIỜ.
+magaza.baslangic.a2	SÜRE DOLUNCA TEKLİF MAĞAZADAN KALKAR.	THE OFFER LEAVES THE STORE WHEN IT EXPIRES.	NACH ABLAUF VERSCHWINDET DAS ANGEBOT.	L'OFFRE DISPARAÎT À SON EXPIRATION.	LA OFERTA DESAPARECE AL CADUCAR.	A OFERTA SAI DA LOJA AO EXPIRAR.	L'OFFERTA SPARISCE ALLA SCADENZA.	PO WYGAŚNIĘCIU OFERTA ZNIKA ZE SKLEPU.	ПОСЛЕ ИСТЕЧЕНИЯ ПРЕДЛОЖЕНИЕ ПРОПАДЁТ.	PENAWARAN HILANG SAAT KEDALUWARSA.	ƯU ĐÃI BIẾN MẤT KHI HẾT HẠN.
+magaza.hazine.baslik	GÜNLÜK HAZİNE	DAILY TREASURE	TÄGLICHER SCHATZ	TRÉSOR QUOTIDIEN	TESORO DIARIO	TESOURO DIÁRIO	TESORO GIORNALIERO	DZIENNY SKARB	ЕЖЕДНЕВНОЕ СОКРОВИЩЕ	HARTA HARIAN	KHO BÁU HẰNG NGÀY
+magaza.hazine.o1	HER GÜN +25 ELMAS	+25 GEMS DAILY	+25 DIAMANTEN TÄGLICH	+25 GEMMES PAR JOUR	+25 GEMAS AL DÍA	+25 GEMAS POR DIA	+25 GEMME AL GIORNO	+25 KLEJNOTÓW DZIENNIE	+25 АЛМАЗОВ В ДЕНЬ	+25 PERMATA/HARI	+25 KIM CƯƠNG MỖI NGÀY
+magaza.hazine.o2	+1 BEDAVA HAK	+1 FREE CHARGE	+1 GRATIS-LADUNG	+1 CHARGE GRATUITE	+1 CARGA GRATIS	+1 CARGA GRÁTIS	+1 CARICA GRATIS	+1 DARMOWY ŁADUNEK	+1 БЕСПЛАТНАЯ ПОПЫТКА	+1 KESEMPATAN GRATIS	+1 LƯỢT MIỄN PHÍ
+magaza.hazine.o3	GÜNLÜK ÖDÜL ×2	DAILY REWARD ×2	TAGESBELOHNUNG ×2	RÉCOMPENSE DU JOUR ×2	RECOMPENSA DIARIA ×2	RECOMPENSA DIÁRIA ×2	PREMIO GIORNALIERO ×2	NAGRODA DZIENNA ×2	ЕЖЕДНЕВНАЯ НАГРАДА ×2	HADIAH HARIAN ×2	THƯỞNG HẰNG NGÀY ×2
+magaza.hazine.a1	HER GÜN +25 ELMAS VE GÜNLÜK ÖDÜLÜN İKİ KATI.	+25 GEMS EVERY DAY AND DOUBLE DAILY REWARDS.	+25 DIAMANTEN TÄGLICH UND DOPPELTE TAGESBELOHNUNG.	+25 GEMMES PAR JOUR ET RÉCOMPENSE DOUBLÉE.	+25 GEMAS AL DÍA Y RECOMPENSA DIARIA DOBLE.	+25 GEMAS POR DIA E RECOMPENSA DIÁRIA EM DOBRO.	+25 GEMME AL GIORNO E PREMIO GIORNALIERO DOPPIO.	+25 KLEJNOTÓW DZIENNIE I PODWÓJNA NAGRODA.	+25 АЛМАЗОВ КАЖДЫЙ ДЕНЬ И ДВОЙНАЯ НАГРАДА.	+25 PERMATA TIAP HARI DAN HADIAH HARIAN GANDA.	+25 KIM CƯƠNG MỖI NGÀY VÀ THƯỞNG GẤP ĐÔI.
+magaza.hazine.a2	TÜM AVANTAJLAR KALICI, TEK SEFERLİK ALINIR.	ALL PERKS ARE PERMANENT, BOUGHT ONCE.	ALLE VORTEILE DAUERHAFT, EINMALIGER KAUF.	TOUS LES AVANTAGES SONT PERMANENTS, ACHAT UNIQUE.	TODAS LAS VENTAJAS SON PERMANENTES, COMPRA ÚNICA.	TODOS OS BENEFÍCIOS SÃO PERMANENTES, COMPRA ÚNICA.	TUTTI I VANTAGGI SONO PERMANENTI, ACQUISTO UNICO.	WSZYSTKIE BONUSY SĄ STAŁE, JEDNORAZOWY ZAKUP.	ВСЕ БОНУСЫ НАВСЕГДА, ПОКУПКА ОДИН РАЗ.	SEMUA MANFAAT PERMANEN, SEKALI BELI.	MỌI ƯU ĐÃI VĨNH VIỄN, MUA MỘT LẦN.
+magaza.gece.baslik	GECE VARDİYASI	NIGHT SHIFT	NACHTSCHICHT	ÉQUIPE DE NUIT	TURNO NOCTURNO	TURNO DA NOITE	TURNO DI NOTTE	NOCNA ZMIANA	НОЧНАЯ СМЕНА	SIF MALAM	CA ĐÊM
+magaza.gece.o1	ÇEVRİMDIŞI 8 SAAT	8 HOURS OFFLINE	8 STUNDEN OFFLINE	8 HEURES HORS LIGNE	8 HORAS SIN CONEXIÓN	8 HORAS OFFLINE	8 ORE OFFLINE	8 GODZIN OFFLINE	8 ЧАСОВ ОФЛАЙН	8 JAM OFFLINE	8 GIỜ NGOẠI TUYẾN
+magaza.gece.o2	UYURKEN DE KAZAN	EARN WHILE YOU SLEEP	VERDIENEN IM SCHLAF	GAGNEZ EN DORMANT	GANA MIENTRAS DUERMES	GANHE ENQUANTO DORME	GUADAGNA MENTRE DORMI	ZARABIAJ WE ŚNIE	ЗАРАБАТЫВАЙ ВО СНЕ	HASILKAN SAAT TIDUR	KIẾM TIỀN KHI NGỦ
+magaza.gece.o3	VERİM %50 → %75	RATE 50% → 75%	RATE 50% → 75%	TAUX 50% → 75%	TASA 50% → 75%	TAXA 50% → 75%	TASSO 50% → 75%	TEMPO 50% → 75%	ДОХОД 50% → 75%	RASIO 50% → 75%	TỶ LỆ 50% → 75%
+magaza.gece.a1	ÇEVRİMDIŞI KAZANÇ KALICI OLARAK ARTAR.	OFFLINE EARNINGS GO UP PERMANENTLY.	OFFLINE-EINNAHMEN STEIGEN DAUERHAFT.	LES GAINS HORS LIGNE AUGMENTENT DÉFINITIVEMENT.	LAS GANANCIAS SIN CONEXIÓN SUBEN PARA SIEMPRE.	OS GANHOS OFFLINE AUMENTAM PARA SEMPRE.	I GUADAGNI OFFLINE AUMENTANO PER SEMPRE.	ZAROBKI OFFLINE ROSNĄ NA STAŁE.	ОФЛАЙН-ДОХОД РАСТЁТ НАВСЕГДА.	PENGHASILAN OFFLINE NAIK PERMANEN.	THU NHẬP NGOẠI TUYẾN TĂNG VĨNH VIỄN.
+magaza.gece.a2	ZORUNLU REKLAMLAR KALICI OLARAK KALKAR.	FORCED ADS ARE GONE FOR GOOD.	PFLICHTWERBUNG VERSCHWINDET DAUERHAFT.	LES PUBS FORCÉES DISPARAISSENT POUR DE BON.	LOS ANUNCIOS FORZADOS DESAPARECEN PARA SIEMPRE.	OS ANÚNCIOS OBRIGATÓRIOS SOMEM DE VEZ.	GLI ANNUNCI FORZATI SPARISCONO PER SEMPRE.	WYMUSZONE REKLAMY ZNIKAJĄ NA ZAWSZE.	ПРИНУДИТЕЛЬНАЯ РЕКЛАМА ИСЧЕЗНЕТ НАВСЕГДА.	IKLAN PAKSA HILANG SELAMANYA.	QUẢNG CÁO BẮT BUỘC BIẾN MẤT VĨNH VIỄN.
+magaza.patron.baslik	MADEN PATRONU	MINE BOSS	MINENBOSS	PATRON DE LA MINE	JEFE DE LA MINA	CHEFE DA MINA	CAPO MINIERA	SZEF KOPALNI	БОСС ШАХТЫ	BOS TAMBANG	ÔNG CHỦ MỎ
+magaza.patron.o1	2× İSTASYON HIZI	2× STATION SPEED	2× STATIONSTEMPO	2× VITESSE DE STATION	2× VELOCIDAD DE ESTACIÓN	2× VELOCIDADE DA ESTAÇÃO	2× VELOCITÀ STAZIONE	2× SZYBKOŚĆ STACJI	2× СКОРОСТЬ СТАНЦИЙ	2× KECEPATAN STASIUN	2× TỐC ĐỘ TRẠM
+magaza.patron.o2	SONSUZA KADAR	FOREVER	FÜR IMMER	POUR TOUJOURS	PARA SIEMPRE	PARA SEMPRE	PER SEMPRE	NA ZAWSZE	НАВСЕГДА	SELAMANYA	MÃI MÃI
+magaza.patron.a1	İSTASYON HIZI ARTIŞI KALICIDIR VE	THE STATION SPEED BOOST IS PERMANENT AND	DER TEMPO-BONUS IST DAUERHAFT UND	LE BONUS DE VITESSE EST PERMANENT ET	EL AUMENTO DE VELOCIDAD ES PERMANENTE Y	O AUMENTO DE VELOCIDADE É PERMANENTE E	IL BONUS VELOCITÀ È PERMANENTE E	BONUS SZYBKOŚCI JEST STAŁY I	БОНУС СКОРОСТИ ПОСТОЯННЫЙ И	PENINGKATAN KECEPATAN PERMANEN DAN	TĂNG TỐC ĐỘ LÀ VĨNH VIỄN VÀ
+magaza.patron.a2	TÜM ADALARDA GEÇERLİDİR.	APPLIES ON EVERY ISLAND.	GILT AUF JEDER INSEL.	S'APPLIQUE SUR TOUTES LES ÎLES.	SE APLICA EN TODAS LAS ISLAS.	VALE EM TODAS AS ILHAS.	VALE SU TUTTE LE ISOLE.	DZIAŁA NA KAŻDEJ WYSPIE.	ДЕЙСТВУЕТ НА ВСЕХ ОСТРОВАХ.	BERLAKU DI SEMUA PULAU.	ÁP DỤNG CHO MỌI ĐẢO.
+# istasyonlar
+istasyon.mine	MADEN	MINE	MINE	MINE	MINA	MINA	MINIERA	KOPALNIA	ШАХТА	TAMBANG	MỎ
+istasyon.train	TREN	TRAIN	ZUG	TRAIN	TREN	TREM	TRENO	POCIĄG	ПОЕЗД	KERETA	TÀU HỎA
+istasyon.storage	DEPO	STORAGE	LAGER	STOCKAGE	ALMACÉN	DEPÓSITO	DEPOSITO	MAGAZYN	СКЛАД	GUDANG	KHO
+istasyon.ore_trucks	CEVHER KAMYONLARI	ORE TRUCKS	ERZ-LKW	CAMIONS DE MINERAI	CAMIONES DE MINERAL	CAMINHÕES DE MINÉRIO	CAMION DA MINERALE	CIĘŻARÓWKI RUDY	РУДОВОЗЫ	TRUK BIJIH	XE CHỞ QUẶNG
+istasyon.smelter	İZABE	SMELTER	SCHMELZE	FONDERIE	FUNDICIÓN	FUNDIÇÃO	FONDERIA	HUTA	ПЛАВИЛЬНЯ	PELEBURAN	LÒ LUYỆN
+istasyon.cargo_trucks	YÜK KAMYONLARI	CARGO TRUCKS	FRACHT-LKW	CAMIONS DE FRET	CAMIONES DE CARGA	CAMINHÕES DE CARGA	CAMION DA CARICO	CIĘŻARÓWKI TOWAROWE	ГРУЗОВИКИ	TRUK KARGO	XE TẢI HÀNG
+istasyon.market	PAZAR	MARKET	MARKT	MARCHÉ	MERCADO	MERCADO	MERCATO	RYNEK	РЫНОК	PASAR	CHỢ
+istasyon.power_plant	ENERJİ SANTRALİ	POWER PLANT	KRAFTWERK	CENTRALE	CENTRAL ELÉCTRICA	USINA	CENTRALE	ELEKTROWNIA	ЭЛЕКТРОСТАНЦИЯ	PEMBANGKIT LISTRIK	NHÀ MÁY ĐIỆN
+# yukseltme eksenleri
+eksen.richness	ZENGİNLİK	Richness	Ergiebigkeit	Richesse	Riqueza	Riqueza	Ricchezza	Bogactwo	Богатство	Kekayaan	Độ giàu
+eksen.load_speed	YÜKLEME HIZI	Load Speed	Ladetempo	Vitesse de charge	Velocidad de carga	Velocidade de carga	Velocità di carico	Szybkość ładowania	Скорость погрузки	Kecepatan Muat	Tốc độ tải
+eksen.speed	HIZ	Speed	Tempo	Vitesse	Velocidad	Velocidade	Velocità	Szybkość	Скорость	Kecepatan	Tốc độ
+eksen.wagons	VAGON	Wagons	Waggons	Wagons	Vagones	Vagões	Vagoni	Wagony	Вагоны	Gerbong	Toa xe
+eksen.wagon_cargo	VAGON YÜKÜ	Wagon Cargo	Waggonladung	Charge par wagon	Carga por vagón	Carga do vagão	Carico vagone	Ładunek wagonu	Груз вагона	Muatan Gerbong	Tải toa xe
+eksen.capacity	KAPASİTE	Capacity	Kapazität	Capacité	Capacidad	Capacidade	Capacità	Pojemność	Вместимость	Kapasitas	Sức chứa
+eksen.transfer_speed	AKTARMA HIZI	Transfer Speed	Transfertempo	Vitesse de transfert	Velocidad de traspaso	Velocidade de transferência	Velocità di trasferimento	Szybkość transferu	Скорость передачи	Kecepatan Transfer	Tốc độ chuyển
+eksen.trucks	KAMYON	Trucks	LKW	Camions	Camiones	Caminhões	Camion	Ciężarówki	Грузовики	Truk	Xe tải
+eksen.smelt_speed	ERİTME HIZI	Smelt Speed	Schmelztempo	Vitesse de fonte	Velocidad de fundición	Velocidade de fundição	Velocità di fusione	Szybkość wytopu	Скорость плавки	Kecepatan Lebur	Tốc độ luyện
+eksen.bar_storage	KÜLÇE DEPOSU	Bar Storage	Barrenlager	Stock de lingots	Almacén de lingotes	Depósito de barras	Deposito lingotti	Magazyn sztab	Склад слитков	Gudang Batangan	Kho thỏi
+eksen.price	FİYAT	Price	Preis	Prix	Precio	Preço	Prezzo	Cena	Цена	Harga	Giá
+eksen.sell_speed	SATIŞ HIZI	Sell Speed	Verkaufstempo	Vitesse de vente	Velocidad de venta	Velocidade de venda	Velocità di vendita	Szybkość sprzedaży	Скорость продажи	Kecepatan Jual	Tốc độ bán
+eksen.generators	JENERATÖR	Generators	Generatoren	Générateurs	Generadores	Geradores	Generatori	Generatory	Генераторы	Generator	Máy phát
+eksen.turbines	TÜRBİN	Turbines	Turbinen	Turbines	Turbinas	Turbinas	Turbine	Turbiny	Турбины	Turbin	Tua-bin
+# adalar
+ada.coal	KÖMÜR ADASI	COAL ISLAND	KOHLEINSEL	ÎLE DU CHARBON	ISLA DEL CARBÓN	ILHA DO CARVÃO	ISOLA DEL CARBONE	WYSPA WĘGLA	УГОЛЬНЫЙ ОСТРОВ	PULAU BATU BARA	ĐẢO THAN
+ada.copper	BAKIR ADASI	COPPER ISLAND	KUPFERINSEL	ÎLE DU CUIVRE	ISLA DEL COBRE	ILHA DO COBRE	ISOLA DEL RAME	WYSPA MIEDZI	МЕДНЫЙ ОСТРОВ	PULAU TEMBAGA	ĐẢO ĐỒNG
+ada.iron	DEMİR ADASI	IRON ISLAND	EISENINSEL	ÎLE DU FER	ISLA DEL HIERRO	ILHA DO FERRO	ISOLA DEL FERRO	WYSPA ŻELAZA	ЖЕЛЕЗНЫЙ ОСТРОВ	PULAU BESI	ĐẢO SẮT
+ada.silver	GÜMÜŞ ADASI	SILVER ISLAND	SILBERINSEL	ÎLE DE L'ARGENT	ISLA DE PLATA	ILHA DA PRATA	ISOLA D'ARGENTO	WYSPA SREBRA	СЕРЕБРЯНЫЙ ОСТРОВ	PULAU PERAK	ĐẢO BẠC
+ada.gold	ALTIN ADASI	GOLD ISLAND	GOLDINSEL	ÎLE DE L'OR	ISLA DEL ORO	ILHA DO OURO	ISOLA DELL'ORO	WYSPA ZŁOTA	ЗОЛОТОЙ ОСТРОВ	PULAU EMAS	ĐẢO VÀNG
+ada.ruby	YAKUT ADASI	RUBY ISLAND	RUBININSEL	ÎLE DU RUBIS	ISLA DEL RUBÍ	ILHA DO RUBI	ISOLA DEL RUBINO	WYSPA RUBINU	РУБИНОВЫЙ ОСТРОВ	PULAU RUBI	ĐẢO HỒNG NGỌC
+ada.emerald	ZÜMRÜT ADASI	EMERALD ISLAND	SMARAGDINSEL	ÎLE DE L'ÉMERAUDE	ISLA DE ESMERALDA	ILHA DA ESMERALDA	ISOLA DELLO SMERALDO	WYSPA SZMARAGDU	ИЗУМРУДНЫЙ ОСТРОВ	PULAU ZAMRUD	ĐẢO NGỌC LỤC BẢO
+ada.diamond	ELMAS ADASI	DIAMOND ISLAND	DIAMANTINSEL	ÎLE DU DIAMANT	ISLA DEL DIAMANTE	ILHA DO DIAMANTE	ISOLA DEL DIAMANTE	WYSPA DIAMENTU	АЛМАЗНЫЙ ОСТРОВ	PULAU BERLIAN	ĐẢO KIM CƯƠNG
+# genisletmeler -- sira CoalOperation.UnlockList ile ayni, sabitlerle sabitlenmis
+kilit.0	İKİNCİ MADEN + HAT	SECOND MINE + RAIL LINE	ZWEITE MINE + BAHNLINIE	2E MINE + VOIE FERRÉE	SEGUNDA MINA + VÍA	SEGUNDA MINA + FERROVIA	SECONDA MINIERA + BINARIO	DRUGA KOPALNIA + TOR	ВТОРАЯ ШАХТА + ПУТЬ	TAMBANG KEDUA + REL	MỎ THỨ HAI + ĐƯỜNG RAY
+kilit.1	İKİNCİ İZABE	SECOND SMELTER	ZWEITE SCHMELZE	2E FONDERIE	SEGUNDA FUNDICIÓN	SEGUNDA FUNDIÇÃO	SECONDA FONDERIA	DRUGA HUTA	ВТОРАЯ ПЛАВИЛЬНЯ	PELEBURAN KEDUA	LÒ LUYỆN THỨ HAI
+kilit.1.not	2× eritme	2× smelt	2× Schmelzen	2× fonte	2× fundición	2× fundição	2× fusione	2× wytop	2× плавка	2× lebur	2× luyện
+kilit.2	TİCARET NOKTASI	TRADE POST	HANDELSPOSTEN	COMPTOIR	PUESTO COMERCIAL	POSTO COMERCIAL	AVAMPOSTO COMMERCIALE	PUNKT HANDLOWY	ТОРГОВЫЙ ПОСТ	POS DAGANG	TRẠM GIAO THƯƠNG
+kilit.2.not	+%50 fiyat	+50% price	+50% Preis	+50% prix	+50% precio	+50% preço	+50% prezzo	+50% ceny	+50% цена	+50% harga	+50% giá
+kilit.3	ÜÇÜNCÜ MADEN + HAT	THIRD MINE + RAIL LINE	DRITTE MINE + BAHNLINIE	3E MINE + VOIE FERRÉE	TERCERA MINA + VÍA	TERCEIRA MINA + FERROVIA	TERZA MINIERA + BINARIO	TRZECIA KOPALNIA + TOR	ТРЕТЬЯ ШАХТА + ПУТЬ	TAMBANG KETIGA + REL	MỎ THỨ BA + ĐƯỜNG RAY
+kilit.4	ANTREPO	WAREHOUSE	LAGERHAUS	ENTREPÔT	ALMACÉN	ARMAZÉM	MAGAZZINO	MAGAZYN	СКЛАД	GUDANG BESAR	NHÀ KHO
+kilit.4.not	2× depolama	2× storage	2× Lager	2× stockage	2× almacén	2× armazenamento	2× deposito	2× magazyn	2× хранение	2× penyimpanan	2× lưu trữ
+kilit.5	TREN DEPOSU	TRAIN DEPOT	BAHNDEPOT	DÉPÔT FERROVIAIRE	COCHERA DE TRENES	DEPÓSITO DE TRENS	DEPOSITO TRENI	ZAJEZDNIA	ДЕПО	DEPO KERETA	TRẠM TÀU
+kilit.5.not	+%25 tren hızı	+25% train speed	+25% Zugtempo	+25% vitesse du train	+25% velocidad del tren	+25% velocidade do trem	+25% velocità treno	+25% szybkość pociągu	+25% скорость поезда	+25% kecepatan kereta	+25% tốc độ tàu
+kilit.6	İHRACAT RIHTIMI	EXPORT DOCK	EXPORTHAFEN	QUAI D'EXPORT	MUELLE DE EXPORTACIÓN	DOCA DE EXPORTAÇÃO	MOLO D'ESPORTAZIONE	DOK EKSPORTOWY	ЭКСПОРТНЫЙ ДОК	DERMAGA EKSPOR	CẢNG XUẤT KHẨU
+kilit.6.not	+%25 ihracat fiyatı	+25% export price	+25% Exportpreis	+25% prix à l'export	+25% precio de exportación	+25% preço de exportação	+25% prezzo export	+25% cena eksportu	+25% цена экспорта	+25% harga ekspor	+25% giá xuất khẩu
+kilit.7	DÖRDÜNCÜ MADEN + HAT	FOURTH MINE + RAIL LINE	VIERTE MINE + BAHNLINIE	4E MINE + VOIE FERRÉE	CUARTA MINA + VÍA	QUARTA MINA + FERROVIA	QUARTA MINIERA + BINARIO	CZWARTA KOPALNIA + TOR	ЧЕТВЁРТАЯ ШАХТА + ПУТЬ	TAMBANG KEEMPAT + REL	MỎ THỨ TƯ + ĐƯỜNG RAY
+kilit.8	{0} SANTRALİ	{0} POWER PLANT	{0}-KRAFTWERK	CENTRALE DE {0}	CENTRAL DE {0}	USINA DE {0}	CENTRALE A {0}	ELEKTROWNIA NA {0}	ЭЛЕКТРОСТАНЦИЯ НА {0}	PEMBANGKIT {0}	NHÀ MÁY ĐIỆN {0}
+kilit.8.not	yeni yükseltmeler	new upgrades	neue Upgrades	nouvelles améliorations	nuevas mejoras	novas melhorias	nuovi potenziamenti	nowe ulepszenia	новые улучшения	peningkatan baru	nâng cấp mới
+kilit.9	DERİN KUYU	DEEP SHAFT	TIEFSCHACHT	PUITS PROFOND	POZO PROFUNDO	POÇO PROFUNDO	POZZO PROFONDO	GŁĘBOKI SZYB	ГЛУБОКАЯ ШАХТА	POROS DALAM	GIẾNG SÂU
+kilit.9.not	sefer başına +%30 cevher	+30% ore per trip	+30% Erz pro Fahrt	+30% minerai par trajet	+30% mineral por viaje	+30% minério por viagem	+30% minerale a viaggio	+30% rudy na kurs	+30% руды за рейс	+30% bijih per perjalanan	+30% quặng mỗi chuyến
+# cevher adlari -- santral adinda gecer
+cevher.coal	KÖMÜR	COAL	KOHLE	CHARBON	CARBÓN	CARVÃO	CARBONE	WĘGIEL	УГОЛЬ	BATU BARA	THAN
+cevher.copper	BAKIR	COPPER	KUPFER	CUIVRE	COBRE	COBRE	RAME	MIEDŹ	МЕДЬ	TEMBAGA	ĐỒNG
+cevher.iron	DEMİR	IRON	EISEN	FER	HIERRO	FERRO	FERRO	ŻELAZO	ЖЕЛЕЗО	BESI	SẮT
+cevher.silver	GÜMÜŞ	SILVER	SILBER	ARGENT	PLATA	PRATA	ARGENTO	SREBRO	СЕРЕБРО	PERAK	BẠC
+cevher.gold	ALTIN	GOLD	GOLD	OR	ORO	OURO	ORO	ZŁOTO	ЗОЛОТО	EMAS	VÀNG
+cevher.ruby	YAKUT	RUBY	RUBIN	RUBIS	RUBÍ	RUBI	RUBINO	RUBIN	РУБИН	RUBI	HỒNG NGỌC
+cevher.emerald	ZÜMRÜT	EMERALD	SMARAGD	ÉMERAUDE	ESMERALDA	ESMERALDA	SMERALDO	SZMARAGD	ИЗУМРУД	ZAMRUD	NGỌC LỤC BẢO
+cevher.diamond	ELMAS	DIAMOND	DIAMANT	DIAMANT	DIAMANTE	DIAMANTE	DIAMANTE	DIAMENT	АЛМАЗ	BERLIAN	KIM CƯƠNG
+# elmasla satilanlar -- anahtar sku
+magaza.gem_boost_2h	2 SAAT	2 HOURS	2 STUNDEN	2 HEURES	2 HORAS	2 HORAS	2 ORE	2 GODZINY	2 ЧАСА	2 JAM	2 GIỜ
+magaza.gem_boost_8h	8 SAAT	8 HOURS	8 STUNDEN	8 HEURES	8 HORAS	8 HORAS	8 ORE	8 GODZIN	8 ЧАСОВ	8 JAM	8 GIỜ
+magaza.gem_boost_24h	24 SAAT	24 HOURS	24 STUNDEN	24 HEURES	24 HORAS	24 HORAS	24 ORE	24 GODZINY	24 ЧАСА	24 JAM	24 GIỜ
+magaza.gem_cash_30m	30 DK	30 MIN	30 MIN	30 MIN	30 MIN	30 MIN	30 MIN	30 MIN	30 МИН	30 MNT	30 PHÚT
+magaza.gem_cash_2h	2 SAAT	2 HOURS	2 STUNDEN	2 HEURES	2 HORAS	2 HORAS	2 ORE	2 GODZINY	2 ЧАСА	2 JAM	2 GIỜ
+magaza.gem_cash_8h	8 SAAT	8 HOURS	8 STUNDEN	8 HEURES	8 HORAS	8 HORAS	8 ORE	8 GODZIN	8 ЧАСОВ	8 JAM	8 GIỜ
+magaza.gem_offline_2h	+2 SAAT	+2 HOURS	+2 STUNDEN	+2 HEURES	+2 HORAS	+2 HORAS	+2 ORE	+2 GODZINY	+2 ЧАСА	+2 JAM	+2 GIỜ
+magaza.gem_ad_charge	+1 HAK	+1 CHARGE	+1 LADUNG	+1 CHARGE	+1 CARGA	+1 CARGA	+1 CARICA	+1 ŁADUNEK	+1 ПОПЫТКА	+1 KESEMPATAN	+1 LƯỢT
+magaza.gem_investor	%50	50%	50%	50%	50%	50%	50%	50%	50%	50%	50%
+magaza.gem_offline_2h.aciklama	Oyun kapalıyken kazanç süresi uzar	Longer earning window while the game is closed	Längeres Verdienstfenster im geschlossenen Spiel	Fenêtre de gains plus longue hors jeu	Más tiempo de ganancias con el juego cerrado	Mais tempo de ganhos com o jogo fechado	Finestra di guadagno più lunga a gioco chiuso	Dłuższe zarabianie przy zamkniętej grze	Дольше заработок при закрытой игре	Waktu penghasilan lebih lama saat game ditutup	Kiếm tiền lâu hơn khi đóng game
+magaza.gem_ad_charge.aciklama	Her reklam yuvasına günde bir hak daha	One extra charge a day on every ad slot	Täglich eine Ladung mehr pro Werbeplatz	Une charge de plus par jour sur chaque emplacement	Una carga más al día en cada anuncio	Mais uma carga por dia em cada anúncio	Una carica in più al giorno per ogni annuncio	Jeden ładunek więcej dziennie w każdym slocie	На одну попытку в день больше	Satu kesempatan ekstra per hari di tiap slot	Thêm một lượt mỗi ngày cho mỗi ô
+magaza.gem_daily_x2.aciklama	Günlük ödüller kalıcı olarak iki katı	Daily rewards permanently doubled	Tagesbelohnungen dauerhaft verdoppelt	Récompenses quotidiennes doublées définitivement	Recompensas diarias dobladas para siempre	Recompensas diárias dobradas para sempre	Premi giornalieri raddoppiati per sempre	Nagrody dzienne trwale podwojone	Ежедневные награды навсегда удвоены	Hadiah harian digandakan permanen	Thưởng hằng ngày nhân đôi vĩnh viễn
+magaza.gem_investor.aciklama	Prestij kazancının yarısı, adaların kalır	Half the prestige gain, and you keep your islands	Halber Prestige-Gewinn, Inseln bleiben	Moitié du gain de prestige, vous gardez vos îles	Mitad de la ganancia de prestigio, conservas tus islas	Metade do ganho de prestígio, você mantém as ilhas	Metà del guadagno di prestigio, tieni le isole	Połowa zysku z prestiżu, zachowujesz wyspy	Половина престижа, острова остаются	Setengah hasil prestise, pulau tetap milikmu	Một nửa danh vọng, giữ nguyên đảo

@@ -1348,6 +1348,7 @@ GameObject:
   - component: {fileID: 7786715248422114234}
   - component: {fileID: 7899353616208564597}
   - component: {fileID: 8795848929777967492}
+  - component: {fileID: 3943497001261619909}
   m_Layer: 5
   m_Name: Baslik
   m_TagString: Untagged
@@ -1474,6 +1475,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &3943497001261619909
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1903132597105574720}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
+  key: gunluk.baslik
 --- !u!1 &1989842196745536768
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Data;
 using Game.Gameplay;
 using Game.Systems;
 using TMPro;
@@ -62,6 +63,7 @@ namespace Game.UI
             if (prestigeButton != null) prestigeButton.onClick.AddListener(OnConfirm);
 
             if (panelRoot != null) panelRoot.SetActive(false);
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
         public void Toggle()
@@ -91,7 +93,7 @@ namespace Game.UI
             BigDouble pending = _prestige.PendingInvestors();
             bool ready = _prestige.CanPrestige();
 
-            if (gainText != null) gainText.text = "+" + NumberFormatter.Format(pending) + " YATIRIMCI";
+            if (gainText != null) gainText.text = string.Format(Loc.T("prestij.yatirimci_kazanc"), NumberFormatter.Format(pending));
             if (multiplierNowText != null) multiplierNowText.text = Multiplier(_prestige.IncomeMultiplier);
             if (multiplierAfterText != null) multiplierAfterText.text = Multiplier(_prestige.MultiplierAfterPrestige());
 
@@ -104,8 +106,8 @@ namespace Game.UI
             }
             if (barNoteText != null)
                 barNoteText.text = ready
-                    ? "PRESTİJ HAZIR"
-                    : "PRESTİJ İÇİN $" + NumberFormatter.Format(new BigDouble(threshold - lifetime)) + " DAHA KAZAN";
+                    ? Loc.T("prestij.hazir")
+                    : string.Format(Loc.T("prestij.esik"), NumberFormatter.Format(new BigDouble(threshold - lifetime)));
 
             if (prestigeButton != null) prestigeButton.interactable = ready;
             if (prestigeButtonImage != null)
@@ -114,7 +116,7 @@ namespace Game.UI
                 // Disabled tint takılı kalabiliyor; doğru rengi anında bas.
                 prestigeButtonImage.CrossFadeColor(Color.white, 0f, true, true);
             }
-            if (ctaLabel != null) ctaLabel.text = ready ? "PRESTİJ YAP" : "HENÜZ DEĞİL";
+            if (ctaLabel != null) ctaLabel.text = Loc.T(ready ? "prestij.yap" : "prestij.henuz_degil");
         }
 
         /// <summary>
@@ -131,11 +133,17 @@ namespace Game.UI
             {
                 // Two taps: this throws away every upgrade the player has bought.
                 _armed = true;
-                if (ctaLabel != null) ctaLabel.text = "ONAYLAMAK İÇİN TEKRAR BAS";
+                if (ctaLabel != null) ctaLabel.text = Loc.T("prestij.onayla");
                 return;
             }
 
             _prestige.DoPrestige();
+
+            // Sahne yeniden yükleniyor ama ses sunucusu sahneler arası yaşıyor, o yüzden kesilmez.
+            var audio = ServiceLocator.Get<AudioService>();
+            if (audio != null) audio.Play(SoundId.PhaseUp);
+            var haptic = ServiceLocator.Get<HapticService>();
+            if (haptic != null) haptic.Heavy();
 
             // Retire the live operation before touching the save. Scene teardown fires CoalOperation's
             // OnDisable, which persists that island's measured rate — so clearing the rates and *then*

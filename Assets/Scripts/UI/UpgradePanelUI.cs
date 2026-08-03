@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Game.Core;
+using Game.Data;
 using Game.Gameplay;
 using Game.Systems;
 using TMPro;
@@ -82,7 +83,25 @@ namespace Game.UI
             BuildRows();
             if (panelRoot != null) panelRoot.SetActive(false);
             BuildDevButton();
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
+
+        /// <summary>
+        /// Sounds a purchase attempt and passes its result straight through, so a buy handler stays the
+        /// one line it was. A refused buy is the more important of the two: it is the only way the player
+        /// finds out the button did nothing.
+        /// </summary>
+        private bool Bought(bool ok)
+        {
+            if (_audio == null) _audio = ServiceLocator.Get<AudioService>();
+            if (_haptic == null) _haptic = ServiceLocator.Get<HapticService>();
+            if (_audio != null) _audio.Play(ok ? SoundId.Upgrade : SoundId.Denied);
+            if (ok && _haptic != null) _haptic.Medium();
+            return ok;
+        }
+
+        private AudioService _audio;
+        private HapticService _haptic;
 
         private void Update()
         {
@@ -117,19 +136,70 @@ namespace Game.UI
         private void OnDistrictPhaseChanged(string district, int phase)
         {
             Hide();
+
+            // Bu bileşen paneli kapalıyken de çalışır ve fazı dinleyen tek yer burasıdır, bu yüzden
+            // faz sesi buradan çalar: yükseltme hangi ekrandan alınırsa alınsın duyulur. Aynı karede
+            // birkaç bölge birden değişirse AudioLibrary'deki tekrar kapısı tek sese indirir.
+            //
+            // Ama açılışta değil. Ada önce faz 1'de kuruluyor, sonra kayıttaki seviyeler uygulanınca
+            // bulunduğu faza sıçrıyor; bu da bölge bölge PhaseChanged olarak rapor ediliyor. Oyuncu
+            // hiçbir şey yapmadan fanfar duyardı. Ölçüldü: sahne yüklendikten ~1 sn sonra oluyor.
+            if (Time.timeSinceLevelLoad < 3f) return;
+
+            if (_audio == null) _audio = ServiceLocator.Get<AudioService>();
+            if (_haptic == null) _haptic = ServiceLocator.Get<HapticService>();
+            if (_audio != null) _audio.Play(SoundId.PhaseUp);
+            if (_haptic != null) _haptic.Heavy();
         }
 
         private void OnEnable()
         {
             _phases = FindAnyObjectByType<Kayseri.Island.IslandPhaseController>();
             if (_phases != null) _phases.PhaseChanged += OnDistrictPhaseChanged;
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += Rebuild;
         }
 
         private void OnDisable()
         {
             if (_phases != null) _phases.PhaseChanged -= OnDistrictPhaseChanged;
             _phases = null;
+            if (_loc != null) _loc.Changed -= Rebuild;
         }
+
+        /// <summary>
+        /// Throws the list away and builds it again in the new language. Station headers, axis names and
+        /// expansion titles are written once at build time and never touched afterwards — rewriting them
+        /// in <see cref="Refresh"/> instead would allocate a string per row several times a second, for a
+        /// change the player makes about once.
+        /// </summary>
+        private void Rebuild()
+        {
+            // Ada adı satırlarla birlikte kurulmuyor — yalnızca SetOperation'da, yani ada değişince
+            // bir kez yazılıyor. Burada tazelenmezse panelin gerisi yeni dile geçer, başlık kurulduğu
+            // dilde kalır. _built kapısının önünde, çünkü liste hiç kurulmamışken de doğru olmalı.
+            if (_op != null && islandNameText != null) islandNameText.text = Loc.Id("ada", _op.IslandKey);
+
+            if (!_built || content == null) return;
+
+            // Destroy sona ertelendiği için önce ayır ve kapat: aksi halde eski satırlar bir kare boyunca
+            // yenilerinin yanında durur ve liste ikiye katlanmış görünür.
+            for (int i = content.childCount - 1; i >= 0; i--)
+            {
+                GameObject child = content.GetChild(i).gameObject;
+                if (child == headerTemplate || child == cardTemplate) continue;
+                child.SetActive(false);
+                child.transform.SetParent(null, false);
+                Destroy(child);
+            }
+            _rows.Clear();
+            _headers.Clear();
+            _built = false;
+            BuildRows();
+            Refresh();
+        }
+
+        private LocalizationService _loc;
 
         private Kayseri.Island.IslandPhaseController _phases;
 
@@ -184,7 +254,7 @@ namespace Game.UI
         {
             if (op == null) return;
             _op = op;
-            if (islandNameText != null) islandNameText.text = op.IslandDisplayName;
+            if (islandNameText != null) islandNameText.text = Loc.Id("ada", op.IslandKey);
             if (panelRoot != null && panelRoot.activeSelf) Refresh();
         }
 
@@ -231,34 +301,35 @@ namespace Game.UI
             for (int s = 0; s < _op.StationCount; s++)
             {
                 if (screen != null && screen.Handles(s)) { _headers.Add(null); continue; }
+                // İkon ham id'den seçiliyor (IconFor anahtar kelimeye bakar), başlık çevrilmiş halden.
                 string station = _op.StationName(s);
-                _headers.Add((RectTransform)AddHeader(station).transform);
+                _headers.Add((RectTransform)AddHeader(Loc.Id("istasyon", station)).transform);
                 for (int a = 0; a < _op.AxisCount(s); a++)
                 {
-                    Row row = AddCard(station, _op.AxisName(s, a));
+                    Row row = AddCard(station, Loc.Id("eksen", _op.AxisName(s, a)));
                     row.station = s; row.axis = a;
                     int cs = s, ca = a;
-                    row.buyBtn.onClick.AddListener(() => { if (_op != null && _op.TryUpgrade(cs, ca)) Refresh(); });
+                    row.buyBtn.onClick.AddListener(() => { if (Bought(_op != null && _op.TryUpgrade(cs, ca))) Refresh(); });
                 }
             }
 
             if (_op.UnlockCount > 0)
             {
-                AddHeader("GENİŞLETMELER");
+                AddHeader(Loc.T("yukseltme.genisletmeler"));
                 for (int u = 0; u < _op.UnlockCount; u++)
                 {
-                    // Unlock names carry their effect in brackets ("TRAIN DEPOT (+25% train speed)").
-                    // The whole string does not fit the title line and slides under the price button,
-                    // so the bracket goes to the level line — which for an unlock only said
-                    // "Tek seferlik" and had room to spare.
-                    string unlockName = _op.UnlockName(u);
-                    int paren = unlockName.IndexOf('(');
-                    string title = paren > 0 ? unlockName.Substring(0, paren).TrimEnd() : unlockName;
-                    Row row = AddCard(unlockName, title);
-                    row.note = paren > 0 ? unlockName.Substring(paren).Trim('(', ')', ' ') : null;
+                    // The unlock's title and its effect are two separate lines on the card, and the
+                    // table keeps them as two separate rows ("kilit.5" / "kilit.5.not") rather than one
+                    // string with a bracket in it — a translator should never have to preserve
+                    // punctuation for a parser. Keyed by index, which the UnlockXxx constants pin.
+                    // The power plant's name carries its island's ore, so it takes a {0}.
+                    string title = string.Format(Loc.T("kilit." + u), Loc.Id("cevher", _op.IslandKey));
+                    Row row = AddCard(_op.UnlockName(u), title);   // ikon yine ham addan
+                    string note = "kilit." + u + ".not";
+                    row.note = Loc.T(note) != note ? Loc.T(note) : null;
                     row.unlock = u;
                     int cu = u;
-                    row.buyBtn.onClick.AddListener(() => { if (_op != null && _op.TryUnlock(cu)) Refresh(); });
+                    row.buyBtn.onClick.AddListener(() => { if (Bought(_op != null && _op.TryUnlock(cu))) Refresh(); });
                 }
             }
         }
@@ -335,7 +406,9 @@ namespace Game.UI
             if (_op.AxisLocked(r.station, r.axis))
             {
                 SetState(r, false, false, true);
-                if (r.level != null) r.level.text = "KİLİTLİ — " + _op.PowerPlantName;
+                if (r.level != null)
+                    r.level.text = string.Format(Loc.T("yukseltme.kilitli_ile"),
+                        Loc.Id("istasyon", "POWER PLANT"));
                 return;
             }
             int lv = _op.AxisLevel(r.station, r.axis);
@@ -343,13 +416,13 @@ namespace Game.UI
             {
                 SetState(r, false, true, false);
                 if (r.badge != null && badgeMax != null) r.badge.sprite = badgeMax;
-                if (r.level != null) r.level.text = "Sv " + lv;
+                if (r.level != null) r.level.text = string.Format(Loc.T("yukseltme.seviye"), lv);
                 return;
             }
             BigDouble cost = _op.AxisCost(r.station, r.axis);
             bool afford = _wallet != null && _wallet.CanAfford(cost);
             SetState(r, true, false, false);
-            if (r.level != null) r.level.text = "Sv " + lv;
+            if (r.level != null) r.level.text = string.Format(Loc.T("yukseltme.seviye"), lv);
             if (r.price != null) r.price.text = "$" + NumberFormatter.Format(cost);
             if (r.buyImg != null) r.buyImg.sprite = afford ? priceGreen : priceGrey;
             if (r.buyBtn != null) r.buyBtn.interactable = afford;
@@ -361,13 +434,13 @@ namespace Game.UI
             {
                 SetState(r, false, true, false);
                 if (r.badge != null && badgeBuilt != null) r.badge.sprite = badgeBuilt;
-                if (r.level != null) r.level.text = "İnşa edildi";
+                if (r.level != null) r.level.text = Loc.T("yukseltme.insa_edildi");
                 return;
             }
             BigDouble cost = _op.UnlockCost(r.unlock);
             bool afford = _wallet != null && _wallet.CanAfford(cost);
             SetState(r, true, false, false);
-            if (r.level != null) r.level.text = string.IsNullOrEmpty(r.note) ? "Tek seferlik" : r.note;
+            if (r.level != null) r.level.text = string.IsNullOrEmpty(r.note) ? Loc.T("yukseltme.tek_seferlik") : r.note;
             if (r.price != null) r.price.text = "$" + NumberFormatter.Format(cost);
             if (r.buyImg != null) r.buyImg.sprite = afford ? priceGreen : priceGrey;
             if (r.buyBtn != null) r.buyBtn.interactable = afford;

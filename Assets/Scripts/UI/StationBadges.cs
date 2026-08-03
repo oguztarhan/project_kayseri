@@ -111,6 +111,9 @@ namespace Game.UI
             _cards = new Card[n];
             for (int s = 0; s < n; s++) _cards[s] = BuildCard((RectTransform)go.transform, s);
             CacheAnchors();
+
+            // Haritadaki çipler hep açık — sadece tıklama sesi, whoosh yok.
+            UiPanelSound.AttachButtonsOnly(go);
         }
 
         private Card BuildCard(RectTransform parent, int station)
@@ -338,11 +341,11 @@ namespace Game.UI
                 // Plain station name, not PowerPlantName: "COPPER POWER PLANT LOCKED" is half again as
                 // long as any other chip and wrapped onto a second line. Which island's ore it is is not
                 // in question while you are standing on it.
-                string name = _op.StationName(c.station);
+                string name = Loc.Id("istasyon", _op.StationName(c.station));
                 int total = _op.StationLevelTotal(c.station);
 
                 string title = _op.AxisLocked(c.station, 0)
-                    ? name + "  LOCKED"
+                    ? name + "  " + Loc.T("ortak.kilitli")
                     : name + "  " + total + "/" + _op.StationLevelCap(c.station);
 
                 // pop when the level ticks up — the purchase itself happens over in the upgrade panel,

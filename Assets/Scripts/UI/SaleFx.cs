@@ -1,5 +1,7 @@
 using Game.Core;
+using Game.Data;
 using Game.Gameplay;
+using Game.Systems;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -89,7 +91,15 @@ namespace Game.UI
             _op = null;
         }
 
-        private void OnSold(Vector3 where, double amount) { Cash(where, amount); }
+        private void OnSold(Vector3 where, double amount)
+        {
+            Cash(where, amount);
+            // Satış saniyede birkaç kez olabilir; sesin tekrar kapısı AudioLibrary'de.
+            if (_audio == null) _audio = ServiceLocator.Get<AudioService>();
+            if (_audio != null) _audio.Play(SoundId.Sale);
+        }
+
+        private AudioService _audio;
 
         private CoalOperation _op;
         private float _rebind;

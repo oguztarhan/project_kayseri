@@ -84,11 +84,18 @@ namespace Game.UI
         [SerializeField] private Image confirmBuyImage;
         [SerializeField] private Button confirmCancelButton;
 
-        [Header("Geçiş (karartma)")]
-        [Tooltip("Tam ekran siyah katman; ada değişimi tam karanlıkta olur, böylece kök takası görünmez.")]
+        [Header("Geçiş (yükleme perdesi)")]
+        [Tooltip("Tam ekran katman; ada değişimi perdenin arkasında olur, böylece kök takası görünmez.")]
         [SerializeField] private CanvasGroup fadeGroup;
+        [Tooltip("Açılış ekranlarının aynısı, ada sırasıyla: kömür, bakır, demir, gümüş, altın, yakut, " +
+                 "zümrüt, elmas. Boş bırakılan yuva o adada perdeyi düz siyah bırakır.")]
+        [SerializeField] private Sprite[] sailBackgrounds;
         [SerializeField] private float fadeOutSeconds = 0.25f;
+        [Tooltip("Perde düz siyahken bekleme — gösterecek bir şey yok, kısa olmalı.")]
         [SerializeField] private float fadeHoldSeconds = 0.1f;
+        [Tooltip("Perde ada görselini taşırken bekleme. Buna açılma süresi ekleniyor: 1,7 + 0,3 = " +
+                 "oyuncunun gittiği adayı gördüğü iki saniye.")]
+        [SerializeField] private float sailHoldSeconds = 1.7f;
         [SerializeField] private float fadeInSeconds = 0.3f;
 
         [Header("Animasyon")]
@@ -132,6 +139,8 @@ namespace Game.UI
         private StationBadges _badges;
         private HudJuice _juice;
 
+        private Image _curtain;
+
         private void Start()
         {
             _world = FindAnyObjectByType<WorldIslands>();
@@ -146,10 +155,14 @@ namespace Game.UI
             if (ctaButton != null) ctaButton.onClick.AddListener(OnCta);
 
             if (aura != null) _auraBase = aura.rectTransform.localScale;
+            // Perde zaten tam ekran bir Image taşıyor (siyah, sprite'sız). Ada görselini onun üstüne
+            // basıyoruz — ikinci bir katman kurmak, ikinci bir referans bağlamak demekti.
+            if (fadeGroup != null) _curtain = fadeGroup.GetComponent<Image>();
             BuildPips();
             CloseConfirm();
             if (fadeGroup != null) fadeGroup.gameObject.SetActive(false);
             if (panelRoot != null) panelRoot.SetActive(false);
+            UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
         /// <summary>Open/close the world map — called by the HUD's map button.</summary>
@@ -266,20 +279,22 @@ namespace Game.UI
 
             _backWant = Color.Lerp(owned ? ore : lockedTint, BackdropFloor, 0.72f);
 
-            if (nameText != null) nameText.text = _world.IslandName(i);
+            if (nameText != null) nameText.text = IslandName(i);
             double cap = _world.CapPerMin(i);
             if (statusText != null)
             {
                 if (owned)
                 {
                     double rate = _world.RatePerMin(i);
-                    string money = "$" + NumberFormatter.Format(new BigDouble(rate)) + "/dk";
-                    statusText.text = _world.IsMaxed(i) ? money + " · TAMAMLANDI"
-                                                        : money + " · kapasitenin %" + Percent(rate, cap);
+                    string money = string.Format(Loc.T("ortak.dakika_basina"),
+                                                 "$" + NumberFormatter.Format(new BigDouble(rate)));
+                    statusText.text = _world.IsMaxed(i) ? string.Format(Loc.T("harita.tamamlandi"), money)
+                                                        : string.Format(Loc.T("harita.oran"), money, Percent(rate, cap));
                 }
                 else
                 {
-                    statusText.text = "$" + NumberFormatter.Format(new BigDouble(cap)) + "/dk'ya kadar";
+                    statusText.text = string.Format(Loc.T("harita.tavana_kadar"),
+                                                    "$" + NumberFormatter.Format(new BigDouble(cap)));
                 }
             }
             if (barFillArea != null)
@@ -294,6 +309,17 @@ namespace Game.UI
             RefreshPips(i);
         }
 
+        /// <summary>
+        /// The island's name in the player's language. <see cref="WorldIslands"/> keeps a Turkish
+        /// display name next to the key, and that key is what the save file and the scene roots are
+        /// built on — so the name is translated here, at the point it is drawn, and the id stays put.
+        /// </summary>
+        private string IslandName(int i)
+        {
+            if (_world == null || i < 0 || i >= _world.Count) return string.Empty;
+            return Loc.Id("ada", _world.IslandKey(i));
+        }
+
         private void RefreshCta(bool owned, bool here, bool buyable, int next)
         {
             if (ctaButton == null) return;
@@ -303,24 +329,24 @@ namespace Game.UI
 
             if (here)
             {
-                label = "BURADASIN"; sub = ""; art = ctaIdle;
+                label = Loc.T("harita.buradasin"); sub = ""; art = ctaIdle;
             }
             else if (owned)
             {
-                label = "GİT"; sub = ""; art = ctaGo; afford = true;
+                label = Loc.T("ortak.git"); sub = ""; art = ctaGo; afford = true;
             }
             else if (buyable)
             {
                 var cost = new BigDouble(_world.UnlockCost(_shown));
                 afford = _wallet != null && _wallet.CanAfford(cost);
-                label = "SATIN AL";
+                label = Loc.T("ortak.satin_al");
                 sub = "$" + NumberFormatter.Format(cost);
                 art = afford ? ctaBuy : ctaIdle;
             }
             else
             {
-                label = "KİLİTLİ";
-                sub = "önce " + _world.IslandName(next < 0 ? _shown - 1 : next);
+                label = Loc.T("ortak.kilitli");
+                sub = string.Format(Loc.T("harita.once"), IslandName(next < 0 ? _shown - 1 : next));
                 art = ctaIdle;
             }
 
@@ -344,8 +370,8 @@ namespace Game.UI
             bool hasPrev = i > 0, hasNext = i < _world.Count - 1;
             if (prevButton != null) SetOn(prevButton.gameObject, hasPrev);
             if (nextButton != null) SetOn(nextButton.gameObject, hasNext);
-            if (prevLabel != null && hasPrev) prevLabel.text = _world.IslandName(i - 1);
-            if (nextLabel != null && hasNext) nextLabel.text = _world.IslandName(i + 1);
+            if (prevLabel != null && hasPrev) prevLabel.text = IslandName(i - 1);
+            if (nextLabel != null && hasNext) nextLabel.text = IslandName(i + 1);
         }
 
         private void RefreshPips(int i)
@@ -477,9 +503,10 @@ namespace Game.UI
         {
             if (confirmRoot == null) return;
             _pending = i;
-            if (confirmTitle != null) confirmTitle.text = _world.IslandName(i);
+            if (confirmTitle != null) confirmTitle.text = IslandName(i);
             if (confirmNote != null)
-                confirmNote.text = "$" + NumberFormatter.Format(new BigDouble(_world.CapPerMin(i))) + "/dk'ya kadar";
+                confirmNote.text = string.Format(Loc.T("harita.tavana_kadar"),
+                                                 "$" + NumberFormatter.Format(new BigDouble(_world.CapPerMin(i))));
 
             var cost = new BigDouble(_world.UnlockCost(i));
             bool afford = _wallet != null && _wallet.CanAfford(cost);
@@ -509,13 +536,16 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// Sail to an island behind a full black screen. The swap itself — island roots, operation,
-        /// camera framing, and the three HUD screens that hold a per-island reference — happens at
-        /// full darkness, which is the whole point of the fade: none of it is watchable mid-frame.
+        /// Sail to an island behind the destination's loading screen — the same splash the game boots
+        /// on, so arriving somewhere new is announced by the art of the place rather than by a black
+        /// gap. The swap itself — island roots, operation, camera framing, and the three HUD screens
+        /// that hold a per-island reference — happens behind it, which is the whole point of the
+        /// curtain: none of it is watchable mid-frame.
         /// </summary>
         private IEnumerator Travel(int i)
         {
             _sailing = true;
+            bool art = Curtain(i);
 
             if (fadeGroup != null)
             {
@@ -541,7 +571,10 @@ namespace Game.UI
             CloseConfirm();
             if (panelRoot != null) panelRoot.SetActive(false);
 
-            if (fadeHoldSeconds > 0f) yield return new WaitForSecondsRealtime(fadeHoldSeconds);
+            // Siyah perdenin beklemesi için sebep yok; ada görselini taşıyorsa oyuncunun onu görmesi
+            // için var.
+            float hold = art ? sailHoldSeconds : fadeHoldSeconds;
+            if (hold > 0f) yield return new WaitForSecondsRealtime(hold);
             if (fadeGroup != null)
             {
                 yield return Fade(1f, 0f, fadeInSeconds);
@@ -549,6 +582,20 @@ namespace Game.UI
                 fadeGroup.gameObject.SetActive(false);
             }
             _sailing = false;
+        }
+
+        /// <summary>
+        /// Paints the curtain with the island being sailed to and says whether it got any art. An island
+        /// with no splash wired falls back to the plain black curtain — the behaviour this screen had
+        /// before the art existed — rather than showing the previous destination's.
+        /// </summary>
+        private bool Curtain(int i)
+        {
+            if (_curtain == null) return false;
+            bool has = sailBackgrounds != null && i >= 0 && i < sailBackgrounds.Length && sailBackgrounds[i] != null;
+            _curtain.sprite = has ? sailBackgrounds[i] : null;
+            _curtain.color = has ? Color.white : Color.black;
+            return has;
         }
 
         private IEnumerator Fade(float from, float to, float seconds)

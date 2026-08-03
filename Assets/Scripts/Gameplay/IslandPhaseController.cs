@@ -268,6 +268,25 @@ namespace Kayseri.Island
         }
 
         /// <summary>
+        /// The district the island is showing right now, asked for by district name rather than by the
+        /// station that drives it — <see cref="IslandAmbience"/> follows a place ("Refinery", "Port"),
+        /// not an upgrade, and it does not know which phase is live. <see cref="Show"/> keeps exactly
+        /// one variant of each district enabled, so the live one is whichever answers. Null when no
+        /// phase builds that district at all.
+        /// </summary>
+        public Transform ActiveDistrict(string district)
+        {
+            if (_phaseRoots == null || string.IsNullOrEmpty(district)) return null;
+            for (int i = 0; i < _phaseRoots.Length; i++)
+            {
+                if (_phaseRoots[i] == null) continue;
+                Transform t = _phaseRoots[i].transform.Find(district);
+                if (t != null && t.gameObject.activeInHierarchy) return t;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// The same district, but taken from the PREFAB ASSET — what the station screen clones onto its
         /// turntable.
         ///
