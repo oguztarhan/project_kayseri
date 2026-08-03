@@ -11,9 +11,10 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The skinned upgrade panel (panel_yukseltme + kart_yukseltme from the Figma set): a modal
-    /// sheet with a scrollable list — one header per station, one card per upgrade axis, then the
-    /// ghost-building unlocks. Replaces CoalHud's code-built list entirely. Editor-authored: the
+    /// The expansions panel (panel_yukseltme + kart_yukseltme from the Figma set): a modal sheet with a
+    /// scrollable list of the one-time ghost-building unlocks, opened from the last tile on
+    /// <see cref="StationScreenUI"/>'s strip. It used to hold every station's levels too; those moved to
+    /// that screen, where the thing being bought is on a turntable while you buy it. Editor-authored: the
     /// hierarchy lives in the UI_YukseltmePanel prefab, rows are cloned from the inactive template
     /// cards inside the scroll content, and every reference below is wired in the Inspector — so
     /// panel size, card layout, icons and fonts are all tunable without touching code.
@@ -315,7 +316,9 @@ namespace Game.UI
 
             if (_op.UnlockCount > 0)
             {
-                AddHeader(Loc.T("yukseltme.genisletmeler"));
+                // Şeritte bir başlık yok: ekranın kendi şeridi zaten "GENİŞLETMELER" diyor ve bugün bu
+                // listede başka bir bölüm kalmadı. Bir istasyon ekrandan geri alınırsa buraya bir
+                // AddHeader satırı geri gelmeli, yoksa iki bölüm arasında ayrım kalmaz.
                 for (int u = 0; u < _op.UnlockCount; u++)
                 {
                     // The unlock's title and its effect are two separate lines on the card, and the

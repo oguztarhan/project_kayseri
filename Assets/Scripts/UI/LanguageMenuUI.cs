@@ -33,34 +33,47 @@ namespace Game.UI
             public Sprite Close;        // btn_kapat
             public Sprite Row;          // satir_ayar
             public Sprite Medallion;    // madalyon
-            public Sprite PipOn;        // pip_dolu
+            public Sprite PipOn;        // rozet_tamam — yaşayan dilin işareti
             public Sprite PipOff;       // pip_bos
             public TMP_FontAsset Font;  // boşken sahnedeki ilk TMP yazı tipi ödünç alınır
         }
 
-        // 1080×1920 referans düzlemi — ayarlar prefabıyla aynı ölçüler, panel oradan devralınmış gibi dursun
+        // Ölçüler UI_Ayarlar'dan birebir alındı: panelin genişliği, üst kenarı, satır yüksekliği,
+        // madalyon boyu, satırın soldan boşluğu. Bu ekran o pencerenin bir sonraki sayfası; iki parmak
+        // farklı bir satır yüksekliği, ekranın başka bir yerden gelmiş gibi durmasına yetiyordu.
         private const float PanelWidth = 976f;
-        // 1490: on bir satırın yedisi tam sığmasın, yedincisinden bir dilim görünsün — listenin devam
-        // ettiğini söyleyen tek şey o dilim.
-        private const float PanelHeight = 1490f;
-        private const float PanelOffsetY = -30f;
+        // Ayarlar penceresiyle birebir aynı yükseklik. Kısa bir panel denendi ve altından ayarların
+        // son satırı görünüyordu — karartma bir pencereyi silmeye yetmiyor, üstünü örtmek gerekiyor.
+        private const float PanelHeight = 1520f;
+        private const float PanelTop = -430f;       // ayarlar penceresinin üst kenarıyla aynı hizada
         private const float RibbonWidth = 980f;
         private const float RibbonHeight = 230f;
         private const float RibbonDrop = -33f;      // şerit merkezi panelin üst kenarının bu kadar altında
         private const float CloseSize = 140f;
-        private const float ViewportSide = 50f;
-        private const float ViewportTop = 186f;     // şeridin altı
-        private const float ViewportBottom = 50f;
-        private const float RowHeight = 170f;
-        private const float RowSpacing = 18f;
-        private const float MedallionSize = 140f;
-        private const float PipSize = 76f;
+        private const float CloseRight = -94f;      // ayarların kapatma tuşuyla aynı nokta
+        private const float CloseTop = -276f;
+        private const float ViewportSide = 60f;
+        private const float ViewportTop = 162f;     // ayarlardaki ilk satırın başladığı yer
+        private const float ViewportBottom = 60f;
+        // İki sütun × altı sıra = on iki yer, on bir dil; hepsi tek ekranda, kaydırma yok. Dolgu ızgarayı
+        // görüş alanının ortasına oturtuyor: 159 + 6×150 + 5×16 + 159 = 1298, görüş alanının tamamı.
+        private const float ListTopPad = 159f;
+        private const int Columns = 2;
+        // 2×420 + 16 = 856, yani görüş alanının tam genişliği
+        private const float CellWidth = 420f;
+        private const float CellHeight = 150f;
+        private const float CellSpacing = 16f;
+        private const float MedallionSize = 104f;
+        private const float PipSize = 44f;
         private const float CloseDelay = 0.22f;     // işaret yer değiştirsin, sonra kapansın
 
         private static readonly Color Ink = new Color32(0x2A, 0x3A, 0x5C, 0xFF);
         private static readonly Color Accent = new Color32(0xB9, 0x5E, 0x06, 0xFF);
         private static readonly Color LiveCard = new Color32(0xFF, 0xF3, 0xD6, 0xFF);
-        private static readonly Color Dim = new Color(0f, 0f, 0f, 0.72f);
+        // 0.72 dünyayı karartmaya yetiyordu ama arkadaki ayarlar penceresi kocaman ve beyaz: %28'i bile
+        // panelin altından ikinci bir pencere gibi görünüyordu. Bu ekran bir üst sayfanın yerine geçiyor,
+        // arkasında bir şey durmamalı.
+        private static readonly Color Dim = new Color(0f, 0f, 0f, 0.88f);
 
         private LocalizationService _loc;
         private Skin _skin;
@@ -104,7 +117,11 @@ namespace Game.UI
             // Ayrı bir Canvas değil: bu ekran ayarlar Canvas'ının içinde yaşıyor, son kardeş olduğu için
             // ayarlar penceresinin üstüne çiziliyor. İç içe Canvas olsaydı sortingOrder'ın iş görmesi için
             // overrideSorting gerekirdi ve bir batch daha bölünürdü.
-            _root = Full(transform, "UI_DilSecimi");
+            //
+            // Güvenli alanın içine kuruluyor, kökün altına değil: ayarlar penceresi orada duruyor ve
+            // çentikli bir telefonda ikisi aynı miktarda içeri kaymazsa panel bir kenara doğru kayar.
+            var safe = GetComponentInChildren<SafeArea>(true);
+            _root = Full(safe != null ? safe.transform : transform, "UI_DilSecimi");
 
             RectTransform dim = Full(_root, "Karartma");
             var dimArt = dim.gameObject.AddComponent<Image>();
@@ -116,16 +133,16 @@ namespace Game.UI
             var panelGO = new GameObject("Panel", typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(PanelOpenFx));
             var panel = (RectTransform)panelGO.transform;
             panel.SetParent(_root, false);
-            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(0.5f, 0.5f);
+            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(0.5f, 1f);
             panel.sizeDelta = new Vector2(PanelWidth, PanelHeight);
-            panel.anchoredPosition = new Vector2(0f, PanelOffsetY);
+            panel.anchoredPosition = new Vector2(0f, PanelTop);
             Art(panelGO.GetComponent<Image>(), _art ? _skin.Panel : UiSkin.Panel, _art ? Color.white : new Color(0.10f, 0.13f, 0.20f, 1f));
             // panele basmak paneli kapatmasın — karartmaya basmak kapatır
             panelGO.AddComponent<Button>().transition = Selectable.Transition.None;
 
             BuildList(panel);
             BuildRibbon(panel);
-            BuildClose(panel);
+            BuildClose();
 
             // Panel sesi kapalıyken takılır, yoksa kuruluşta bir açılış sesi çalar (UiPanelSound'un kuralı).
             _root.gameObject.SetActive(false);
@@ -150,14 +167,15 @@ namespace Game.UI
             // yeni bir RectTransform 100×100 gelir; yatayda gerili olduğu için o 100 genişliğe eklenir
             // ve satırlar görüş alanından taşar. Yüksekliği ContentSizeFitter sürüyor.
             _list.sizeDelta = Vector2.zero;
-            var vlg = _list.gameObject.AddComponent<VerticalLayoutGroup>();
-            vlg.spacing = RowSpacing;
-            vlg.childForceExpandHeight = false;
-            // true olmalı: kapalıyken grup satırın LayoutElement'ini değil ham rect yüksekliğini okur,
-            // o da yeni bir RectTransform'un varsayılan 100'ü olur ve satırlar madalyondan kısa kalır.
-            vlg.childControlHeight = true;
-            vlg.childForceExpandWidth = true;
-            vlg.childControlWidth = true;
+            // Izgara: diller yan yana, sonrakiler altına. Tek sütunlu tam genişlikte satırlarken on bir
+            // dil ekrana sığmıyordu; iki sütunda hepsi tek bakışta duruyor ve hiç kaydırmak gerekmiyor.
+            var grid = _list.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(CellWidth, CellHeight);
+            grid.spacing = new Vector2(CellSpacing, CellSpacing);
+            grid.padding = new RectOffset(0, 0, (int)ListTopPad, (int)ListTopPad);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = Columns;
+            grid.childAlignment = TextAnchor.UpperCenter;
             var fit = _list.gameObject.AddComponent<ContentSizeFitter>();
             fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
@@ -189,11 +207,11 @@ namespace Game.UI
             var go = new GameObject("Satir_" + code, typeof(RectTransform), typeof(Image), typeof(Button));
             var rt = (RectTransform)go.transform;
             rt.SetParent(_list, false);
-            var le = go.AddComponent<LayoutElement>();
-            le.minHeight = RowHeight;
-            le.preferredHeight = RowHeight;
             _rowArt[i] = go.GetComponent<Image>();
             Art(_rowArt[i], _art ? _skin.Row : UiSkin.ButtonGrey, Color.white);
+            // satir_ayar 560×400 ve dilimleri 60'ar; 150 yüksekliğe basılınca üst ve alt dilim üst üste
+            // biner, çarpan onları küçültüp kenarın yuvarlağını koruyor.
+            _rowArt[i].pixelsPerUnitMultiplier = 1.9f;
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = _rowArt[i];
 
@@ -202,24 +220,28 @@ namespace Game.UI
             mrt.SetParent(rt, false);
             mrt.anchorMin = mrt.anchorMax = new Vector2(0f, 0.5f);
             mrt.sizeDelta = new Vector2(MedallionSize, MedallionSize);
-            mrt.anchoredPosition = new Vector2(22f + MedallionSize * 0.5f, 0f);
+            mrt.anchoredPosition = new Vector2(14f + MedallionSize * 0.5f, 0f);
             Art(medal.GetComponent<Image>(), _art ? _skin.Medallion : UiSkin.Flat, _art ? Color.white : new Color(0.20f, 0.25f, 0.36f, 1f));
             medal.GetComponent<Image>().raycastTarget = false;
-            _rowCodeText[i] = Text(mrt, "Kod", code.ToUpperInvariant(), 46f, TextAlignmentOptions.Center, Vector2.zero, Vector2.one);
+            _rowCodeText[i] = Text(mrt, "Kod", code.ToUpperInvariant(), 36f, TextAlignmentOptions.Center, Vector2.zero, Vector2.one);
 
-            _rowNameText[i] = Text(rt, "Ad", caption, 54f, TextAlignmentOptions.Left,
+            _rowNameText[i] = Text(rt, "Ad", caption, 40f, TextAlignmentOptions.Left,
                                    new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
             var nrt = (RectTransform)_rowNameText[i].transform;
-            nrt.sizeDelta = new Vector2(560f, 110f);
+            nrt.sizeDelta = new Vector2(CellWidth - 128f - 60f, 74f);
             nrt.pivot = new Vector2(0f, 0.5f);
-            nrt.anchoredPosition = new Vector2(196f, 0f);
+            nrt.anchoredPosition = new Vector2(128f, 0f);
+            // "Português" ile "Polski" arasında iki kat fark var, kutu ise sabit
+            _rowNameText[i].enableAutoSizing = true;
+            _rowNameText[i].fontSizeMin = 26f;
+            _rowNameText[i].fontSizeMax = 40f;
 
             var pip = new GameObject("Isaret", typeof(RectTransform), typeof(Image));
             var prt = (RectTransform)pip.transform;
             prt.SetParent(rt, false);
             prt.anchorMin = prt.anchorMax = new Vector2(1f, 0.5f);
             prt.sizeDelta = new Vector2(PipSize, PipSize);
-            prt.anchoredPosition = new Vector2(-64f, 0f);
+            prt.anchoredPosition = new Vector2(-34f, 0f);
             _rowPip[i] = pip.GetComponent<Image>();
             _rowPip[i].raycastTarget = false;
 
@@ -246,14 +268,20 @@ namespace Game.UI
             trt.offsetMax = new Vector2(-160f, -10f);
         }
 
-        private void BuildClose(RectTransform panel)
+        /// <summary>
+        /// The close button, put exactly where the settings screen's own is rather than on the panel:
+        /// this game parks every X in the same corner of the screen, and landing on top of the one
+        /// underneath means two taps close two screens without the finger moving.
+        /// </summary>
+        private void BuildClose()
         {
             var go = new GameObject("BtnKapat", typeof(RectTransform), typeof(Image), typeof(Button));
             var rt = (RectTransform)go.transform;
-            rt.SetParent(panel, false);
+            rt.SetParent(_root, false);
             rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = new Vector2(CloseSize, CloseSize);
-            rt.anchoredPosition = new Vector2(-42f, 154f);
+            rt.anchoredPosition = new Vector2(CloseRight, CloseTop);
             var img = go.GetComponent<Image>();
             Art(img, _art ? _skin.Close : UiSkin.ButtonGrey, Color.white);
             var b = go.GetComponent<Button>();
@@ -302,8 +330,9 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// Scrolls the live language into view. With eleven rows and seven on screen, a player whose
-        /// language is Tiếng Việt would otherwise open the picker on a list that does not contain it.
+        /// Scrolls the live language into view. Eleven languages in two columns fit on one screen, so
+        /// this normally just parks at the top — it earns its keep the day a twelfth column is added to
+        /// the table and the grid grows past the panel.
         /// </summary>
         private void Reveal()
         {
@@ -318,7 +347,7 @@ namespace Game.UI
             float span = _list.rect.height - viewH;
             if (span <= 1f) { _scroll.verticalNormalizedPosition = 1f; return; }
 
-            float top = live * (RowHeight + RowSpacing) - (viewH - RowHeight) * 0.5f;
+            float top = ListTopPad + (live / Columns) * (CellHeight + CellSpacing) - (viewH - CellHeight) * 0.5f;
             _scroll.verticalNormalizedPosition = 1f - Mathf.Clamp01(top / span);
         }
 

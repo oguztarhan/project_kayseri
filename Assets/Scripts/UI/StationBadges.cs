@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Game.Core;
 using Game.Gameplay;
 using Game.Systems;
@@ -7,10 +8,12 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The upgrade handle floating over each building — "REFINERY 23/50". It is how the four
-    /// buildings are bought: tapping one opens <see cref="StationScreenUI"/> on that building, with
-    /// the model of it on a turntable. The power plant, which has a body but no screen of its own,
-    /// still opens the old panel at its rows.
+    /// The upgrade handle floating over a building — "REFINERY 23/50" — for any station that has a body
+    /// on the island and no page of its own on <see cref="StationScreenUI"/>. Tapping one opens the
+    /// upgrade panel at that station's rows.
+    ///
+    /// Every station has a page today, so nothing is built and the island is left clean; the HUD's
+    /// UPGRADES button is the single door. Take a station off the screen's list and its chip returns.
     ///
     /// The chip turns green the moment anything on that building is affordable. It carries no price
     /// because a station has two or three axes at different costs and naming one of them would be a
@@ -107,9 +110,17 @@ namespace Game.UI
             sc.referenceResolution = new Vector2(1080f, 1920f);
             sc.matchWidthOrHeight = 0.5f;
 
+            // A station whose own screen has a door on the HUD does not get a second one hanging over its
+            // roof: the chip and the strip would open the same page, and the chips were sitting on the
+            // buildings the player came to watch. Today the screen owns every station, so this builds
+            // nothing at all — hand a station back and its chip comes back with it.
+            _screen = FindAnyObjectByType<StationScreenUI>(FindObjectsInactive.Include);
             int n = _op != null ? _op.StationCount : 8;
-            _cards = new Card[n];
-            for (int s = 0; s < n; s++) _cards[s] = BuildCard((RectTransform)go.transform, s);
+            var built = new List<Card>(n);
+            for (int s = 0; s < n; s++)
+                if (_screen == null || !_screen.Handles(s))
+                    built.Add(BuildCard((RectTransform)go.transform, s));
+            _cards = built.ToArray();
             CacheAnchors();
 
             // Haritadaki çipler hep açık — sadece tıklama sesi, whoosh yok.
@@ -164,9 +175,9 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// Opens whatever owns this station: its own screen for the four buildings, the old panel
-        /// scrolled to its rows for anything else. Both are looked up rather than wired in the
-        /// Inspector, because the chips are built at runtime and each screen lives on its own root.
+        /// Opens whatever owns this station: its own page on the screen if it has one, the old panel
+        /// scrolled to its rows otherwise. Both are looked up rather than wired in the Inspector,
+        /// because the chips are built at runtime and each screen lives on its own root.
         /// </summary>
         private void OpenStation(int station)
         {

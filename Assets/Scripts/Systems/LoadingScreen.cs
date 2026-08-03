@@ -1,4 +1,5 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -33,6 +34,10 @@ namespace Game.Systems
                  "ile sürülüyor. Boşken çubuk hiç çizilmez, ekranın gerisi aynı çalışır.")]
         [SerializeField] private RectTransform barFill;
 
+        [Tooltip("Çubuğun altındaki tek kelime. Metni buradan yazılıyor çünkü dil servisi sahne " +
+                 "kurulurken değil, Begin çağrıldığında hazır oluyor.")]
+        [SerializeField] private TMP_Text barLabel;
+
         [Tooltip("Ekran en az bu kadar durur. Yükleme daha erken biterse bile göz görsün diye.")]
         [SerializeField, Min(0f)] private float minimumSeconds = 1.4f;
 
@@ -45,6 +50,7 @@ namespace Game.Systems
         public void Begin(string sceneName, SaveData data)
         {
             Paint(data);
+            if (barLabel != null) barLabel.text = Loc.T("ortak.yukleniyor");
             StartCoroutine(Run(sceneName));
         }
 

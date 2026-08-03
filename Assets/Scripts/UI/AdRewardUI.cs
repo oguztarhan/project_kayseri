@@ -12,9 +12,12 @@ namespace Game.UI
 {
     /// <summary>
     /// The free-rewards screen (GDD §10, Figma "ekran_reklam"): a short list of rewarded-ad slots, each
-    /// with a few charges a day and a cooldown between watches, plus the remove-ads upsell along the
-    /// bottom. Editor-authored — the hierarchy lives in the UI_Reklam prefab and every reference below is
-    /// wired in the Inspector, so rows can be added, reordered or retuned without touching code.
+    /// with a few charges a day and a cooldown between watches. Editor-authored — the hierarchy lives in
+    /// the UI_Reklam prefab and every reference below is wired in the Inspector, so rows can be added,
+    /// reordered or retuned without touching code.
+    ///
+    /// The remove-ads upsell used to sit along the bottom and is gone: a screen the player opened to be
+    /// given something should not end in a price tag. <see cref="PremiumStoreUI"/> still sells it.
     ///
     /// What each slot pays is deliberately a serialized field rather than a constant: these numbers are
     /// the economy's pressure valve and belong to whoever is balancing the game, not to this file.
@@ -66,14 +69,6 @@ namespace Game.UI
         [Header("Yuvalar")]
         [SerializeField] private List<Slot> slots = new List<Slot>();
 
-        [Header("Reklamsız şeridi")]
-        [SerializeField] private Button removeAdsButton;
-        [SerializeField] private TMP_Text removeAdsLabel;
-        [SerializeField] private TMP_Text removeAdsPrice;
-        [SerializeField] private string removeAdsSku = "noads";
-        [Tooltip("Editör testi: IAP stub'ı her satın almayı reddettiği için, bu açıkken satın alma bedava geçer. Cihaz sürümünde yok sayılır.")]
-        [SerializeField] private bool devFreeIAP;
-
         [Tooltip("Bekleme sayaçları akarken ekranın yenilenme aralığı (saniye).")]
         [SerializeField] private float refreshInterval = 0.25f;
 
@@ -81,7 +76,6 @@ namespace Game.UI
         private WalletService _wallet;
         private BoostService _boost;
         private IAdService _ad;
-        private IIAPService _iap;
         private SaveService _save;
         private SaveData _data;
         private WorldIslands _world;
@@ -94,7 +88,6 @@ namespace Game.UI
             _wallet = ServiceLocator.Get<WalletService>();
             _boost = ServiceLocator.Get<BoostService>();
             _ad = ServiceLocator.Get<IAdService>();
-            _iap = ServiceLocator.Get<IIAPService>();
             _save = ServiceLocator.Get<SaveService>();
             _data = ServiceLocator.Get<SaveData>();
             _world = FindAnyObjectByType<WorldIslands>();
@@ -107,7 +100,6 @@ namespace Game.UI
                 slot.watchButton.onClick.AddListener(() => Watch(captured));
             }
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
-            if (removeAdsButton != null) removeAdsButton.onClick.AddListener(BuyRemoveAds);
 
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
@@ -179,11 +171,6 @@ namespace Game.UI
                     slot.watchImage.CrossFadeColor(Color.white, 0f, true, true);
                 }
             }
-
-            bool owned = _free.AdsRemoved;
-            if (removeAdsButton != null) removeAdsButton.interactable = !owned;
-            if (removeAdsLabel != null) removeAdsLabel.text = Loc.T("reklam.reklamlari_kaldir");
-            if (removeAdsPrice != null) removeAdsPrice.text = Loc.T(owned ? "ortak.senin" : "ortak.satin_al");
         }
 
         /// <summary>
@@ -304,20 +291,6 @@ namespace Game.UI
                 if (_save != null && _data != null) _save.Save(_data);
                 Refresh();
             });
-        }
-
-        private void BuyRemoveAds()
-        {
-            if (_free == null || _free.AdsRemoved) return;
-            Action<bool> done = ok =>
-            {
-                if (!ok) return;
-                _free.AdsRemoved = true;
-                if (_save != null && _data != null) _save.Save(_data);
-                Refresh();
-            };
-            if (devFreeIAP && (Application.isEditor || Debug.isDebugBuild)) { done(true); return; }
-            if (_iap != null) _iap.Purchase(removeAdsSku, done);
         }
 
         /// <summary>Same fallback ladder the HUD and the daily screen use: whole empire if it exists.</summary>

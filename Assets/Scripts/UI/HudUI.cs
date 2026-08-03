@@ -55,7 +55,9 @@ namespace Game.UI
 
         [Header("Ekran bağlantıları (sahne nesneleri)")]
         [SerializeField] private PremiumStoreUI store;
-        [SerializeField] private UpgradePanelUI upgradePanel;
+        [Tooltip("Yükseltme ekranı. Tek seferlik genişletmeler oradaki şeridin son yuvasından açılır, " +
+                 "yani HUD'un eski uzun listeye bağlanacak bir işi kalmadı.")]
+        [SerializeField] private StationScreenUI stationScreen;
         [SerializeField] private IslandMapUI islandMap;
         [SerializeField] private SettingsUI settings;
         [SerializeField] private DailyRewardUI dailyScreen;
@@ -242,7 +244,7 @@ namespace Game.UI
 
         private void OnUpgrades()
         {
-            if (upgradePanel != null) upgradePanel.Toggle();
+            if (stationScreen != null) stationScreen.Open();
         }
 
         private void OnSettings()

@@ -12,16 +12,17 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The full-screen upgrade screen for one building — the mine, the depot, the refinery, the market.
+    /// The upgrade screen. Every station on the island has a page here, and the strip of icons above the
+    /// model is how you get between them.
     ///
-    /// The four buildings the player actually watches used to be bought the same way as a train wagon:
-    /// a row in one long list, behind a button in the corner. That made the map something to look at
-    /// rather than something to touch, and it hid the one thing the money is really buying — the
-    /// building growing. So those four came out of <see cref="UpgradePanelUI"/> entirely and got this
-    /// instead: tap the chip floating over a building, and the building itself fills the top of the
-    /// screen on a slowly swaying turntable while its upgrades slide up from the bottom like a keyboard.
-    /// Everything else — the fleets, the power plant, the one-time expansions — stays in the old panel,
-    /// which is still the complete list of what an island can become.
+    /// Upgrades used to be one long scrolling list behind a button in the corner, which hid the only
+    /// thing the money is really buying — the building growing. Here what is being bought fills the top
+    /// of the screen on a slowly swaying turntable while its levels slide up from the bottom like a
+    /// keyboard, and the strip says what else there is without having to go back anywhere. Only the
+    /// one-time expansions stayed behind in <see cref="UpgradePanelUI"/>: they buy ground rather than
+    /// levels, so they have no model and no phase bar. The last tile on the strip is the door to them.
+    ///
+    /// There is no close button. The screen covers the island, so the way out is to tap the island.
     ///
     /// Two moments are animated, and they are deliberately different sizes. A level is a punch: the
     /// model squashes, a ring goes out, the bar ticks up, half a second and you can buy the next one.
@@ -48,8 +49,9 @@ namespace Game.UI
 
         [Header("Ekran (UI_IstasyonEkrani prefabında bağlı)")]
         [SerializeField] private GameObject panelRoot;
+        [Tooltip("Arkadaki karartma. Üstündeki Button ekranı kapatır — bu ekranın kapatma tuşu yok, " +
+                 "boşluğa basmak çıkarır.")]
         [SerializeField] private Image dim;
-        [SerializeField] private Button closeButton;
         [SerializeField] private TMP_Text titleText;
         [SerializeField] private Image titleIcon;
 
@@ -57,6 +59,10 @@ namespace Game.UI
         [SerializeField] private StationPreviewStage stage;
         [SerializeField] private RawImage modelView;
         [SerializeField] private RectTransform stageFrame;
+        [Tooltip("Model sahnesinin ve faz çubuğunun kökleri. Genişletmeler sayfasında ikisi de kapanır " +
+                 "ve tepsi yukarı büyüyüp yerlerini alır — genişletmelerin ne modeli ne fazı var.")]
+        [SerializeField] private GameObject stageGroup;
+        [SerializeField] private GameObject phaseGroup;
 
         [Header("Faz göstergesi")]
         [SerializeField] private TMP_Text phaseText;
@@ -72,10 +78,27 @@ namespace Game.UI
         [Tooltip("Pasif şablon: yükseltme kartı (İkon/Ad/Seviye/BtnFiyat/Rozet).")]
         [SerializeField] private GameObject cardTemplate;
 
+        [Header("Yükseltme şeridi")]
+        [Tooltip("İkon yuvalarının dizildiği satır — yuvalar buraya klonlanır.")]
+        [SerializeField] private RectTransform stripContent;
+        [Tooltip("Pasif şablon: tek bir ikon yuvası (Ikon çocuğuyla).")]
+        [SerializeField] private GameObject stripTemplate;
+        [Tooltip("Seçili olmayan yuvanın rengi. Seçili olan beyaz ve bir tık büyük çizilir.")]
+        [SerializeField] private Color slotIdleTint = new Color(0.70f, 0.77f, 0.88f, 0.62f);
+        [Tooltip("Şeridin sonundaki genişletmeler yuvasının ikonu. Boş bırakılırsa o yuva hiç kurulmaz " +
+                 "ve tek seferlik satın alımlara ulaşacak bir kapı kalmaz.")]
+        [SerializeField] private Sprite expansionIcon;
+
+        [Header("Genişletmeler")]
+        [Tooltip("Tek seferlik satın alımların ikonları, kilit sırasıyla. Eksik bırakılan yuva ikonsuz kalır.")]
+        [SerializeField] private Sprite[] unlockIcons;
+
         [Header("Durum görselleri")]
         [SerializeField] private Sprite priceGreen;
         [SerializeField] private Sprite priceGrey;
         [SerializeField] private Sprite badgeMax;
+        [Tooltip("rozet_tamam — tek seferlik satın alım yapıldı.")]
+        [SerializeField] private Sprite badgeBuilt;
 
         [Header("Efekt")]
         [Tooltip("Satın alımda modelin tabanından yayılan halka.")]
@@ -94,13 +117,18 @@ namespace Game.UI
         private sealed class Row
         {
             public int axis;
-            public TMP_Text name, level, price;
+            public int unlock = -1;       // unlock row when >= 0, axis row otherwise
+            public TMP_Text name, level, price, badgeText;
             public Button buyBtn;
             public Image buyImg, badge;
-            public GameObject buyGO, badgeGO;
+            public GameObject buyGO, badgeGO, lockGO;
         }
 
         private readonly List<Row> _rows = new List<Row>();
+        private Image[] _slots;
+        private Image[] _slotIcons;
+        private ScrollRect _scroll;
+        private float _cardHeight = 236f;
         private WalletService _wallet;
         private CoalOperation _op;
         private Transform _model;
@@ -113,9 +141,14 @@ namespace Game.UI
 
         private void Awake()
         {
-            if (sheet != null) _sheetHome = sheet.anchoredPosition;
+            if (sheet != null) { _sheetHome = sheet.anchoredPosition; _scroll = sheet.GetComponent<ScrollRect>(); }
             if (dim != null) _dimAlpha = dim.color.a;
-            if (cardTemplate != null) cardTemplate.SetActive(false);
+            if (cardTemplate != null)
+            {
+                var le = cardTemplate.GetComponent<LayoutElement>();
+                if (le != null && le.preferredHeight > 0f) _cardHeight = le.preferredHeight;
+                cardTemplate.SetActive(false);
+            }
             HideFx();
         }
 
@@ -123,7 +156,12 @@ namespace Game.UI
         {
             _wallet = ServiceLocator.Get<WalletService>();
             BindEnabledOp();
-            if (closeButton != null) closeButton.onClick.AddListener(Hide);
+            if (dim != null)
+            {
+                var outside = dim.GetComponent<Button>();
+                if (outside != null) outside.onClick.AddListener(Hide);
+            }
+            BuildStrip();
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
@@ -162,10 +200,20 @@ namespace Game.UI
             return false;
         }
 
-        /// <summary>Opens the screen on one building. Called by that building's chip out on the map.</summary>
+        /// <summary>
+        /// Opens on whichever upgrade was looked at last — what the HUD's UPGRADES button does. The screen
+        /// is the whole upgrade list now, so it has to open somewhere, and the place the player left is a
+        /// better guess than any fixed one: buying is done in runs on one building.
+        /// </summary>
+        public void Open()
+        {
+            Open(_station != -1 ? _station : (stations.Count > 0 ? stations[0].station : 0));
+        }
+
+        /// <summary>Opens the screen on one upgrade.</summary>
         public void Open(int station)
         {
-            if (!Handles(station)) return;
+            if (station != ExpansionPage && !Handles(station)) return;
             if (_op == null) BindEnabledOp();
             if (_op == null || panelRoot == null) return;
 
@@ -173,10 +221,54 @@ namespace Game.UI
             _busy = false;
             _station = station;
             panelRoot.SetActive(true);
+            ApplyPage();
             BuildCards();
             MountModel();
             Refresh();
+            PaintStrip();
             StartCoroutine(OpenAnim());
+        }
+
+        /// <summary>
+        /// Switches to another upgrade without replaying the open — what a tap on the strip does. The tray
+        /// drops out from under the cursor and comes back, so a new set of cards reads as new rather than
+        /// as the same rows with different words on them.
+        /// </summary>
+        private void Select(int station)
+        {
+            if (_busy || station == _station) return;
+            if (station != ExpansionPage && !Handles(station)) return;
+            _station = station;
+            ApplyPage();
+            BuildCards();
+            MountModel();
+            Refresh();
+            PaintStrip();
+            StopAllCoroutines();
+            StartCoroutine(SwapAnim());
+        }
+
+        /// <summary>
+        /// Turns the screen into whichever of its two shapes the current page needs. The expansions have
+        /// no building and no phase, so both of those leave and the tray takes the room they were using —
+        /// the same sheet, further up, rather than a second screen on top of this one.
+        /// </summary>
+        private void ApplyPage()
+        {
+            bool expansions = _station == ExpansionPage;
+            if (stageGroup != null) stageGroup.SetActive(!expansions);
+            if (phaseGroup != null) phaseGroup.SetActive(!expansions);
+            if (sheet == null) return;
+
+            float height = SheetStationHeight;
+            if (expansions)
+            {
+                var area = sheet.parent as RectTransform;
+                if (area != null)
+                    height = Mathf.Max(SheetStationHeight, area.rect.height - ExpansionTop - SheetBottom);
+            }
+            sheet.sizeDelta = new Vector2(sheet.sizeDelta.x, height);
+            if (_scroll != null) _scroll.verticalNormalizedPosition = 1f;
         }
 
         public void Hide()
@@ -236,7 +328,8 @@ namespace Game.UI
         private int CurrentPhase()
         {
             var ph = Phases;
-            return ph != null ? ph.PhaseForStation(_op.StationName(_station)) : 1;
+            if (ph == null || _station < 0) return 1;
+            return ph.PhaseForStation(_op.StationName(_station));
         }
 
         /// <summary>
@@ -271,6 +364,7 @@ namespace Game.UI
             if (stage == null) return;
             stage.Clear();
             _model = null;
+            if (_station == ExpansionPage) { stage.Live = false; return; }
             stage.Zoom = 1f;
             stage.Live = true;
             if (modelView != null) modelView.texture = stage.Texture;
@@ -291,47 +385,162 @@ namespace Game.UI
             }
             _rows.Clear();
 
+            if (_station == ExpansionPage) BuildUnlockCards();
+            else BuildAxisCards();
+            CentreCards();
+        }
+
+        private void BuildAxisCards()
+        {
             for (int a = 0; a < _op.AxisCount(_station); a++)
             {
-                GameObject go = Instantiate(cardTemplate, sheetContent);
-                go.name = "Kart_" + _op.AxisName(_station, a);
-                go.SetActive(true);
-
-                var row = new Row { axis = a };
-                Transform t = go.transform.Find("Ikon");
-                if (t != null)
-                {
-                    Image img = t.GetComponent<Image>();
-                    if (img != null) img.sprite = IconFor(_station);
-                }
-                t = go.transform.Find("Ad");     if (t != null) row.name = t.GetComponent<TMP_Text>();
-                t = go.transform.Find("Seviye"); if (t != null) row.level = t.GetComponent<TMP_Text>();
-                t = go.transform.Find("BtnFiyat");
-                if (t != null)
-                {
-                    row.buyGO = t.gameObject;
-                    row.buyBtn = t.GetComponent<Button>();
-                    row.buyImg = t.GetComponent<Image>();
-                    Transform ft = t.Find("Fiyat");
-                    if (ft != null) row.price = ft.GetComponent<TMP_Text>();
-                }
-                t = go.transform.Find("Rozet");
-                if (t != null) { row.badgeGO = t.gameObject; row.badge = t.GetComponent<Image>(); }
-                t = go.transform.Find("Kilit");
-                if (t != null) t.gameObject.SetActive(false);   // nothing on these four is ever locked
-
+                Row row = AddCard("Kart_" + _op.AxisName(_station, a), IconFor(_station));
+                row.axis = a;
                 if (row.name != null) row.name.text = Loc.Id("eksen", _op.AxisName(_station, a));
                 if (row.buyBtn != null)
                 {
                     Row captured = row;
                     row.buyBtn.onClick.AddListener(() => Buy(captured));
                 }
-                _rows.Add(row);
+            }
+        }
+
+        /// <summary>
+        /// The one-time purchases, as cards in the same tray. They are not levels and they are not a
+        /// station, so they carry no phase and no model — what a player wants from this page is the list
+        /// and the prices, which is exactly what the tray already is.
+        /// </summary>
+        private void BuildUnlockCards()
+        {
+            for (int u = 0; u < _op.UnlockCount; u++)
+            {
+                Sprite icon = unlockIcons != null && u < unlockIcons.Length ? unlockIcons[u] : expansionIcon;
+                Row row = AddCard("Kart_" + _op.UnlockName(u), icon);
+                row.unlock = u;
+                // Başlık ve etkisi tabloda iki ayrı satır ("kilit.5" / "kilit.5.not"), tek bir dizede
+                // parantezle değil — bir çevirmen noktalama korumak zorunda kalmasın diye.
+                if (row.name != null)
+                    row.name.text = string.Format(Loc.T("kilit." + u), Loc.Id("cevher", _op.IslandKey));
+                if (row.buyBtn != null)
+                {
+                    Row captured = row;
+                    row.buyBtn.onClick.AddListener(() => Buy(captured));
+                }
+            }
+        }
+
+        private Row AddCard(string name, Sprite icon)
+        {
+            GameObject go = Instantiate(cardTemplate, sheetContent);
+            go.name = name;
+            go.SetActive(true);
+
+            var row = new Row();
+            Transform t = go.transform.Find("Ikon");
+            if (t != null)
+            {
+                Image img = t.GetComponent<Image>();
+                if (img != null) { img.sprite = icon; img.enabled = icon != null; }
+            }
+            t = go.transform.Find("Ad");     if (t != null) row.name = t.GetComponent<TMP_Text>();
+            t = go.transform.Find("Seviye"); if (t != null) row.level = t.GetComponent<TMP_Text>();
+            t = go.transform.Find("BtnFiyat");
+            if (t != null)
+            {
+                row.buyGO = t.gameObject;
+                row.buyBtn = t.GetComponent<Button>();
+                row.buyImg = t.GetComponent<Image>();
+                Transform ft = t.Find("Fiyat");
+                if (ft != null) row.price = ft.GetComponent<TMP_Text>();
+            }
+            t = go.transform.Find("Rozet");
+            if (t != null)
+            {
+                row.badgeGO = t.gameObject;
+                row.badge = t.GetComponent<Image>();
+                Transform bt = t.Find("Yazi");
+                if (bt != null) row.badgeText = bt.GetComponent<TMP_Text>();
+            }
+            t = go.transform.Find("Kilit");
+            if (t != null) { row.lockGO = t.gameObject; t.gameObject.SetActive(false); }
+            _rows.Add(row);
+            return row;
+        }
+
+        /// <summary>
+        /// Pushes a short list down so it sits in the middle of the tray instead of clinging to the top,
+        /// and leaves a long one alone so it can scroll. Padding rather than child alignment: the size
+        /// fitter measures the padding too, so the content still reports a height the scroll rect can use.
+        /// </summary>
+        private void CentreCards()
+        {
+            var group = sheetContent != null ? sheetContent.GetComponent<VerticalLayoutGroup>() : null;
+            RectTransform view = _scroll != null ? _scroll.viewport : null;
+            if (group == null || view == null || _rows.Count == 0) return;
+            float cards = _rows.Count * _cardHeight + (_rows.Count - 1) * group.spacing;
+            int pad = Mathf.Max(0, Mathf.RoundToInt((view.rect.height - cards) * 0.5f));
+            if (group.padding.top == pad) return;
+            group.padding.top = pad;
+            LayoutRebuilder.MarkLayoutForRebuild(sheetContent);
+        }
+
+        /// <summary>
+        /// The row of icons above the model — every upgrade on the island in one line, so the screen says
+        /// what else there is to buy without being opened again. Built once: the catalog is the same on
+        /// every island and the tiles carry no words, so neither travel nor a language change touches it.
+        /// </summary>
+        private void BuildStrip()
+        {
+            if (stripContent == null || stripTemplate == null) return;
+            stripTemplate.SetActive(false);
+
+            int n = stations.Count + (expansionIcon != null ? 1 : 0);
+            _slots = new Image[n];
+            _slotIcons = new Image[n];
+            for (int i = 0; i < n; i++)
+            {
+                bool expansion = i >= stations.Count;
+                GameObject go = Instantiate(stripTemplate, stripContent);
+                go.name = expansion ? "Yuva_Genisletmeler" : "Yuva_" + stations[i].station;
+                go.SetActive(true);
+
+                _slots[i] = go.GetComponent<Image>();
+                Transform t = go.transform.Find("Ikon");
+                if (t != null)
+                {
+                    _slotIcons[i] = t.GetComponent<Image>();
+                    if (_slotIcons[i] != null) _slotIcons[i].sprite = expansion ? expansionIcon : stations[i].icon;
+                }
+
+                var btn = go.GetComponent<Button>();
+                if (btn == null) continue;
+                int captured = expansion ? ExpansionPage : stations[i].station;
+                btn.onClick.AddListener(() => Select(captured));
+            }
+        }
+
+        /// <summary>Marks which tile the screen is showing. The live one is full colour and a little larger;
+        /// the rest sit back, so the strip reads as one selection rather than nine buttons.</summary>
+        private void PaintStrip()
+        {
+            if (_slots == null) return;
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                bool live = i < stations.Count
+                    ? stations[i].station == _station
+                    : _station == ExpansionPage;
+                if (_slots[i] != null)
+                {
+                    _slots[i].color = live ? Color.white : slotIdleTint;
+                    _slots[i].rectTransform.localScale = Vector3.one * (live ? SlotLiveScale : 1f);
+                }
+                if (_slotIcons[i] != null) _slotIcons[i].color = live ? Color.white : SlotIdleIcon;
             }
         }
 
         private Sprite IconFor(int station)
         {
+            if (station == ExpansionPage) return expansionIcon;
             for (int i = 0; i < stations.Count; i++)
                 if (stations[i] != null && stations[i].station == station) return stations[i].icon;
             return null;
@@ -339,6 +548,7 @@ namespace Game.UI
 
         private string TitleFor(int station)
         {
+            if (station == ExpansionPage) return Loc.T("yukseltme.genisletmeler");
             for (int i = 0; i < stations.Count; i++)
                 if (stations[i] != null && stations[i].station == station && !string.IsNullOrEmpty(stations[i].title))
                     return stations[i].title;
@@ -348,13 +558,19 @@ namespace Game.UI
         // ---------- refresh ----------
         private void Refresh()
         {
-            if (_op == null || _station < 0) return;
+            if (_op == null || _station == -1) return;
 
             if (titleText != null) titleText.text = TitleFor(_station);
             if (titleIcon != null)
             {
                 titleIcon.sprite = IconFor(_station);
                 titleIcon.enabled = titleIcon.sprite != null;
+            }
+
+            if (_station == ExpansionPage)
+            {
+                for (int i = 0; i < _rows.Count; i++) RefreshUnlock(_rows[i]);
+                return;
             }
 
             int phase = CurrentPhase();
@@ -388,20 +604,32 @@ namespace Game.UI
 
         private void RefreshRow(Row r)
         {
+            // The power plant's levels do not exist until its ghost building is bought. This used to
+            // fall through to the price branch, so the station showed live green buttons that TryUpgrade
+            // refused — the one station on the island where spending did nothing. The row now says which
+            // expansion opens it, and that expansion is two taps away on the strip.
+            if (_op.AxisLocked(_station, r.axis))
+            {
+                SetRow(r, false, false, true);
+                if (r.level != null)
+                    r.level.text = string.Format(Loc.T("yukseltme.kilitli_ile"),
+                                                 string.Format(Loc.T("kilit." + CoalOperation.UnlockPowerPlant),
+                                                               Loc.Id("cevher", _op.IslandKey)));
+                return;
+            }
+
             int lv = _op.AxisLevel(_station, r.axis);
             if (r.level != null) r.level.text = string.Format(Loc.T("yukseltme.seviye"), lv);
 
             if (_op.AxisMaxed(_station, r.axis))
             {
-                if (r.buyGO != null && r.buyGO.activeSelf) r.buyGO.SetActive(false);
-                if (r.badgeGO != null && !r.badgeGO.activeSelf) r.badgeGO.SetActive(true);
+                SetRow(r, false, true, false);
                 if (r.badge != null && badgeMax != null) r.badge.sprite = badgeMax;
+                if (r.badgeText != null) r.badgeText.text = "MAX";
                 return;
             }
 
-            if (r.buyGO != null && !r.buyGO.activeSelf) r.buyGO.SetActive(true);
-            if (r.badgeGO != null && r.badgeGO.activeSelf) r.badgeGO.SetActive(false);
-
+            SetRow(r, true, false, false);
             BigDouble cost = _op.AxisCost(_station, r.axis);
             bool afford = _wallet != null && _wallet.CanAfford(cost);
             if (r.price != null) r.price.text = "$" + NumberFormatter.Format(cost);
@@ -409,10 +637,53 @@ namespace Game.UI
             if (r.buyBtn != null) r.buyBtn.interactable = afford && !_busy;
         }
 
+        private void RefreshUnlock(Row r)
+        {
+            if (_op.IsUnlocked(r.unlock))
+            {
+                SetRow(r, false, true, false);
+                if (r.badge != null && badgeBuilt != null) r.badge.sprite = badgeBuilt;
+                // Yeşil tik zaten "bitti" diyor; üstüne MAX yazmak ikinci bir söz olurdu.
+                if (r.badgeText != null) r.badgeText.text = "";
+                if (r.level != null) r.level.text = Loc.T("yukseltme.insa_edildi");
+                return;
+            }
+
+            SetRow(r, true, false, false);
+            string note = "kilit." + r.unlock + ".not";
+            string line = Loc.T(note);
+            if (r.level != null) r.level.text = line != note ? line : Loc.T("yukseltme.tek_seferlik");
+
+            BigDouble cost = _op.UnlockCost(r.unlock);
+            bool afford = _wallet != null && _wallet.CanAfford(cost);
+            if (r.price != null) r.price.text = "$" + NumberFormatter.Format(cost);
+            if (r.buyImg != null) r.buyImg.sprite = afford ? priceGreen : priceGrey;
+            if (r.buyBtn != null) r.buyBtn.interactable = afford && !_busy;
+        }
+
+        private static void SetRow(Row r, bool buy, bool badge, bool locked)
+        {
+            if (r.buyGO != null && r.buyGO.activeSelf != buy) r.buyGO.SetActive(buy);
+            if (r.badgeGO != null && r.badgeGO.activeSelf != badge) r.badgeGO.SetActive(badge);
+            if (r.lockGO != null && r.lockGO.activeSelf != locked) r.lockGO.SetActive(locked);
+        }
+
         // ---------- buying ----------
         private void Buy(Row row)
         {
             if (_busy || _op == null) return;
+
+            if (row.unlock >= 0)
+            {
+                if (!_op.TryUnlock(row.unlock)) { Sound(SoundId.Denied); return; }
+                Sound(SoundId.Upgrade);
+                Bind();
+                if (_haptic != null) _haptic.Medium();
+                Refresh();
+                StartCoroutine(LevelPunch(row));
+                return;
+            }
+
             int before = CurrentPhase();
             if (!_op.TryUpgrade(_station, row.axis)) { Sound(SoundId.Denied); return; }
             Refresh();
@@ -502,7 +773,6 @@ namespace Game.UI
         {
             _busy = true;
             SetButtons(false);
-            if (closeButton != null) closeButton.interactable = false;
             // Sesi UpgradePanelUI çalıyor — PhaseChanged'i dinleyen ve hep açık olan tek yer orası.
             // Buradaki iş sadece elde hissedilen kısım.
             Bind();
@@ -614,8 +884,26 @@ namespace Game.UI
             // 6 · and back to shopping
             yield return SlideSheet(HiddenSheetY(), _sheetHome.y, SheetInSeconds);
             _busy = false;
-            if (closeButton != null) closeButton.interactable = true;
             Refresh();
+        }
+
+        /// <summary>The short version of the open, for a strip tap: no dim, no fade, just the tray landing
+        /// again under a model that has grown into place.</summary>
+        private IEnumerator SwapAnim()
+        {
+            float from = _sheetHome.y - SwapDrop;
+            float t = 0f;
+            while (t < SwapSeconds)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / SwapSeconds);
+                float ease = 1f - Mathf.Pow(1f - k, 3f);
+                if (sheet != null) sheet.anchoredPosition = new Vector2(_sheetHome.x, Mathf.Lerp(from, _sheetHome.y, ease));
+                if (_model != null) _model.localScale = Vector3.one * Mathf.Lerp(0.74f, 1f, ease);
+                yield return null;
+            }
+            if (sheet != null) sheet.anchoredPosition = _sheetHome;
+            if (_model != null) _model.localScale = Vector3.one;
         }
 
         private IEnumerator SlideSheet(float from, float to, float seconds)
@@ -665,6 +953,17 @@ namespace Game.UI
             c.a = a;
             g.color = c;
         }
+
+        /// <summary>The strip's last tile is not a station — it is the one-time expansions.</summary>
+        private const int ExpansionPage = -2;
+        private const float ExpansionTop = 410f;      // şeridin altı: tepsi genişletmelerde buraya kadar büyür
+        private const float SheetBottom = 26f;
+        private const float SheetStationHeight = 810f;
+
+        private static readonly Color SlotIdleIcon = new Color(1f, 1f, 1f, 0.72f);
+        private const float SlotLiveScale = 1.12f;
+        private const float SwapSeconds = 0.24f;
+        private const float SwapDrop = 110f;
 
         private const float OpenSeconds = 0.30f;
         private const float PunchSeconds = 0.45f;

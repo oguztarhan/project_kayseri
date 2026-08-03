@@ -86,6 +86,8 @@ namespace Game.UI
 
         public void Hide()
         {
+            // Dil ekranı bu pencerenin kardeşi, çocuğu değil — pencereyi kapatmak onu kapatmaz.
+            if (_languages != null) _languages.Hide();
             if (panelRoot != null) panelRoot.SetActive(false);
             // Ses tercihleri PlayerPrefs'te ve Unity onları normalde çıkışta yazar. Android'de uygulama
             // öldürülerek kapatılabildiği için, panel kapanırken diske indir.

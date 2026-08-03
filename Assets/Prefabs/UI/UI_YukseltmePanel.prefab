@@ -654,7 +654,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Y\xDCKSELTMELER"
+  m_text: "GEN\u0130\u015ELETMELER"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
   m_sharedMaterial: {fileID: 2520262441863566105, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
@@ -738,7 +738,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
-  key: yukseltme.baslik
+  key: yukseltme.genisletmeler
 --- !u!1 &3554912749743563912
 GameObject:
   m_ObjectHideFlags: 0
