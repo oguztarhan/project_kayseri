@@ -9,6 +9,8 @@ import layout
 import parts
 importlib.reload(layout)
 importlib.reload(parts)
+import grade
+importlib.reload(grade)
 L = layout
 P = parts
 
@@ -51,7 +53,11 @@ while placed < TARGET and tries < 30000:
     if g is None:
         continue
     z, nz_ = g
-    if nz_ < 0.80 or z < 0.15 or z > 42.0:
+    # Height ABOVE the graded surface. The plain z test used to double as the
+    # "don't plant on the yards" rule, because every pad was flat at z=0; once
+    # the districts sit at 4-18 it passes and pines sprout across the tarmac.
+    rel = z - grade.road_z(x, y)
+    if nz_ < 0.80 or rel < 0.15 or rel > 42.0:
         continue
     if L.sea_depth(x, y) > -7.0:            # keep off the beach
         continue
@@ -60,13 +66,14 @@ while placed < TARGET and tries < 30000:
         continue
     if abs(y) < 12.5 or abs(x) < 12.5:
         continue
-    dl, _ = L.dist_to_path(x, y, L.LOOP_C)
-    if dl < 10.0:
+    # Wide enough to clear the ring road AND its outer footway (9 units out,
+    # 1.8 half-width, kerb on top), so no pine ends up standing in the pavement.
+    if abs(hypot(x, y) - L.LOOP_R) < 12.5:
         continue
     dq, _ = L.dist_to_path(x, y, L.RAIL)
     if dq < 9.0:
         continue
-    dens = 0.10 + 0.44 * min(1.0, max(0.0, z / 16.0)) + \
+    dens = 0.10 + 0.44 * min(1.0, max(0.0, rel / 16.0)) + \
         0.36 * min(1.0, max(0.0, (hypot(x, y) - 125.0) / 110.0))
     if RNG.random() > dens:
         continue
@@ -85,12 +92,121 @@ while bplaced < 300 and tries < 8000:
     if g is None:
         continue
     z, nz_ = g
-    if nz_ < 0.72 or z < 0.8 or z > 30.0:
+    rel = z - grade.road_z(x, y)
+    if nz_ < 0.72 or rel < 0.8 or rel > 30.0:
         continue
     s = RNG.uniform(0.7, 1.6)
     dup(BUSHES[RNG.randrange(3)], (x, y, z - 0.2),
         (0, 0, RNG.uniform(0, 6.28)), (s, s, s), CF, "Bush")
     bplaced += 1
+
+# ------------------------------------------------------------ ground clutter
+# Pebbles, fallen branches and grass tufts, so the open ground has something on
+# it between the trees. All batched into one mesh per kind rather than scattered
+# as objects: this is a thousand pieces, and a thousand renderers on a phone is a
+# thousand draw calls for something the player reads as texture.
+def clutter_spot():
+    """A point on open, walkable grass - or None. Same exclusions the pines use,
+    plus the pavement ring, which they do not have to care about."""
+    x = RNG.uniform(-half, half)
+    y = RNG.uniform(-half, half)
+    g = ground_at(x, y)
+    if g is None:
+        return None
+    z, nz_ = g
+    rel = z - grade.road_z(x, y)
+    if nz_ < 0.86 or rel < 0.4 or rel > 34.0:
+        return None
+    if L.sea_depth(x, y) > -6.0:
+        return None
+    dr, _ = L.dist_to_path(x, y, L.RIVER)
+    if dr < L.RIVER_W * 0.8:
+        return None
+    if abs(x) < 11.0 or abs(y) < 11.0:
+        return None
+    if abs(hypot(x, y) - L.LOOP_R) < 11.0 or abs(hypot(x, y) - L.WALK_R) < 5.0:
+        return None
+    dq, _ = L.dist_to_path(x, y, L.RAIL)
+    if dq < 8.0:
+        return None
+    return x, y, z
+
+
+def clumps(count, tries_max, place):
+    """Scatter in clumps, not evenly. Ground litter gathers - and a clump reads
+    at a glance where the same pieces spread thinly read as nothing at all."""
+    n, tries = 0, 0
+    while n < count and tries < tries_max:
+        tries += 1
+        s = clutter_spot()
+        if s is None:
+            continue
+        place(s[0], s[1], s[2], n)
+        n += 1
+    return n
+
+
+pb = B()
+
+
+def _pebbles(x, y, z, k):
+    pb.use("rock" if k % 3 else "rock_dark")
+    for _i in range(RNG.randint(2, 5)):
+        r = RNG.uniform(0.30, 0.85)
+        dx, dy = RNG.uniform(-2.6, 2.6), RNG.uniform(-2.6, 2.6)
+        g = ground_at(x + dx, y + dy)
+        if g is None:
+            continue
+        pb.sphere(r, (x + dx, y + dy, g[0] + r * 0.20), 0,
+                  scale=(1.0, RNG.uniform(0.7, 1.25), RNG.uniform(0.45, 0.75)))
+
+
+npb = clumps(PK(180, 155, 130), 9000, _pebbles)
+pb.make("Ground.Pebbles", collection=CF)
+
+br = B().use("wood")
+
+
+def _branches(x, y, z, k):
+    for _i in range(RNG.randint(1, 2)):
+        dx, dy = RNG.uniform(-2.0, 2.0), RNG.uniform(-2.0, 2.0)
+        g = ground_at(x + dx, y + dy)
+        if g is None:
+            continue
+        bz = g[0]
+        ln = RNG.uniform(1.8, 4.0)
+        a = RNG.uniform(0, 6.28)
+        br.box((ln, 0.26, 0.24), (x + dx, y + dy, bz + 0.12), (0, 0, a))
+        if RNG.random() < 0.6:                   # a fork off the main stick
+            f = a + RNG.uniform(0.5, 1.1) * (1 if RNG.random() < 0.5 else -1)
+            br.box((ln * 0.42, 0.18, 0.17),
+                   (x + dx + cos(a) * ln * 0.28, y + dy + sin(a) * ln * 0.28, bz + 0.11),
+                   (0, 0, f))
+
+
+nbr = clumps(PK(150, 130, 110), 8000, _branches)
+br.make("Ground.Branches", collection=CF)
+
+tf = B()
+
+
+def _tufts(x, y, z, k):
+    tf.use("bush" if k % 4 else "pine_lt")
+    for _i in range(RNG.randint(4, 7)):
+        dx, dy = RNG.uniform(-2.2, 2.2), RNG.uniform(-2.2, 2.2)
+        g = ground_at(x + dx, y + dy)
+        if g is None:
+            continue
+        h = RNG.uniform(0.7, 1.5)
+        tf.conez(RNG.uniform(0.20, 0.32), 0.02, h, (x + dx, y + dy, g[0] - 0.05),
+                 (RNG.uniform(-0.3, 0.3), RNG.uniform(-0.3, 0.3), 0), 3)
+
+
+ntf = clumps(PK(230, 200, 170), 10000, _tufts)
+tf.make("Ground.Tufts", collection=CF)
+
+print("   clutter: %d pebble, %d branch, %d tuft clumps in 3 meshes"
+      % (npb, nbr, ntf))
 
 # -------------------------------------------------------------- power lines
 if PHASE >= 2:
@@ -154,7 +270,11 @@ if PHASE >= 2:
             if g is None:
                 continue
             z, nz_ = g
-            if nz_ < 0.9 or abs(z) > 3.0:
+            # Height above the GRADED surface, not absolute z. The flat "within
+            # 3 of zero" test only ever worked while the whole map sat at z=0;
+            # with the island now standing 4-18 high it rejected every lamp
+            # position on the built area and lit nothing but the coast road.
+            if nz_ < 0.9 or abs(z - grade.road_z(pos.x, pos.y)) > 3.0:
                 continue
             facing = yaw + (pi if (pos.x * -sin(yaw) + pos.y * cos(yaw)) > 0
                             else 0)

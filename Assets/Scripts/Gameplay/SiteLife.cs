@@ -57,7 +57,13 @@ namespace Game.Gameplay
 
                 // Spread the crew over the legs between patrol points, and stagger where each one starts
                 // so they never line up into a marching column.
-                int leg = i % (patrol.Length - 1);
+                //
+                // Spread, not wrapped: with a long path (the authored pavement is 50 points) `i % legs`
+                // put the whole crew on the first few legs, all bunched in one corner. Walking short
+                // consecutive legs also keeps them ON the pavement - stretching 8 legs around a rounded
+                // circuit made each one a chord that cut the corners by up to 2.6m.
+                int leg = _walkers.Length <= 1 ? 0
+                        : (i * (patrol.Length - 1)) / _walkers.Length;
                 var w = new Walker
                 {
                     t = go.transform,
@@ -122,8 +128,10 @@ namespace Game.Gameplay
                 else if (w.u <= 0f) { w.u = 0f; w.dir = 1f; w.wait = 0.6f + (i % 4) * 0.35f; }
 
                 Vector3 p = Vector3.Lerp(w.a, w.b, w.u);
-                // A small vertical bob sells "walking" without needing a rigged animation on the model.
-                p.y = _deckY + Mathf.Abs(Mathf.Sin(Time.time * 6f + w.bob)) * 0.16f;
+                // Height comes from the leg being walked, not from one island-wide deck value:
+                // the pavement climbs with the ground now, and _deckY is a single sample of one
+                // building's pivot. A small vertical bob on top sells "walking" without a rig.
+                p.y += Mathf.Abs(Mathf.Sin(Time.time * 6f + w.bob)) * 0.16f;
                 w.t.position = p;
 
                 Vector3 face = (w.b - w.a) * w.dir;

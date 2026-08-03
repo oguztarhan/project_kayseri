@@ -5,6 +5,8 @@ import layout
 import parts
 importlib.reload(layout)
 importlib.reload(parts)
+import grade
+importlib.reload(grade)
 L = layout
 P = parts
 
@@ -149,5 +151,10 @@ for i, (lx, ly) in enumerate((((CX - 32, CY - 16), (CX + 8, CY - 16),
 if PHASE >= 2:
     P.fence_run([(CX - 35, CY + 32, 0.3), (CX - 35, CY - 33, 0.3),
                  (CX + 35, CY - 33, 0.3)], "Market.Fence", C, 2.0)
+
+
+# Built in local terms against a flat z=0, then moved onto the graded
+# pad in one go - see lib.lift_collection.
+lift_collection("Market", grade.pad_z(CX, CY))
 
 print("market ok", stats(), "phase", PHASE)

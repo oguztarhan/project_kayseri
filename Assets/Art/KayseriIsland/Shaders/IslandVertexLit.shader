@@ -19,6 +19,18 @@ Shader "Kayseri/IslandVertexLit"
         // island is drawn in, without touching any of the 63 authored colours.
         _Saturation("Saturation", Range(0,3)) = 1.70
         _Vibrance("Brightness", Range(0.5,2)) = 1.02
+
+        // Toon lighting. Steps is how many bands the light breaks into; smoothness
+        // eases their edges back toward smooth shading. Shadow tint is what the
+        // unlit side becomes - a cool blue reads far more "stylised" than grey.
+        [Header(Toon)]
+        _ToonSteps("Light Bands", Range(1,8)) = 3
+        _ToonSmoothness("Band Softness", Range(0,1)) = 0.10
+        _ShadowTint("Shadow Tint", Color) = (0.42,0.48,0.68,1)
+        _AmbientAmount("Ambient", Range(0,1)) = 0.40
+        _RimColor("Rim Colour", Color) = (1,1,1,1)
+        _RimPower("Rim Falloff", Range(0.5,8)) = 3.0
+        _RimStrength("Rim Strength", Range(0,2)) = 0.35
     }
 
     SubShader
@@ -42,6 +54,13 @@ Shader "Kayseri/IslandVertexLit"
             half _Smoothness;
             half _Saturation;
             half _Vibrance;
+            half _ToonSteps;
+            half _ToonSmoothness;
+            half4 _ShadowTint;
+            half _AmbientAmount;
+            half4 _RimColor;
+            half _RimPower;
+            half _RimStrength;
         CBUFFER_END
 
         // Pull the colour away from its own grey, then lift it. Luminance-preserving so a
@@ -137,15 +156,28 @@ Shader "Kayseri/IslandVertexLit"
                 inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(IN.positionCS);
                 inputData.shadowMask = half4(1, 1, 1, 1);
 
-                SurfaceData surfaceData = (SurfaceData)0;
-                surfaceData.albedo = albedo;
-                surfaceData.metallic = _Metallic;
-                surfaceData.smoothness = _Smoothness;
-                surfaceData.occlusion = 1.0h;
-                surfaceData.alpha = _BaseColor.a;
-                surfaceData.emission = _EmissionColor.rgb;
+                // Toon shading rather than UniversalFragmentPBR. PBR's smooth falloff is
+                // exactly what a stylised look is trying not to have: the light is quantised
+                // into a few bands, the unlit side goes to a tinted colour instead of black,
+                // and a fresnel rim picks out silhouettes. Main light only - additional
+                // lights would cost per-light bands on a 1600-renderer mobile scene.
+                Light mainLight = GetMainLight(inputData.shadowCoord);
+                half ndl = saturate(dot(inputData.normalWS, mainLight.direction));
+                half lit = ndl * mainLight.shadowAttenuation;
 
-                half4 color = UniversalFragmentPBR(inputData, surfaceData);
+                half steps = max(1.0h, _ToonSteps);
+                half banded = floor(lit * steps) / steps;
+                half toon = lerp(banded, lit, saturate(_ToonSmoothness));
+
+                half3 ramp = lerp(_ShadowTint.rgb, mainLight.color, toon);
+
+                half fres = 1.0h - saturate(dot(inputData.normalWS, inputData.viewDirectionWS));
+                half3 rim = _RimColor.rgb * pow(fres, _RimPower) * _RimStrength * toon;
+
+                half3 lit3 = albedo * (ramp + inputData.bakedGI * _AmbientAmount)
+                           + rim + _EmissionColor.rgb;
+
+                half4 color = half4(lit3, _BaseColor.a);
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);
                 color.a = 1.0h;
                 return color;

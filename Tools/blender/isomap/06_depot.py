@@ -5,6 +5,8 @@ import layout
 import parts
 importlib.reload(layout)
 importlib.reload(parts)
+import grade
+importlib.reload(grade)
 L = layout
 P = parts
 
@@ -23,11 +25,14 @@ if PHASE >= 2:
 b.make("Depot.Yard", collection=C)
 
 # --------------------------------------------------------------- coal piles
-PILES = PK([(-14, 6, 12, 8), (6, 10, 10, 7)],
-           [(-18, 8, 16, 11), (2, 15, 14, 10), (20, 6, 12, 9),
-            (-6, -8, 11, 7.5)],
-           [(-20, 8, 18, 12), (2, 17, 16, 11), (22, 7, 14, 10),
-            (-8, -9, 13, 9), (16, -14, 11, 7.5), (-24, -14, 10, 7)])
+# The line crosses the yard at y~118-122 and ends at (18, 108), so the heaps sit
+# north of it: three of these were centred within 4 units of the running rails
+# and buried the track they are supposed to be fed from.
+PILES = PK([(-14, 12, 12, 8), (6, 10, 10, 7)],
+           [(-20, 14, 11, 9), (2, 15, 14, 10), (20, 6, 12, 9),
+            (-6, 10, 11, 7.5)],
+           [(-22, 13, 11, 9), (2, 17, 16, 11), (22, 7, 14, 10),
+            (-8, 12, 11, 8), (14, 6, 11, 7.5), (-27, 9, 8, 6)])
 for i, (dx, dy, rr, hh) in enumerate(PILES):
     o = P.coal_pile("Depot.Pile%d" % i, rr, hh, C, seed=i * 3.7)
     o.location = (CX + dx, CY + dy, 0.3)
@@ -84,8 +89,10 @@ P.warehouse("Depot.Shed1", PK(18, 26, 30), PK(12, 15, 17), PK(7, 9, 11), C,
             PK("roof_red", "roof_red", "roof_red")).location = (
     CX + 22, CY + 26, 0.3)
 if PHASE >= 2:
-    P.warehouse("Depot.Shed2", 18, 12, 7, C, "cream", "roof_blue").location = (
-        CX + 26, CY - 24, 0.3)
+    # Smaller, and pushed east against the fence: the rail line ends at (18, 108)
+    # and this warehouse used to stand right on top of the buffer stop.
+    P.warehouse("Depot.Shed2", 13, 10, 7, C, "cream", "roof_blue").location = (
+        CX + 27, CY - 26, 0.3)
     P.office("Depot.Office", 12, 10, PK(1, 2, 3), C).location = (
         CX + 28, CY - 9, 0.3)
 
@@ -98,15 +105,17 @@ if PHASE >= 3:
 tk = P.truck("Depot.Truck", "orange", "coal", C)
 tk.location = (CX + 27, CY + 14, 0.3)
 tk.rotation_euler = (0, 0, radians(-90))
-for i, dy in enumerate(PK((2,), (2, -10, -22), (2, -10, -22, -34))):
+# The south end of the lane belongs to Shed2 now, and the yard's west apron to
+# the gameplay fleet's waiting bay, so the parked dressing stops at (27, 118).
+for i, dy in enumerate(PK((2,), (2, -10), (2, -10))):
     dup(tk, (CX + 27, CY + dy, 0.3), (0, 0, radians(-90)), None, C,
         "Depot.Truck%d" % i)
 
 ld = P.loader("Depot.Loader", C)
-ld.location = (CX - 22, CY - 10, 0.3)
+ld.location = (CX - 24, CY + 2, 0.3)          # up in the heaps, off the rails
 ld.rotation_euler = (0, 0, radians(40))
 if PHASE >= 2:
-    dup(ld, (CX + 8, CY - 20, 0.3), (0, 0, radians(160)), None, C,
+    dup(ld, (CX + 2, CY - 28, 0.3), (0, 0, radians(160)), None, C,
         "Depot.Loader2")
     ex = P.excavator("Depot.Excav", C)
     ex.location = (CX - 28, CY + 14, 0.3)
@@ -123,7 +132,14 @@ for i, (lx, ly) in enumerate((((CX + 35, CY + 18), (CX + 35, CY - 16),
 
 cc = B().use("blue")
 for i in range(PK(2, 4, 6)):
-    cc.boxz((7.0, 3.0, 3.0), (CX - 30 + i * 0.6, CY - 24 + i * 3.6, 0.3))
+    # Tighter pitch than it used to run at: the phase-3 tail of the stack reached
+    # y = 122 and stood on the track.
+    cc.boxz((7.0, 3.0, 3.0), (CX - 30 + i * 0.6, CY - 26 + i * 2.6, 0.3))
 cc.make("Depot.Containers", collection=C)
+
+
+# Built in local terms against a flat z=0, then moved onto the graded
+# pad in one go - see lib.lift_collection.
+lift_collection("Depot", grade.pad_z(CX, CY))
 
 print("depot ok", stats(), "phase", PHASE)

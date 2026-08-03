@@ -7,17 +7,28 @@
 
 World transforms stay baked in, so every FBX dropped at the Unity origin
 reassembles the map exactly.
+
+ONLY narrows the run to named groups:
+
+    run("13_export", 1, ONLY=("Terrain", "Roads"))
+
+A terrain tweak then writes one file instead of fifteen and Unity re-imports
+one instead of 1500 objects, which is the difference between a 30-second
+iteration and a three-minute one. "Vehicles" is a group name here too.
 """
 import os
 import importlib
 import layout
 importlib.reload(layout)
 L = layout
+import bake
+importlib.reload(bake)
 
-try:
-    from mathutils import noise as mnoise
-except Exception:
-    mnoise = None
+ONLY = set(globals().get("ONLY") or ())
+
+
+def wanted(group):
+    return not ONLY or group in ONLY
 
 UNITY = "/Users/macbookair/Documents/GitHub/project_kayseri"
 OUT = UNITY + "/Assets/Art/KayseriIsland/Models/Phase%d" % PHASE
@@ -26,7 +37,7 @@ os.makedirs(OUT, exist_ok=True)
 # --------------------------------------------------------------- strip vehicles
 # Ships, cranes, loaders, excavators and forklifts stay - they read as scenery.
 DROP = ("Truck", "Van", "Train.", "PortTrain", "Loco.", "Wagon", "V.ore",
-        "V.cargo", "V.empty", "V.tank", "V.van", "Market.T")
+        "V.cargo", "V.tank", "V.van", "Market.T")
 KEEP = ("Ship", "Boat", "Tug", "Crane", "Gantry", "Loader", "Excav", "Fork")
 
 
@@ -84,123 +95,10 @@ def strip_vehicles():
             n += 1
     return n
 
-# ------------------------------------------------------- material colour model
-def ramp_of(m):
-    if not m or not m.use_nodes:
-        return None
-    for n in m.node_tree.nodes:
-        if n.bl_idname == "ShaderNodeValToRGB":
-            return n.color_ramp
-    return None
-
-
-def texnode_of(m):
-    if not m or not m.use_nodes:
-        return None
-    for n in m.node_tree.nodes:
-        if n.bl_idname in ("ShaderNodeTexNoise", "ShaderNodeTexVoronoi",
-                           "ShaderNodeTexWave", "ShaderNodeTexChecker"):
-            return n
-    return None
-
-
-_CACHE = {}
-
-
-def mat_info(m):
-    """(kind, scale, detail, wave_dir, ramp) - cached per material."""
-    if m is None:
-        return None
-    key = m.name
-    if key in _CACHE:
-        return _CACHE[key]
-    ramp = ramp_of(m)
-    t = texnode_of(m)
-    if ramp is None or t is None:
-        bsdf = m.node_tree.nodes.get("Principled BSDF") if m.use_nodes else None
-        base = tuple(bsdf.inputs["Base Color"].default_value)[:3] if bsdf else (0.5,) * 3
-        info = ("flat", 1.0, 1.0, "X", None, base)
-    else:
-        kind = {"ShaderNodeTexNoise": "noise", "ShaderNodeTexVoronoi": "voronoi",
-                "ShaderNodeTexWave": "wave",
-                "ShaderNodeTexChecker": "checker"}[t.bl_idname]
-        sc = t.inputs["Scale"].default_value if "Scale" in t.inputs else 1.0
-        det = t.inputs["Detail"].default_value if "Detail" in t.inputs else 2.0
-        wd = getattr(t, "bands_direction", "X")
-        info = (kind, sc, det, wd, ramp, None)
-    _CACHE[key] = info
-    return info
-
-
-def fac_at(info, co):
-    """Approximate the texture node's Factor output at a local-space point."""
-    kind, sc, det, wd, ramp, base = info
-    x, y, z = co.x * sc, co.y * sc, co.z * sc
-    if kind == "noise":
-        v = mnoise.noise(Vector((x, y, z))) if mnoise else 0.0
-        amp, f = 0.5, 2.0
-        for _ in range(int(min(4, max(0, det - 1)))):
-            if mnoise:
-                v += amp * mnoise.noise(Vector((x * f, y * f, z * f)))
-            amp *= 0.5
-            f *= 2.0
-        return max(0.0, min(1.0, 0.5 + 0.42 * v))
-    if kind == "voronoi":
-        if mnoise:
-            d, _p = mnoise.voronoi(Vector((x, y, z)), distance_metric='DISTANCE')
-            return max(0.0, min(1.0, d[0] * 0.9))
-        return 0.5
-    if kind == "wave":
-        a = {"X": x, "Y": y, "Z": z, "DIAGONAL": (x + y)}.get(wd, x)
-        return 0.5 + 0.5 * sin(a * 6.2831853)
-    if kind == "checker":
-        return float((int(floor(x)) + int(floor(y)) + int(floor(z))) % 2)
-    return 0.5
-
-
-def color_at(info, co):
-    kind, sc, det, wd, ramp, base = info
-    if ramp is None:
-        return base
-    c = ramp.evaluate(fac_at(info, co))
-    return (c[0], c[1], c[2])
-
-
-# --------------------------------------------------------------- bake to mesh
-def bake_vertex_colours(me):
-    if not me.polygons:
-        return
-    ca = None
-    for a in me.color_attributes:
-        if a.name == "Col":
-            ca = a
-            break
-    if ca is None:
-        try:
-            ca = me.color_attributes.new(name="Col", type='BYTE_COLOR',
-                                         domain='CORNER')
-        except Exception:
-            return
-    infos = [mat_info(m) for m in me.materials] or [mat_info(None)]
-    verts = me.vertices
-    loops = me.loops
-    data = ca.data
-    for poly in me.polygons:
-        info = infos[poly.material_index] if poly.material_index < len(infos) \
-            else infos[0]
-        if info is None:
-            continue
-        for li in poly.loop_indices:
-            r, g, b = color_at(info, verts[loops[li].vertex_index].co)
-            data[li].color = (r, g, b, 1.0)
-
-
-done = set()
-for ob in bpy.data.objects:
-    if ob.type == 'MESH' and ob.data and ob.data.name not in done:
-        done.add(ob.data.name)
-        bake_vertex_colours(ob.data)
-
+# ------------------------------------------------ bake, only what is exported
+# Baking every mesh in the scene costs a second or two of pure waste when the
+# run is narrowed to one group, and the ground alone is a quarter of a million
+# corners. Which objects are wanted is settled below, before anything is baked.
 # ------------------------------------------------------------------ vehicles
 # Exported before the strip below removes them. The gameplay layer drives these,
 # so they are renamed to the names CoalOperation resolves under the island root:
@@ -224,10 +122,22 @@ def export_selection(path, objs):
         path_mode='STRIP', use_custom_props=False, use_active_collection=False)
 
 
-loco = [o for o in VEHICLES if "Train.loco" in o.name or "Loco." in o.name]
-wagons = sorted([o for o in VEHICLES if "Train.wagon" in o.name], key=lambda o: o.name)
-trucks = sorted([o for o in VEHICLES if o.name.startswith(("V.ore", "V.cargo"))],
+# Visible only. collect_vehicles() sweeps the whole Vehicles collection, which
+# includes the hidden source objects every dup() is made from - and those sit at
+# the origin. They stayed out of the FBX purely because Blender cannot select a
+# hidden object, which is not something to rely on.
+DRIVEN = [o for o in VEHICLES if not (o.hide_render or o.hide_viewport)]
+
+loco = [o for o in DRIVEN if "Train.loco" in o.name or "Loco." in o.name]
+wagons = sorted([o for o in DRIVEN if "Train.wagon" in o.name], key=lambda o: o.name)
+# Tagged by the body they were modelled as, not just numbered. CoalOperation
+# picks its ore fleet and its cargo fleet by this tag; numbering them all
+# "truck_roadN" left it guessing from whichever loop a truck was parked nearest,
+# so cargo flatbeds ended up hauling ore and tippers hauling bars.
+trucks = sorted([o for o in DRIVEN if o.name.startswith("V.ore")],
                 key=lambda o: o.name)
+cargo_trucks = sorted([o for o in DRIVEN if o.name.startswith("V.cargo")],
+                      key=lambda o: o.name)
 
 veh = []
 if loco:
@@ -237,41 +147,52 @@ for i, w in enumerate(wagons):
     w.name = "wagon" if i == 0 else "wagon.%03d" % i
     veh.append(w)
 for i, t in enumerate(trucks):
-    t.name = "truck_road%d" % i
+    t.name = "truck_road_ore%d" % i
+    veh.append(t)
+for i, t in enumerate(cargo_trucks):
+    t.name = "truck_road_cargo%d" % i
     veh.append(t)
 
-if veh:
+if veh and wanted("Vehicles"):
+    bake.bake_objects(veh)
     vpath = "%s/Vehicles_P%d.fbx" % (OUT, PHASE)
     export_selection(vpath, veh)
     print("   vehicles  %4d objs  %6d KB   (%s)"
           % (len(veh), os.path.getsize(vpath) // 1024,
              ", ".join(o.name for o in veh[:6])))
-else:
+elif not veh:
     print("   WARNING: no vehicle meshes found to export")
 
 removed = strip_vehicles()
 
 # --------------------------------------------------------------------- export
 GROUPS = ("Terrain", "Roads", "Rail", "Mine", "Depot", "Refinery", "Market",
-          "Port", "Sites", "Props", "Foliage")
+          "Port", "Sites", "Props", "Foliage",
+          "Power", "Haul", "Fleet", "Civic")
 
-written = []
+# Settle what this run writes before baking anything: with ONLY narrowing the
+# run there is no reason to sample a quarter of a million corners of ground that
+# is not going out.
+sets = []
 for gname in GROUPS:
     col = bpy.data.collections.get(gname)
-    if col is None or not len(col.objects):
+    if col is None or not wanted(gname):
         continue
+    # Empty meshes export as normal-less nodes and make Unity's importer warn
+    # ("can't calculate tangents") - skip them.
+    objs = [ob for ob in col.objects
+            if ob.type == 'MESH' and ob.data and len(ob.data.polygons)]
+    if objs:
+        sets.append((gname, objs))
+
+baked = bake.bake_objects([ob for _g, objs in sets for ob in objs])
+
+written = []
+for gname, objs in sets:
     bpy.ops.object.select_all(action='DESELECT')
-    n = 0
-    for ob in col.objects:
-        # Empty meshes export as normal-less nodes and make Unity's importer
-        # warn ("can't calculate tangents") - skip them.
-        if ob.type != 'MESH' or ob.data is None or not len(ob.data.polygons):
-            continue
+    for ob in objs:
         ob.select_set(True)
         view.objects.active = ob
-        n += 1
-    if n == 0:
-        continue
     path = "%s/%s_P%d.fbx" % (OUT, gname, PHASE)
     bpy.ops.export_scene.fbx(
         filepath=path, use_selection=True, object_types={'MESH'},
@@ -281,9 +202,10 @@ for gname in GROUPS:
         colors_type='SRGB', prioritize_active_color=True,
         path_mode='STRIP', use_custom_props=False,
         use_active_collection=False)
-    written.append((gname, n, os.path.getsize(path) // 1024))
+    written.append((gname, len(objs), os.path.getsize(path) // 1024))
 
-print("phase %d: removed %d vehicle/source objects" % (PHASE, removed))
+print("phase %d: removed %d vehicle/source objects, baked %d meshes%s"
+      % (PHASE, removed, baked, "  ONLY " + ", ".join(sorted(ONLY)) if ONLY else ""))
 for g, n, kb in written:
     print("   %-9s %4d objs  %6d KB" % (g, n, kb))
 print("export dir:", OUT)

@@ -1,14 +1,14 @@
-time            : 00:16:06
+time            : 22:39:24
 colorSpace      : Linear
-activeBuildTgt  : Android
+activeBuildTgt  : iOS
 
-MESH VERTEX COLOURS: 1104/1104 meshes have colours (from 6 fbx)
-    Depot.Pile0 verts=149 cols=149 first=(20,20,24) mid=(20,20,24)
-    Depot.Yard verts=48 cols=48 first=(139,115,86) mid=(36,36,39)
-    Depot.Containers verts=48 cols=48 first=(66,107,160) mid=(65,106,159)
+MESH VERTEX COLOURS: 1110/1110 meshes have colours (from 6 fbx)
+    Civic.Shop0 verts=96 cols=96 first=(163,133,98) mid=(144,184,203)
+    Civic.Tree2 verts=198 cols=198 first=(88,132,83) mid=(100,143,90)
+    Civic.Tower verts=152 cols=152 first=(147,118,85) mid=(252,237,199)
 
-PREFAB RENDERERS: 1640
-    kayseriShader=2570 default=0 other=0 null=0
+PREFAB RENDERERS: 1689
+    kayseriShader=2706 default=0 other=0 null=0
     Foam -> mat 'foam' shader 'Kayseri/IslandVertexLit'
     Ground -> mat 'seabed' shader 'Kayseri/IslandVertexLit'
     Ground -> mat 'sand' shader 'Kayseri/IslandVertexLit'

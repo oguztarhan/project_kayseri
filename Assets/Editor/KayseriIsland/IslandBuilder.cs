@@ -33,6 +33,9 @@ namespace Kayseri.IslandTools
         {
             "Terrain", "Roads", "Rail", "Mine", "Depot", "Refinery",
             "Market", "Port", "Sites", "Props", "Foliage",
+            // Town centre inside the ring road - one yard per quadrant, each
+            // advancing on its own station (Civic follows the island as a whole).
+            "Power", "Haul", "Fleet", "Civic",
             // Driven by the gameplay layer rather than scenery: the train rake and the
             // road fleet, which CoalOperation lifts onto the island root at startup.
             "Vehicles"

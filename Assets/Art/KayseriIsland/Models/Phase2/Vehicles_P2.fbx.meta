@@ -7,6 +7,16 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: M_ToonOutline
+    second: {fileID: 2100000, guid: 574995c0190bf4487800d1ccbee68ad4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_ToonSky
+    second: {fileID: 2100000, guid: ffc19b56b6e7f43cb9de465ff3cbc3ce, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: asphalt
     second: {fileID: 2100000, guid: 661ae7ed0b102461c9a2b210b3d27318, type: 2}
   - first:

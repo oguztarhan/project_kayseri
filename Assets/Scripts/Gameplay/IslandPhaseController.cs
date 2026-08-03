@@ -44,13 +44,23 @@ namespace Kayseri.Island
         private static readonly string[] Districts =
         {
             "Mine", "Rail", "Depot", "Refinery", "Market", "Port",
+            "Power", "Haul", "Fleet", "Civic",
             "Roads", "Sites", "Props", "Terrain", "Foliage",
         };
 
         /// <summary>Driver station per district; null = follow the furthest-advanced station.</summary>
         private static readonly string[] Drivers =
         {
-            "MINE", "TRAIN", "STORAGE", "SMELTER", "MARKET", "MARKET",
+            // Port used to advance on MARKET, so the quay and the market always
+            // upgraded together and the export chain had no district of its own.
+            // It rides CARGO TRUCKS now - the station that actually feeds it.
+            //
+            // Haul comes before Roads so DistrictArt("ORE TRUCKS") hands the
+            // station screen the haul yard rather than the road network, which
+            // means nothing on a turntable. Civic has no station: it follows the
+            // furthest-advanced one, so the town grows with the island.
+            "MINE", "TRAIN", "STORAGE", "SMELTER", "MARKET", "CARGO TRUCKS",
+            "POWER PLANT", "ORE TRUCKS", "CARGO TRUCKS", null,
             "ORE TRUCKS", null, null, null, null,
         };
 
@@ -299,18 +309,8 @@ namespace Kayseri.Island
             if (_operation == null) return 1;
 
             for (int s = 0; s < _operation.StationCount; s++)
-            {
-                if (_operation.StationName(s) != stationName) continue;
-
-                int cap = _operation.StationLevelCap(s);
-                if (cap <= 0) return 1;
-
-                int level = _operation.StationLevelTotal(s);
-                float third = cap / 3f;
-                if (level < third) return 1;
-                if (level < third * 2f) return 2;
-                return 3;
-            }
+                if (_operation.StationName(s) == stationName)
+                    return _operation.PhaseForStation(s);
             return 1;
         }
     }

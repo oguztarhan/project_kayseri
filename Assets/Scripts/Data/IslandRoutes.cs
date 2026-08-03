@@ -40,6 +40,8 @@ namespace Game.Data
         {
             public string name;
             public bool closed;
+            /// <summary>Carriageway width at this phase. 0 for rail and the ship lane.</summary>
+            public float width;
             public Vec[] points;
         }
 

@@ -1,9 +1,31 @@
 """Shared helpers for the isometric industrial map build."""
 import bpy, bmesh, math, random
-from math import radians, sin, cos, pi, atan2, hypot
+from math import radians, sin, cos, pi, atan2, hypot, exp
 from mathutils import Vector, Matrix, Euler
 
 RNG = random.Random(20260801)
+
+try:
+    from mathutils import noise as _mnoise
+except Exception:                                    # pragma: no cover
+    _mnoise = None
+
+
+def nz(x, y, s, seed=0.0):
+    """Perlin noise in world units - s is 1 / feature size."""
+    if _mnoise is None:
+        return 0.0
+    return _mnoise.noise(Vector((x * s, y * s, seed)))
+
+
+def nz1(x, y, s, seed=0.0):
+    """Same, scaled to roughly [-1, 1].
+
+    Raw mathutils noise has a standard deviation of 0.25, so an amplitude
+    written as 0.1 actually lands as 0.025 - which is how a terrain built on
+    three octaves of it comes out looking like one flat colour.
+    """
+    return max(-1.0, min(1.0, nz(x, y, s, seed) * 2.9))
 
 # ---------------------------------------------------------------- collections
 def coll(name):
@@ -344,27 +366,47 @@ def sample_bez(points, n, closed=False):
     return out
 
 def strip(pts, width, z=0.0, name="strip", material=None, collection=None,
-          thickness=0.0):
-    """Build a flat ribbon mesh following pts - roads, rivers, rail beds."""
+          thickness=0.0, zfun=None, cols=None):
+    """Build a ribbon mesh following pts - roads, rivers, rail beds.
+
+    zfun(x, y) adds a ground height per vertex. Passing a function rather than
+    baking heights into pts matters: the XY sampling below must stay untouched,
+    because the loop road is a Catmull-Rom through four corners that bulges ~18
+    units past them, and densifying its control points to carry heights would
+    straighten it and move the road off the exported centreline.
+
+    cols is the lateral seam positions as fractions of the width, ordered +0.5
+    down to -0.5 (the default two are the edges). More of them make a ribbon
+    that can be COLOURED across its width - wheel ruts down a dirt road need
+    vertices to hang the colour on, and a two-vertex ribbon has none.
+    Vertices are laid out row-major, so vertex index // len(cols) is the sample
+    along the path and index % len(cols) the seam across it.
+    """
     bm = bmesh.new()
     samples = sample_bez(pts, max(8, len(pts) * 10))
+    fr = tuple(cols) if cols else (0.5, -0.5)
     rows = []
     for pos, yaw in samples:
         nx, ny = -sin(yaw), cos(yaw)
-        h = width * 0.5
-        zz = pos.z + z
-        rows.append((bm.verts.new((pos.x + nx * h, pos.y + ny * h, zz)),
-                     bm.verts.new((pos.x - nx * h, pos.y - ny * h, zz))))
+        row = []
+        for f in fr:
+            ax, ay = pos.x + nx * width * f, pos.y + ny * width * f
+            # Sampled at each edge vertex, not once at the centreline: on a
+            # side-slope a ribbon held level across its width buries one edge in
+            # the hill and floats the other. Per-vertex lets the road bank into it.
+            row.append(bm.verts.new((ax, ay, pos.z + z +
+                                     (zfun(ax, ay) if zfun else 0.0))))
+        rows.append(row)
     for i in range(len(rows) - 1):
-        a1, a2 = rows[i]
-        b1, b2 = rows[i + 1]
-        try:
-            # Wound so the face normal points +Z. The reverse order leaves the
-            # normal pointing down, which Blender hides (it draws double-sided)
-            # but Unity backface-culls, making every flat strip invisible.
-            bm.faces.new([a2, b2, b1, a1])
-        except ValueError:
-            pass
+        for k in range(len(fr) - 1):
+            try:
+                # Wound so the face normal points +Z. The reverse order leaves the
+                # normal pointing down, which Blender hides (it draws double-sided)
+                # but Unity backface-culls, making every flat strip invisible.
+                bm.faces.new([rows[i][k + 1], rows[i + 1][k + 1],
+                              rows[i + 1][k], rows[i][k]])
+            except ValueError:
+                pass
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
@@ -379,6 +421,51 @@ def strip(pts, width, z=0.0, name="strip", material=None, collection=None,
         # rails) still extrude the same way and keep their original position.
         sm.offset = 1
     return ob
+
+def mix(a, b, t):
+    t = max(0.0, min(1.0, t))
+    return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t,
+            a[2] + (b[2] - a[2]) * t)
+
+
+def ramp(cols, t):
+    """Piecewise-linear colour ramp through evenly spaced stops."""
+    t = max(0.0, min(0.99999, t)) * (len(cols) - 1)
+    i = int(t)
+    return mix(cols[i], cols[i + 1], t - i)
+
+
+def paint(ob, fn):
+    """Write a per-corner colour attribute from fn(x, y, z, vi, fi) -> (r, g, b).
+
+    The island shader reads VERTEX COLOUR and ignores the material's base colour
+    entirely, so this attribute is the whole of what a surface looks like in the
+    game. 13_export normally bakes it from an approximation of the material's
+    procedural texture, which can only vary with position - it cannot know a
+    slope, a height above the valley floor or a wheel rut. Surfaces that need
+    those paint themselves here, and the exporter leaves a painted mesh alone.
+
+    Colours are LINEAR, like Blender's ramps; the FBX export converts. Call this
+    before any lift_collection - v.co is in the object's own space.
+    """
+    me = ob.data
+    ca = None
+    for a in me.color_attributes:
+        if a.name == "Col":
+            ca = a
+            break
+    if ca is None:
+        ca = me.color_attributes.new(name="Col", type='BYTE_COLOR', domain='CORNER')
+    verts, loops, data = me.vertices, me.loops, ca.data
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            vi = loops[li].vertex_index
+            co = verts[vi].co
+            r, g, b = fn(co.x, co.y, co.z, vi, poly.index)
+            data[li].color = (r, g, b, 1.0)
+    me["painted"] = True
+    return ob
+
 
 def scatter_along(pts, spacing, jitter=0.0, offset=0.0, both=False):
     """Positions along a path at fixed spacing, offset sideways - fences, lamps."""
@@ -438,6 +525,62 @@ def clear_scene():
                     blocks.remove(b)
                 except Exception:
                     pass
+
+def lift_collection(name, dz):
+    """Raise a finished district onto its graded pad.
+
+    The district scripts hardcode ~150 z literals against a flat z=0 ground.
+    Translating the built objects is far less error-prone than editing every
+    one of them, and it keeps each script readable in local terms.
+
+    Parented children are skipped - they move with their parent already.
+    """
+    if not dz:
+        return 0
+    n = 0
+    for ob in coll(name).all_objects:
+        if ob.parent is not None:
+            continue
+        ob.location.z += dz
+        n += 1
+    return n
+
+
+def lift_by_pad(name, padfn):
+    """Raise each object in a collection by padfn(x, y) at its own position.
+
+    For collections whose contents sit on DIFFERENT pads - the three unlockable
+    sites are 60-140 units apart at three different heights, so a single offset
+    cannot serve them.
+
+    Position is taken from the world-space bounding-box centre rather than
+    ob.location, because builders here mix two conventions: parts.* return
+    objects positioned by location, while B().make() bakes world coordinates
+    into the mesh and leaves location at the origin.
+    """
+    # matrix_world is CACHED and only recomputed when the dependency graph runs.
+    # A script that sets ob.location and reads ob.matrix_world in the same pass
+    # gets the matrix from when the object was created - identity - so every
+    # parts.* object here was measured at (0, 0) and lifted by the height of the
+    # island's centre instead of its own pad. That is why the quarry's shed,
+    # hopper and truck all stood 2.9 into the ground and the store's floated 0.9.
+    # B().make() objects came out right only because identity IS their matrix.
+    bpy.context.view_layer.update()
+    n = 0
+    for ob in coll(name).all_objects:
+        if ob.parent is not None:
+            continue
+        if ob.type == 'MESH' and len(ob.data.vertices):
+            c = Vector((0.0, 0.0, 0.0))
+            for v in ob.bound_box:
+                c += Vector(v)
+            w = ob.matrix_world @ (c / 8.0)
+        else:
+            w = ob.matrix_world.translation
+        ob.location.z += padfn(w.x, w.y)
+        n += 1
+    return n
+
 
 def purge_collection(name):
     c = bpy.data.collections.get(name)

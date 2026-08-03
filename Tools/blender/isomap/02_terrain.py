@@ -3,6 +3,8 @@ import importlib
 import layout
 importlib.reload(layout)
 L = layout
+import grade
+importlib.reload(grade)
 
 try:
     from mathutils import noise as mnoise
@@ -25,24 +27,39 @@ def bed_z(t):
     return z
 
 
-def flat_mask(x, y):
-    """1 where the ground must be a flat pad (districts, sites, roads)."""
-    m = 0.0
+# The ring is a circle now, so its corridor is just a radial band - no sampling
+# needed, and no chance of the mask sitting anywhere other than under the tarmac.
+def loop_dist(x, y):
+    return abs(hypot(x, y) - L.LOOP_R)
+
+
+def road_mask(x, y):
+    """1 on the carriageway corridors. Kept separate from the pads so the
+    tarmac corridor can be sunk slightly - see ROAD_CUT below."""
     # Gate each arm to the road's ACTUAL extent, so the corridor stops at the
     # road end instead of flattening the massif beyond it.
-    x0, x1 = L.ROAD_X[0][0], L.ROAD_X[1][0]
+    x0, x1 = L.ROAD_X[0][0], L.ROAD_X[-1][0]
     gx = L.smoothstep(x0 - 20, x0 - 1, x) * (1.0 - L.smoothstep(x1 + 1, x1 + 20, x))
-    y0, y1 = L.ROAD_Y[0][1], L.ROAD_Y[1][1]
+    y0, y1 = L.ROAD_Y[0][1], L.ROAD_Y[-1][1]
     gy = L.smoothstep(y0 - 20, y0 - 1, y) * (1.0 - L.smoothstep(y1 + 1, y1 + 20, y))
-    m = max(m, L.band(abs(y), L.ROAD_W * 0.9, L.ROAD_W * 2.1) * gx)
-    m = max(m, L.band(abs(x), L.ROAD_W * 0.9, L.ROAD_W * 2.1) * gy)
-    dl, _ = L.dist_to_path(x, y, L.LOOP_C)
-    m = max(m, L.band(dl, L.ROAD_W * 0.85, L.ROAD_W * 1.9))
+    m = max(L.band(abs(y), L.ROAD_W * 0.9, L.ROAD_W * 2.1) * gx,
+            L.band(abs(x), L.ROAD_W * 0.9, L.ROAD_W * 2.1) * gy)
+    m = max(m, L.band(loop_dist(x, y), L.ROAD_W * 0.85, L.ROAD_W * 1.9))
     for pts, _n in L.SPURS:
         ds, _ = L.dist_to_path(x, y, pts)
         m = max(m, L.band(ds, 8.0, 17.0))
     dp, _ = L.dist_to_path(x, y, L.PORT_ROAD)
     m = max(m, L.band(dp, 9.0, 18.0))
+    # The crew's pavement circuit needs levelling too - laid on unflattened
+    # ground it sat up to 0.41 under the noise it was crossing. Concentric with
+    # the ring, so the same radial band works for it.
+    m = max(m, L.band(abs(hypot(x, y) - L.WALK_R), 5.0, 13.0))
+    return min(1.0, m)
+
+
+def flat_mask(x, y):
+    """1 where the ground must be flat (districts, sites, roads, rail)."""
+    m = road_mask(x, y)
     # rail cutting, but not over the tunnelled first stretch
     dr, tr = L.dist_to_path(x, y, L.RAIL)
     m = max(m, L.band(dr, 9.0, 20.0) * L.smoothstep(0.035, 0.105, tr))
@@ -50,12 +67,38 @@ def flat_mask(x, y):
         m = max(m, L.rect_mask(x - cx, y - cy, L.PAD, L.PAD, 7))
     for _n, (sx, sy), _need in L.SITES:
         m = max(m, L.rect_mask(x - sx, y - sy, L.SITE_PAD, L.SITE_PAD, 7))
+    # Town-centre yards. grade.py pins their HEIGHT, but the ground only gets
+    # levelled here - without this the power plant's slab had 254 vertices under
+    # the terrain noise it was standing on.
+    for tx, ty in L.TOWNS:
+        m = max(m, L.rect_mask(x - tx, y - ty, L.TOWN_PAD + 2, L.TOWN_PAD + 2, 8))
     # port apron - offset landward of the quay along (+0.8, +0.6)
     m = max(m, L.rect_mask(x - L.PORT[0] - 12, y - L.PORT[1] - 9, 38, 30, 8))
     return min(1.0, m)
 
 
+# How far the ground is dished below the tarmac along a carriageway. Measured
+# against the built meshes, roads were clearing the terrain by as little as 0.01
+# and the loop was poking through in places; the corridor is 25 units wide, so
+# this reads as a 1% dish rather than a trench, and it gives the ribbon room to
+# sit proud instead of fighting the ground it is laid on.
+#
+# 0.22 rather than 0.16 because the ground is a smooth curve and the road is a
+# chord across it: with the old 20-segment arterials the sag mid-segment was
+# 0.29 against 0.38 of clearance. layout.straight() cut the sag to near nothing;
+# this is the belt to its braces.
+ROAD_CUT = 0.22
+
+
 def land_height(x, y):
+    # The graded surface is the LANDFORM, not merely a pad height. Adding it only
+    # under the flat mask left every district a mesa standing 11-18 units out of
+    # a plain still sitting at zero, and made "height above the built level"
+    # negative everywhere else - which stripped the island of its trees.
+    base = grade.road_z(x, y)
+    # It has to fall away to the waterline though, or the whole coast is a cliff.
+    # Gated by the flat mask below so the quay keeps its graded apron.
+    base *= L.smoothstep(-6.0, 45.0, -L.sea_depth(x, y))
     h = nz(x, y, 0.0105, 0.0) * 2.6 + nz(x, y, 0.038, 4.0) * 0.9
     pk = 0.0
     for px, py, rad, ht in L.PEAKS:
@@ -65,7 +108,13 @@ def land_height(x, y):
             crag = 1.0 + nz(x, y, 0.050, px * 0.1) * 0.40
             pk = max(pk, ht * (f ** 1.45) * crag)
     h += pk
-    h *= (1.0 - flat_mask(x, y))
+    # Flatten TO the graded surface, not to zero. This is what stopped the island
+    # being a pancake: the noise and peaks above were being multiplied away
+    # everywhere the map is built on.
+    m = flat_mask(x, y)
+    h = (base + h) * (1.0 - m) + grade.road_z(x, y) * m
+    h -= ROAD_CUT * road_mask(x, y)
+
     d, t = L.dist_to_path(x, y, L.RIVER)
     if d < L.RIVER_CARVE * 1.4:
         w = L.band(d, L.RIVER_W * 0.52, L.RIVER_CARVE)
@@ -88,8 +137,10 @@ def height(x, y):
     wob = nz(x, y, 0.020, 11.0) * 5.0  # ragged, non-straight coastline
     d = depth + wob
     if d <= 0.0:
-        # beach shelf: flatten the last few metres down to the waterline
-        f = L.smoothstep(-22.0, 0.0, d)
+        # beach shelf: flatten the last few metres down to the waterline, but
+        # not where the map is built on. The quay sits right at the water, and
+        # ungated this dragged the port apron from its graded height down to 0.
+        f = L.smoothstep(-22.0, 0.0, d) * (1.0 - flat_mask(x, y))
         return h * (1.0 - f) + (0.9 * (1.0 - f)) * f
     # underwater: shelve off, then drop to the deep
     prof = L.smoothstep(0.0, 58.0, d)
@@ -104,10 +155,12 @@ N = L.GROUND_SEGS
 half = L.GROUND_SIZE * 0.5
 step = L.GROUND_SIZE / N
 rows = []
+H = []                       # kept for the colour pass: slope comes from the grid
 for j in range(N + 1):
     y = -half + j * step
-    rows.append([bm.verts.new((-half + i * step, y, height(-half + i * step, y)))
-                 for i in range(N + 1)])
+    hs = [height(-half + i * step, y) for i in range(N + 1)]
+    H.append(hs)
+    rows.append([bm.verts.new((-half + i * step, y, hs[i])) for i in range(N + 1)])
 bm.verts.ensure_lookup_table()
 for j in range(N):
     for i in range(N):
@@ -123,20 +176,123 @@ CT.objects.link(ground)
 
 for p in me.polygons:
     c, n = p.center, p.normal
+    # Vegetation and rock go by height ABOVE THE GRADED SURFACE, not absolute z.
+    # The town now sits at 4-18, so absolute thresholds ("dry grass above 7",
+    # "rock above 22") turned the whole inhabited half of the island brown.
+    rel = c.z - grade.road_z(c.x, c.y)
     if c.z < L.SEA_Z - 0.4:
         p.material_index = 5                      # sea floor
     elif c.z < 2.4 and L.sea_depth(c.x, c.y) > -16.0:
         p.material_index = 3                      # beach
     elif n.z < 0.60:
-        p.material_index = 2 if c.z > 14 else 1
-    elif c.z > 22.0:
+        p.material_index = 2 if rel > 14 else 1
+    elif rel > 22.0:
         p.material_index = 1
     elif c.z < -3.5:
         p.material_index = 3
-    elif c.z > 7.0 or nz(c.x, c.y, 0.028, 9.0) > 0.42:
+    elif rel > 7.0 or nz(c.x, c.y, 0.028, 9.0) > 0.42:
         p.material_index = 4
     else:
         p.material_index = 0
+
+# ------------------------------------------------------------- ground colours
+# The island shader reads vertex colour and nothing else, and the generic bake in
+# 13_export can only turn position into colour - which is why the grass came out
+# as one flat green with a few pale blotches where the material happened to
+# change. Ground colour is a landscape, not a texture: it follows the slope, the
+# height above the valley floor, the water and the sun, so it is painted here.
+# All six stops stay green: an island whose high ground goes khaki reads as bare
+# earth, not as grass in the sun. The range is tone, with a little yellow lift at
+# the top and a cool shade at the bottom.
+GRASS = [(0.020, 0.070, 0.028),      # deep shade, hollows and the river banks
+         (0.040, 0.122, 0.038),
+         (0.070, 0.185, 0.050),
+         (0.112, 0.245, 0.064),
+         (0.168, 0.300, 0.080),
+         (0.245, 0.350, 0.108)]      # sun on the exposed tops
+EARTH = (0.175, 0.115, 0.058)
+ROCKC = (0.315, 0.300, 0.272)
+SANDC = (0.395, 0.330, 0.212)
+SEABD = (0.120, 0.150, 0.115)
+
+
+def slope_at(i, j):
+    """Gradient magnitude from the built grid - cheaper and truer than
+    re-sampling height(), which costs four noise fields per call."""
+    i0, i1 = max(0, i - 1), min(N, i + 1)
+    j0, j1 = max(0, j - 1), min(N, j + 1)
+    dx = (H[j][i1] - H[j][i0]) / ((i1 - i0) * step)
+    dy = (H[j1][i] - H[j0][i]) / ((j1 - j0) * step)
+    return hypot(dx, dy)
+
+
+def curv_at(i, j):
+    """Height above the mean of the four neighbours: + on ridges, - in hollows.
+
+    This is what gives flat-shaded ground its shape. Lighting alone only sees
+    the facet normal, so a rolling meadow and a flat field light identically;
+    darkening the hollows and catching the ridges is the terrain's own shading.
+    """
+    i0, i1 = max(0, i - 1), min(N, i + 1)
+    j0, j1 = max(0, j - 1), min(N, j + 1)
+    return H[j][i] - (H[j][i0] + H[j][i1] + H[j0][i] + H[j1][i]) * 0.25
+
+
+def grass_at(x, y, z, i, j):
+    sl = slope_at(i, j)
+    rel = z - grade.road_z(x, y)
+    # Three scales, none finer than a couple of quads: meadows, patches, grain.
+    # Anything below the 2.6-unit vertex pitch cannot be resolved and comes out
+    # as speckle, which is what the material bake's fifth octave was doing.
+    dry = (0.46 + 0.30 * nz1(x, y, 1.0 / 52.0, 3.0)
+           + 0.21 * nz1(x, y, 1.0 / 16.0, 8.0)
+           + 0.10 * nz1(x, y, 1.0 / 6.0, 15.0))
+    dry += 0.008 * max(0.0, rel)                       # bleached up the hillsides
+    dry += 0.18 * L.smoothstep(0.12, 0.55, sl)         # and on the sunny faces
+    dr, _t = L.dist_to_path(x, y, L.RIVER)
+    dry -= 0.45 * L.band(dr, 7.0, 36.0)                # green follows the water
+    c = ramp(GRASS, dry)
+    c = mix(c, EARTH, L.smoothstep(0.48, 1.05, sl) * 0.55)  # soil through the turf
+    c = mix(c, ROCKC, max(L.smoothstep(0.85, 1.60, sl),
+                          L.smoothstep(19.0, 33.0, rel) * 0.85))
+    if L.sea_depth(x, y) > -20.0:
+        c = mix(c, SANDC, L.smoothstep(3.4, 0.5, z))        # up out of the beach
+    if z < L.SEA_Z - 0.3:
+        c = mix(c, SEABD, L.smoothstep(L.SEA_Z - 0.3, L.SEA_Z - 4.0, z))
+    # Ridges catch the light, hollows hold shade.
+    s = max(-0.17, min(0.17, curv_at(i, j) * 0.85))
+    return (c[0] * (1.0 + s), c[1] * (1.0 + s), c[2] * (1.0 + s))
+
+
+# Per vertex and per face, not per corner: the ground has 250k corners over 62k
+# quads, and grade.road_z is not something to call a quarter of a million times.
+VCOL = [None] * ((N + 1) * (N + 1))
+for j in range(N + 1):
+    yv = -half + j * step
+    for i in range(N + 1):
+        VCOL[j * (N + 1) + i] = grass_at(-half + i * step, yv, H[j][i], i, j)
+# Per-face jitter, in tone AND in hue. Flat-shaded ground under one smooth colour
+# field reads as a plastic sheet; facet-to-facet variation is the only texture a
+# 2.6-unit quad can carry, and one facet greener than the next next to it does
+# more for the look than any amount of finer noise, which just aliases.
+# Sampled at each face's own centre, not at its index: laying the lattice out by
+# index means every 701st face wraps a row, and 250 faces to a row put two or
+# three rows on the same lattice line - which came out as diagonal banding.
+# The tone is sampled at a scale a little coarser than one quad, so facets fall
+# into clusters of two or three rather than a perfectly random quilt; the hue is
+# sampled finer, for grain on top of that.
+FJIT = [(1.0 + 0.105 * nz1(p.center.x, p.center.y, 0.9, 27.0),
+         0.055 * nz1(p.center.x, p.center.y, 2.7, 61.0))
+        for p in me.polygons]
+
+
+def ground_colour(x, y, z, vi, fi):
+    c = VCOL[vi]
+    f, h = FJIT[fi]
+    return (c[0] * (f + h), c[1] * f, c[2] * (f - h * 1.4))
+
+
+paint(ground, ground_colour)
 
 # ------------------------------------------------------------------------ sea
 bs = B().use("sea")
@@ -246,9 +402,10 @@ while placed < 470 and tries < 9000:
     dr, _ = L.dist_to_path(x, y, L.RIVER)
     steep = abs(height(x + 2, y) - z) + abs(height(x, y + 2) - z)
     coastal = -10.0 < L.sea_depth(x, y) < 6.0
-    if not (z > 7.0 or steep > 1.8 or dr < 22.0 or coastal):
+    rel = z - grade.road_z(x, y)          # above the graded surface, as above
+    if not (rel > 7.0 or steep > 1.8 or dr < 22.0 or coastal):
         continue
-    s = RNG.uniform(1.4, 5.0) * (1.6 if z > 20 else 1.0)
+    s = RNG.uniform(1.4, 5.0) * (1.6 if rel > 20 else 1.0)
     dup(rock_src[RNG.randrange(5)], (x, y, z - s * 0.25),
         (0, 0, RNG.uniform(0, 6.28)), (s, s, s * RNG.uniform(0.6, 1.0)),
         CT, "Rock")

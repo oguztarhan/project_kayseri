@@ -25,13 +25,20 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
+    - _AmbientAmount: 0.4
     - _Metallic: 0
+    - _RimPower: 3
+    - _RimStrength: 0.35
     - _Saturation: 1.7
     - _Smoothness: 0.1
+    - _ToonSmoothness: 0.1
+    - _ToonSteps: 3
     - _VertexColorAmount: 1
     - _Vibrance: 1.02
     m_Colors:
     - _BaseColor: {r: 0.18456271, g: 0.109533176, b: 0.057923388, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _RimColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShadowTint: {r: 0.41999996, g: 0.47999996, b: 0.68, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

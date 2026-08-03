@@ -13,6 +13,8 @@ import layout
 import parts
 importlib.reload(layout)
 importlib.reload(parts)
+import grade
+importlib.reload(grade)
 L = layout
 P = parts
 
@@ -83,8 +85,11 @@ def build_quarry(cx, cy):
         r = 20.0 - i * 3.4
         b.cyl(r, 0.8, (cx - 4, cy - 2, -1.6 - i * 2.7), seg=16)
     b.make("Site.Quarry.Benches", collection=C)
+    # Kept beside the pit rather than 40 units up-slope of it: out at (+20,+17)
+    # the shed's near corner reached r=82.7, which is inside the ring road's
+    # outer footway, so the pavement ran straight through it.
     P.warehouse("Site.Quarry.Shed", 20, 13, 9, C, "clad",
-                "roof_orange").location = (cx + 20, cy + 17, 0.3)
+                "roof_orange").location = (cx + 15, cy + 4, 0.3)
     P.hopper("Site.Quarry.Hopper", 5.4, 11.0, C).location = (cx + 17, cy - 14, 0.3)
     P.conveyor((cx - 6, cy - 4, -8.0), (cx + 17, cy - 14, 11.0),
                "Site.Quarry.Conv", C, 2.4)
@@ -92,7 +97,7 @@ def build_quarry(cx, cy):
     ex.location = (cx - 10, cy - 8, -10.5)
     ex.rotation_euler = (0, 0, radians(120))
     tk = P.truck("Site.Quarry.Truck", "yellow_lt", "coal", C)
-    tk.location = (cx + 6, cy + 12, 0.3)
+    tk.location = (cx + 4, cy + 15, 0.3)
     tk.rotation_euler = (0, 0, radians(-40))
     o = P.coal_pile("Site.Quarry.Heap", 9.0, 6.0, C, seed=31.0)
     o.location = (cx - 18, cy + 14, 0.3)
@@ -198,6 +203,11 @@ if PHASE == 2:
     cr = P.tower_crane("Site.Crane", 34.0, 26.0, C)
     cr.location = (cx + 16, cy - 4, 0.3)
     cr.rotation_euler = (0, 0, radians(150))
+
+
+# The three sites sit on three different pads, so each object is raised by
+# the pad under its own position rather than by one shared offset.
+lift_by_pad("Sites", grade.pad_z)
 
 print("sites ok", stats(), "phase", PHASE,
       "unlocked", [n for n, _ in L.active_sites(PHASE)])

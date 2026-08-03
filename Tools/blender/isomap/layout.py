@@ -12,9 +12,37 @@ quadrants:
 The ocean fills the screen-left / bottom-left, i.e. the world SW half-plane
 (small x+y), with the port in a sheltered bay next to the market.
 """
-from math import hypot
+from math import cos, hypot, pi, sin
 
 R = 128.0
+
+
+def ring(radius, n=16, close=True):
+    """n points evenly around a circle, first one on +X.
+
+    Catmull-Rom through 16 points deviates from the true circle by under 1%, so
+    a ring built this way IS the circle - which is what lets everything else be
+    placed by radius alone. The four axis crossings land exactly on control
+    points 0, n/4, n/2 and 3n/4, so junctions, spur heads and the grade profile
+    all agree on where the ring meets the arterials without measuring for it.
+    """
+    pts = [(radius * cos(2.0 * pi * k / n), radius * sin(2.0 * pi * k / n))
+           for k in range(n)]
+    return pts + [pts[0]] if close else pts
+
+
+def straight(a, b, n=12):
+    """A straight run as n collinear control points.
+
+    Not cosmetic: strip() and road_path() both sample a path at len(pts) * 10,
+    so a two-point arterial became a 20-segment ribbon - 17-unit chords over a
+    smoothstep grade profile, whose sagitta (~0.29) ate almost all of the 0.38
+    the road sits proud of the ground. That is what made stretches of road sink
+    into the hillside between their vertices. Catmull-Rom through collinear
+    points is exactly the straight line, so the geometry is unchanged.
+    """
+    return [(a[0] + (b[0] - a[0]) * k / (n - 1.0),
+             a[1] + (b[1] - a[1]) * k / (n - 1.0)) for k in range(n)]
 
 MINE = (-R, 0.0)
 DEPOT = (0.0, R)
@@ -32,24 +60,65 @@ SITE_STORE = (110.0, 110.0)     # screen right-centre   unlocks phase 2
 SITE_PLANT = (102.0, -102.0)    # screen bottom-centre  unlocks phase 3
 SITES = [("quarry", SITE_QUARRY, 2), ("store", SITE_STORE, 2),
          ("plant", SITE_PLANT, 3)]
-SITE_PAD = 22.0
+# Half-extent of the flat ground a site stands on. It has to cover the yard slab
+# 12_sites.py actually draws, which is 52 square: at 22 the store's north edge
+# hung 4 units over the feather and buried itself 25 deep in the peak behind it.
+SITE_PAD = 26.0
 
 # ------------------------------------------------------------------- roads
 ROAD_W = 14.0
-ROAD_X = [(-158.0, 0.0), (196.0, 0.0)]
-ROAD_Y = [(0.0, -196.0), (0.0, 196.0)]
-LOOP = [(-73, -73), (-73, 73), (73, 73), (73, -73)]
-LOOP_C = LOOP + [LOOP[0]]
+ROAD_X = straight((-158.0, 0.0), (196.0, 0.0))
+ROAD_Y = straight((0.0, -196.0), (0.0, 196.0))
+
+# The ring road is a true circle. It used to be a Catmull-Rom through four
+# corners at +/-73, which bulged to 103 on the diagonals and - because
+# sample_bez reflects its end tangents rather than wrapping - came out lopsided:
+# 91.2 out on the east side against 81.0 on the west. Nothing could be placed
+# against it by radius, the four "junctions" on the arterials sat 18 units short
+# of where the tarmac actually crossed, and its corners reached far enough out
+# to brush the district yards.
+LOOP_R = 74.0
+LOOP_C = ring(LOOP_R)
+LOOP = LOOP_C[:-1]
+
+# Town centre, inside the ring road. Four yards on the diagonals, one per
+# quadrant, each driven by its own station - see 15_town.py. Sized and placed
+# so the outermost corner sits at r=60, comfortably inside the ring road's
+# inner kerb at r=67.2.
+TOWN_POWER = (30.0, 30.0)     # NE  POWER PLANT
+TOWN_HAUL = (-30.0, 30.0)     # NW  ORE TRUCKS
+TOWN_FLEET = (-30.0, -30.0)   # SW  CARGO TRUCKS
+TOWN_CIVIC = (30.0, -30.0)    # SE  the town itself
+TOWNS = [TOWN_POWER, TOWN_HAUL, TOWN_FLEET, TOWN_CIVIC]
+TOWN_PAD = 13.0
+
+# Pedestrian circuit, concentric with the ring road and OUTSIDE it, so the
+# pavement is the ring's outer footway rather than a second loop cutting across
+# the middle of town. 9 units out clears the phase-3 carriageway and its
+# shoulder (6.8) with room for a verge; the outer kerb then lands at 85.2,
+# which is 4.1 clear of the nearest district geometry (the mine spoil at 89.3).
+WALK_R = LOOP_R + 9.0
+FOOTPATH = ring(WALK_R)
+
+# Spurs leave the ring RADIALLY, from a point on the circle. They used to start
+# 10-16 units inside it, so each one crossed the ring road and carried on -
+# reading as a stub of tarmac stranded in the grass rather than a turning off
+# the main road. The four district spurs are gone entirely: both arterials
+# already run the length of their districts, so the spurs only ever duplicated
+# them with a diagonal shortcut.
+def _spurhead(target):
+    d = hypot(target[0], target[1])
+    return (LOOP_R * target[0] / d, LOOP_R * target[1] / d)
+
 
 SPURS = [
-    ([(-73, 28), (-90, 16), (-102, 0)], "Spur.Mine"),
-    ([(28, 73), (16, 90), (0, 102)], "Spur.Depot"),
-    ([(73, -28), (90, -16), (102, 0)], "Spur.Refinery"),
-    ([(-28, -73), (-16, -90), (0, -102)], "Spur.Market"),
     # links out to the unlockable sites
-    ([(-73, -40), (-88, -48), (-102, -56)], "Spur.Quarry"),
-    ([(64, 64), (88, 88), (110, 100)], "Spur.Store"),
-    ([(64, -64), (84, -84), (102, -94)], "Spur.Plant"),
+    ([_spurhead(SITE_QUARRY), (-84.0, -50.0), SITE_QUARRY], "Spur.Quarry"),
+    ([_spurhead(SITE_STORE), (81.0, 81.0), SITE_STORE], "Spur.Store"),
+    ([_spurhead(SITE_PLANT), (77.0, -77.0), SITE_PLANT], "Spur.Plant"),
+    # town-centre cross streets, each meeting the north-south arterial square on
+    ([(-17.0, 30.0), (0.0, 30.0), (17.0, 30.0)], "Street.TownN"),
+    ([(-17.0, -30.0), (0.0, -30.0), (17.0, -30.0)], "Street.TownS"),
 ]
 
 # market -> port haul road, running out to the quay

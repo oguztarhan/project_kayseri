@@ -6,7 +6,15 @@ from math import radians, sin, cos, pi, hypot, atan2
 
 # ------------------------------------------------------------------- vehicles
 def truck(name, body="orange", load=None, C=None, trailer=True):
-    """Articulated hauler ~13 long.  load: 'coal' | 'cargo' | 'tank' | None."""
+    """Articulated hauler ~13 long.
+
+    load: 'coal' | 'skip' | 'cargo' | 'tank' | None
+
+    'skip' is 'coal' without the coal - a high-sided tipper body that reads as an
+    ore truck whether or not it is carrying anything. The gameplay layer parents
+    its own load block to these and toggles it, so a body modelled with cargo
+    baked in can never look empty.
+    """
     b = B().use("steel_dk")
     WB = 1.55
     # chassis
@@ -33,14 +41,21 @@ def truck(name, body="orange", load=None, C=None, trailer=True):
         b.box((0.22, 0.7, 0.45), (6.4, s * 0.95, 1.95))
 
     if trailer:
-        if load == "coal":
+        if load in ("coal", "skip"):
+            # Open-topped: floor and four walls, not a solid block. The gameplay
+            # layer drops its ore block INTO this, and a closed box hid it - so a
+            # loaded truck and an empty one looked identical.
             b.use("steel")
-            b.box((8.6, 3.3, 2.5), (-2.2, 0, 3.0))
-            b.use("coal")
-            for i in range(9):
-                x = -6.0 + i * 0.95
-                b.sphere(1.35, (x, RNG.uniform(-0.35, 0.35), 4.35), 1,
-                         scale=(1.0, 1.05, 0.42))
+            b.box((8.6, 3.3, 0.4), (-2.2, 0, 1.95))
+            for s in (1, -1):
+                b.box((8.6, 0.3, 2.3), (-2.2, s * 1.5, 3.1))
+                b.box((0.3, 3.3, 2.3), (-2.2 + s * 4.15, 0, 3.1))
+            if load == "coal":
+                b.use("coal")
+                for i in range(9):
+                    x = -6.0 + i * 0.95
+                    b.sphere(1.35, (x, RNG.uniform(-0.35, 0.35), 4.35), 1,
+                             scale=(1.0, 1.05, 0.42))
         elif load == "cargo":
             b.use("offwhite")
             b.box((9.2, 3.4, 3.6), (-2.4, 0, 3.7))

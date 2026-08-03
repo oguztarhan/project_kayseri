@@ -9,6 +9,8 @@ import layout
 import parts
 importlib.reload(layout)
 importlib.reload(parts)
+import grade
+importlib.reload(grade)
 L = layout
 P = parts
 
@@ -22,7 +24,13 @@ QD = (cos(QYAW), sin(QYAW))
 QN = (-QD[1] * 1.0, QD[0] * 1.0)
 if QN[0] + QN[1] > 0:                 # make sure QN points seaward (small x+y)
     QN = (-QN[0], -QN[1])
-SEA = L.SEA_Z
+# The whole collection is lifted onto the graded apron at the end of this file,
+# like the other districts. Marine geometry must NOT come with it - the ships
+# and pier piles belong to the water, not the quay - so SEA is pre-compensated
+# here and lands back on the real waterline once the lift is applied.
+Z0 = grade.pad_z(QX, QY)
+SEA = L.SEA_Z - Z0
+APRON_TOP = 0.9                   # top face of the apron slab, in local terms
 
 
 def q(a, n, z=0.0):
@@ -47,7 +55,11 @@ qw = B().use(PK("wood", "concrete", "concrete"))
 for i in range(int(QL / 4.0)):
     a = -QL * 0.5 + 2.0 + i * 4.0
     p = q(a, 2.0)
-    qw.boxz((4.2, 5.0, 4.6), (p[0], p[1], SEA - 3.4), (0, 0, QYAW))
+    # Spans the full face from its footing up to the apron. A fixed 4.6 stopped
+    # 1.2 below the waterline, which was invisible when the apron sat at 0 but
+    # leaves it floating once the quay is graded up out of the water.
+    qw.boxz((4.2, 5.0, APRON_TOP - (SEA - 3.4)), (p[0], p[1], SEA - 3.4),
+            (0, 0, QYAW))
 qw.use("steel_dk")
 for i in range(int(QL / 7.0)):
     a = -QL * 0.5 + 3.5 + i * 7.0
@@ -223,4 +235,6 @@ for i, a in enumerate((-QL * 0.4, 0.0, QL * 0.4)[:PK(1, 2, 3)]):
     pp = q(a, -QW * 0.5 + 1)
     P.streetlight("Port.Lamp%d" % i, 9.0, 3.0, C).location = (pp[0], pp[1], 1.5)
 
-print("port ok", stats(), "phase", PHASE)
+lift_collection("Port", Z0)
+
+print("port ok", stats(), "phase", PHASE, "apron z", round(Z0, 2))

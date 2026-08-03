@@ -66,7 +66,10 @@ namespace Game.Gameplay
         [SerializeField] private float barCapacity = 40f;
         [SerializeField] private float barPrice = 45f;
         [SerializeField] private float dwellSeconds = 0.7f;   // base pause at every load/unload stop
-        [SerializeField] private float wagonGap = 2.2f;
+        // Clear air BETWEEN cars, not centre to centre — the car's own length is measured off its
+        // mesh and added. As a centre-to-centre value this was 2.2 against a wagon nearly 8 long,
+        // so every car sat three-quarters inside the one in front.
+        [SerializeField] private float wagonClearance = 0.6f;
         // Was 1.13, which stacked 71% of an island's whole upgrade bill into its last ten levels: the
         // fastest way to play was to stop buying around level 36 and just hoard for the next island, so
         // the top of the track was dead. Income only grows ~8% a level, so the price curve has to sit
@@ -184,6 +187,12 @@ namespace Game.Gameplay
         // they drove broadside until this turned them. 0 on the generated islands, whose
         // vehicles already face +Z.
         [SerializeField] private float vehicleYawOffset = 0f;
+        // A truck used to be assigned the direction of the road segment it was on, which snapped its
+        // whole body round in one frame at every junction. It turns at a rate now, and aims at a point
+        // further down the road rather than at the next vertex, so it starts leaning into a corner
+        // before it reaches it.
+        [SerializeField] private float vehicleTurnRate = 170f;    // degrees per second
+        [SerializeField] private float vehicleLookAhead = 7f;     // metres down the route
         // The model's upright pose, read off the imported vehicles. Identity on the generated
         // islands, whose vehicles are authored in Unity space already.
         private Quaternion _vehicleBaseRot = Quaternion.identity;
@@ -276,7 +285,10 @@ namespace Game.Gameplay
         private static readonly string[][] AxisList =
         {
             new[] { "Richness", "Load Speed" },
-            new[] { "Speed", "Wagons", "Wagon Cargo" },
+            // Speed and Capacity only. "Wagons" was a third axis you bought one at a
+            // time; the rake now grows with the TRAIN station's own phase — 3, then 5,
+            // then 7 — so investing in either axis is what puts wagons on the track.
+            new[] { "Speed", "Capacity" },
             new[] { "Capacity", "Transfer Speed" },
             new[] { "Trucks", "Speed", "Capacity" },
             new[] { "Smelt Speed", "Bar Storage" },
@@ -293,7 +305,7 @@ namespace Game.Gameplay
         private static readonly double[][] AxisBaseCost =
         {
             new[] { 500d, 650d },
-            new[] { 650d, 6000d, 800d },
+            new[] { 650d, 800d },
             new[] { 800d, 700d },
             new[] { 8000d, 550d, 700d },
             new[] { 1000d, 900d },
@@ -307,7 +319,7 @@ namespace Game.Gameplay
         private static readonly int[][] AxisMaxLv =
         {
             new[] { 0, 0 },
-            new[] { 0, 3, 0 },      // TRAIN → Wagons caps at 3 (BaseWagons 3 + 3 = MaxWagons 6)
+            new[] { 0, 0 },
             new[] { 0, 0 },
             new[] { 2, 0, 0 },      // ORE TRUCKS → Trucks caps at 2 (2 base + 2 = 4 on the road)
             new[] { 0, 0 },
@@ -317,7 +329,7 @@ namespace Game.Gameplay
         };
 
         // The levels this island's player actually owns. Row lengths MUST match AxisList above.
-        private readonly int[][] _lv = { new int[2], new int[3], new int[2], new int[3], new int[2], new int[3], new int[2], new int[2] };
+        private readonly int[][] _lv = { new int[2], new int[2], new int[2], new int[3], new int[2], new int[3], new int[2], new int[2] };
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
         //  GHOST-BUILDING UNLOCKS — the one-time purchases
@@ -488,16 +500,23 @@ namespace Game.Gameplay
             public Transform engine;
             public Transform[] wagons;      // full pool (MaxWagons); only the first ActiveWagons show
             public GameObject[] wagonOre;
-            public float engineY; public float[] wagonY;
+            public float engineY;           // the imported rig's own height — the generated island's rail bed
             public Vector3[] path;          // [0]=mountain gate … [n-1]=storage gate
+            public float[] cum;             // cumulative arc length along path, so the rake can be spaced by distance
+            public float dist;              // the engine's distance along the path
+            public float headGap, carGap;   // engine→first wagon, then wagon→wagon, centre to centre
+            public float locoLen, carLen;   // measured off the meshes — also how far a car reaches past its centre
+            public float doorDist;          // the storage shed's doorway, as a distance along the path
             public Transform mountain;      // the mine this line serves — sites the tunnel mouth
             public GameObject portal;       // tunnel mouth this line runs out of
             public GameObject track;        // its rail line - hidden with the portal until the mine is bought
-            public int wp;
             public TR state; public float timer; public double carry;
             public bool active;
+            public bool visible;            // the line is running: cars still hide individually under cover
         }
-        private const int BaseWagons = 3, MaxWagons = 6;
+        // 3 in the scene rake (04_rail.py builds NCARS = 3 at phase 1), cloned up to 7 so the
+        // pool covers phase 3's rake. See ActiveWagons.
+        private const int BaseWagons = 3, MaxWagons = 7;
         private TrainAgent _train1, _train2, _train3, _train4;   // 1: coal mine · 2: "ghost_mine (1)" · 3: "ghost_mine"+GH rails · 4: "ghostx_mine4"+south line
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -547,6 +566,10 @@ namespace Game.Gameplay
             public Vector3 bayPos; public Quaternion bayRot;         // parking-lot spot while locked
         }
         private const int OreBaseTrucks = 2, CargoBaseTrucks = 1;
+        // What the exporter stamps on each truck body — "truck_road_ore3", "truck_road_cargo1".
+        // See 13_export.py. Clones keep the tag because they append to the name.
+        private const string OreBodyTag = "_ore", CargoBodyTag = "_cargo";
+        private static bool IsTagged(string n) => n.Contains(OreBodyTag) || n.Contains(CargoBodyTag);
         private TruckAgent[] _agents;
 
         private bool _ready;
@@ -599,6 +622,26 @@ namespace Game.Gameplay
             for (int a = 0; a < _lv[s].Length; a++)
                 cap += AxisMaxLv[s][a] > 0 ? Mathf.Min(AxisMaxLv[s][a], axisLevelCap) : axisLevelCap;
             return cap;
+        }
+
+        /// <summary>
+        /// A station's phase: its total level against its own cap, in thirds. A 150-cap station
+        /// steps at 50 and 100; a 100-cap one at 33 and 67.
+        ///
+        /// Lives here rather than in IslandPhaseController because the simulation needs it too —
+        /// the train's rake length is a phase, not an axis — and because a generated island has
+        /// no phase controller at all. The controller's by-name overload calls straight through.
+        /// </summary>
+        public int PhaseForStation(int s)
+        {
+            if (s < 0 || s >= StationList.Length) return 1;
+            int cap = StationLevelCap(s);
+            if (cap <= 0) return 1;
+            int level = StationLevelTotal(s);
+            float third = cap / 3f;
+            if (level < third) return 1;
+            if (level < third * 2f) return 2;
+            return 3;
         }
 
         /// <summary>
@@ -756,12 +799,15 @@ namespace Game.Gameplay
         private float EffTrainOre => trainOrePerTrip
             * (1f + 0.25f * axisEffectScale * _lv[StMine][0])        // Mine → Richness: ore in the ground
             * (ActiveWagons / (float)BaseWagons)                     // more wagons = proportionally more cargo
-            * (1f + 0.25f * axisEffectScale * _lv[StTrain][2])       // Train → Wagon Cargo: per-wagon load
+            * (1f + 0.25f * axisEffectScale * _lv[StTrain][1])       // Train → Capacity: per-wagon load
             * (_unlocked[UnlockDeepShaft] ? deepShaftBonus : 1f);
 
-        // TRAIN — the mine→storage leg. Wagons are the one upgrade you can literally count on screen.
+        // TRAIN — the mine→storage leg. Wagons are the one upgrade you can literally count on
+        // screen, so the rake follows the station's own phase rather than an axis of its own:
+        // 3 at phase 1, 5 at phase 2, 7 at phase 3. Buying either axis moves the station toward
+        // its next third, and two more wagons appear when it gets there.
         private float EffTrainSpeed => trainSpeed * (1f + 0.15f * axisEffectScale * _lv[StTrain][0]) * (_unlocked[UnlockDepot] ? depotBonus : 1f) * PowerSpeed;
-        private int ActiveWagons => Mathf.Min(BaseWagons + _lv[StTrain][1], MaxWagons);
+        private int ActiveWagons => Mathf.Min(BaseWagons + (PhaseForStation(StTrain) - 1) * 2, MaxWagons);
 
         // STORAGE — the ore yard. EffStorageFull is both the economic buffer and the size of the visible
         // pile: PileStack widens its grid to match, so buying Capacity enlarges the heap on screen.
@@ -982,15 +1028,43 @@ namespace Game.Gameplay
                 wagons.Add(w);
             }
             a.wagons = wagons.ToArray();
-            a.wagonY = new float[a.wagons.Length];
             a.wagonOre = new GameObject[a.wagons.Length];
             for (int i = 0; i < a.wagons.Length; i++)
             {
-                a.wagonY[i] = a.wagons[i].position.y;   // clones inherit their template's height
-                a.wagonOre[i] = MakeChunk(a.wagons[i], _oreMat, new Vector3(0f, 0.9f, 0f), new Vector3(1.6f, 0.8f, 2.0f));
+                Bounds wb = BodyBox(a.wagons[i]);
+                // Centred, unlike a hauler: a wagon is a box on bogies with no cab to work round.
+                a.wagonOre[i] = MakeLoad(a.wagons[i], _oreMat, true,
+                                         new Vector3(wb.center.x, wb.min.z + 0.74f * wb.size.z, 0f),
+                                         new Vector3(0.74f * wb.size.x, 0.34f * wb.size.z,
+                                                     0.66f * wb.size.y));
             }
 
+            // Couplings from the models' own lengths. A constant cannot serve both the authored
+            // rig and the generated one, and getting it wrong is invisible in the inspector and
+            // very visible on the track.
+            a.locoLen = VehicleLength(engine);
+            a.carLen = a.wagons.Length > 0 ? VehicleLength(a.wagons[0]) : a.locoLen;
+            a.carGap = a.carLen + wagonClearance;
+            a.headGap = (a.locoLen + a.carLen) * 0.5f + wagonClearance;
+
             a.path = BuildRailPath(mountain, _storage);
+            a.cum = new float[a.path.Length];
+            for (int i = 1; i < a.path.Length; i++)
+                a.cum[i] = a.cum[i - 1] + Vector3.Distance(a.path[i - 1], a.path[i]);
+
+            // Where the line runs into the storage shed. Past it a car is under cover and stops being
+            // drawn, so the train is swallowed a wagon at a time instead of the whole rake blinking
+            // out on the open slab. Without the anchor the end of the track is the doorway.
+            a.doorDist = a.cum[a.cum.Length - 1];
+            Vector3 door;
+            if (_routes != null && _routes.TryGetAnchor("railShed", out door))
+            {
+                float d = NearestDist(a, door);
+                // Only if it really is at this line's storage end: an expansion mine's path runs the
+                // other way down the same rails, and its shed is not this one.
+                if (d > a.doorDist * 0.6f) a.doorDist = d;
+            }
+
             SetTrainVisible(a, false);
             a.state = TR.LoadMountain; a.timer = dwellSeconds;
             return a;
@@ -1152,7 +1226,10 @@ namespace Game.Gameplay
             EnsureAnchor("refinery", "refinery", Vector3.zero);
             EnsureAnchor("refined ores pile here", "refinery", new Vector3(-14f, 0f, 0f));
             EnsureAnchor("market", "market", Vector3.zero);
-            EnsureAnchor("waiting ore trucks wait here", "depot", new Vector3(16f, 0f, 0f));
+            // South-west of the yard, not due west of its centre: the rail crosses the depot on its
+            // way to the shed, and the old offset laid the waiting bay straight across the track, so
+            // the next truck up for sale stood parked on the rails.
+            EnsureAnchor("waiting ore trucks wait here", "depot", new Vector3(14f, 0f, 16f));
         }
 
         /// <summary>
@@ -1249,9 +1326,9 @@ namespace Game.Gameplay
                     if (a.timer <= 0f)
                     {
                         a.carry = EffTrainOre;                      // one trip's worth of ore, decided at load time
-                        ShowTrainAt(a, a.path[0], a.path[1]);       // pop into existence at the railhead, facing storage
+                        ShowTrainAt(a, -a.locoLen * 0.5f, true);    // nose at the tunnel mouth, rake behind it
                         SetWagonOre(a, true);                       // show the ore cubes sitting in the wagons
-                        a.wp = 1; a.state = TR.Haul;
+                        a.state = TR.Haul;
                     }
                     break;
 
@@ -1274,9 +1351,9 @@ namespace Game.Gameplay
                     // parked in the shed and stops the whole mine — the intended "upgrade Storage" signal.
                     if (a.carry > 0.01d) break;
                     a.carry = 0d;
-                    ShowTrainAt(a, a.path[a.path.Length - 1], a.path[a.path.Length - 2]);   // reappear facing back
+                    ShowTrainAt(a, a.doorDist + a.locoLen * 0.5f, false);   // nose at the shed door, facing the mine
                     SetWagonOre(a, false);                      // wagons are empty now
-                    a.wp = a.path.Length - 2; a.state = TR.Return;
+                    a.state = TR.Return;
                     break;
 
                 // Driving back up the rails empty, then straight into the next load.
@@ -1286,53 +1363,113 @@ namespace Game.Gameplay
             }
         }
 
-        /// <summary>Walks the engine along its rail path (forward = toward storage). True on arrival.</summary>
+        /// <summary>How far the rake reaches behind the engine, nose of the loco to tail of the last car.</summary>
+        private float RakeLen(TrainAgent a)
+        {
+            int n = Mathf.Min(ActiveWagons, a.wagons.Length);
+            if (n <= 0) return a.locoLen * 0.5f;
+            return a.headGap + (n - 1) * a.carGap + a.carLen * 0.5f;
+        }
+
+        /// <summary>Walks the engine along its rail path (forward = toward storage). True on arrival.
+        ///
+        /// The run reaches past both ends of the visible track — far enough into the shed and back into
+        /// the tunnel for the whole rake to follow the engine under cover. Every car out there is
+        /// hidden, so nothing is ever drawn off the rails; it is just how the train finishes going in.
+        /// </summary>
         private bool DriveTrain(TrainAgent a, bool toStorage, float dt)
         {
-            Vector3 pos = a.engine.position;
-            Vector3 dir = a.engine.forward;
-            float budget = EffTrainSpeed * dt;
-            bool arrived = false;
-            int guard = a.path.Length + 2;
-            while (budget > 0f && guard-- > 0)
-            {
-                Vector3 target = a.path[a.wp]; target.y = a.engineY;
-                Vector3 d = target - pos; d.y = 0f; float dist = d.magnitude;
-                if (dist > 1e-4f) dir = d / dist;
-                if (dist <= budget)
-                {
-                    pos = target; budget -= dist;
-                    bool atEnd = toStorage ? a.wp >= a.path.Length - 1 : a.wp <= 0;
-                    if (atEnd) { arrived = true; break; }
-                    a.wp += toStorage ? 1 : -1;
-                }
-                else { pos += dir * budget; budget = 0f; }
-            }
-            a.engine.position = pos;
-            a.engine.rotation = VehicleFacing(dir);
-            PlaceWagons(a, dir);
-            return arrived;
+            float rake = RakeLen(a);
+            float hi = a.doorDist + rake, lo = -rake;
+            a.dist = Mathf.Clamp(a.dist + EffTrainSpeed * dt * (toStorage ? 1f : -1f), lo, hi);
+            PlaceTrain(a, toStorage);
+            return toStorage ? a.dist >= hi - 1e-3f : a.dist <= lo + 1e-3f;
         }
 
-        private void PlaceWagons(TrainAgent a, Vector3 dir)
+        /// <summary>Arc distance along a train's path of the point nearest <paramref name="world"/>.</summary>
+        private static float NearestDist(TrainAgent a, Vector3 world)
         {
+            float best = float.MaxValue, at = 0f;
+            for (int i = 1; i < a.path.Length; i++)
+            {
+                Vector3 s = a.path[i - 1], seg = a.path[i] - s;
+                float len2 = seg.sqrMagnitude;
+                float t = len2 > 1e-6f ? Mathf.Clamp01(Vector3.Dot(world - s, seg) / len2) : 0f;
+                float d = Vector3.SqrMagnitude(world - (s + seg * t));
+                if (d >= best) continue;
+                best = d;
+                at = a.cum[i - 1] + Mathf.Sqrt(len2) * t;
+            }
+            return at;
+        }
+
+        /// <summary>
+        /// The point <paramref name="d"/> metres along the rail, and the track's direction there.
+        ///
+        /// Everything about the rake is measured in arc length rather than stepped waypoint to
+        /// waypoint, because the wagons have to sit ON the rail: the line is a 257-metre arc, and
+        /// hanging the cars off the engine's heading in a straight line swung the back of the train
+        /// clean off the track on every curve. Past either end it extrapolates along the end
+        /// tangent, so a train pulling out still has its tail inside the tunnel.
+        /// </summary>
+        private static Vector3 PathAt(TrainAgent a, float d)
+        {
+            Vector3[] p = a.path;
+            float[] c = a.cum;
+            int last = p.Length - 1;
+            if (d <= 0f) return p[0] + (p[1] - p[0]).normalized * d;
+            if (d >= c[last]) return p[last] + (p[last] - p[last - 1]).normalized * (d - c[last]);
+            int i = 1;
+            while (i < last && c[i] < d) i++;
+            float seg = c[i] - c[i - 1];
+            return Vector3.Lerp(p[i - 1], p[i], seg > 1e-4f ? (d - c[i - 1]) / seg : 0f);
+        }
+
+        /// <summary>Puts the engine and its rake on the rail at the engine's current distance.</summary>
+        private void PlaceTrain(TrainAgent a, bool toStorage)
+        {
+            float sign = toStorage ? 1f : -1f;    // "behind" is back down the path either way
+            PlaceCar(a, a.engine, a.dist, a.locoLen, sign);
+
             int n = ActiveWagons;
-            for (int i = 0; i < a.wagons.Length && i < n; i++)
+            for (int i = 0; i < a.wagons.Length; i++)
             {
-                Vector3 wp = a.engine.position - dir * (wagonGap * (i + 1));
-                wp.y = a.wagonY[i];
-                a.wagons[i].position = wp;
-                a.wagons[i].rotation = a.engine.rotation;
+                if (i >= n)
+                {
+                    if (a.wagons[i].gameObject.activeSelf) a.wagons[i].gameObject.SetActive(false);
+                    continue;
+                }
+                PlaceCar(a, a.wagons[i], a.dist - sign * (a.headGap + i * a.carGap), a.carLen, sign);
             }
         }
 
-        private void ShowTrainAt(TrainAgent a, Vector3 pos, Vector3 towards)
+        /// <summary>
+        /// One car, sat on its own two ends.
+        ///
+        /// Taking the heading from the polyline segment under the car's centre made it flick round a
+        /// few degrees at every vertex; a real car is held by the rail at both ends, so the body lies
+        /// on the chord between them and turns as smoothly as the track does.
+        ///
+        /// It also decides whether the car is on the map at all: past the shed doorway or back inside
+        /// the tunnel it is under cover, and drawing it there is what used to run the train out
+        /// beyond the end of the rails.
+        /// </summary>
+        private void PlaceCar(TrainAgent a, Transform car, float d, float len, float sign)
         {
-            Vector3 d = towards - pos; d.y = 0f; if (d.sqrMagnitude < 1e-4f) d = a.engine.forward; d.Normalize();
+            float half = len * 0.5f;
+            bool show = a.visible && d > -half && d < a.doorDist + half;
+            if (car.gameObject.activeSelf != show) car.gameObject.SetActive(show);
+            if (!show) return;
+            Vector3 front = PathAt(a, d + half), rear = PathAt(a, d - half);
+            car.position = (front + rear) * 0.5f;
+            car.rotation = VehicleFacing((front - rear) * sign);
+        }
+
+        private void ShowTrainAt(TrainAgent a, float dist, bool toStorage)
+        {
+            a.dist = dist;
             SetTrainVisible(a, true);
-            a.engine.position = new Vector3(pos.x, a.engineY, pos.z);
-            a.engine.rotation = VehicleFacing(d);
-            PlaceWagons(a, d);
+            PlaceTrain(a, toStorage);
         }
 
         /// <summary>
@@ -1355,11 +1492,14 @@ namespace Game.Gameplay
                  * _vehicleBaseRot;
         }
 
+        /// <summary>Whether this line is running at all. Which of its cars are actually drawn is
+        /// PlaceCar's call — they hide one by one as they pass under cover.</summary>
         private void SetTrainVisible(TrainAgent a, bool on)
         {
-            a.engine.gameObject.SetActive(on);
-            int n = ActiveWagons;
-            for (int i = 0; i < a.wagons.Length; i++) a.wagons[i].gameObject.SetActive(on && i < n);
+            a.visible = on;
+            if (on) return;
+            a.engine.gameObject.SetActive(false);
+            for (int i = 0; i < a.wagons.Length; i++) a.wagons[i].gameObject.SetActive(false);
         }
 
         private void SetWagonOre(TrainAgent a, bool on)
@@ -1392,7 +1532,12 @@ namespace Game.Gameplay
                 int load = NearestIndex(loop, srcPos);
                 int drop = NearestIndex(loop, dstPos);
                 int n = loop.Count;
-                if (((drop - load + n) % n) > n / 2)   // one-way: drive the short way from pickup to drop-off
+                // One-way: drive the short way from pickup to drop-off. Only for the synthesised
+                // oval — an authored circuit already runs the direction it was built to run, and
+                // the two disagree. AuthoredCircuit puts the loaded leg on the arterial through
+                // the crossroads and sends the empty truck home round the ring, which is 51% of
+                // the circuit by point count, so this flipped it and drove the ring loaded.
+                if (!Authored && ((drop - load + n) % n) > n / 2)
                 {
                     loop.Reverse();
                     load = n - 1 - load; drop = n - 1 - drop;
@@ -1408,26 +1553,43 @@ namespace Game.Gameplay
                 if (route == Route.Ore && _waitSpot != null) bayBase = _waitSpot.position;
                 else { Vector3 inward = Flat(centroid - idlePt).normalized; bayBase = idlePt + inward * 4.5f; }
 
-                // this loop's trucks: scene trucks parked on it first (slot order), clones fill the pool
-                // (the export fleet is fixed to its scene trucks — the dock unlock is its gate)
+                // This loop's trucks. The authored island tags each body with what it was modelled
+                // as — "truck_road_ore3" is a tipper, "truck_road_cargo1" a flatbed — and an ore
+                // truck has to be a tipper wherever it happens to be parked. Picking by whichever
+                // loop a truck stood nearest put flatbeds on the ore run and tippers on the bar run.
+                // Untagged bodies (the generated island) still fall back to proximity.
+                string bodyTag = route == Route.Ore ? OreBodyTag : CargoBodyTag;
+                // Claim only up to the route's own cap: the market and the export run share the
+                // cargo bodies, and unbounded the market swallowed every one of them.
+                int fleetCap = route == Route.Ore ? OreBaseTrucks + AxisMaxLv[StOreTrucks][0]
+                    : route == Route.Market ? CargoBaseTrucks + AxisMaxLv[StCargoTrucks][0]
+                    : int.MaxValue;                      // export takes whatever is left
                 var fleet = new List<Transform>();
-                for (int ti = 0; ti < sceneTrucks.Count; ti++)
-                    if (!truckClaimed[ti] && NearestLoop(loops, sceneTrucks[ti].position) == li)
+                for (int ti = 0; ti < sceneTrucks.Count && fleet.Count < fleetCap; ti++)
+                    if (!truckClaimed[ti] && sceneTrucks[ti].name.Contains(bodyTag))
                     { truckClaimed[ti] = true; fleet.Add(sceneTrucks[ti]); }
-                // Routes are synthesised now, so every authored truck can end up nearest the same one.
-                // A route with no truck would silently never run, so clone one — never share a Transform
-                // between two routes, or a single truck ends up driven by two agents at once.
+                for (int ti = 0; ti < sceneTrucks.Count && fleet.Count < fleetCap; ti++)
+                    if (!truckClaimed[ti] && !IsTagged(sceneTrucks[ti].name)
+                        && NearestLoop(loops, sceneTrucks[ti].position) == li)
+                    { truckClaimed[ti] = true; fleet.Add(sceneTrucks[ti]); }
+                // A route with no truck would silently never run, so clone one — never share a
+                // Transform between two routes, or a single truck ends up driven by two agents at
+                // once. The export route always lands here: Market claims every cargo body first.
+                // Seeded from a body of the RIGHT type, so the clone is not an ore tipper hauling bars.
                 if (fleet.Count == 0)
                 {
-                    if (sceneTrucks.Count == 0) continue;
-                    Transform seed = Instantiate(sceneTrucks[0].gameObject, _islandRoot).transform;
-                    seed.name = sceneTrucks[0].name + "_route" + li;
+                    Transform src = null;
+                    for (int ti = 0; ti < sceneTrucks.Count && src == null; ti++)
+                        if (sceneTrucks[ti].name.Contains(bodyTag)) src = sceneTrucks[ti];
+                    if (src == null && sceneTrucks.Count > 0) src = sceneTrucks[0];
+                    if (src == null) continue;
+                    Transform seed = Instantiate(src.gameObject, _islandRoot).transform;
+                    seed.name = src.name + "_route" + li;
                     StripOpChildren(seed);
                     fleet.Add(seed);
                 }
                 int sceneFleet = fleet.Count;
-                int maxFleet = route == Route.Ore ? OreBaseTrucks + AxisMaxLv[StOreTrucks][0]
-                    : route == Route.Market ? CargoBaseTrucks + AxisMaxLv[StCargoTrucks][0] : sceneFleet;
+                int maxFleet = fleetCap == int.MaxValue ? sceneFleet : fleetCap;
                 Transform truckTemplate = fleet[0];
                 while (fleet.Count < maxFleet)
                 {
@@ -1464,7 +1626,18 @@ namespace Game.Gameplay
                     a.rends = rends;
                     a.origMats = new Material[rends.Length][];
                     for (int r = 0; r < rends.Length; r++) a.origMats[r] = rends[r].sharedMaterials;
-                    a.load = MakeChunk(body, route == Route.Ore ? _oreMat : _barMat, new Vector3(0f, 1.0f, 0f), new Vector3(1.4f, 0.8f, 2.0f));
+                    // On the deck, which is the rear two-thirds of a hauler - not centred on the
+                    // body, where it sat over the cab.
+                    // Coal fills the skip and crests its rim; bars sit on the flatbed. Both as
+                    // fractions of the body the load is riding in, measured off its own mesh.
+                    bool ore = route == Route.Ore;
+                    Bounds bb = BodyBox(body);
+                    a.load = MakeLoad(body, ore ? _oreMat : _barMat, ore,
+                                      new Vector3(DeckAlong(bb),
+                                                  bb.min.z + (ore ? 0.68f : 0.65f) * bb.size.z, 0f),
+                                      new Vector3(0.56f * bb.size.x,
+                                                  (ore ? 0.46f : 0.34f) * bb.size.z,
+                                                  0.62f * bb.size.y));
                     agents.Add(a);
                 }
             }
@@ -1547,18 +1720,19 @@ namespace Game.Gameplay
             // each route the right stops while keeping the trucks on visible tarmac.
             if (Authored)
             {
-                // Ore runs storage -> refinery, cargo runs refinery -> market. Each goes out
-                // along the ring and comes back through the middle crossroads, so a route is a
-                // real circuit on the tarmac rather than a lap of the whole island.
-                var ore = AuthoredRouteLoop(_orePile, _refinery);
-                var bar = AuthoredRouteLoop(_refinedPile, _market);
+                // Ore runs storage -> refinery, cargo runs refinery -> market: loaded straight
+                // down the arterial and through the middle crossroads, then home the long way
+                // round the ring road. So a route is a real circuit on the tarmac, and the ring
+                // is what every truck laps rather than a stretch of it being decoration.
+                var ore = AuthoredCircuit(LinkDepot, LinkRefinery);
+                var bar = AuthoredCircuit(LinkRefinery, LinkMarket);
                 if (ore != null && bar != null)
                 {
                     loops.Add(ore);                                   // Route.Ore
                     loops.Add(bar);                                   // Route.Market
                     if (_dock != null)
                     {
-                        var exp = AuthoredRouteLoop(_refinedPile, _dock);
+                        var exp = AuthoredPortCircuit();
                         if (exp != null) loops.Add(exp);              // Route.Export
                     }
                     return loops;
@@ -1574,89 +1748,130 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// A circuit between two buildings on the authored roads: out the short way round the
-        /// ring, back through the middle crossroads.
+        /// How a district joins the authored road network: the exported anchor at its centre,
+        /// the arterial that runs the length of it, and where that arterial meets the ring.
+        /// </summary>
+        private struct RoadLink
+        {
+            public readonly string Anchor, Artery, RingMeet;
+            public RoadLink(string anchor, string artery, string ringMeet)
+            { Anchor = anchor; Artery = artery; RingMeet = ringMeet; }
+        }
+
+        private static readonly RoadLink LinkDepot = new RoadLink("depot", "roadY", "loopN");
+        private static readonly RoadLink LinkRefinery = new RoadLink("refinery", "roadX", "loopE");
+        private static readonly RoadLink LinkMarket = new RoadLink("market", "roadY", "loopS");
+
+        /// <summary>
+        /// A circuit between two districts driven entirely on authored tarmac: straight down
+        /// one arterial and through the crossroads to the other district, then back the outside
+        /// way round the ring road.
         ///
-        /// Driving the whole ring for every route sent an ore truck three quarters of the way
-        /// round the island to reach a refinery on the next corner. The return leg uses the two
-        /// main roads that cross at the island's centre - which is what they are there for -
-        /// so the run reads as a lap of a district rather than a tour.
+        /// Both arterials run the full length of their districts, so the connecting geometry
+        /// these routes need is already there. The four district spurs that used to be spliced
+        /// in here are gone from the layout: they only duplicated the arterials with a diagonal
+        /// shortcut, and every one of them began 10–16 units INSIDE the ring, so the route left
+        /// the tarmac, crossed the ring road at an angle and rejoined further on.
         /// </summary>
-        private List<Vector3> AuthoredRouteLoop(Transform from, Transform to)
+        private List<Vector3> AuthoredCircuit(RoadLink a, RoadLink b)
         {
-            if (from == null || to == null) return null;
-
             var ring = AuthoredRing();
-            if (ring == null || ring.Count < 6) return null;
+            var artA = _routes.GetPath(a.Artery);
+            var artB = _routes.GetPath(b.Artery);
+            if (ring == null || ring.Count < 6 || artA == null || artB == null) return null;
 
-            Vector3 centre;
-            if (!_routes.TryGetAnchor("center", out centre)) centre = Centroid(ring);
-            centre.y = _deckY;
+            Vector3 centre, ancA, ancB, meetA, meetB;
+            if (!_routes.TryGetAnchor("center", out centre)) return null;
+            if (!_routes.TryGetAnchor(a.Anchor, out ancA)) return null;
+            if (!_routes.TryGetAnchor(b.Anchor, out ancB)) return null;
+            if (!_routes.TryGetAnchor(a.RingMeet, out meetA)) return null;
+            if (!_routes.TryGetAnchor(b.RingMeet, out meetB)) return null;
 
-            // Leave and rejoin the ring where the two middle roads actually cross it, not at
-            // whatever point happens to be nearest the yard. The return leg is a straight run
-            // through the centre, and it only lies on tarmac if it starts on an axis - snapping
-            // to the crossing is what stops trucks cutting the corner across the grass.
-            int i0 = RingAxisCrossing(ring, centre, from.position);
-            int i1 = RingAxisCrossing(ring, centre, to.position);
-            if (i0 == i1) return ring;
-
-            int n = ring.Count;
-            int fwd = (i1 - i0 + n) % n;
-
-            // Walk the ring the short way from pickup to drop-off.
-            var path = new List<Vector3>();
-            if (fwd <= n - fwd)
-                for (int k = 0; k <= fwd; k++) path.Add(ring[(i0 + k) % n]);
-            else
-                for (int k = 0; k <= n - fwd; k++) path.Add(ring[(i0 - k + n) % n]);
-
-            // Return leg: off the ring, in along the middle road, across the junction and back
-            // out to where we started. Sampled so a truck steers it rather than snapping.
-            AppendLeg(path, path[path.Count - 1], centre, 6f);
-            AppendLeg(path, centre, ring[i0], 6f);
-            return path;
+            var path = new List<Vector3>(256);
+            // Loaded run: A's yard, in to the crossroads, out to B's yard.
+            Append(path, Sub(artA, ancA, centre));
+            Append(path, Sub(artB, centre, ancB));
+            // Home the long way: back down B's arterial to the ring, round it, and up A's.
+            Append(path, Sub(artB, ancB, meetB));
+            Append(path, RingArc(ring, meetB, meetA));
+            Append(path, Sub(artA, meetA, ancA));
+            return path.Count >= 8 ? path : null;
         }
 
         /// <summary>
-        /// The point on the ring where the middle road toward <paramref name="target"/> crosses
-        /// it — the ring's furthest point along whichever axis that district lies on.
+        /// Refinery to the quay. The harbour road is a dead end, so it is retraced; everything
+        /// else still runs out on the ring and back through the middle.
         /// </summary>
-        private static int RingAxisCrossing(List<Vector3> ring, Vector3 centre, Vector3 target)
+        private List<Vector3> AuthoredPortCircuit()
         {
-            Vector3 d = Flat(target - centre);
-            Vector3 axis = Mathf.Abs(d.x) >= Mathf.Abs(d.z)
-                ? new Vector3(Mathf.Sign(d.x), 0f, 0f)
-                : new Vector3(0f, 0f, Mathf.Sign(d.z));
+            var quay = _routes.GetPath("portRoad");
+            if (quay == null || quay.Length < 2) return null;
 
-            // Where the ring actually crosses that middle road: the point on the target's side
-            // sitting closest to the road's centre line. NOT the ring's furthest point along the
-            // axis - the ring is a curve through four corners and comes out lopsided, so its
-            // extreme +Z point sits 33 units off centre. Leaving from there sent the return leg
-            // diagonally across the grass instead of straight down the road.
-            int best = -1;
-            float bestOffset = float.MaxValue;
-            for (int i = 0; i < ring.Count; i++)
-            {
-                Vector3 v = Flat(ring[i] - centre);
-                if (Vector3.Dot(v, axis) <= 0f) continue;            // behind the centre
-                float offset = Vector3.Cross(v, axis).magnitude;     // distance to the road's line
-                if (offset < bestOffset) { bestOffset = offset; best = i; }
-            }
-            return best >= 0 ? best : NearestIndex(ring, target);
+            var path = AuthoredCircuit(LinkRefinery, LinkMarket);
+            if (path == null) return null;
+
+            Vector3 port, market;
+            if (!_routes.TryGetAnchor("port", out port)) return null;
+            if (!_routes.TryGetAnchor("market", out market)) return null;
+
+            // Splice the quay run in at the market, where the circuit turns for home.
+            int turn = NearestIndex(path, market);
+            var spliced = new List<Vector3>(path.Count + quay.Length * 2);
+            for (int i = 0; i <= turn; i++) spliced.Add(path[i]);
+            Append(spliced, Sub(quay, market, port));
+            Append(spliced, Sub(quay, port, market));
+            for (int i = turn + 1; i < path.Count; i++) spliced.Add(path[i]);
+            return spliced;
         }
 
-        /// <summary>Adds points from a to b at roughly one every <paramref name="step"/> metres, b included.</summary>
-        private static void AppendLeg(List<Vector3> path, Vector3 a, Vector3 b, float step)
+        /// <summary>Appends a run, dropping the shared point where two paths meet.</summary>
+        private static void Append(List<Vector3> dst, List<Vector3> src)
         {
-            float len = Flat(b - a).magnitude;
-            int n = Mathf.Clamp(Mathf.RoundToInt(len / Mathf.Max(1f, step)), 1, 40);
-            for (int i = 1; i <= n; i++) path.Add(Vector3.Lerp(a, b, i / (float)n));
+            if (src == null) return;
+            for (int i = 0; i < src.Count; i++)
+            {
+                if (dst.Count > 0 && Flat(src[i] - dst[dst.Count - 1]).sqrMagnitude < 0.25f) continue;
+                dst.Add(src[i]);
+            }
+        }
+
+        /// <summary>The stretch of a centreline between the two given points, in that order.</summary>
+        private static List<Vector3> Sub(Vector3[] path, Vector3 from, Vector3 to)
+        {
+            var run = new List<Vector3>();
+            if (path == null || path.Length == 0) return run;
+            int i = NearestIndex(path, from), j = NearestIndex(path, to);
+            if (i <= j) for (int k = i; k <= j; k++) run.Add(path[k]);
+            else for (int k = i; k >= j; k--) run.Add(path[k]);
+            return run;
+        }
+
+        /// <summary>The shorter way round the ring between two points on it.</summary>
+        private static List<Vector3> RingArc(List<Vector3> ring, Vector3 from, Vector3 to)
+        {
+            int n = ring.Count;
+            int i0 = NearestIndex(ring, from), i1 = NearestIndex(ring, to);
+            var arc = new List<Vector3>();
+            int fwd = (i1 - i0 + n) % n;
+            if (fwd <= n - fwd) for (int k = 0; k <= fwd; k++) arc.Add(ring[(i0 + k) % n]);
+            else for (int k = 0; k <= n - fwd; k++) arc.Add(ring[(i0 - k + n) % n]);
+            return arc;
+        }
+
+        private static int NearestIndex(Vector3[] pts, Vector3 p)
+        {
+            int best = 0; float bestSqr = float.MaxValue;
+            for (int i = 0; i < pts.Length; i++)
+            {
+                float s = Flat(pts[i] - p).sqrMagnitude;
+                if (s < bestSqr) { bestSqr = s; best = i; }
+            }
+            return best;
         }
 
         /// <summary>
-        /// The authored ring road as a closed driving circuit, lifted to the deck height the
-        /// trucks sit at. Returns null when the island has no exported "loop".
+        /// The authored ring road as a closed driving circuit. Returns null when the island has
+        /// no exported "loop".
         /// </summary>
         private List<Vector3> AuthoredRing()
         {
@@ -1669,7 +1884,9 @@ namespace Game.Gameplay
                 // The exporter closes the ring by repeating the first point; a duplicate stop
                 // would make a truck pause twice in the same place.
                 if (i == pts.Length - 1 && Flat(pts[i] - pts[0]).sqrMagnitude < 0.01f) break;
-                ring.Add(new Vector3(pts[i].x, _deckY, pts[i].z));
+                // Height comes from the road, not from a single island-wide deck value. The
+                // roads climb now, and _deckY is one sample of one building's pivot.
+                ring.Add(pts[i]);
             }
             return ring;
         }
@@ -1763,7 +1980,16 @@ namespace Game.Gameplay
 
                 // Driving the loaded half of the oval to the smelter / market.
                 case TK.ToDrop:
-                    if (DriveLoop(a, a.dropIdx, dt)) { a.timer = ore ? dwellSeconds : MarketDwell; a.state = TK.Dropping; }
+                    if (DriveLoop(a, a.dropIdx, dt))
+                    {
+                        // The tipper empties the moment it reaches the smelter, not when the dwell
+                        // runs out: it drove in with a full skip and it has to drive out with an
+                        // empty one, or the trip back reads as a second delivery. The ore still
+                        // lands in the furnace at the end of the dwell, below — this is the tip.
+                        if (ore) Show(a.load, false);
+                        a.timer = ore ? dwellSeconds : MarketDwell;
+                        a.state = TK.Dropping;
+                    }
                     break;
 
                 // Handing the cargo over. For ore that is just a transfer; for bars this is the moment
@@ -1816,7 +2042,7 @@ namespace Game.Gameplay
             int guard = a.loop.Length + 2;
             while (budget > 0f && guard-- > 0)
             {
-                Vector3 target = a.loop[a.wp]; target.y = a.y;
+                Vector3 target = a.loop[a.wp];
                 Vector3 d = target - pos; d.y = 0f; float dist = d.magnitude;
                 if (dist > 1e-4f) dir = d / dist;
                 if (dist <= budget)
@@ -1825,11 +2051,50 @@ namespace Game.Gameplay
                     if (a.wp == stopIdx) { arrived = true; break; }
                     a.wp = (a.wp + 1) % a.loop.Length;
                 }
-                else { pos += dir * budget; budget = 0f; }
+                else
+                {
+                    pos += dir * budget;
+                    // Ride the road's height across the segment. Holding a single y per truck
+                    // was fine while every road was flat; with the arterials climbing 14% it
+                    // would drive them straight through the hillside.
+                    Vector3 prev = a.loop[(a.wp - 1 + a.loop.Length) % a.loop.Length];
+                    float seg = Flat(target - prev).magnitude;
+                    pos.y = seg > 1e-4f ? Mathf.Lerp(prev.y, target.y, (seg - dist + budget) / seg)
+                                        : target.y;
+                    budget = 0f;
+                }
             }
             a.body.position = pos;
-            a.body.rotation = VehicleFacing(dir);
+            // Aim down the road rather than at the vertex being driven to, then turn toward it at a
+            // fixed rate. Snapping straight to the segment direction spun the body 90 degrees in one
+            // frame at every junction.
+            Vector3 aim = LoopLookAhead(a, pos, vehicleLookAhead);
+            if (aim.sqrMagnitude > 1e-4f) dir = aim.normalized;
+            a.body.rotation = Quaternion.RotateTowards(a.body.rotation, VehicleFacing(dir),
+                                                       vehicleTurnRate * dt);
             return arrived;
+        }
+
+        /// <summary>Flat vector from <paramref name="pos"/> to the point <paramref name="ahead"/>
+        /// metres further along the loop. Zero if the loop runs out.</summary>
+        private static Vector3 LoopLookAhead(TruckAgent a, Vector3 pos, float ahead)
+        {
+            Vector3 p = pos;
+            int i = a.wp;
+            for (int n = 0; n < a.loop.Length && ahead > 0f; n++)
+            {
+                Vector3 t = a.loop[i];
+                float d = Flat(t - p).magnitude;
+                if (d >= ahead)
+                {
+                    p = Vector3.Lerp(p, t, ahead / d);
+                    break;
+                }
+                ahead -= d;
+                p = t;
+                i = (i + 1) % a.loop.Length;
+            }
+            return Flat(p - pos);
         }
 
         private void Smelt(float dt)
@@ -2915,43 +3180,198 @@ namespace Game.Gameplay
         {
             Material m = src != null ? new Material(src) : new Material(Shader.Find("Universal Render Pipeline/Lit"));
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+            // The island shader shows VERTEX COLOUR and ignores the base colour, which is right
+            // for the authored meshes and exactly wrong here: everything this makes is generated
+            // at runtime and has no vertex colours, so the tint being asked for was thrown away
+            // and the mesh came out white.
+            if (m.HasProperty("_VertexColorAmount")) m.SetFloat("_VertexColorAmount", 0f);
             m.color = c;
             return m;
         }
 
-        private GameObject MakeChunk(Transform parent, Material mat, Vector3 localPos, Vector3 localScale)
+        /// <summary>
+        /// A vehicle's own extents in world units, in its AUTHORING frame: x along its length,
+        /// y across its width, z up.
+        ///
+        /// That is Blender's frame, left in the mesh by the FBX import, and it is not the frame a
+        /// Transform's local axes describe. Measuring the body rather than writing constants is
+        /// what lets one set of proportions place a load on a hauler, a flatbed and a wagon —
+        /// three different models at three different scales.
+        /// </summary>
+        private static Bounds BodyBox(Transform body)
         {
-            // Use the island's authored ore chunk rather than a primitive: a plain cube riding
-            // every wagon and truck is what read as "little boxes" on the map. The mesh is
-            // normalised into the requested box below, so callers still think in world sizes.
-            GameObject go;
-            Mesh chunk = MeshOf(oreChunkPrefab);
-            if (chunk != null)
+            var lo = Vector3.one * float.MaxValue;
+            var hi = -lo;
+            var filters = body.GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < filters.Length; i++)
             {
-                go = new GameObject("OpLoad");
-                go.AddComponent<MeshFilter>().sharedMesh = chunk;
-                go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+                Mesh m = filters[i].sharedMesh;
+                if (m == null || filters[i].gameObject.name == "OpLoad") continue;
+                Bounds mb = m.bounds;
+                for (int k = 0; k < 8; k++)
+                {
+                    var corner = new Vector3(
+                        (k & 1) == 0 ? mb.min.x : mb.max.x,
+                        (k & 2) == 0 ? mb.min.y : mb.max.y,
+                        (k & 4) == 0 ? mb.min.z : mb.max.z);
+                    Vector3 p = body.InverseTransformPoint(filters[i].transform.TransformPoint(corner));
+                    lo = Vector3.Min(lo, p);
+                    hi = Vector3.Max(hi, p);
+                }
+            }
+            Vector3 s = body.lossyScale;
+            float scale = Mathf.Max(Mathf.Abs(s.x), Mathf.Max(Mathf.Abs(s.y), Mathf.Abs(s.z)));
+            var b = new Bounds();
+            b.SetMinMax(lo * scale, hi * scale);
+            return b;
+        }
 
-                Vector3 ms = chunk.bounds.size;
-                localScale = new Vector3(
-                    localScale.x / Mathf.Max(0.0001f, ms.x),
-                    localScale.y / Mathf.Max(0.0001f, ms.y),
-                    localScale.z / Mathf.Max(0.0001f, ms.z));
+        /// <summary>
+        /// Where along a hauler its deck is: 0.36 of the length in from the back.
+        ///
+        /// The back is +x. parts.truck() builds the cab at Blender +x and the FBX conversion
+        /// negates that axis, so the cab ends up at the mesh's min.x — reading it the other way
+        /// round put the coal in the front corner of the skip, over the driver. It cannot be
+        /// measured off the mesh: the imported vehicles are not readable.
+        /// </summary>
+        private static float DeckAlong(Bounds bb) => bb.max.x - 0.36f * bb.size.x;
+
+        /// <summary>
+        /// How long a vehicle is along the track: the longest of its own mesh's extents, since a
+        /// loco or a wagon is always longer than it is wide or tall. Taken from the mesh rather
+        /// than the world bounds because the world box is an AABB — on a curve it reports the
+        /// diagonal, not the length.
+        /// </summary>
+        private static float VehicleLength(Transform body)
+        {
+            if (body == null) return 0f;
+            float longest = 0f;
+            var filters = body.GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < filters.Length; i++)
+            {
+                if (filters[i].sharedMesh == null || filters[i].gameObject.name == "OpLoad") continue;
+                Vector3 s = filters[i].sharedMesh.bounds.size;
+                longest = Mathf.Max(longest, Mathf.Max(s.x, Mathf.Max(s.y, s.z)));
+            }
+            Vector3 ls = body.lossyScale;
+            return longest * Mathf.Max(Mathf.Abs(ls.x), Mathf.Max(Mathf.Abs(ls.y), Mathf.Abs(ls.z)));
+        }
+
+        // One mesh each, shared by every truck and wagon on the island: a load is a dozen pieces
+        // combined, not a dozen renderers riding each vehicle.
+        private Mesh _oreLoadMesh, _barLoadMesh;
+
+        private static void AddPiece(List<CombineInstance> into, Mesh piece, Bounds pb,
+                                     Vector3 pos, Vector3 size, Quaternion rot)
+        {
+            var s = new Vector3(size.x / Mathf.Max(1e-4f, pb.size.x),
+                                size.y / Mathf.Max(1e-4f, pb.size.y),
+                                size.z / Mathf.Max(1e-4f, pb.size.z));
+            into.Add(new CombineInstance
+            {
+                mesh = piece,
+                transform = Matrix4x4.TRS(pos, rot, s) * Matrix4x4.Translate(-pb.center),
+            });
+        }
+
+        /// <summary>
+        /// What a vehicle is carrying, as a single mesh in a unit box.
+        ///
+        /// Both loads used to be one copy of the ORE chunk stretched into a block — which is why
+        /// an ore truck hauled a single boulder instead of coal, and a cargo truck hauled the same
+        /// boulder painted gold instead of the bars it had just collected from the smelter. Coal is
+        /// heaped: lumps on a dome, turned and sized unevenly. Bars are stacked: aligned courses,
+        /// the top one short a row.
+        /// </summary>
+        private Mesh LoadMesh(bool ore)
+        {
+            if (ore && _oreLoadMesh != null) return _oreLoadMesh;
+            if (!ore && _barLoadMesh != null) return _barLoadMesh;
+
+            Mesh piece = MeshOf(ore ? oreChunkPrefab : barChunkPrefab);
+            GameObject temp = null;
+            if (piece == null)
+            {
+                temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                piece = temp.GetComponent<MeshFilter>().sharedMesh;
+            }
+            Bounds pb = piece.bounds;
+            var parts = new List<CombineInstance>();
+
+            // x runs along the vehicle, y up, z across it - see MakeLoad.
+            if (ore)
+            {
+                for (int r = 0; r < 5; r++)
+                    for (int c = 0; c < 3; c++)
+                    {
+                        float x = -0.38f + r * 0.19f, z = -0.28f + c * 0.28f;
+                        float top = 0.50f - 0.45f * x * x - 1.15f * z * z;   // the heap's crown
+                        int k = r * 3 + c;
+                        float j = ((k * 37) % 11) / 11f - 0.5f;              // stable, no RNG
+                        AddPiece(parts, piece, pb,
+                                 new Vector3(x + j * 0.04f, (top - 0.5f) * 0.5f, z + j * 0.06f),
+                                 new Vector3(0.26f + j * 0.05f, top + 0.5f, 0.34f + j * 0.06f),
+                                 Quaternion.Euler(0f, k * 47f, 0f));
+                    }
             }
             else
             {
-                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                go.name = "OpLoad";
-                var col = go.GetComponent<Collider>(); if (col != null) Destroy(col);
-                go.GetComponent<Renderer>().sharedMaterial = mat;
+                for (int layer = 0; layer < 2; layer++)
+                    for (int r = 0; r < 4; r++)
+                    {
+                        if (layer == 1 && r == 3) continue;
+                        for (int c = 0; c < 2; c++)
+                            AddPiece(parts, piece, pb,
+                                     new Vector3(-0.33f + r * 0.22f, -0.26f + layer * 0.42f,
+                                                 -0.20f + c * 0.40f),
+                                     new Vector3(0.19f, 0.38f, 0.34f), Quaternion.identity);
+                    }
             }
+
+            var m = new Mesh { name = ore ? "OpLoadOre" : "OpLoadBar" };
+            m.CombineMeshes(parts.ToArray(), true, true);
+            m.RecalculateBounds();
+            if (temp != null) Destroy(temp);
+            if (ore) _oreLoadMesh = m; else _barLoadMesh = m;
+            return m;
+        }
+
+        private GameObject MakeLoad(Transform parent, Material mat, bool ore,
+                                    Vector3 localPos, Vector3 localScale)
+        {
+            // localPos/localScale are authored in the VEHICLE's own frame — x ALONG its length,
+            // y up, z across it — but the Transform's frame is not that one. (This used to be
+            // documented the other way round, and the numbers matched the comment: the load came
+            // out 3.4 wide on a 2.5-wide truck and only 1.7 of its 8.7 length.)
+            // The authored island's vehicles import with Blender's Z-up left in the mesh and
+            // a -90 pitch on the transform, so "up" in local space points along world -Z:
+            // the ore block was landing a metre UNDER the road with its long axis vertical.
+            // _vehicleBaseRot is exactly that correction, and it is identity on a generated
+            // island, where this is a no-op. Done before the mesh is normalised below, or the
+            // requested size would be divided by the wrong axis of the chunk's bounds.
+            Quaternion toLocal = Quaternion.Inverse(_vehicleBaseRot);
+            localPos = toLocal * localPos;
+            Vector3 rotated = toLocal * localScale;
+            localScale = new Vector3(Mathf.Abs(rotated.x), Mathf.Abs(rotated.y), Mathf.Abs(rotated.z));
+
+            // The load is built in a unit box and normalised into the requested one here, so
+            // callers still think in world sizes.
+            Mesh chunk = LoadMesh(ore);
+            var go = new GameObject("OpLoad");
+            go.AddComponent<MeshFilter>().sharedMesh = chunk;
+            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+
+            Vector3 ms = chunk.bounds.size;
+            localScale = new Vector3(
+                localScale.x / Mathf.Max(0.0001f, ms.x),
+                localScale.y / Mathf.Max(0.0001f, ms.y),
+                localScale.z / Mathf.Max(0.0001f, ms.z));
             go.transform.SetParent(parent, false);
 
-            // localPos/localScale are authored in world units. Authored map meshes come out of
-            // the FBX pipeline with a localScale of 100, so a chunk parented straight to a wagon
-            // inherited that and rendered as a 190-unit block across the island. Dividing by the
-            // parent's lossy scale keeps the load the size it is meant to be; on a generated
-            // island the parent scale is 1 and this is a no-op.
+            // Authored map meshes come out of the FBX pipeline with a localScale of 100, so a
+            // chunk parented straight to a wagon inherited that and rendered as a 190-unit
+            // block across the island. Dividing by the parent's lossy scale keeps the load the
+            // size it is meant to be.
             Vector3 ls = parent != null ? parent.lossyScale : Vector3.one;
             go.transform.localPosition = new Vector3(
                 localPos.x / Mathf.Max(0.0001f, ls.x),
@@ -3466,18 +3886,22 @@ namespace Game.Gameplay
         {
             // A footpath running alongside the haul road rather than through the buildings: offset to the
             // far side from the yards, and inset at each end so nobody walks into a wall.
-            Vector3 axis = Flat(_market.position - _mountain.position).normalized;
-            Vector3 kerb = new Vector3(-axis.z, 0f, axis.x);
-            // Same flank decision ArrangeChain made — deriving it from the chord flips on bent islands.
-            Vector3 pathOff = kerb * (-_yardSign * (roadWidth * 0.5f + 3f));
-
-            Transform[] stops = { _mountain, _storage, _refinery, _market };
-            var patrol = new Vector3[stops.Length];
-            for (int i = 0; i < stops.Length; i++)
+            Vector3[] patrol = AuthoredFootpath();
+            if (patrol == null)
             {
-                Vector3 p = Flat(stops[i].position) + pathOff;
-                p.y = _deckY;
-                patrol[i] = p;
+                Vector3 axis = Flat(_market.position - _mountain.position).normalized;
+                Vector3 kerb = new Vector3(-axis.z, 0f, axis.x);
+                // Same flank decision ArrangeChain made — deriving it from the chord flips on bent islands.
+                Vector3 pathOff = kerb * (-_yardSign * (roadWidth * 0.5f + 3f));
+
+                Transform[] stops = { _mountain, _storage, _refinery, _market };
+                patrol = new Vector3[stops.Length];
+                for (int i = 0; i < stops.Length; i++)
+                {
+                    Vector3 p = Flat(stops[i].position) + pathOff;
+                    p.y = _deckY;
+                    patrol[i] = p;
+                }
             }
             // Smoke leaves from the top of the refinery's silhouette, wherever the artist put the stack.
             Bounds rb = WorldBounds(_refinery);
@@ -3487,6 +3911,38 @@ namespace Game.Gameplay
             _life = new SiteLife(_islandRoot, workerPrefab, smokePuffPrefab, smoke,
                                  patrol, chimney, _deckY, workerScale,
                                  maxWorkers, maxSmokePuffs, smokePuffLife, smokePuffRise, smokePuffSpread);
+        }
+
+        /// <summary>
+        /// The exported pavement circuit, thinned to the handful of stops the crew paces between.
+        ///
+        /// The fallback below walks the four building Transforms shifted sideways by one constant
+        /// vector, which is only a footpath by coincidence — it is the building quad translated,
+        /// and it cuts across whatever happens to be in the way. Now that there is actual pavement
+        /// on the island, the crew walks that. Null on the generated island, which has none.
+        /// </summary>
+        private Vector3[] AuthoredFootpath()
+        {
+            if (!Authored) return null;
+            var pts = _routes.GetPath("footpath");
+            if (pts == null || pts.Length < 4) return null;
+
+            // SiteLife pins each worker to ONE leg and paces it end to end, so the leg length is
+            // the distance a worker walks. Both extremes look wrong: eight stops around the
+            // circuit made each leg a 60-unit chord that missed the pavement by 2.6m, and the
+            // raw export is 3-unit samples, which reads as shuffling on the spot. Thinned to
+            // ~14m legs — on this radius that is a 0.3m chord sag against 1.8m of pavement.
+            const float legLength = 14f;
+            var thin = new List<Vector3>(pts.Length / 4 + 2) { pts[0] };
+            float run = 0f;
+            for (int i = 1; i < pts.Length; i++)
+            {
+                run += Flat(pts[i] - pts[i - 1]).magnitude;
+                if (run < legLength && i < pts.Length - 1) continue;
+                thin.Add(pts[i]);
+                run = 0f;
+            }
+            return thin.Count >= 4 ? thin.ToArray() : pts;
         }
 
         private void TickLife(float dt)

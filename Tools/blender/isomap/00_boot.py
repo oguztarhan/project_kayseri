@@ -24,8 +24,12 @@ def set_phase(p):
     return PHASE
 
 
-def run(step, phase=None):
-    """Execute a step file fresh, with lib's namespace already in globals."""
+def run(step, phase=None, **extra):
+    """Execute a step file fresh, with lib's namespace already in globals.
+
+    extra lands in the step's globals - run("13_export", 1, ONLY=("Terrain",))
+    exports one group instead of fifteen.
+    """
     ph = PHASE if phase is None else max(1, min(3, int(phase)))
     path = "%s/%s.py" % (ISOMAP, step)
     g = {"__name__": "__main__", "__file__": path}
@@ -33,13 +37,14 @@ def run(step, phase=None):
     g["lib"] = lib
     g["PHASE"] = ph
     g["PK"] = lambda a, b, c: (a, b, c)[ph - 1]
+    g.update(extra)
     exec(compile(open(path).read(), step + ".py", "exec"), g)
     return "%s done (phase %d)" % (step, ph)
 
 
 STEPS = ("01_setup", "02_terrain", "03_roads", "04_rail", "05_mine",
          "06_depot", "07_refinery", "08_market", "09_port", "10_traffic",
-         "11_dressing", "12_sites")
+         "11_dressing", "12_sites", "15_town")
 
 
 def build(phase=1, verbose=False):

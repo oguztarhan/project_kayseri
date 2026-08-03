@@ -5,6 +5,8 @@ import layout
 import parts
 importlib.reload(layout)
 importlib.reload(parts)
+import grade
+importlib.reload(grade)
 L = layout
 P = parts
 
@@ -151,5 +153,10 @@ for i, (lx, ly) in enumerate((((CX - 32, CY - 22), (CX + 32, CY - 22),
                                (CX + 0, CY - 32), (CX - 34, CY + 26))
                               [:PK(1, 3, 4)])):
     P.streetlight("Refinery.Lamp%d" % i, 10.0, 3.2, C).location = (lx, ly, 0.3)
+
+
+# Built in local terms against a flat z=0, then moved onto the graded
+# pad in one go - see lib.lift_collection.
+lift_collection("Refinery", grade.pad_z(CX, CY))
 
 print("refinery ok", stats(), "phase", PHASE)
