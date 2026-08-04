@@ -21,8 +21,8 @@ CT = coll("Terrain")
 
 def bed_z(t):
     """River bed level along normalised arc length, with two waterfall steps."""
-    z = -3.0 - 8.0 * t
-    for thr, drop in ((L.FALLS[0], 4.2), (L.FALLS[1], 4.8)):
+    z = L.RIVER_Z0 - L.RIVER_FALL * t
+    for thr, drop in zip(L.FALLS, L.FALL_DROPS):
         z -= drop * L.smoothstep(thr - 0.009, thr + 0.009, t)
     return z
 
@@ -72,8 +72,10 @@ def flat_mask(x, y):
     # the terrain noise it was standing on.
     for tx, ty in L.TOWNS:
         m = max(m, L.rect_mask(x - tx, y - ty, L.TOWN_PAD + 2, L.TOWN_PAD + 2, 8))
-    # port apron - offset landward of the quay along (+0.8, +0.6)
-    m = max(m, L.rect_mask(x - L.PORT[0] - 12, y - L.PORT[1] - 9, 38, 30, 8))
+    # port apron - offset landward of the quay, which way round depends on
+    # which side of the island the sea is on
+    m = max(m, L.rect_mask(x - L.PORT[0] - L.PORT_APRON[0],
+                           y - L.PORT[1] - L.PORT_APRON[1], 38, 30, 8))
     return min(1.0, m)
 
 
@@ -115,9 +117,15 @@ def land_height(x, y):
     h = (base + h) * (1.0 - m) + grade.road_z(x, y) * m
     h -= ROAD_CUT * road_mask(x, y)
 
+    # Gorge width varies ALONG the river - see river_carve() in the island
+    # module. On the copper map it pinches to a rock notch through the built
+    # middle of the island and opens to a floodplain at either end, which is
+    # the only way a river gets across that map without eating the central
+    # crossroads at one end or the market pad at the other.
     d, t = L.dist_to_path(x, y, L.RIVER)
-    if d < L.RIVER_CARVE * 1.4:
-        w = L.band(d, L.RIVER_W * 0.52, L.RIVER_CARVE)
+    carve = L.river_carve(t)
+    if d < carve * 1.4:
+        w = L.band(d, L.river_w(t) * 0.52, carve)
         h = h * (1.0 - w) + (bed_z(t) - 1.5) * w
     # open-pit bowl once the quarry site is unlocked
     if PHASE >= 2:
@@ -215,6 +223,14 @@ ROCKC = (0.315, 0.300, 0.272)
 SANDC = (0.395, 0.330, 0.212)
 SEABD = (0.120, 0.150, 0.115)
 
+# The ground is painted here, not by a material, so the copper island's warmer
+# country rock has to be repeated in these constants or the outcrops in
+# 01_setup would be rusty while the hillsides they sit on stayed grey.
+if L.ISLAND == "copper":
+    EARTH = (0.205, 0.122, 0.052)
+    ROCKC = (0.345, 0.272, 0.202)
+    SANDC = (0.420, 0.340, 0.222)
+
 
 def slope_at(i, j):
     """Gradient magnitude from the built grid - cheaper and truer than
@@ -306,8 +322,9 @@ for pos, yaw in scatter_along([(p[0], p[1], 0.0) for p in L.SHORE], 6.0):
     for k in range(3):
         off = -2.0 - k * 3.4
         nx, ny = -sin(yaw), cos(yaw)
-        # push seaward (towards smaller x+y)
-        sgn = -1.0 if (nx + ny) > 0 else 1.0
+        # push seaward - which of the two shore normals that is depends on
+        # which half-plane the island's ocean occupies
+        sgn = 1.0 if (nx * L.SEA_AXIS[0] + ny * L.SEA_AXIS[1]) > 0 else -1.0
         fx = pos.x + nx * off * sgn + RNG.uniform(-2, 2)
         fy = pos.y + ny * off * sgn + RNG.uniform(-2, 2)
         # only break in the shallows, never out over deep water

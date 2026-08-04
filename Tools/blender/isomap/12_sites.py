@@ -107,7 +107,7 @@ def build_quarry(cx, cy):
 def build_store(cx, cy):
     b = B().use("concrete")
     b.box((52, 52, 0.30), (cx, cy, 0.15))
-    b.use("coal_shiny")
+    b.use(L.ORE_SHINY)
     b.box((32, 24, 0.34), (cx - 2, cy, 0.19))
     b.make("Site.Store.Yard", collection=C)
     for i, (dx, cm) in enumerate(((-14, "cream"), (-5, "white"), (4, "teal"))):

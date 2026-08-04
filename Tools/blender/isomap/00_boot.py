@@ -14,8 +14,14 @@ if ISOMAP not in sys.path:
 
 import lib
 importlib.reload(lib)
+import island
 
 PHASE = 1
+
+
+def set_island(name):
+    """Pick which map the next build() draws - 'coal' or 'copper'."""
+    return island.use(name)
 
 
 def set_phase(p):
@@ -47,10 +53,13 @@ STEPS = ("01_setup", "02_terrain", "03_roads", "04_rail", "05_mine",
          "11_dressing", "12_sites", "15_town")
 
 
-def build(phase=1, verbose=False):
+def build(phase=1, verbose=False, isle=None):
+    """Build one island at one phase.  isle=None keeps the current selection."""
+    if isle is not None:
+        island.use(isle)
     set_phase(phase)
     for s in STEPS:
         r = run(s, phase)
         if verbose:
             print(r)
-    return "island built at phase %d: %s" % (phase, lib.stats())
+    return "%s island built at phase %d: %s" % (island.NAME, phase, lib.stats())

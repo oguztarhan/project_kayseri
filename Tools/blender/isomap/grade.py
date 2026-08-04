@@ -31,29 +31,32 @@ from math import hypot
 
 import layout as L
 
-# Authored heights. High in the west against the massif, falling away east to
-# the refinery. The spread is set by the ramp lengths below: a district pad is
-# 80 units across and the centre flat 28, which leaves ~75 units of ramp on each
-# arm, so roughly 7 units of height per arm is what keeps them under 10%.
-# The spread is capped by the RING, not by the arterials. The ring crosses from
-# the mine's arm to the market's in a quarter circle - 116 units - so whatever
-# those two disagree by has to fit in that quarter. At the old 18/4 it was a 12.5
-# unit drop, which put 24% on the south-west quarter of the ring road.
-MINE_Z = 16.0
-DEPOT_Z = 13.0
-CENTER_Z = 10.0
-REFINERY_Z = 5.0
+# Authored heights, owned by the island - see isle_*.py, which documents the
+# constraints on them. The spread is set by the ramp lengths below: a district
+# pad is 80 units across and the centre flat 28, which leaves ~75 units of ramp
+# on each arm, so roughly 7 units of height per arm is what keeps them under
+# 10%. The spread is capped by the RING, not by the arterials: it crosses from
+# one district's arm to the next in a quarter circle (116 units), so whatever
+# two adjacent districts disagree by has to fit in that quarter. At 18/4 it was
+# a 12.5 unit drop, which put 24% on one quarter of the ring road.
+MINE_Z = L.MINE_Z
+DEPOT_Z = L.DEPOT_Z
+CENTER_Z = L.CENTER_Z
+REFINERY_Z = L.REFINERY_Z
 # Also low enough that the harbour road's descent to the quay stays drivable:
 # the market and port pads are only ~20 units apart, so every unit between them
 # costs about 5% of gradient on that short ramp.
-MARKET_Z = 5.0
+MARKET_Z = L.MARKET_Z
 # The port must sit low: its quay wall is built downward from the apron to
 # SEA_Z, and letting it inherit the surrounding field put the apron at 11, so
 # the harbour road climbed to reach the water and the wall was 14 units tall.
 # Sea level is -3, so this is still a 6-unit quay wall, which is normal for a
 # cargo berth. Lower values made the harbour road descend 4.5 units across the
 # ~20 units between the market and port pads - a 30% ramp to the water.
-PORT_Z = 3.0
+PORT_Z = L.PORT_Z
+
+# (centre, height) per district, in the island's own order.
+_DZ = [((float(p[0]), float(p[1])), float(z)) for p, z in L.DISTRICT_Z]
 
 # How fast the field falls away from a road, in units squared. Larger = the
 # arterials' influence carries further before the two blend into each other.
@@ -100,22 +103,41 @@ CENTER_HW = 14.0
 # Each flat run spans the whole PAD, not just the district centre. Flattening
 # only at the centre left the profile 2.6 units above what the pad insisted on
 # by the time it reached the pad's edge, and the two fought across the feather.
-_X = L.ROAD_X
-_Y = L.ROAD_Y
-PROFILES = [
-    (_X, [(0.0, MINE_Z),
-          (_t_at(_X, L.MINE[0] + PAD_HW, L.MINE[1]), MINE_Z),
-          (_t_at(_X, L.CENTER[0] - CENTER_HW, L.CENTER[1]), CENTER_Z),
-          (_t_at(_X, L.CENTER[0] + CENTER_HW, L.CENTER[1]), CENTER_Z),
-          (_t_at(_X, L.REFINERY[0] - PAD_HW, L.REFINERY[1]), REFINERY_Z),
-          (1.0, REFINERY_Z)]),
-    (_Y, [(0.0, MARKET_Z),
-          (_t_at(_Y, L.MARKET[0], L.MARKET[1] + PAD_HW), MARKET_Z),
-          (_t_at(_Y, L.CENTER[0], L.CENTER[1] - CENTER_HW), CENTER_Z),
-          (_t_at(_Y, L.CENTER[0], L.CENTER[1] + CENTER_HW), CENTER_Z),
-          (_t_at(_Y, L.DEPOT[0], L.DEPOT[1] - PAD_HW), DEPOT_Z),
-          (1.0, DEPOT_Z)]),
-]
+def _end_district(path, idx):
+    """(centre, height) of the district sitting at one end of an arterial.
+
+    Read off the map rather than named, so an island is free to put any
+    district on any axis. The copper island swaps the depot and the market
+    ends of the north-south road - the market has to be the coastal one,
+    because it is the district that feeds the port - and nothing here or in
+    the district scripts has to know that happened.
+    """
+    ex, ey = path[idx][0], path[idx][1]
+    return min(_DZ, key=lambda d: hypot(d[0][0] - ex, d[0][1] - ey))
+
+
+def _arterial(path):
+    """Profile for one arterial: flat over each end district, flat over the
+    centre, smoothstep ramps between."""
+    (lo, lo_z), (hi, hi_z) = _end_district(path, 0), _end_district(path, -1)
+    horiz = abs(path[-1][0] - path[0][0]) > abs(path[-1][1] - path[0][1])
+    if horiz:
+        lo_edge, hi_edge = (lo[0] + PAD_HW, lo[1]), (hi[0] - PAD_HW, hi[1])
+        c0 = (L.CENTER[0] - CENTER_HW, L.CENTER[1])
+        c1 = (L.CENTER[0] + CENTER_HW, L.CENTER[1])
+    else:
+        lo_edge, hi_edge = (lo[0], lo[1] + PAD_HW), (hi[0], hi[1] - PAD_HW)
+        c0 = (L.CENTER[0], L.CENTER[1] - CENTER_HW)
+        c1 = (L.CENTER[0], L.CENTER[1] + CENTER_HW)
+    return (path, [(0.0, lo_z),
+                   (_t_at(path, lo_edge[0], lo_edge[1]), lo_z),
+                   (_t_at(path, c0[0], c0[1]), CENTER_Z),
+                   (_t_at(path, c1[0], c1[1]), CENTER_Z),
+                   (_t_at(path, hi_edge[0], hi_edge[1]), hi_z),
+                   (1.0, hi_z)])
+
+
+PROFILES = [_arterial(L.ROAD_X), _arterial(L.ROAD_Y)]
 
 
 def _blend_profiles(x, y, profiles):
@@ -165,11 +187,12 @@ def _spine_z(x, y):
 # Each pad is pinned to the arterial height at its own centre, so the road
 # running through it is already at the pad's level and the two cannot step
 # against each other. The port and the sites inherit the same way.
-PADS = [
-    (L.MINE[0] + 2.0, L.MINE[1], PAD_HW, PAD_HH, PAD_FEATHER, MINE_Z),
-    (L.DEPOT[0], L.DEPOT[1], PAD_HW, PAD_HW, PAD_FEATHER, DEPOT_Z),
-    (L.REFINERY[0], L.REFINERY[1], PAD_HW, PAD_HW, PAD_FEATHER, REFINERY_Z),
-    (L.MARKET[0], L.MARKET[1], PAD_HW, PAD_HW, PAD_FEATHER, MARKET_Z),
+_MINE = (float(L.MINE[0]), float(L.MINE[1]))
+# The mine is the one district whose slab is not centred on its own coordinate:
+# 05_mine.py draws it at CX+2, and at 36 the last few units hung over the slope.
+PADS = [((cx + 2.0, cy, PAD_HW, PAD_HH, PAD_FEATHER, z) if (cx, cy) == _MINE
+         else (cx, cy, PAD_HW, PAD_HW, PAD_FEATHER, z))
+        for (cx, cy), z in _DZ] + [
     # Half-extent plus feather has to stay under 40 in y: the loop's south side
     # runs at y = -73, exactly 40 from the quay, and a pad reaching past it put
     # a 4.5-unit step across the road and took the loop from 16% to 32%.

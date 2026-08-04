@@ -17,7 +17,7 @@ CX, CY = L.DEPOT
 # --------------------------------------------------------------------- yard
 b = B().use(PK("dirt", "concrete_dk", "concrete"))
 b.box((72, 68, 0.3), (CX, CY, 0.14))
-b.use("coal_shiny")
+b.use(L.ORE_SHINY)
 b.box(PK((36, 26, 0.34), (46, 32, 0.34), (54, 38, 0.34)), (CX - 2, CY + 2, 0.18))
 if PHASE >= 2:
     b.use("asphalt")
@@ -46,7 +46,7 @@ if PHASE >= 2:
 
 # ------------------------------------------------- stacker / conveyor bridge
 if PHASE >= 2:
-    P.conveyor((18, 108, 3.0), (CX - 4, CY + 4, PK(0, 24, 28)),
+    P.conveyor((L.RAIL[-1][0], L.RAIL[-1][1], 3.0), (CX - 4, CY + 4, PK(0, 24, 28)),
                "Depot.ConvMain", C, 3.2)
     P.conveyor((CX - 4, CY + 4, PK(0, 23, 27)), (CX + 18, CY + 8, 20.0),
                "Depot.ConvA", C, 3.0)

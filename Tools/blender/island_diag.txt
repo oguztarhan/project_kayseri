@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 time            : 00:42:17
+=======
+time            : 08:35:59
+>>>>>>> Stashed changes
 colorSpace      : Linear
 activeBuildTgt  : Android
 

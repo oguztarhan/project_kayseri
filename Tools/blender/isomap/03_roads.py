@@ -245,4 +245,84 @@ if PHASE >= 2:
                (0, pitch(pos.x, pos.y, yaw), yaw))
     kb.make("Walk.Kerbs", collection=CR)
 
+# -------------------------------------------------------------------- bridges
+# Where a carriageway crosses the river gorge the tarmac holds its grade and the
+# ground falls away under it, so without this the road simply hangs in the air.
+# Same drop test as 04_rail's viaduct, and for the same reason: the roads are
+# laid on grade.road_z and the ground is cut by 02_terrain, so measuring the gap
+# between the two finds exactly the spans that need carrying - no need to name
+# the crossings, which move whenever the river is reshaped.
+#
+# The coal island's river never meets a road, so it opts out entirely rather
+# than paying for 12 raycasts per metre of road to discover that.
+if L.ROAD_BRIDGES:
+    _GROUND = bpy.data.objects.get("Ground")
+
+    def ground_z(x, y):
+        if _GROUND is None:
+            return 0.0
+        hit, loc, _n, _i = _GROUND.ray_cast(Vector((x, y, 460.0)),
+                                            Vector((0.0, 0.0, -1.0)))
+        return loc.z if hit else 0.0
+
+    # Below this the road is just riding its own 0.38 of clearance over the
+    # dished corridor, which is not a bridge.
+    DECK_MIN = 2.6
+    PIER_EVERY = 24.0
+
+    def bridge(pts, w, name):
+        p3 = [(p[0], p[1], 0.0) for p in pts]
+        runs, cur = [], []
+        for pos, yaw in sample_bez(p3, max(80, len(p3) * 14)):
+            if GZ(pos.x, pos.y) - ground_z(pos.x, pos.y) > DECK_MIN:
+                cur.append((pos, yaw))
+            elif cur:
+                runs.append(cur)
+                cur = []
+        if cur:
+            runs.append(cur)
+
+        made = 0
+        for r, run in enumerate(runs):
+            if len(run) < 5:
+                continue
+            tag = "%s.Bridge%d" % (name, r)
+            centre = [(p.x, p.y, 0.0) for p, _ in run]
+            # Girder box under the carriageway, carried to both abutments.
+            strip(centre, w * 1.04, z=Z_ROAD - 1.35, name=tag + ".Deck",
+                  material=mat("concrete"), collection=CR, thickness=1.5,
+                  zfun=GZ)
+            # Parapets, so the deck reads as a bridge rather than a slab.
+            for s in (1, -1):
+                edge = []
+                for pos, yaw in run:
+                    nx, ny = -sin(yaw), cos(yaw)
+                    edge.append((pos.x + nx * s * (w * 0.5 + 0.30),
+                                 pos.y + ny * s * (w * 0.5 + 0.30), 0.0))
+                strip(edge, 0.42, z=Z_ROAD + 0.62, name=tag + ".Rail",
+                      material=mat(PK("wood", "kerb", "kerb")), collection=CR,
+                      thickness=1.15, zfun=GZ)
+            # Piers down to whatever the ground is doing underneath.
+            total = 0.0
+            for i in range(len(run) - 1):
+                total += hypot(run[i + 1][0].x - run[i][0].x,
+                               run[i + 1][0].y - run[i][0].y)
+            step = max(1, int(len(run) / max(1, int(total / PIER_EVERY))))
+            pr = B().use("concrete")
+            for k in range(step // 2, len(run), step):
+                pos, yaw = run[k]
+                g = ground_z(pos.x, pos.y)
+                h = GZ(pos.x, pos.y) - 1.35 - g
+                if h < 2.0:
+                    continue
+                pr.conez(2.5, 1.6, h, (pos.x, pos.y, g), (0, 0, yaw), seg=8)
+                pr.box((w * 0.62, 2.1, 1.0), (pos.x, pos.y, g + h - 0.5),
+                       (0, 0, yaw))
+            pr.make(tag + ".Piers", collection=CR)
+            made += 1
+        return made
+
+    _nb = sum(bridge(pts, w, name) for pts, w, name in roads)
+    print("bridges:", _nb)
+
 print("roads ok", stats(), "phase", PHASE)

@@ -22,7 +22,12 @@ QX, QY = L.PORT
 QYAW = L.PORT_YAW
 QD = (cos(QYAW), sin(QYAW))
 QN = (-QD[1] * 1.0, QD[0] * 1.0)
-if QN[0] + QN[1] > 0:                 # make sure QN points seaward (small x+y)
+# Make QN point seaward. This used to test QN[0] + QN[1] > 0, i.e. it assumed
+# the ocean is always the smaller-x+y half-plane. The copper island's sea is
+# the OTHER half-plane, so the entire port came out mirrored about its own
+# quay: wall and cranes facing inland, container yard and sheds standing in
+# the water. Asking the island which way the sea lies is right for both maps.
+if QN[0] * L.SEA_AXIS[0] + QN[1] * L.SEA_AXIS[1] < 0:
     QN = (-QN[0], -QN[1])
 # The whole collection is lifted onto the graded apron at the end of this file,
 # like the other districts. Marine geometry must NOT come with it - the ships
@@ -188,7 +193,12 @@ for i, (kind, ln) in enumerate(SHIPS):
                    funnel=("orange", "yellow_lt", "red")[i % 3],
                    crates=(PHASE >= 2))
     s.location = (pos[0], pos[1], SEA + 0.15)
-    s.rotation_euler = (0, 0, QYAW - radians(90))
+    # Head along QN, the seaward normal - NOT QYAW - 90, which is only the
+    # seaward side on an island whose ocean happens to lie the way the coal
+    # map's does. Where QN is flipped, that put both hulls 180 degrees out and
+    # lying across each other in mid-harbour. On the coal island the two are
+    # the same number, so its berths are unchanged.
+    s.rotation_euler = (0, 0, atan2(QN[1], QN[0]))
 
 # a ship under way, heading off-screen
 if PHASE >= 2:
@@ -203,7 +213,10 @@ if PHASE >= 2:
     wk.location = (sx, sy, SEA + 0.25)
     wk.rotation_euler = (0, 0, syaw)
     sm = P.smoke_plume("Port.ShipSmoke", C, 1.8, 6, 14.0, 10.0)
-    sm.location = (sx - ln * 0.30, sy + ln * 0.10, SEA + ln * 0.20)
+    # Aft of the funnel, measured along the ship's own heading rather than a
+    # fixed offset - the two islands' shipping lanes run opposite ways.
+    sm.location = (sx - cos(syaw) * ln * 0.26, sy - sin(syaw) * ln * 0.26,
+                   SEA + ln * 0.20)
 
 if PHASE >= 3:
     tg = P.tug("Port.Tug", 20.0, C, "orange")

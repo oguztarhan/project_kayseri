@@ -1,4 +1,8 @@
 """Step 1: clean slate, isometric camera, lighting, world, material palette."""
+import importlib as _il
+import layout
+_il.reload(layout)
+L = layout
 
 clear_scene()
 
@@ -41,7 +45,7 @@ vs.gamma = 1.0
 # --------------------------------------------------------------------- camera
 cam_data = bpy.data.cameras.new("IsoCam")
 cam_data.type = 'ORTHO'
-cam_data.ortho_scale = 380.0
+cam_data.ortho_scale = L.ORTHO
 cam_data.clip_start = 1.0
 cam_data.clip_end = 3000.0
 cam = bpy.data.objects.new("IsoCam", cam_data)
@@ -154,6 +158,18 @@ T("coal_shiny", [(0.15, (0.0085, 0.0085, 0.0105)), (0.60, (0.0155, 0.0155, 0.018
                  (0.90, (0.0265, 0.0265, 0.0315))],
   rough=0.52, rough_hi=0.36, kind="voronoi", scale=0.9, bump=0.16,
   bump_dist=0.07, spec=0.35)
+# Copper ore, for the copper island. Malachite green with azurite in the
+# shadows and iron oxide on the weathered faces - the same shapes as the coal
+# stockpiles, so a heap reads instantly as "not coal" without new geometry.
+T("ore_cu", [(0.10, (0.018, 0.052, 0.048)), (0.40, (0.038, 0.135, 0.108)),
+             (0.68, (0.085, 0.235, 0.165)), (0.90, (0.185, 0.105, 0.042))],
+  rough=0.72, rough_hi=0.50, kind="voronoi", scale=0.34, bump=0.32,
+  bump_dist=0.22, spec=0.40)
+T("ore_cu_shiny", [(0.12, (0.030, 0.082, 0.072)), (0.46, (0.060, 0.180, 0.140)),
+                   (0.74, (0.120, 0.290, 0.200)), (0.92, (0.235, 0.140, 0.058))],
+  rough=0.58, rough_hi=0.40, kind="voronoi", scale=0.9, bump=0.18,
+  bump_dist=0.07, spec=0.45)
+
 T("steel", [(0.25, (0.300, 0.316, 0.340)), (0.65, (0.395, 0.412, 0.436)),
             (0.90, (0.480, 0.498, 0.522))],
   rough=0.42, rough_hi=0.55, metal=0.55, scale=0.9, bump=0.10, bump_dist=0.05)
@@ -248,6 +264,28 @@ T("bush", [(0.20, (0.085, 0.170, 0.058)), (0.65, (0.140, 0.255, 0.088)),
   rough=0.90, scale=1.4, detail=4.0, bump=0.20, bump_dist=0.08)
 T("trunk", [(0.20, (0.072, 0.045, 0.026)), (0.70, (0.115, 0.072, 0.042))],
   rough=0.95, kind="wave", scale=3.0, distortion=2.0, bump=0.20, bump_dist=0.04)
+
+# ------------------------------------------------------- per-island overrides
+# Redefining a material by name re-uses the same datablock (tex._fresh), so an
+# override here changes every mesh already asking for "rock" without touching a
+# single district script.
+if L.ISLAND == "copper":
+    # Copper country rock is iron-stained rather than grey, and the weathered
+    # outcrops carry the same green bloom as the ore they sit on. This is what
+    # keeps the two islands telling apart at a glance from the terrain alone.
+    T("rock", [(0.18, (0.190, 0.140, 0.104)), (0.50, (0.310, 0.232, 0.168)),
+               (0.82, (0.430, 0.330, 0.244))],
+      rough=0.88, scale=0.30, detail=7.0, bump=0.45, bump_dist=0.30)
+    T("rock_dark", [(0.20, (0.104, 0.080, 0.066)), (0.55, (0.168, 0.130, 0.106)),
+                    (0.85, (0.240, 0.190, 0.152))],
+      rough=0.90, scale=0.32, detail=7.0, bump=0.45, bump_dist=0.30)
+    T("cliff", [(0.18, (0.262, 0.190, 0.128)), (0.52, (0.380, 0.284, 0.192)),
+                (0.85, (0.505, 0.395, 0.278))],
+      rough=0.90, scale=0.26, detail=7.0, bump=0.42, bump_dist=0.30)
+    # Beaches below an iron-stained range come out redder too.
+    T("sand", [(0.22, (0.352, 0.258, 0.160)), (0.60, (0.462, 0.360, 0.232)),
+               (0.88, (0.565, 0.462, 0.312))],
+      rough=0.95, scale=0.24, detail=5.0, bump=0.22, bump_dist=0.2)
 
 # ------------------------------------------------------------------ collections
 for c in ("Terrain", "Roads", "Rail", "Mine", "Depot", "Refinery", "Market",

@@ -4,6 +4,12 @@ can be cheaply linked-duplicated with lib.dup().  Scale is roughly 1 unit = 1 m.
 from lib import B, dup, mat, RNG, coll, rough_verts
 from math import radians, sin, cos, pi, hypot, atan2
 
+# Ore is whatever the current island mines, so the same stockpile and tipper
+# geometry reads as coal on one map and as malachite on the other. Looked up
+# through the module rather than copied into a constant: every step reloads
+# layout before it reloads parts, so L always points at the live island.
+import layout as L
+
 # ------------------------------------------------------------------- vehicles
 def truck(name, body="orange", load=None, C=None, trailer=True):
     """Articulated hauler ~13 long.
@@ -51,7 +57,7 @@ def truck(name, body="orange", load=None, C=None, trailer=True):
                 b.box((8.6, 0.3, 2.3), (-2.2, s * 1.5, 3.1))
                 b.box((0.3, 3.3, 2.3), (-2.2 + s * 4.15, 0, 3.1))
             if load == "coal":
-                b.use("coal")
+                b.use(L.ORE)
                 for i in range(9):
                     x = -6.0 + i * 0.95
                     b.sphere(1.35, (x, RNG.uniform(-0.35, 0.35), 4.35), 1,
@@ -178,7 +184,7 @@ def wagon(name, loaded=True, C=None):
         for s in (1, -1):
             b.cyl(0.8, 0.45, (x, s * 1.5, 0.9), (radians(90), 0, 0), 10)
     if loaded:
-        b.use("coal")
+        b.use(L.ORE)
         for i in range(11):
             b.sphere(1.5, (-4.3 + i * 0.86, RNG.uniform(-0.4, 0.4), 4.7), 1,
                      scale=(1.0, 1.0, 0.40))
@@ -415,7 +421,7 @@ def hopper(name, r=5.0, h=9.0, C=None):
 
 
 def coal_pile(name, r=13.0, h=8.0, C=None, seed=1.0):
-    b = B().use("coal")
+    b = B().use(L.ORE)
     b.conez(r, r * 0.10, h, (0, 0, 0), seg=22)
     o = b.make(name, collection=C, smooth=False)
     rough_verts(o, amount=r * 0.075, scale=0.09, seed=seed)

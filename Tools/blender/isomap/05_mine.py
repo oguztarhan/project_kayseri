@@ -50,7 +50,7 @@ rough_verts(o, amount=0.9, scale=0.16, seed=4.0)
 ADY = (CY - 20, CY + 10, CY + 30)[:NADITS]
 for k, ay in enumerate(ADY):
     ax = CX - 25
-    ad = B().use("coal")
+    ad = B().use(L.ORE)
     ad.box((7.0, 7.6, 8.0), (ax - 3.4, ay, 4.0))
     ad.use(PK("wood", "concrete_dk", "concrete_dk"))
     for s in (1, -1):
