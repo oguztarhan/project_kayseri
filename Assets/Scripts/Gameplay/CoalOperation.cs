@@ -870,6 +870,9 @@ namespace Game.Gameplay
             _routes = authoredRoutes != null ? Game.Data.IslandRoutes.Parse(authoredRoutes) : null;
             if (authoredRoutes != null && _routes == null)
             { Debug.LogError("CoalOperation: authored routes failed to load — disabled.", this); enabled = false; return; }
+            // The file is in the map's own authored space, which is only world space when the
+            // island root happens to sit at the origin.
+            if (_routes != null) _routes.Rebase(_islandRoot);
             _phases = _islandRoot.GetComponent<Kayseri.Island.IslandPhaseController>();
             if (Authored) PrepareAuthoredIsland();
 
@@ -1749,18 +1752,46 @@ namespace Game.Gameplay
 
         /// <summary>
         /// How a district joins the authored road network: the exported anchor at its centre,
-        /// the arterial that runs the length of it, and where that arterial meets the ring.
+        /// and the arterial that runs the length of it. Which end of that arterial meets the
+        /// ring is not named here — see <see cref="RingMeet"/>.
         /// </summary>
         private struct RoadLink
         {
-            public readonly string Anchor, Artery, RingMeet;
-            public RoadLink(string anchor, string artery, string ringMeet)
-            { Anchor = anchor; Artery = artery; RingMeet = ringMeet; }
+            public readonly string Anchor, Artery;
+            public RoadLink(string anchor, string artery)
+            { Anchor = anchor; Artery = artery; }
         }
 
-        private static readonly RoadLink LinkDepot = new RoadLink("depot", "roadY", "loopN");
-        private static readonly RoadLink LinkRefinery = new RoadLink("refinery", "roadX", "loopE");
-        private static readonly RoadLink LinkMarket = new RoadLink("market", "roadY", "loopS");
+        private static readonly RoadLink LinkDepot = new RoadLink("depot", "roadY");
+        private static readonly RoadLink LinkRefinery = new RoadLink("refinery", "roadX");
+        private static readonly RoadLink LinkMarket = new RoadLink("market", "roadY");
+
+        /// <summary>The four exported points where the ring road crosses an arterial.</summary>
+        private static readonly string[] RingMeets = { "loopN", "loopE", "loopS", "loopW" };
+
+        /// <summary>
+        /// The ring-road junction a district turns off at: whichever of the four is nearest it.
+        ///
+        /// This used to be named per district — depot at loopN, market at loopS — which was only
+        /// ever right because the coal island puts them there. The copper island swaps the two
+        /// ends of the north-south arterial so the market can be the coastal district that feeds
+        /// the port, and the named version then sent every returning truck the long way round the
+        /// ring and back down the entire length of the arterial, through the middle crossroads it
+        /// had just driven out of.
+        /// </summary>
+        private bool RingMeet(Vector3 district, out Vector3 meet)
+        {
+            meet = Vector3.zero;
+            float best = float.MaxValue;
+            for (int i = 0; i < RingMeets.Length; i++)
+            {
+                Vector3 p;
+                if (!_routes.TryGetAnchor(RingMeets[i], out p)) continue;
+                float d = Flat(p - district).sqrMagnitude;
+                if (d < best) { best = d; meet = p; }
+            }
+            return best < float.MaxValue;
+        }
 
         /// <summary>
         /// A circuit between two districts driven entirely on authored tarmac: straight down
@@ -1784,8 +1815,8 @@ namespace Game.Gameplay
             if (!_routes.TryGetAnchor("center", out centre)) return null;
             if (!_routes.TryGetAnchor(a.Anchor, out ancA)) return null;
             if (!_routes.TryGetAnchor(b.Anchor, out ancB)) return null;
-            if (!_routes.TryGetAnchor(a.RingMeet, out meetA)) return null;
-            if (!_routes.TryGetAnchor(b.RingMeet, out meetB)) return null;
+            if (!RingMeet(ancA, out meetA)) return null;
+            if (!RingMeet(ancB, out meetB)) return null;
 
             var path = new List<Vector3>(256);
             // Loaded run: A's yard, in to the crossroads, out to B's yard.

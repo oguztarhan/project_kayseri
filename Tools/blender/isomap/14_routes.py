@@ -174,7 +174,7 @@ data = {
     "paths": paths,
 }
 
-dst = "%s/island_routes_P%d.json" % (OUT, PHASE)
+dst = "%s/%s_routes_P%d.json" % (OUT, L.NAME, PHASE)
 with open(dst, "w") as f:
     json.dump(data, f, indent=1)
 

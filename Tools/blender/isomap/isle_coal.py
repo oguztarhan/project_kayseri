@@ -171,8 +171,12 @@ sea_depth = shore_fns(SHORE, SEA_AXIS[0], SEA_AXIS[1])
 PORT = (-76.0, -113.0)
 PORT_YAW = -0.9272952            # quay runs parallel to this stretch of shore
 PORT_APRON = (12.0, 9.0)         # apron centre, offset landward of the quay
-SHIP_OUT = (-108.0, -136.0)      # ship under way, heading off-screen
-SHIP_LANE = [(-108, -136), (-142, -162), (-176, -188), (-210, -214)]
+# Ship under way, heading off-screen. Same correction as the copper map: it was
+# almost dead in line with the berths (0.8 along the quay, 39 out) while a
+# phase-3 hull reaches 67 out, so it sailed through the moored one. Moved 42
+# along the quay, past the harbour mouth.
+SHIP_OUT = (-143.0, -111.0)
+SHIP_LANE = [(-143, -111), (-177, -137), (-211, -163), (-245, -189)]
 
 GROUND_SIZE = 640.0
 GROUND_SEGS = 250

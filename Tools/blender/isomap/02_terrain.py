@@ -336,7 +336,27 @@ bf.make("Surf", collection=CT, smooth=True)
 
 
 # ---------------------------------------------------------------------- river
-def water(path, width, zfun, name, lift=1.6):
+def reach(x, y, nx, ny, z, lo, hi, over=0.8):
+    """How far off the centreline the bed is still under the surface at z.
+
+    The water surface used to be a constant ribbon, `RIVER_W * 0.5` wide, which
+    is narrower than the channel the terrain carves EVERYWHERE: 1 unit of dry
+    river bed either side through the pinched middle and 8 at the floodplain
+    ends, so the river read as a stream in a trench rather than a full river.
+    Following the ground instead fills whatever the carve left, and goes on
+    doing so if river_carve() is ever retuned.
+
+    Sampled per side, so an asymmetric gorge gets an asymmetric river. `over`
+    carries the edge a little way into the bank, where the discretised ground
+    mesh would otherwise leave a seam of bare bed showing along the waterline.
+    """
+    d = lo
+    while d < hi and height(x + nx * d, y + ny * d) <= z:
+        d += 0.5
+    return min(hi, d + over)
+
+
+def water(path, zfun, name, lift=1.6):
     pts, segl, total = [], [], 0.0
     for i in range(len(path) - 1):
         Lx = hypot(path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1])
@@ -362,13 +382,24 @@ def water(path, width, zfun, name, lift=1.6):
         dx, dy = pts[j][0] - pts[k][0], pts[j][1] - pts[k][1]
         ln = hypot(dx, dy) or 1.0
         nx, ny = -dy / ln, dx / ln
-        w = width * (0.5 + 0.12 * nz(x, y, 0.05, 2.0))
         z = zfun(t) + lift
-        a = bmw.verts.new((x + nx * w, y + ny * w, z))
-        b = bmw.verts.new((x - nx * w, y - ny * w, z))
+        # Never narrower than the flat bed the carve laid, never wider than the
+        # gorge - river_carve() is what keeps the river off the central
+        # crossroads at one end and the market pad at the other.
+        lo, hi = L.river_w(t) * 0.52, L.river_carve(t)
+        wl = reach(x, y, nx, ny, z, lo, hi)
+        wr = reach(x, y, -nx, -ny, z, lo, hi)
+        a = bmw.verts.new((x + nx * wl, y + ny * wl, z))
+        b = bmw.verts.new((x - nx * wr, y - ny * wr, z))
         if prev:
             try:
-                bmw.faces.new([prev[0], a, b, prev[1]])
+                # Wound left-bank -> right-bank -> downstream, which puts the
+                # normal UP. It used to be [prev_l, l, r, prev_r], and that is
+                # the other way round: every one of the surface's 219 faces
+                # pointed at the river bed. Lit from underneath, the water came
+                # out a flat dark slab the same value as the rock around it, so
+                # the river read as a dry channel however wide it was drawn.
+                bmw.faces.new([prev[0], prev[1], b, a])
             except ValueError:
                 pass
         prev = (a, b)
@@ -381,7 +412,7 @@ def water(path, width, zfun, name, lift=1.6):
     return ob, pts
 
 
-river_ob, rpts = water(L.RIVER, L.RIVER_W, bed_z, "River")
+river_ob, rpts = water(L.RIVER, bed_z, "River")
 
 bff = B().use("foam")
 for thr in L.FALLS:

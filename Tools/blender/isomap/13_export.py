@@ -31,7 +31,9 @@ def wanted(group):
     return not ONLY or group in ONLY
 
 UNITY = "/Users/macbookair/Documents/GitHub/project_kayseri"
-OUT = UNITY + "/Assets/Art/KayseriIsland/Models/Phase%d" % PHASE
+# One tree per island. Every group file is named the same on both maps, so
+# without the island in the path a copper export silently overwrites coal.
+OUT = UNITY + "/Assets/Art/KayseriIsland/Models/%s/Phase%d" % (L.NAME.capitalize(), PHASE)
 os.makedirs(OUT, exist_ok=True)
 
 # --------------------------------------------------------------- strip vehicles
@@ -204,8 +206,75 @@ for gname, objs in sets:
         use_active_collection=False)
     written.append((gname, len(objs), os.path.getsize(path) // 1024))
 
+# ------------------------------------------------------------------- palette
+# IslandBuilder.CreateMaterials builds one URP material per palette entry, and
+# the FBX importer remaps by NAME onto those. A material with no entry gets no
+# Unity material, so the mesh lands on the default grey Lit one - which does not
+# read vertex colour at all, so it stays grey. The copper island brings ore_cu
+# and ore_cu_shiny with it, and a third island will bring its own.
+#
+# Merge, never rewrite: an entry that already exists is left exactly as it is.
+# The colour here is only the flat fallback (Toggle Flat Colours) - the shader
+# runs on the baked vertex colour, so an entry that exists is already right.
+PAL = UNITY + "/Assets/Art/KayseriIsland/palette.json"
+
+
+def srgb(c):
+    c = max(0.0, min(1.0, float(c)))
+    return round(c * 12.92 if c <= 0.0031308
+                 else 1.055 * c ** (1.0 / 2.4) - 0.055, 5)
+
+
+def socket(bsdf, name, fallback):
+    s = bsdf.inputs.get(name)
+    if s is None or s.is_linked:
+        return fallback
+    v = s.default_value
+    return list(v)[:3] if hasattr(v, "__len__") else float(v)
+
+
+def entry(m):
+    bsdf = None
+    for n in m.node_tree.nodes:
+        if n.bl_idname == "ShaderNodeBsdfPrincipled":
+            bsdf = n
+            break
+    if bsdf is None:
+        return None
+    ramp = bake.ramp_of(m)
+    col = list(ramp.evaluate(0.5))[:3] if ramp else socket(bsdf, "Base Color", [0.5] * 3)
+    return {"name": m.name,
+            "color": [srgb(c) for c in col],
+            "metallic": round(socket(bsdf, "Metallic", 0.0), 4),
+            "smoothness": round(1.0 - socket(bsdf, "Roughness", 0.5), 4),
+            "alpha": round(socket(bsdf, "Alpha", 1.0), 4),
+            "emission": round(socket(bsdf, "Emission Strength", 0.0), 4),
+            "emissionColor": [round(c, 5) for c in socket(bsdf, "Emission Color", [1.0] * 3)]}
+
+
+import json
+
+with open(PAL) as f:
+    pal = json.load(f)
+have = {e["name"] for e in pal["materials"]}
+added = []
+for m in bpy.data.materials:
+    if m.name in have or not m.use_nodes:
+        continue
+    e = entry(m)
+    if e is not None:
+        pal["materials"].append(e)
+        have.add(m.name)
+        added.append(m.name)
+if added:
+    pal["materials"].sort(key=lambda e: e["name"])
+    with open(PAL, "w") as f:
+        json.dump(pal, f, indent=1)
+
 print("phase %d: removed %d vehicle/source objects, baked %d meshes%s"
       % (PHASE, removed, baked, "  ONLY " + ", ".join(sorted(ONLY)) if ONLY else ""))
 for g, n, kb in written:
     print("   %-9s %4d objs  %6d KB" % (g, n, kb))
 print("export dir:", OUT)
+print("palette: %d entries%s" % (len(pal["materials"]),
+                                 ", added " + ", ".join(added) if added else ""))

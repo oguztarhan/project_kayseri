@@ -43,10 +43,34 @@ exec(compile(open(P + "/00_boot.py").read(), "00_boot.py", "exec"), g)
 
 for ph in (1, 2, 3):
     g["build"](ph, isle="copper")      # or isle="coal"
+    g["run"]("14_routes", ph)          # gameplay centrelines + anchors -> JSON
     g["run"]("13_export", ph)          # strip vehicles, bake colours, export FBX
 ```
 
-Then in Unity: **Kayseri → Island → Build All**.
+Then in Unity: **Kayseri → Island → Build All (Copper)**.
+
+Blender does not have to be open. The same thing runs headless, which is faster
+and scriptable — about 30 seconds per phase:
+
+```bash
+/Applications/Blender.app/Contents/MacOS/Blender --background --python gen.py -- copper 1 2 3
+```
+
+`14_routes` before `13_export`: the export strips the vehicles and hidden source
+objects out of the scene, and the routes step reads what was actually laid.
+
+## Where it lands
+
+| | |
+|---|---|
+| FBX | `Assets/Art/KayseriIsland/Models/<Island>/Phase<n>/<Group>_P<n>.fbx` |
+| routes | `Assets/Art/KayseriIsland/Routes/<island>_routes_P<n>.json` |
+| palette | `Assets/Art/KayseriIsland/palette.json` — **merged**, never rewritten |
+
+The palette merge is what lets an island bring its own materials: copper adds
+`ore_cu` and `ore_cu_shiny`, and without an entry there Unity builds no material
+for them, the FBX remap finds nothing, and the ore piles import onto the default
+grey Lit material — which does not read vertex colour at all.
 
 ## Files
 

@@ -545,6 +545,40 @@
    ]
   },
   {
+   "name": "ore_cu",
+   "color": [
+    0.25956,
+    0.45009,
+    0.3935
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_cu_shiny",
+   "color": [
+    0.29039,
+    0.47968,
+    0.42168
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
    "name": "pine",
    "color": [
     0.29466,

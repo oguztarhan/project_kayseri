@@ -8,13 +8,19 @@ using UnityEngine.SceneManagement;
 namespace Kayseri.IslandTools
 {
     /// <summary>
-    /// Builds the Kayseri island from the FBX exported out of Blender.
+    /// Builds a Kayseri island from the FBX exported out of Blender.
     ///
     /// The FBX files carry world transforms baked in, so every district lands at
     /// the Unity origin and reassembles the map exactly as authored - nothing is
     /// positioned by hand here.
     ///
-    /// Run "Kayseri/Island/Build All" once after importing new FBX.
+    /// One tree per island, matching the generator: Tools/blender/isomap writes
+    /// Models/&lt;Island&gt;/Phase&lt;n&gt;/ and Routes/&lt;island&gt;_routes_P&lt;n&gt;.json.
+    /// Materials are shared - the palette is one file and the island shader takes
+    /// its colour from baked vertex colour, so the same "rock" material draws grey
+    /// granite on the coal map and iron-stained sandstone on the copper one.
+    ///
+    /// Run "Kayseri/Island/Build All (&lt;island&gt;)" after importing new FBX.
     /// </summary>
     public static class IslandBuilder
     {
@@ -23,7 +29,13 @@ namespace Kayseri.IslandTools
         private const string MaterialsRoot = ArtRoot + "/Materials";
         private const string PalettePath = ArtRoot + "/palette.json";
         private const string PrefabRoot = "Assets/Prefabs/Island";
-        private const string ScenePath = "Assets/Scenes/KayseriIsland.unity";
+
+        /// <summary>Folder name per island, matching isle_&lt;name&gt;.py in the generator.</summary>
+        private static readonly string[] Islands = { "Coal", "Copper" };
+
+        private static string ModelsFor(string island) => $"{ModelsRoot}/{island}";
+        private static string PrefabsFor(string island) => $"{PrefabRoot}/{island}";
+        private static string SceneFor(string island) => $"Assets/Scenes/KayseriIsland_{island}.unity";
 
         private const string OpaqueShader = "Kayseri/IslandVertexLit";
         private const string TransparentShader = "Kayseri/IslandVertexLitTransparent";
@@ -49,17 +61,28 @@ namespace Kayseri.IslandTools
         private const float CameraOrthoSize = 126.7f;
         private static readonly Vector3 SunEuler = new Vector3(44f, 128f, 0f);
 
-        [MenuItem("Kayseri/Island/Build All", false, 0)]
-        public static void BuildAll()
+        [MenuItem("Kayseri/Island/Build All (Coal)", false, 0)]
+        public static void BuildAllCoal() { BuildAll("Coal"); }
+
+        [MenuItem("Kayseri/Island/Build All (Copper)", false, 1)]
+        public static void BuildAllCopper() { BuildAll("Copper"); }
+
+        [MenuItem("Kayseri/Island/Build All (every island)", false, 2)]
+        public static void BuildAllIslands()
+        {
+            foreach (var island in Islands) BuildAll(island);
+        }
+
+        public static void BuildAll(string island)
         {
             // Materials MUST exist before the importers run - the import step
             // remaps FBX materials onto them, and an empty lookup silently
             // remaps nothing (leaving every mesh on the default grey material).
             CreateMaterials();
-            ConfigureModelImports();
-            BuildPhasePrefabs();
-            BuildScene();
-            Debug.Log("[Island] Build All finished.");
+            ConfigureModelImports(island);
+            BuildPhasePrefabs(island);
+            BuildScene(island);
+            Debug.Log($"[Island] Build All finished for {island}.");
         }
 
         /// <summary>
@@ -138,13 +161,12 @@ namespace Kayseri.IslandTools
         }
 
         // ------------------------------------------------------------ imports
-        [MenuItem("Kayseri/Island/1. Configure Model Imports", false, 20)]
-        public static void ConfigureModelImports()
+        public static void ConfigureModelImports(string island)
         {
-            var paths = FindAllFbx();
+            var paths = FindAllFbx(ModelsFor(island));
             if (paths.Count == 0)
             {
-                Debug.LogError($"[Island] No FBX found under {ModelsRoot}.");
+                Debug.LogError($"[Island] No FBX found under {ModelsFor(island)}.");
                 return;
             }
 
@@ -202,7 +224,7 @@ namespace Kayseri.IslandTools
                 AssetDatabase.Refresh();
             }
 
-            Debug.Log($"[Island] Configured {touched} FBX importers.");
+            Debug.Log($"[Island] Configured {touched} FBX importers for {island}.");
         }
 
         // ---------------------------------------------------------- materials
@@ -289,10 +311,14 @@ namespace Kayseri.IslandTools
         }
 
         // ------------------------------------------------------------ prefabs
-        [MenuItem("Kayseri/Island/3. Build Phase Prefabs", false, 22)]
-        public static void BuildPhasePrefabs()
+        // The phase roots keep the same GameObject name on every island. The scene
+        // reads them by that name (OperationCameraBoot walks "Island_Phase*" to
+        // frame the districts one level down), and they are already told apart by
+        // the island root they sit under - only the asset path needs the island.
+        public static void BuildPhasePrefabs(string island)
         {
-            EnsureFolder(PrefabRoot);
+            string prefabRoot = PrefabsFor(island);
+            EnsureFolder(prefabRoot);
             int built = 0;
 
             for (int phase = 1; phase <= PhaseCount; phase++)
@@ -303,7 +329,7 @@ namespace Kayseri.IslandTools
 
                 foreach (var group in Groups)
                 {
-                    string fbx = $"{ModelsRoot}/Phase{phase}/{group}_P{phase}.fbx";
+                    string fbx = $"{ModelsFor(island)}/Phase{phase}/{group}_P{phase}.fbx";
                     var asset = AssetDatabase.LoadAssetAtPath<GameObject>(fbx);
                     if (asset == null) continue;   // group may not exist at this phase
 
@@ -324,25 +350,29 @@ namespace Kayseri.IslandTools
                 if (added == 0)
                 {
                     Object.DestroyImmediate(root);
-                    Debug.LogWarning($"[Island] Phase {phase}: no FBX found, skipped.");
+                    Debug.LogWarning($"[Island] {island} phase {phase}: no FBX found, skipped.");
                     continue;
                 }
 
-                string prefabPath = $"{PrefabRoot}/Island_Phase{phase}.prefab";
+                string prefabPath = $"{prefabRoot}/Island_Phase{phase}.prefab";
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
                 Object.DestroyImmediate(root);
                 built++;
-                Debug.Log($"[Island] Phase {phase} prefab: {added} district groups.");
+                Debug.Log($"[Island] {island} phase {phase} prefab: {added} district groups.");
             }
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log($"[Island] Built {built} phase prefabs in {PrefabRoot}.");
+            Debug.Log($"[Island] Built {built} phase prefabs in {prefabRoot}.");
         }
 
         // -------------------------------------------------------------- scene
-        [MenuItem("Kayseri/Island/4. Build Scene", false, 23)]
-        public static void BuildScene()
+        /// <summary>
+        /// The art PREVIEW scene for one island - camera, sun and the three phase
+        /// roots, with nothing of the game in it. Not in the build settings; it is
+        /// how the map gets looked at without loading Main.
+        /// </summary>
+        public static void BuildScene(string island)
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,
                                                     NewSceneMode.Single);
@@ -373,7 +403,7 @@ namespace Kayseri.IslandTools
 
             for (int phase = 1; phase <= PhaseCount; phase++)
             {
-                string prefabPath = $"{PrefabRoot}/Island_Phase{phase}.prefab";
+                string prefabPath = $"{PrefabsFor(island)}/Island_Phase{phase}.prefab";
                 var asset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
                 if (asset == null) continue;
 
@@ -398,8 +428,8 @@ namespace Kayseri.IslandTools
             }
 
             EnsureFolder("Assets/Scenes");
-            EditorSceneManager.SaveScene(scene, ScenePath);
-            Debug.Log($"[Island] Scene written to {ScenePath} " +
+            EditorSceneManager.SaveScene(scene, SceneFor(island));
+            Debug.Log($"[Island] Scene written to {SceneFor(island)} " +
                       $"({phaseRoots.Count} phase roots).");
         }
 
@@ -418,12 +448,12 @@ namespace Kayseri.IslandTools
             return map;
         }
 
-        private static List<string> FindAllFbx()
+        private static List<string> FindAllFbx(string root)
         {
             var list = new List<string>();
-            if (!AssetDatabase.IsValidFolder(ModelsRoot)) return list;
+            if (!AssetDatabase.IsValidFolder(root)) return list;
 
-            foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { ModelsRoot }))
+            foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { root }))
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 if (path.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase))

@@ -34,7 +34,7 @@ namespace Kayseri.IslandTools
                 int meshes = 0, withCols = 0, checkedFiles = 0;
                 var samples = new StringBuilder();
                 foreach (var guid in AssetDatabase.FindAssets(
-                             "t:Mesh", new[] { "Assets/Art/KayseriIsland/Models/Phase1" }))
+                             "t:Mesh", new[] { "Assets/Art/KayseriIsland/Models/Coal/Phase1" }))
                 {
                     string p = AssetDatabase.GUIDToAssetPath(guid);
                     checkedFiles++;
@@ -62,7 +62,7 @@ namespace Kayseri.IslandTools
 
                 // --- 2. what materials do the renderers actually reference? ----
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
-                    "Assets/Prefabs/Island/Island_Phase1.prefab");
+                    "Assets/Prefabs/Island/Coal/Island_Phase1.prefab");
                 if (prefab == null)
                 {
                     sb.AppendLine("PREFAB: Island_Phase1.prefab NOT FOUND");

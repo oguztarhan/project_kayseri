@@ -82,6 +82,39 @@ namespace Game.Data
             return r;
         }
 
+        /// <summary>
+        /// Moves every anchor and path onto the island root, once, before anything reads one.
+        ///
+        /// The exporter writes AUTHORED coordinates - the same space the FBX carry baked in,
+        /// whose origin is the island root. That is world space only for an island whose root
+        /// sits at the origin, which is the coal one; every other island in the archipelago is
+        /// parked on its own patch of the world map, 700 units apart. Without this the copper
+        /// island drew its art at its root and drove its trucks along the same route 7000 units
+        /// away over open sea.
+        /// </summary>
+        public void Rebase(Transform islandRoot)
+        {
+            if (islandRoot == null) return;
+
+            if (anchors != null)
+                for (int i = 0; i < anchors.Length; i++)
+                    if (anchors[i] != null) Move(anchors[i].pos, islandRoot);
+
+            if (paths != null)
+                for (int i = 0; i < paths.Length; i++)
+                {
+                    if (paths[i] == null || paths[i].points == null) continue;
+                    for (int k = 0; k < paths[i].points.Length; k++) Move(paths[i].points[k], islandRoot);
+                }
+        }
+
+        private static void Move(Vec v, Transform islandRoot)
+        {
+            if (v == null) return;
+            Vector3 w = islandRoot.TransformPoint(new Vector3(v.x, v.y, v.z));
+            v.x = w.x; v.y = w.y; v.z = w.z;
+        }
+
         /// <summary>World position of a named anchor (mine, depot, refinery, market, port, ...).</summary>
         public bool TryGetAnchor(string anchorName, out Vector3 world)
         {

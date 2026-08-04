@@ -285,8 +285,14 @@ sea_depth = shore_fns(SHORE, SEA_AXIS[0], SEA_AXIS[1])
 PORT = (18.0, 200.0)             # mid-quay, set 6 back off the waterline
 PORT_YAW = -0.9651               # atan2(-13, 9) - the straight face above
 PORT_APRON = (-13.0, -9.0)       # landward along the quay's normal
-SHIP_OUT = (52.0, 234.0)         # ship under way, standing out to sea
-SHIP_LANE = [(52, 234), (86, 268), (120, 302), (154, 336)]
+# Ship under way, standing out to sea. It has to leave the harbour PAST the
+# berths, not through them: ships moor bow-out along the finger piers, so at
+# phase 3 a 60-unit hull reaches 67 units off the quay, and this used to sit
+# 47 out on the same line - a 15-unit interpenetration with the outer berth.
+# Set 42 along the quay instead, which clears the outermost hull by 15 and
+# still lands inside the frame (screen_x 213 against a 220 half-width).
+SHIP_OUT = (37.0, 264.0)
+SHIP_LANE = [(37, 264), (71, 298), (105, 332), (139, 366)]
 
 GROUND_SIZE = 640.0
 GROUND_SEGS = 250

@@ -224,6 +224,54 @@ if PHASE >= 3:
                    SEA + 0.6)
     tg.rotation_euler = (0, 0, QYAW + radians(30))
 
+# ------------------------------------------------------------- berth check
+# Hull length is phase-scaled here while SHIP_OUT is authored per island, so the
+# two drift apart silently: at phase 3 the outbound ship used to sail straight
+# through the outer berth, 15 units deep, on BOTH maps. World AABBs prove
+# nothing about it - every hull lies on a diagonal - so compare oriented boxes.
+bpy.context.view_layer.update()
+
+
+def hull_box(o):
+    """(cx, cy, along, across, half length, half beam) in world XY."""
+    xs = [c[0] for c in o.bound_box]
+    ys = [c[1] for c in o.bound_box]
+    c = o.matrix_world @ Vector(((min(xs) + max(xs)) * 0.5,
+                                 (min(ys) + max(ys)) * 0.5, 0.0))
+    yw = o.rotation_euler.z
+    return (c.x, c.y, (cos(yw), sin(yw)), (-sin(yw), cos(yw)),
+            (max(xs) - min(xs)) * 0.5, (max(ys) - min(ys)) * 0.5)
+
+
+def hull_gap(A, B):
+    """Separating-axis gap between two oriented boxes; negative = interpenetrating."""
+    worst = -1e9
+    for X in (A, B):
+        for ax in (X[2], X[3]):
+            s = []
+            for Z in (A, B):
+                m = Z[0] * ax[0] + Z[1] * ax[1]
+                r = (abs(Z[2][0] * ax[0] + Z[2][1] * ax[1]) * Z[4]
+                     + abs(Z[3][0] * ax[0] + Z[3][1] * ax[1]) * Z[5])
+                s.append((m - r, m + r))
+            worst = max(worst, max(s[1][0] - s[0][1], s[0][0] - s[1][1]))
+    return worst
+
+
+hulls = [o for o in C.objects
+         if any(k in o.name for k in ("Ship", "Boat", "Tug"))
+         and not any(k in o.name for k in ("Smoke", "Wake"))]
+tight, gap = None, 1e9
+for i in range(len(hulls)):
+    for j in range(i + 1, len(hulls)):
+        g = hull_gap(hull_box(hulls[i]), hull_box(hulls[j]))
+        if g < gap:
+            gap, tight = g, (hulls[i].name, hulls[j].name)
+if tight:
+    print("   port: %d hulls, closest %s / %s at %.1f%s"
+          % (len(hulls), tight[0], tight[1], gap,
+             "   <-- OVERLAPPING" if gap < 0 else ""))
+
 # ------------------------------------------------------------- port traffic
 tk = P.truck("Port.Truck", "white", "cargo", C)
 p = q(-QL * 0.2, -QW * 0.5 + 3)
