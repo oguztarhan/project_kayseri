@@ -18,9 +18,9 @@ namespace Game.UI
     /// Upgrades used to be one long scrolling list behind a button in the corner, which hid the only
     /// thing the money is really buying — the building growing. Here what is being bought fills the top
     /// of the screen on a slowly swaying turntable while its levels slide up from the bottom like a
-    /// keyboard, and the strip says what else there is without having to go back anywhere. Only the
-    /// one-time expansions stayed behind in <see cref="UpgradePanelUI"/>: they buy ground rather than
-    /// levels, so they have no model and no phase bar. The last tile on the strip is the door to them.
+    /// keyboard, and the strip says what else there is without having to go back anywhere. The last tile
+    /// is the one-time expansions: they buy ground rather than levels, so that page drops the model and
+    /// the phase bar and lets the tray grow into the space instead.
     ///
     /// There is no close button. The screen covers the island, so the way out is to tap the island.
     ///
@@ -163,6 +163,7 @@ namespace Game.UI
             }
             BuildStrip();
             if (panelRoot != null) panelRoot.SetActive(false);
+            BuildDevButton();
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
@@ -285,13 +286,42 @@ namespace Game.UI
         {
             _loc = ServiceLocator.Get<LocalizationService>();
             if (_loc != null) _loc.Changed += OnLanguageChanged;
+            BindPhases();
         }
 
         private void OnDisable()
         {
             if (stage != null) stage.Live = false;
             if (_loc != null) _loc.Changed -= OnLanguageChanged;
+            if (_phases != null) { _phases.PhaseChanged -= OnDistrictPhaseChanged; _phases = null; }
         }
+
+        /// <summary>
+        /// Listens to the island the screen is bound to. This object stays alive whether the screen is
+        /// open or shut — only its window is switched off — so this is where the phase fanfare belongs:
+        /// a rebuild is heard whichever screen the purchase came from, and it follows the player across
+        /// islands instead of staying wired to whichever controller happened to be found first.
+        /// </summary>
+        private void BindPhases()
+        {
+            Kayseri.Island.IslandPhaseController next = _op != null ? _op.Phases : null;
+            if (next == _phases) return;
+            if (_phases != null) _phases.PhaseChanged -= OnDistrictPhaseChanged;
+            _phases = next;
+            if (_phases != null) _phases.PhaseChanged += OnDistrictPhaseChanged;
+        }
+
+        private void OnDistrictPhaseChanged(string district, int phase)
+        {
+            // Açılışta değil. Ada önce faz 1'de kuruluyor, sonra kayıttaki seviyeler uygulanınca
+            // bulunduğu faza sıçrıyor; bu da bölge bölge PhaseChanged olarak rapor ediliyor. Oyuncu
+            // hiçbir şey yapmadan fanfar duyardı. Ölçüldü: sahne yüklendikten ~1 sn sonra oluyor.
+            if (Time.timeSinceLevelLoad < 3f) return;
+            Sound(SoundId.PhaseUp);
+            if (_haptic != null) _haptic.Heavy();
+        }
+
+        private Kayseri.Island.IslandPhaseController _phases;
 
         /// <summary>Axis names are stamped onto the cards as they are cloned, so the next open has to
         /// clone them again.</summary>
@@ -309,6 +339,7 @@ namespace Game.UI
             if (op == null || op == _op) return;
             _op = op;
             _builtFor = -1;                       // axis names are shared, but the model is not
+            BindPhases();
             if (panelRoot != null && panelRoot.activeSelf) Hide();
         }
 
@@ -773,10 +804,8 @@ namespace Game.UI
         {
             _busy = true;
             SetButtons(false);
-            // Sesi UpgradePanelUI çalıyor — PhaseChanged'i dinleyen ve hep açık olan tek yer orası.
-            // Buradaki iş sadece elde hissedilen kısım.
+            // Ses ve titreşim OnDistrictPhaseChanged'den geliyor; o zaten bu karede çalıştı.
             Bind();
-            if (_haptic != null) _haptic.Heavy();
 
             // 1 · clear the stage
             yield return SlideSheet(_sheetHome.y, HiddenSheetY(), SheetOutSeconds);
@@ -975,5 +1004,56 @@ namespace Game.UI
         private const float BannerHoldSeconds = 0.55f;
         private const float BannerOutSeconds = 0.30f;
         private const float SheetInSeconds = 0.28f;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        // TEST MODU (yalnız geliştirici): her yerde bedava satın alma + oturum boyunca kayıt askıda,
+        // böylece her ada ve her yükseltme gerçek kaydına dokunmadan denenebilir. Koddan kuruluyor —
+        // hiçbir zaman yayına çıkmayacağı için prefabda yeri yok. Yükseltme paneliyle birlikte buraya
+        // taşındı: satın almanın yaşadığı ekran artık burası.
+        private Button _testBtn;
+        private TMP_Text _testLabel;
+
+        private void BuildDevButton()
+        {
+            var canvas = GetComponentInChildren<Canvas>(true);
+            if (canvas == null) return;
+            var go = new GameObject("TestModu", typeof(RectTransform));
+            go.transform.SetParent(canvas.transform, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(0f, 1f); rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(12f, -12f); rt.sizeDelta = new Vector2(340f, 58f);
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.24f, 0.27f, 0.32f, 0.92f);
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var tgo = new GameObject("Etiket", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var trt = (RectTransform)tgo.transform;
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+            _testLabel = tgo.AddComponent<TextMeshProUGUI>();
+            _testLabel.fontSize = 26; _testLabel.alignment = TextAlignmentOptions.Center;
+            _testLabel.text = "TEST MODU: KAPALI"; _testLabel.raycastTarget = false;
+            _testBtn = btn;
+            btn.onClick.AddListener(ToggleTestMode);
+        }
+
+        private void ToggleTestMode()
+        {
+            if (_wallet == null) return;
+            bool on = !_wallet.FreePurchases;
+            _wallet.FreePurchases = on;
+            if (on)
+            {
+                var save = ServiceLocator.Get<SaveService>();
+                if (save != null) save.Suspended = true;   // yapışkan: test modu bir kez çalıştıysa bu oturum kayıt yazmaz
+            }
+            _testLabel.text = on ? "TEST AÇIK — KAYIT YOK" : "TEST MODU: KAPALI";
+            _testBtn.GetComponent<Image>().color = on ? new Color(0.75f, 0.20f, 0.20f, 0.92f) : new Color(0.24f, 0.27f, 0.32f, 0.92f);
+            Refresh();
+        }
+#else
+        private void BuildDevButton() { }
+#endif
     }
 }
