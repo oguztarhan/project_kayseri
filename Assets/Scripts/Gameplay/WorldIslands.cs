@@ -179,31 +179,68 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// Default balance ladder (GDD §5). <c>capPerMin</c> is both what an island earns fully upgraded and
-        /// the ceiling it earns against — the same number, on purpose. It is measured, not chosen: coal
-        /// meters 27.3k–29k $/min with every axis at its level cap and all ten buildings bought, and the
-        /// rest of the ladder is that scaled by each tier's value multiplier. Keep these in step with each
-        /// island's <c>incomeCapPerMin</c>; the map's progress bar reads rate against this number, so it now
-        /// reaches 100% exactly when an island is finished instead of stopping at 58% as it did against the
-        /// old 50k cap that no island could reach.
-        ///
-        /// Unlock costs are roughly 6–45 hours of what you already own. They used to be derived from that
-        /// cap, which no island ever reached, so each unlock silently cost about 1.7× the play the pacing
-        /// intended; these are rebased on income the player can actually earn.
+        /// Every island moves by this step: what it earns, what its upgrades cost, and what it
+        /// costs to unlock. Value and cost moving together is what holds the tempo flat — they
+        /// used to be ×3.2 and ×4, so each island took 25% longer than the last and by the
+        /// twentieth that had compounded to 73×. Nothing on a weekly content cadence survives that.
         /// </summary>
-        private static Entry[] DefaultLadder() => new[]
-        {
-            E("coal",    "KÖMÜR ADASI",  "Island_Coal",    "",              0d,      29000d,   new Color(0.10f, 0.10f, 0.12f)),
-            E("copper",  "BAKIR ADASI",  "Island_Copper",  "Tiles_Copper",  12e6d,   93000d,   new Color(0.72f, 0.45f, 0.20f)),
-            E("iron",    "DEMİR ADASI",  "Island_Iron",    "Tiles_Iron",    62e6d,   297000d,  new Color(0.62f, 0.63f, 0.68f)),
-            E("silver",  "GÜMÜŞ ADASI",  "Island_Silver",  "Tiles_Silver",  330e6d,  950000d,  new Color(0.85f, 0.87f, 0.92f)),
-            E("gold",    "ALTIN ADASI",  "Island_Gold",    "Tiles_Gold",    1.55e9d, 3.04e6d,  new Color(0.95f, 0.78f, 0.22f)),
-            E("ruby",    "YAKUT ADASI",  "Island_Ruby",    "Tiles_Ruby",    6.75e9d, 9.72e6d,  new Color(0.85f, 0.15f, 0.25f)),
-            E("emerald", "ZÜMRÜT ADASI", "Island_Emerald", "Tiles_Emerald", 29e9d,   31.1e6d,  new Color(0.15f, 0.75f, 0.35f)),
-            E("diamond", "ELMAS ADASI",  "Island_Diamond", "Tiles_Diamond", 120e9d,  99.5e6d,  new Color(0.75f, 0.95f, 1f)),
-        };
+        private const double TierStep = 3.2d;
 
-        private static Entry E(string key, string name, string root, string tiles, double cost, double cap, Color c) =>
-            new Entry { key = key, displayName = name, rootName = root, tilesRootName = tiles, unlockCost = cost, capPerMin = cap, oreColor = c };
+        /// <summary>
+        /// What a maxed, fully-built coal island earns. MEASURED with the editor probe
+        /// (Kayseri/Economy), not assumed: the ladder used to be priced off 29,000 $/min, a rate
+        /// no island reaches, so every unlock silently cost about 1.8× the play it intended.
+        /// </summary>
+        private const double CoalMaxPerMin = Game.Core.EconomyCurve.MaxedCoalPerMin;
+
+        /// <summary>
+        /// Unlock prices through the onboarding ramp, solved against the pacing targets by
+        /// Kayseri/Economy/Solve Ladder. The ramp is deliberately steep at the start — Copper
+        /// on day one, not after thirty hours — and settles to a flat week per island, at which
+        /// point it is simply ×<see cref="TierStep"/> and needs no more hand-picked numbers.
+        /// </summary>
+        private static readonly double[] RampUnlock =
+        { 0d, 1.89e6d, 81.41e6d, 614.78e6d, 3.1e9d, 15.73e9d, 65.91e9d, 263.25e9d };
+
+        private static double UnlockCostFor(int n)
+            => n <= 0 ? 0d
+             : n < RampUnlock.Length ? RampUnlock[n]
+             : RampUnlock[RampUnlock.Length - 1] * System.Math.Pow(TierStep, n - RampUnlock.Length + 1);
+
+        /// <summary>
+        /// What the island earns fully upgraded, and the ceiling it earns against — the same
+        /// number on purpose. The map's progress bar reads rate against this, so it reaches
+        /// 100% exactly when an island is finished. Keep in step with each island's
+        /// <c>incomeCapPerMin</c> in the scene.
+        /// </summary>
+        private static double CapPerMinFor(int n) => CoalMaxPerMin * System.Math.Pow(TierStep, n);
+
+        /// <summary>
+        /// The ladder. Only the name, the scene roots and the ore colour are authored; every
+        /// number is derived, so next week's island is one row rather than a balance pass.
+        /// </summary>
+        private static Entry[] DefaultLadder()
+        {
+            var authored = new[]
+            {
+                E("coal",    "KÖMÜR ADASI",  "Island_Coal",    "",              new Color(0.10f, 0.10f, 0.12f)),
+                E("copper",  "BAKIR ADASI",  "Island_Copper",  "Tiles_Copper",  new Color(0.72f, 0.45f, 0.20f)),
+                E("iron",    "DEMİR ADASI",  "Island_Iron",    "Tiles_Iron",    new Color(0.62f, 0.63f, 0.68f)),
+                E("silver",  "GÜMÜŞ ADASI",  "Island_Silver",  "Tiles_Silver",  new Color(0.85f, 0.87f, 0.92f)),
+                E("gold",    "ALTIN ADASI",  "Island_Gold",    "Tiles_Gold",    new Color(0.95f, 0.78f, 0.22f)),
+                E("ruby",    "YAKUT ADASI",  "Island_Ruby",    "Tiles_Ruby",    new Color(0.85f, 0.15f, 0.25f)),
+                E("emerald", "ZÜMRÜT ADASI", "Island_Emerald", "Tiles_Emerald", new Color(0.15f, 0.75f, 0.35f)),
+                E("diamond", "ELMAS ADASI",  "Island_Diamond", "Tiles_Diamond", new Color(0.75f, 0.95f, 1f)),
+            };
+            for (int n = 0; n < authored.Length; n++)
+            {
+                authored[n].unlockCost = UnlockCostFor(n);
+                authored[n].capPerMin = CapPerMinFor(n);
+            }
+            return authored;
+        }
+
+        private static Entry E(string key, string name, string root, string tiles, Color c) =>
+            new Entry { key = key, displayName = name, rootName = root, tilesRootName = tiles, oreColor = c };
     }
 }

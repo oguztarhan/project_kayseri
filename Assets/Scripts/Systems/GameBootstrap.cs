@@ -93,8 +93,10 @@ namespace Game.Systems
             }
 
             var prestige = prestigeConfig != null
-                ? new PrestigeService(Data, prestigeConfig.InvestorK, prestigeConfig.BonusPerInvestor, prestigeConfig.Threshold)
-                : new PrestigeService(Data, 1d, 0.02d, 1000d);
+                ? new PrestigeService(Data, prestigeConfig.InvestorK, prestigeConfig.BonusPerInvestor,
+                                      prestigeConfig.ReferenceLifetime, prestigeConfig.TierStep,
+                                      prestigeConfig.MinIslandsOwned, prestigeConfig.ReadyFraction)
+                : new PrestigeService(Data, 10d, 0.10d, 1.1e6d, 3.2d, 3, 0.5d);
             ServiceLocator.Register(prestige);
 
             _time = new TimeService();

@@ -9,20 +9,46 @@ namespace Game.Systems
     public sealed class PrestigeService
     {
         private readonly SaveData _data;
-        private readonly double _k, _bonus, _threshold;
+        private readonly double _k, _bonus, _reference, _tierStep, _readyFraction;
+        private readonly int _minIslands;
 
-        public PrestigeService(SaveData data, double k, double bonusPerInvestor, double threshold)
+        public PrestigeService(SaveData data, double k, double bonusPerInvestor,
+                               double referenceLifetime, double tierStep,
+                               int minIslandsOwned, double readyFraction)
         {
-            _data = data; _k = k; _bonus = bonusPerInvestor; _threshold = threshold;
+            _data = data; _k = k; _bonus = bonusPerInvestor;
+            _reference = referenceLifetime; _tierStep = tierStep;
+            _minIslands = minIslandsOwned; _readyFraction = readyFraction;
         }
+
+        /// <summary>
+        /// What a full run is worth at the tier the player has reached. Every island earns
+        /// <c>tierStep</c> more than the last, so without scaling by it a reset would be worth
+        /// exponentially more the further up the ladder it was taken — which is exactly how
+        /// prestige used to hand out a 70× multiplier for finishing the first island.
+        /// </summary>
+        private BigDouble Reference =>
+            new BigDouble(_reference * System.Math.Pow(_tierStep, IslandsOwned));
+
+        /// <summary>Islands bought beyond the starter one, which is always owned.</summary>
+        private int IslandsOwned => _data.unlockedIslands != null ? _data.unlockedIslands.Count : 0;
 
         public double Investors => _data.wallet.investors;
         public double IncomeMultiplier => Prestige.IncomeMultiplier(_data.wallet.investors, _bonus);
-        public BigDouble PendingInvestors() => Prestige.Investors(_data.wallet.lifetimeCash, _k);
-        public bool CanPrestige() => _data.wallet.lifetimeCash.ToDouble() >= _threshold && PendingInvestors().Mantissa > 0d;
+        public BigDouble PendingInvestors() => Prestige.Investors(_data.wallet.lifetimeCash, _k, Reference);
+
+        /// <summary>
+        /// Gated on ISLANDS OWNED, not on a cash figure. The old gate was 1,000 lifetime cash —
+        /// roughly two minutes of play — so the run-ending button was live before the player had
+        /// seen a second island.
+        /// </summary>
+        public bool CanPrestige() =>
+            IslandsOwned + 1 >= _minIslands &&
+            _data.wallet.lifetimeCash.ToDouble() >= Threshold &&
+            PendingInvestors().Mantissa > 0d;
 
         /// <summary>Lifetime cash needed before prestige unlocks — the prestige screen draws a bar toward it.</summary>
-        public double Threshold => _threshold;
+        public double Threshold => Reference.ToDouble() * _readyFraction;
         public BigDouble LifetimeCash => _data.wallet.lifetimeCash;
 
         /// <summary>What the multiplier becomes once the pending investors are cashed in.</summary>

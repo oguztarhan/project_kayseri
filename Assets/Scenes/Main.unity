@@ -3147,9 +3147,9 @@ MonoBehaviour:
   oreColor: {r: 0.1, g: 0.1, b: 0.12, a: 1}
   barColor: {r: 0.88, g: 0.55, b: 0.18, a: 1}
   valueMultiplier: 1
-  costMultiplier: 1
+  costMultiplier: 0.48
   axisLevelCap: 50
-  incomeCapPerMin: 29000
+  incomeCapPerMin: 102626
   warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
@@ -3314,9 +3314,9 @@ MonoBehaviour:
   oreColor: {r: 0.75, g: 0.95, b: 1, a: 1}
   barColor: {r: 0.85, g: 0.97, b: 1, a: 1}
   valueMultiplier: 3435.97
-  costMultiplier: 16384
+  costMultiplier: 218269.55
   axisLevelCap: 50
-  incomeCapPerMin: 99500000
+  incomeCapPerMin: 352620250.9754369
   warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
@@ -3430,9 +3430,9 @@ MonoBehaviour:
   oreColor: {r: 0.15, g: 0.75, b: 0.35, a: 1}
   barColor: {r: 0.49, g: 0.85, b: 0.61, a: 1}
   valueMultiplier: 1073.74
-  costMultiplier: 4096
+  costMultiplier: 63310.656
   axisLevelCap: 50
-  incomeCapPerMin: 31100000
+  incomeCapPerMin: 110193828.42982404
   warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
@@ -3546,9 +3546,9 @@ MonoBehaviour:
   oreColor: {r: 0.85, g: 0.15, b: 0.25, a: 1}
   barColor: {r: 0.91, g: 0.49, b: 0.55, a: 1}
   valueMultiplier: 335.544
-  costMultiplier: 1024
+  costMultiplier: 16718.379
   axisLevelCap: 50
-  incomeCapPerMin: 9720000
+  incomeCapPerMin: 34435571.384320006
   warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
@@ -3662,9 +3662,9 @@ MonoBehaviour:
   oreColor: {r: 0.95, g: 0.78, b: 0.22, a: 1}
   barColor: {r: 0.97, g: 0.87, b: 0.53, a: 1}
   valueMultiplier: 104.858
-  costMultiplier: 256
+  costMultiplier: 3783.3154
   axisLevelCap: 50
-  incomeCapPerMin: 3040000
+  incomeCapPerMin: 10761116.057600003
   warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
@@ -3778,9 +3778,9 @@ MonoBehaviour:
   oreColor: {r: 0.85, g: 0.87, b: 0.92, a: 1}
   barColor: {r: 0.91, g: 0.92, b: 0.95, a: 1}
   valueMultiplier: 32.768
-  costMultiplier: 64
+  costMultiplier: 787.0063
   axisLevelCap: 50
-  incomeCapPerMin: 950000
+  incomeCapPerMin: 3362848.7680000006
   warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
@@ -3894,9 +3894,9 @@ MonoBehaviour:
   oreColor: {r: 0.62, g: 0.63, b: 0.68, a: 1}
   barColor: {r: 0.77, g: 0.78, b: 0.81, a: 1}
   valueMultiplier: 10.24
-  costMultiplier: 16
+  costMultiplier: 147.8513
   axisLevelCap: 50
-  incomeCapPerMin: 297000
+  incomeCapPerMin: 1050890.2400000002
   warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
@@ -4010,9 +4010,9 @@ MonoBehaviour:
   oreColor: {r: 0.72, g: 0.45, b: 0.2, a: 1}
   barColor: {r: 0.83, g: 0.67, b: 0.52, a: 1}
   valueMultiplier: 3.2
-  costMultiplier: 4
+  costMultiplier: 20.6487
   axisLevelCap: 50
-  incomeCapPerMin: 93000
+  incomeCapPerMin: 328403.2
   warmStartFill: 0.5
   secondMineCost: 25000
   secondSmelterCost: 10000
@@ -38368,6 +38368,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8844271197338895475, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
       propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8844271197338895475, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
+      propertyPath: m_SizeDelta.y
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []

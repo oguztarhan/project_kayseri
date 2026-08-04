@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Game.Core;
 using Game.Systems;
 using UnityEngine;
+using Econ = Game.Core.IslandEconomy;
 
 namespace Game.Gameplay
 {
@@ -278,58 +279,33 @@ namespace Game.Gameplay
         //  Saved as "<islandKey>#<station>#<axis>" (e.g. "coal#0#0") in SaveData.islandLevels.
         // ═══════════════════════════════════════════════════════════════════════════════════════════
 
-        // Station indices. These are array positions, so never reorder them — saved games address
-        // upgrades by number, and renumbering would silently move the player's levels onto other stations.
-        private const int StMine = 0, StTrain = 1, StStorage = 2, StOreTrucks = 3, StSmelter = 4, StCargoTrucks = 5, StMarket = 6, StPower = 7;
-        private static readonly string[] StationList = { "MINE", "TRAIN", "STORAGE", "ORE TRUCKS", "SMELTER", "CARGO TRUCKS", "MARKET", "POWER PLANT" };
-        private static readonly string[][] AxisList =
-        {
-            new[] { "Richness", "Load Speed" },
-            // Speed and Capacity only. "Wagons" was a third axis you bought one at a
-            // time; the rake now grows with the TRAIN station's own phase — 3, then 5,
-            // then 7 — so investing in either axis is what puts wagons on the track.
-            new[] { "Speed", "Capacity" },
-            new[] { "Capacity", "Transfer Speed" },
-            new[] { "Trucks", "Speed", "Capacity" },
-            new[] { "Smelt Speed", "Bar Storage" },
-            new[] { "Trucks", "Speed", "Capacity" },
-            new[] { "Price", "Sell Speed" },
-            new[] { "Generators", "Turbines" },
-        };
-        // Level-1 prices, before costMultiplier. Measured against a level-0 coal island's 540 $/min, so
-        // every number here reads as a wait: MINE → Richness is under a minute, CARGO TRUCKS → Trucks is
-        // twenty-two. The three fleet-count axes are deliberately the expensive ones — they cap after two
-        // or three levels and between them they QUADRUPLE a fresh island's output, which at the old 400 /
-        // 500 / 600 made the strongest purchase in the game also the cheapest, and left every upgrade
-        // after it feeling like small change.
-        private static readonly double[][] AxisBaseCost =
-        {
-            new[] { 500d, 650d },
-            new[] { 650d, 800d },
-            new[] { 800d, 700d },
-            new[] { 8000d, 550d, 700d },
-            new[] { 1000d, 900d },
-            new[] { 12000d, 700d, 750d },
-            new[] { 1200d, 1000d },
-            new[] { 16000d, 12000d },
-        };
-        // Per-axis hard caps. 0 means "no special cap" — that axis then stops at the island-wide
-        // axisLevelCap instead. The non-zero entries are the axes limited by physical scene objects:
-        // there are only so many wagon slots on a train (3) and so many parked truck bodies to wake (2).
-        private static readonly int[][] AxisMaxLv =
-        {
-            new[] { 0, 0 },
-            new[] { 0, 0 },
-            new[] { 0, 0 },
-            new[] { 2, 0, 0 },      // ORE TRUCKS → Trucks caps at 2 (2 base + 2 = 4 on the road)
-            new[] { 0, 0 },
-            new[] { 2, 0, 0 },      // CARGO TRUCKS → same
-            new[] { 0, 0 },
-            new[] { 0, 0 },
-        };
+        // The station tables, the cost curve and every upgrade effect live in
+        // Game.Core.IslandEconomy, so a simulator can drive them without a scene and the
+        // pacing curve becomes something we measure instead of hope for. This component
+        // holds one (_econ, built in Start) and shares its level array, so there is
+        // exactly one copy of every number.
+        //
+        // Aliased here because these names read all through this file — and because the
+        // station indices are array positions that saved games address by number, so
+        // they must never be reordered.
+        private const int StMine = Econ.Mine, StTrain = Econ.Train, StStorage = Econ.Storage,
+                          StOreTrucks = Econ.OreTrucks, StSmelter = Econ.Smelter,
+                          StCargoTrucks = Econ.CargoTrucks, StMarket = Econ.Market, StPower = Econ.Power;
+        private static string[] StationList => Econ.Stations;
+        private static string[][] AxisList => Econ.Axes;
+        private static int[][] AxisMaxLv => Econ.MaxLevel;
 
-        // The levels this island's player actually owns. Row lengths MUST match AxisList above.
-        private readonly int[][] _lv = { new int[2], new int[2], new int[2], new int[3], new int[2], new int[3], new int[2], new int[2] };
+        // The levels this island's player actually owns — the same array _econ reads.
+        private readonly int[][] _lv = Econ.NewLevels();
+        private Econ _econ;
+
+        /// <summary>
+        /// The core maths, built on first use rather than in Awake: IslandPhaseController
+        /// asks this component for a station's phase from its OWN Awake, and the order two
+        /// components wake in is undefined. Serialized fields are already deserialized by
+        /// then, so the tuning it captures is the Inspector's, not the field defaults.
+        /// </summary>
+        private Econ Ec => _econ ?? (_econ = new Econ(EconTuning, _lv, _unlocked));
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
         //  GHOST-BUILDING UNLOCKS — the one-time purchases
@@ -342,9 +318,11 @@ namespace Game.Gameplay
         //  Saved as "<islandKey>u#<index>" — note the "u", which keeps these from colliding with the
         //  axis keys ("coal#0#0" vs "coalu#0").
         // ═══════════════════════════════════════════════════════════════════════════════════════════
-        public const int UnlockSecondMine = 0, UnlockSecondSmelter = 1, UnlockTradePost = 2, UnlockThirdMine = 3,
-                         UnlockWarehouse = 4, UnlockDepot = 5, UnlockExportDock = 6, UnlockFourthMine = 7,
-                         UnlockPowerPlant = 8, UnlockDeepShaft = 9;
+        public const int UnlockSecondMine = Econ.UnlockSecondMine, UnlockSecondSmelter = Econ.UnlockSecondSmelter,
+                         UnlockTradePost = Econ.UnlockTradePost, UnlockThirdMine = Econ.UnlockThirdMine,
+                         UnlockWarehouse = Econ.UnlockWarehouse, UnlockDepot = Econ.UnlockDepot,
+                         UnlockExportDock = Econ.UnlockExportDock, UnlockFourthMine = Econ.UnlockFourthMine,
+                         UnlockPowerPlant = Econ.UnlockPowerPlant, UnlockDeepShaft = Econ.UnlockDeepShaft;
         private static readonly string[] UnlockList =
         {
             "SECOND MINE + RAIL LINE", "SECOND SMELTER (2x smelt)", "TRADE POST (+50% price)", "THIRD MINE + RAIL LINE",
@@ -516,7 +494,7 @@ namespace Game.Gameplay
         }
         // 3 in the scene rake (04_rail.py builds NCARS = 3 at phase 1), cloned up to 7 so the
         // pool covers phase 3's rake. See ActiveWagons.
-        private const int BaseWagons = 3, MaxWagons = 7;
+        private const int BaseWagons = Econ.BaseWagons, MaxWagons = Econ.MaxWagons;
         private TrainAgent _train1, _train2, _train3, _train4;   // 1: coal mine · 2: "ghost_mine (1)" · 3: "ghost_mine"+GH rails · 4: "ghostx_mine4"+south line
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -565,7 +543,7 @@ namespace Game.Gameplay
             public Renderer[] rends; public Material[][] origMats;   // for the ghost look while locked
             public Vector3 bayPos; public Quaternion bayRot;         // parking-lot spot while locked
         }
-        private const int OreBaseTrucks = 2, CargoBaseTrucks = 1;
+        private const int OreBaseTrucks = Econ.OreBaseTrucks, CargoBaseTrucks = Econ.CargoBaseTrucks;
         // What the exporter stamps on each truck body — "truck_road_ore3", "truck_road_cargo1".
         // See 13_export.py. Clones keep the tag because they append to the name.
         private const string OreBodyTag = "_ore", CargoBodyTag = "_cargo";
@@ -598,11 +576,7 @@ namespace Game.Gameplay
         public int AxisCount(int s) => AxisList[s].Length;
         public string AxisName(int s, int a) => AxisList[s][a];
         public int AxisLevel(int s, int a) => _lv[s][a];
-        public bool AxisMaxed(int s, int a)
-        {
-            int cap = AxisMaxLv[s][a] > 0 ? Mathf.Min(AxisMaxLv[s][a], axisLevelCap) : axisLevelCap;
-            return _lv[s][a] >= cap;
-        }
+        public bool AxisMaxed(int s, int a) => Ec.AxisMaxed(s, a);
         /// <summary>The POWER PLANT station only upgrades once its ghost building is bought.</summary>
         public bool AxisLocked(int s, int a) => s == StPower && !_unlocked[UnlockPowerPlant];
         /// <summary>
@@ -616,13 +590,7 @@ namespace Game.Gameplay
         /// <summary>Levels bought across a station's axes — the "23" in a badge's "23/50".</summary>
         public int StationLevelTotal(int s) => StationLevelSum(s);
         /// <summary>The most levels that station can ever hold — the "50" in a badge's "23/50".</summary>
-        public int StationLevelCap(int s)
-        {
-            int cap = 0;
-            for (int a = 0; a < _lv[s].Length; a++)
-                cap += AxisMaxLv[s][a] > 0 ? Mathf.Min(AxisMaxLv[s][a], axisLevelCap) : axisLevelCap;
-            return cap;
-        }
+        public int StationLevelCap(int s) => Ec.StationLevelCap(s);
 
         /// <summary>
         /// A station's phase: its total level against its own cap, in thirds. A 150-cap station
@@ -632,17 +600,7 @@ namespace Game.Gameplay
         /// the train's rake length is a phase, not an axis — and because a generated island has
         /// no phase controller at all. The controller's by-name overload calls straight through.
         /// </summary>
-        public int PhaseForStation(int s)
-        {
-            if (s < 0 || s >= StationList.Length) return 1;
-            int cap = StationLevelCap(s);
-            if (cap <= 0) return 1;
-            int level = StationLevelTotal(s);
-            float third = cap / 3f;
-            if (level < third) return 1;
-            if (level < third * 2f) return 2;
-            return 3;
-        }
+        public int PhaseForStation(int s) => Ec.PhaseForStation(s);
 
         /// <summary>
         /// World point a floating station badge should hover over — the top of the station's silhouette.
@@ -715,7 +673,7 @@ namespace Game.Gameplay
         /// </summary>
         public event System.Action<Vector3, double> Sold;
 
-        public BigDouble AxisCost(int s, int a) => new BigDouble(AxisBaseCost[s][a] * costMultiplier * System.Math.Pow(upgradeCostGrowth, _lv[s][a]));
+        public BigDouble AxisCost(int s, int a) => new BigDouble(Ec.AxisCost(s, a));
         public int UnlockCount => UnlockList.Length;
         public string UnlockName(int u) => UnlockList[u].Replace("COAL", OreWord);
         public bool IsUnlocked(int u) => _unlocked[u];
@@ -788,52 +746,54 @@ namespace Game.Gameplay
         //  coefficients by hand, one shared scale (0.085) stretches the same curve across 50 levels.
         //  Turn it UP for a faster, shorter game; DOWN for a longer grind.
         // ═══════════════════════════════════════════════════════════════════════════════════════════
-        // POWER PLANT — the only station that touches everything else. Both feed into the formulas below,
-        // which is why it is the most expensive unlock: it multiplies gains you already bought.
-        private float PowerIncome => 1f + 0.05f * axisEffectScale * _lv[StPower][0];   // Generators: every sale
-        private float PowerSpeed => 1f + 0.03f * axisEffectScale * _lv[StPower][1];    // Turbines: every vehicle
+        // Every one of these now reads straight off _econ. The formulas moved to
+        // Game.Core.IslandEconomy unchanged; what is left here is the vocabulary the
+        // simulation below speaks, so nothing in the vehicle code had to change.
+        private float PowerIncome => Ec.PowerIncome;
+        private float PowerSpeed => Ec.PowerSpeed;
 
-        // MINE — how much ore exists per trip, and how long the train sits inside the mountain loading.
-        // "Dwell" values DIVIDE, so a higher level means a shorter pause. That is why they read inverted.
-        private float MineDwell => dwellSeconds / (1f + 0.2f * axisEffectScale * _lv[StMine][1]);
-        private float EffTrainOre => trainOrePerTrip
-            * (1f + 0.25f * axisEffectScale * _lv[StMine][0])        // Mine → Richness: ore in the ground
-            * (ActiveWagons / (float)BaseWagons)                     // more wagons = proportionally more cargo
-            * (1f + 0.25f * axisEffectScale * _lv[StTrain][1])       // Train → Capacity: per-wagon load
-            * (_unlocked[UnlockDeepShaft] ? deepShaftBonus : 1f);
+        private float MineDwell => Ec.MineDwell;
+        private float EffTrainOre => Ec.TrainOre;
 
-        // TRAIN — the mine→storage leg. Wagons are the one upgrade you can literally count on
-        // screen, so the rake follows the station's own phase rather than an axis of its own:
-        // 3 at phase 1, 5 at phase 2, 7 at phase 3. Buying either axis moves the station toward
-        // its next third, and two more wagons appear when it gets there.
-        private float EffTrainSpeed => trainSpeed * (1f + 0.15f * axisEffectScale * _lv[StTrain][0]) * (_unlocked[UnlockDepot] ? depotBonus : 1f) * PowerSpeed;
-        private int ActiveWagons => Mathf.Min(BaseWagons + (PhaseForStation(StTrain) - 1) * 2, MaxWagons);
+        private float EffTrainSpeed => Ec.TrainSpeed;
+        private int ActiveWagons => Ec.ActiveWagons;
 
-        // STORAGE — the ore yard. EffStorageFull is both the economic buffer and the size of the visible
-        // pile: PileStack widens its grid to match, so buying Capacity enlarges the heap on screen.
-        private float EffStorageFull => storageCapacity * (1f + 0.5f * axisEffectScale * _lv[StStorage][0]) * (_unlocked[UnlockWarehouse] ? warehouseBonus : 1f);
-        private float StorageDwell => dwellSeconds / (1f + 0.2f * axisEffectScale * _lv[StStorage][1]);
+        // EffStorageFull is both the economic buffer and the size of the visible pile:
+        // PileStack widens its grid to match, so buying Capacity enlarges the heap on screen.
+        private float EffStorageFull => Ec.StorageFull;
+        private float StorageDwell => Ec.StorageDwell;
 
-        // ORE TRUCKS — storage→smelter. Count is capped by AxisMaxLv because each truck is a real body
-        // parked in the scene; ApplyFleetStates wakes them one at a time as you buy.
-        private int OreTruckCount => OreBaseTrucks + _lv[StOreTrucks][0];
-        private float EffOreSpeed => truckSpeed * (1f + 0.15f * axisEffectScale * _lv[StOreTrucks][1]) * PowerSpeed;
-        private float EffOreCap => oreTruckCapacity * (1f + 0.30f * axisEffectScale * _lv[StOreTrucks][2]);
+        // Truck counts are capped by AxisMaxLv because each truck is a real body parked in
+        // the scene; ApplyFleetStates wakes them one at a time as you buy.
+        private int OreTruckCount => Ec.OreTruckCount;
+        private float EffOreSpeed => Ec.OreTruckSpeed;
+        private float EffOreCap => Ec.OreTruckLoad;
 
-        // SMELTER — turns ore into bars at EffSmelt per second. If EffBarCap fills, smelting STOPS until
-        // cargo trucks clear it, so an under-upgraded market throttles the whole chain from the far end.
-        private float EffSmelt => smeltPerSecond * (1f + 0.30f * axisEffectScale * _lv[StSmelter][0]) * (_unlocked[UnlockSecondSmelter] ? secondSmelterBonus : 1f);
-        private float EffBarCap => barCapacity * (1f + 0.5f * axisEffectScale * _lv[StSmelter][1]);
+        // If EffBarCap fills, smelting STOPS until cargo trucks clear it, so an
+        // under-upgraded market throttles the whole chain from the far end.
+        private float EffSmelt => Ec.SmeltRate;
+        private float EffBarCap => Ec.BarCap;
 
-        // CARGO TRUCKS — smelter→market (or →dock on the export route, which pays exportPriceBonus more).
-        private int CargoTruckCount => CargoBaseTrucks + _lv[StCargoTrucks][0];
-        private float EffCargoSpeed => truckSpeed * (1f + 0.15f * axisEffectScale * _lv[StCargoTrucks][1]) * PowerSpeed;
-        private float EffCargoCap => cargoTruckCapacity * (1f + 0.30f * axisEffectScale * _lv[StCargoTrucks][2]);
+        private int CargoTruckCount => Ec.CargoTruckCount;
+        private float EffCargoSpeed => Ec.CargoTruckSpeed;
+        private float EffCargoCap => Ec.CargoTruckLoad;
 
-        // MARKET — where cash is actually made. valueMultiplier is the island's tier (diamond bars are worth
-        // far more than coal), which is why later islands feel like a different scale of money.
-        private float EffBarPrice => barPrice * valueMultiplier * (1f + 0.40f * axisEffectScale * _lv[StMarket][0]) * (_unlocked[UnlockTradePost] ? tradePostBonus : 1f) * PowerIncome;
-        private float MarketDwell => dwellSeconds / (1f + 0.2f * axisEffectScale * _lv[StMarket][1]);
+        private float EffBarPrice => Ec.BarPrice;
+        private float MarketDwell => Ec.MarketDwell;
+
+        /// <summary>The tuning this island's Inspector values describe, handed to the core maths.</summary>
+        private Econ.Tuning EconTuning => new Econ.Tuning
+        {
+            TrainSpeed = trainSpeed, TruckSpeed = truckSpeed, TrainOrePerTrip = trainOrePerTrip,
+            OreTruckCapacity = oreTruckCapacity, CargoTruckCapacity = cargoTruckCapacity,
+            SmeltPerSecond = smeltPerSecond, StorageFull = storageCapacity,
+            BarCapacity = barCapacity, BarPrice = barPrice, DwellSeconds = dwellSeconds,
+            AxisEffectScale = axisEffectScale,
+            CostGrowth = upgradeCostGrowth, CostMultiplier = costMultiplier,
+            ValueMultiplier = valueMultiplier, AxisLevelCap = axisLevelCap,
+            SecondSmelterBonus = secondSmelterBonus, TradePostBonus = tradePostBonus,
+            WarehouseBonus = warehouseBonus, DepotBonus = depotBonus, DeepShaftBonus = deepShaftBonus,
+        };
 
         /// <summary>
         /// One-time setup, and the order matters a lot. Roughly: get services → load saved levels → find

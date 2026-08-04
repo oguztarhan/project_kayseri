@@ -12,6 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9e7ae3ceeb1d023499554915ae26fd4d, type: 3}
   m_Name: PrestigeConfig
   m_EditorClassIdentifier: Game.Data::Game.Data.PrestigeConfig
-  investorK: 1
-  bonusPerInvestor: 0.019999999552965164
-  lifetimeCashThreshold: 1000
+  investorK: 10
+  bonusPerInvestor: 0.1
+  referenceLifetime: 1100000
+  tierStep: 3.2
+  minIslandsOwned: 3
+  readyFraction: 0.5
