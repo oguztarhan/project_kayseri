@@ -135,8 +135,7 @@ namespace Game.UI
         // Resolved on the first travel, not in Start: these screens build themselves at their own
         // pace and a map that loads first would cache nulls forever.
         private OperationCameraBoot _camBoot;
-        private UpgradePanelUI _upgrades;
-        private StationBadges _badges;
+        private StationScreenUI _upgrades;
         private HudJuice _juice;
 
         private Image _curtain;
@@ -304,7 +303,7 @@ namespace Game.UI
                 barFillArea.sizeDelta = new Vector2(full * p, barFillArea.sizeDelta.y);
             }
 
-            RefreshCta(owned, here, buyable, next);
+            RefreshCta(owned, here, buyable);
             RefreshSides(i);
             RefreshPips(i);
         }
@@ -320,7 +319,7 @@ namespace Game.UI
             return Loc.Id("ada", _world.IslandKey(i));
         }
 
-        private void RefreshCta(bool owned, bool here, bool buyable, int next)
+        private void RefreshCta(bool owned, bool here, bool buyable)
         {
             if (ctaButton == null) return;
             bool afford = false;
@@ -345,8 +344,12 @@ namespace Game.UI
             }
             else
             {
+                // The island right before this one, not the first gap in the ladder. Naming the far-off
+                // gap made every locked island in the tail say the same thing — four cards all reading
+                // "first GOLD ISLAND" tell you nothing about how far away you are. One step at a time
+                // reads as a chain, and following it forward lands on the one you can actually buy.
                 label = Loc.T("ortak.kilitli");
-                sub = string.Format(Loc.T("harita.once"), IslandName(next < 0 ? _shown - 1 : next));
+                sub = string.Format(Loc.T("harita.once"), IslandName(Mathf.Max(0, _shown - 1)));
                 art = ctaIdle;
             }
 
@@ -559,12 +562,10 @@ namespace Game.UI
             if (op != null)
             {
                 if (_camBoot == null) _camBoot = FindAnyObjectByType<OperationCameraBoot>();
-                if (_upgrades == null) _upgrades = FindAnyObjectByType<UpgradePanelUI>();
-                if (_badges == null) _badges = FindAnyObjectByType<StationBadges>();
+                if (_upgrades == null) _upgrades = FindAnyObjectByType<StationScreenUI>(FindObjectsInactive.Include);
                 if (_juice == null) _juice = FindAnyObjectByType<HudJuice>();
                 if (_camBoot != null) _camBoot.FrameOn(_world.RootName(i));
                 if (_upgrades != null) _upgrades.SetOperation(op);
-                if (_badges != null) _badges.SetOperation(op);
                 if (_juice != null) _juice.SetOperation(op);
             }
 
