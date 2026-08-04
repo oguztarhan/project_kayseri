@@ -72,7 +72,21 @@ namespace Game.Systems
             Save = new SaveService();
             ServiceLocator.Register(Save);
 
-            Data = Save.TryLoad(out SaveData loaded) ? loaded : new SaveData();
+            bool hadSave = Save.TryLoad(out SaveData loaded);
+            Data = hadSave ? loaded : new SaveData();
+
+            // A save from a build with a different economy is not playable progress — see
+            // SaveMigration for why, and for the one constant that arms this.
+            if (hadSave && SaveMigration.NeedsReset(Data))
+            {
+                Debug.LogWarning($"[Save] progress from save version {Data.version} reset for version " +
+                                 $"{SaveMigration.CurrentVersion}; purchases kept.");
+                Data = SaveMigration.Reset(Data);
+                // Stamp the new version on disk immediately. Without this, a player who force-quits
+                // before the first autosave would be reset again on the next launch, and again after
+                // that — the wipe has to be recorded even if nothing else about the session is.
+                Save.Save(Data);
+            }
             ServiceLocator.Register(Data);
 
             Clock = new GameClock(ticksPerSecond);

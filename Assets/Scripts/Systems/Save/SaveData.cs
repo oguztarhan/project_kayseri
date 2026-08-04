@@ -11,7 +11,8 @@ namespace Game.Systems
     [Serializable]
     public class SaveData
     {
-        public int version = 3;
+        public int version = SaveMigration.CurrentVersion;  // stamped on write; a mismatch on load
+                                                            // wipes the run — see SaveMigration
         public long savedUnixSeconds;
         public long lastDailyClaimUnix;               // daily reward (GDD §11)
         public int dailyStreak;                       // consecutive daily claims; drives the 7-day ladder
