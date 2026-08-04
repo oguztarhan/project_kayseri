@@ -27,10 +27,10 @@ ayarlar.dil	DİL	LANGUAGE	SPRACHE	LANGUE	IDIOMA	IDIOMA	LINGUA	JĘZYK	ЯЗЫК	BA
 ayarlar.ses	SES	SOUND	TON	SON	SONIDO	SOM	SUONO	DŹWIĘK	ЗВУК	SUARA	ÂM THANH
 ayarlar.muzik	MÜZİK	MUSIC	MUSIK	MUSIQUE	MÚSICA	MÚSICA	MUSICA	MUZYKA	МУЗЫКА	MUSIK	NHẠC
 ayarlar.titresim	TİTREŞİM	VIBRATION	VIBRATION	VIBRATION	VIBRACIÓN	VIBRAÇÃO	VIBRAZIONE	WIBRACJE	ВИБРАЦИЯ	GETARAN	RUNG
-ayarlar.gizlilik	GİZLİLİK	PRIVACY	DATENSCHUTZ	CONFIDENTIALITÉ	PRIVACIDAD	PRIVACIDADE	PRIVACY	PRYWATNOŚĆ	КОНФИДЕНЦИАЛЬНОСТЬ	PRIVASI	QUYỀN RIÊNG TƯ
-ayarlar.geri_yukle	SATIN ALIMLARI GERİ YÜKLE	RESTORE PURCHASES	KÄUFE WIEDERHERSTELLEN	RESTAURER LES ACHATS	RESTAURAR COMPRAS	RESTAURAR COMPRAS	RIPRISTINA ACQUISTI	PRZYWRÓĆ ZAKUPY	ВОССТАНОВИТЬ ПОКУПКИ	PULIHKAN PEMBELIAN	KHÔI PHỤC GIAO DỊCH
+ayarlar.gizlilik	GİZLİLİK	PRIVACY	DATENSCHUTZ	CONFIDENTIALITÉ	PRIVACIDAD	PRIVACIDADE	PRIVACY	PRYWATNOŚĆ	ПРИВАТНОСТЬ	PRIVASI	QUYỀN RIÊNG TƯ
+ayarlar.geri_yukle	ALIMLARI GERİ YÜKLE	RESTORE PURCHASES	KÄUFE ZURÜCKHOLEN	RESTAURER LES ACHATS	RESTAURAR COMPRAS	RESTAURAR COMPRAS	RIPRISTINA ACQUISTI	PRZYWRÓĆ ZAKUPY	ВЕРНУТЬ ПОКУПКИ	PULIHKAN PEMBELIAN	KHÔI PHỤC GIAO DỊCH
 # gunluk odul
-gunluk.baslik	GÜNLÜK ÖDÜL	DAILY REWARD	TAGESBELOHNUNG	RÉCOMPENSE DU JOUR	RECOMPENSA DIARIA	RECOMPENSA DIÁRIA	PREMIO GIORNALIERO	NAGRODA DZIENNA	ЕЖЕДНЕВНАЯ НАГРАДА	HADIAH HARIAN	THƯỞNG HẰNG NGÀY
+gunluk.baslik	GÜNLÜK ÖDÜL	DAILY REWARD	TAGESBELOHNUNG	RÉCOMPENSE DU JOUR	RECOMPENSA DIARIA	RECOMPENSA DIÁRIA	PREMIO GIORNALIERO	NAGRODA DZIENNA	НАГРАДА ДНЯ	HADIAH HARIAN	THƯỞNG HẰNG NGÀY
 gunluk.gun	{0}. GÜN	DAY {0}	TAG {0}	JOUR {0}	DÍA {0}	DIA {0}	GIORNO {0}	DZIEŃ {0}	ДЕНЬ {0}	HARI {0}	NGÀY {0}
 gunluk.yarin_gel	YARIN GEL	COME BACK TOMORROW	MORGEN WIEDER	REVENEZ DEMAIN	VUELVE MAÑANA	VOLTE AMANHÃ	TORNA DOMANI	WRÓĆ JUTRO	ЗАЙДИ ЗАВТРА	KEMBALI BESOK	QUAY LẠI MAI
 gunluk.elmas	{0} ELMAS	{0} GEMS	{0} DIAMANTEN	{0} GEMMES	{0} GEMAS	{0} GEMAS	{0} GEMME	{0} KLEJNOTÓW	{0} АЛМАЗОВ	{0} PERMATA	{0} KIM CƯƠNG
@@ -51,7 +51,7 @@ prestij.henuz_degil	HENÜZ DEĞİL	NOT YET	NOCH NICHT	PAS ENCORE	TODAVÍA NO	AIN
 prestij.onayla	ONAYLAMAK İÇİN TEKRAR BAS	TAP AGAIN TO CONFIRM	ZUM BESTÄTIGEN ERNEUT TIPPEN	APPUYEZ ENCORE POUR CONFIRMER	PULSA OTRA VEZ PARA CONFIRMAR	TOQUE DE NOVO PARA CONFIRMAR	TOCCA ANCORA PER CONFERMARE	DOTKNIJ PONOWNIE, BY POTWIERDZIĆ	НАЖМИ ЕЩЁ РАЗ ДЛЯ ПОДТВЕРЖДЕНИЯ	KETUK LAGI UNTUK KONFIRMASI	CHẠM LẦN NỮA ĐỂ XÁC NHẬN
 prestij.gider	GİDER	YOU LOSE	DU VERLIERST	VOUS PERDEZ	PIERDES	VOCÊ PERDE	PERDI	TRACISZ	ТЕРЯЕШЬ	HILANG	MẤT
 prestij.kalir	KALIR	YOU KEEP	DU BEHÄLTST	VOUS GARDEZ	CONSERVAS	VOCÊ MANTÉM	MANTIENI	ZACHOWUJESZ	ОСТАЁТСЯ	TETAP	GIỮ LẠI
-prestij.yatirimci	YATIRIMCI	INVESTORS	INVESTOREN	INVESTISSEURS	INVERSORES	INVESTIDORES	INVESTITORI	INWESTORZY	ИНВЕСТОРЫ	INVESTOR	NHÀ ĐẦU TƯ
+prestij.yatirimci	YATIRIMCI	INVESTORS	ANLEGER	INVESTISSEURS	INVERSORES	INVESTIDORES	INVESTITORI	INWESTORZY	ИНВЕСТОРЫ	INVESTOR	NHÀ ĐẦU TƯ
 # dunya haritasi
 harita.baslik	DÜNYA HARİTASI	WORLD MAP	WELTKARTE	CARTE DU MONDE	MAPA DEL MUNDO	MAPA-MÚNDI	MAPPA DEL MONDO	MAPA ŚWIATA	КАРТА МИРА	PETA DUNIA	BẢN ĐỒ THẾ GIỚI
 harita.buradasin	BURADASIN	YOU ARE HERE	DU BIST HIER	VOUS ÊTES ICI	ESTÁS AQUÍ	VOCÊ ESTÁ AQUI	SEI QUI	TU JESTEŚ	ТЫ ЗДЕСЬ	ANDA DI SINI	BẠN Ở ĐÂY
@@ -61,12 +61,12 @@ harita.soru	Bu adayı açmak istiyor musun?	Unlock this island?	Diese Insel frei
 harita.oran	{0} · %{1}	{0} · {1}%	{0} · {1} %	{0} · {1} %	{0} · {1} %	{0} · {1}%	{0} · {1}%	{0} · {1}%	{0} · {1} %	{0} · {1}%	{0} · {1}%
 harita.tavana_kadar	{0}/dk'ya kadar	up to {0}/min	bis zu {0}/Min	jusqu'à {0}/min	hasta {0}/min	até {0}/min	fino a {0}/min	do {0}/min	до {0}/мин	hingga {0}/mnt	tối đa {0}/phút
 # reklam odulu
-reklam.baslik	BEDAVA ÖDÜL	FREE REWARD	GRATIS-BELOHNUNG	RÉCOMPENSE GRATUITE	RECOMPENSA GRATIS	RECOMPENSA GRÁTIS	PREMIO GRATIS	DARMOWA NAGRODA	БЕСПЛАТНАЯ НАГРАДА	HADIAH GRATIS	THƯỞNG MIỄN PHÍ
+reklam.baslik	BEDAVA ÖDÜL	FREE REWARD	GRATIS-BELOHNUNG	BONUS GRATUIT	PREMIO GRATIS	PRÊMIO GRÁTIS	PREMIO GRATIS	DARMOWA NAGRODA	ПОДАРОК	HADIAH GRATIS	THƯỞNG MIỄN PHÍ
 reklam.reklamlari_kaldir	REKLAMLARI KALDIR	REMOVE ADS	WERBUNG ENTFERNEN	SUPPRIMER LES PUBS	QUITAR ANUNCIOS	REMOVER ANÚNCIOS	RIMUOVI ANNUNCI	USUŃ REKLAMY	УБРАТЬ РЕКЛАМУ	HAPUS IKLAN	GỠ QUẢNG CÁO
 reklam.yarin_gel	YARIN TEKRAR GEL	COME BACK TOMORROW	MORGEN WIEDER	REVENEZ DEMAIN	VUELVE MAÑANA	VOLTE AMANHÃ	TORNA DOMANI	WRÓĆ JUTRO	ЗАЙДИ ЗАВТРА	KEMBALI BESOK	QUAY LẠI MAI
 reklam.sonra	{0} SONRA	IN {0}	IN {0}	DANS {0}	EN {0}	EM {0}	TRA {0}	ZA {0}	ЧЕРЕЗ {0}	DALAM {0}	SAU {0}
 reklam.elmas	+{0} ELMAS	+{0} GEMS	+{0} DIAMANTEN	+{0} GEMMES	+{0} GEMAS	+{0} GEMAS	+{0} GEMME	+{0} KLEJNOTÓW	+{0} АЛМАЗОВ	+{0} PERMATA	+{0} KIM CƯƠNG
-reklam.gelir	×{0} GELİR · {1}	×{0} INCOME · {1}	×{0} EINKOMMEN · {1}	×{0} REVENU · {1}	×{0} INGRESOS · {1}	×{0} RENDA · {1}	×{0} ENTRATE · {1}	×{0} DOCHÓD · {1}	×{0} ДОХОД · {1}	×{0} PENGHASILAN · {1}	×{0} THU NHẬP · {1}
+reklam.gelir	×{0} GELİR · {1}	×{0} INCOME · {1}	×{0} ERTRAG · {1}	×{0} REVENU · {1}	×{0} INGRESOS · {1}	×{0} RENDA · {1}	×{0} ENTRATE · {1}	×{0} DOCHÓD · {1}	×{0} ДОХОД · {1}	×{0} HASIL · {1}	×{0} TIỀN · {1}
 # hos geldin / cevrimdisi
 hosgeldin.baslik	TEKRAR HOŞ GELDİN	WELCOME BACK	WILLKOMMEN ZURÜCK	BON RETOUR	BIENVENIDO DE NUEVO	BEM-VINDO DE VOLTA	BENTORNATO	WITAJ Z POWROTEM	С ВОЗВРАЩЕНИЕМ	SELAMAT DATANG KEMBALI	CHÀO MỪNG TRỞ LẠI
 hosgeldin.ikiye_katla	2 KATINA ÇIKAR	DOUBLE IT	VERDOPPELN	DOUBLER	DUPLICAR	DOBRAR	RADDOPPIA	PODWÓJ	УДВОИТЬ	GANDAKAN	NHÂN ĐÔI
@@ -100,19 +100,19 @@ magaza.baslangic.o2	4 GÜN	4 DAYS	4 TAGE	4 JOURS	4 DÍAS	4 DIAS	4 GIORNI	4 DNI	4
 magaza.baslangic.a1	2× GELİR, SATIN ALIR ALMAZ 4 GÜN BOYUNCA.	2× INCOME FOR 4 DAYS, STARTING NOW.	2× EINKOMMEN FÜR 4 TAGE, AB SOFORT.	2× REVENU PENDANT 4 JOURS, DÈS MAINTENANT.	2× INGRESOS DURANTE 4 DÍAS, DESDE YA.	2× RENDA POR 4 DIAS, A PARTIR DE AGORA.	2× ENTRATE PER 4 GIORNI, DA SUBITO.	2× DOCHÓD PRZEZ 4 DNI, OD ZARAZ.	2× ДОХОД НА 4 ДНЯ, ПРЯМО СЕЙЧАС.	2× PENGHASILAN SELAMA 4 HARI, MULAI SEKARANG.	2× THU NHẬP TRONG 4 NGÀY, NGAY BÂY GIỜ.
 magaza.baslangic.a2	SÜRE DOLUNCA TEKLİF MAĞAZADAN KALKAR.	THE OFFER LEAVES THE STORE WHEN IT EXPIRES.	NACH ABLAUF VERSCHWINDET DAS ANGEBOT.	L'OFFRE DISPARAÎT À SON EXPIRATION.	LA OFERTA DESAPARECE AL CADUCAR.	A OFERTA SAI DA LOJA AO EXPIRAR.	L'OFFERTA SPARISCE ALLA SCADENZA.	PO WYGAŚNIĘCIU OFERTA ZNIKA ZE SKLEPU.	ПОСЛЕ ИСТЕЧЕНИЯ ПРЕДЛОЖЕНИЕ ПРОПАДЁТ.	PENAWARAN HILANG SAAT KEDALUWARSA.	ƯU ĐÃI BIẾN MẤT KHI HẾT HẠN.
 magaza.hazine.baslik	GÜNLÜK HAZİNE	DAILY TREASURE	TÄGLICHER SCHATZ	TRÉSOR QUOTIDIEN	TESORO DIARIO	TESOURO DIÁRIO	TESORO GIORNALIERO	DZIENNY SKARB	ЕЖЕДНЕВНОЕ СОКРОВИЩЕ	HARTA HARIAN	KHO BÁU HẰNG NGÀY
-magaza.hazine.o1	HER GÜN +25 ELMAS	+25 GEMS DAILY	+25 DIAMANTEN TÄGLICH	+25 GEMMES PAR JOUR	+25 GEMAS AL DÍA	+25 GEMAS POR DIA	+25 GEMME AL GIORNO	+25 KLEJNOTÓW DZIENNIE	+25 АЛМАЗОВ В ДЕНЬ	+25 PERMATA/HARI	+25 KIM CƯƠNG MỖI NGÀY
-magaza.hazine.o2	+1 BEDAVA HAK	+1 FREE CHARGE	+1 GRATIS-LADUNG	+1 CHARGE GRATUITE	+1 CARGA GRATIS	+1 CARGA GRÁTIS	+1 CARICA GRATIS	+1 DARMOWY ŁADUNEK	+1 БЕСПЛАТНАЯ ПОПЫТКА	+1 KESEMPATAN GRATIS	+1 LƯỢT MIỄN PHÍ
-magaza.hazine.o3	GÜNLÜK ÖDÜL ×2	DAILY REWARD ×2	TAGESBELOHNUNG ×2	RÉCOMPENSE DU JOUR ×2	RECOMPENSA DIARIA ×2	RECOMPENSA DIÁRIA ×2	PREMIO GIORNALIERO ×2	NAGRODA DZIENNA ×2	ЕЖЕДНЕВНАЯ НАГРАДА ×2	HADIAH HARIAN ×2	THƯỞNG HẰNG NGÀY ×2
+magaza.hazine.o1	HER GÜN +25 ELMAS	+25 GEMS DAILY	+25 DIAMANTEN/TAG	+25 GEMMES PAR JOUR	+25 GEMAS AL DÍA	+25 GEMAS POR DIA	+25 GEMME/GIORNO	+25 KLEJNOTÓW/DZIEŃ	+25 АЛМАЗОВ/ДЕНЬ	+25 PERMATA/HARI	+25 KIM CƯƠNG/NGÀY
+magaza.hazine.o2	+1 BEDAVA HAK	+1 FREE CHARGE	+1 GRATIS-LADUNG	+1 CHARGE GRATUITE	+1 CARGA GRATIS	+1 CARGA GRÁTIS	+1 CARICA GRATIS	+1 ŁADUNEK GRATIS	+1 БОНУС-ПОПЫТКА	+1 PELUANG GRATIS	+1 LƯỢT MIỄN PHÍ
+magaza.hazine.o3	GÜNLÜK ÖDÜL ×2	DAILY REWARD ×2	TAGESBELOHNUNG ×2	BONUS DU JOUR ×2	PREMIO DIARIO ×2	PRÊMIO DIÁRIO ×2	PREMIO GIORNO ×2	NAGRODA DZIENNA ×2	НАГРАДА ДНЯ ×2	HADIAH HARIAN ×2	THƯỞNG NGÀY ×2
 magaza.hazine.a1	HER GÜN +25 ELMAS VE GÜNLÜK ÖDÜLÜN İKİ KATI.	+25 GEMS EVERY DAY AND DOUBLE DAILY REWARDS.	+25 DIAMANTEN TÄGLICH UND DOPPELTE TAGESBELOHNUNG.	+25 GEMMES PAR JOUR ET RÉCOMPENSE DOUBLÉE.	+25 GEMAS AL DÍA Y RECOMPENSA DIARIA DOBLE.	+25 GEMAS POR DIA E RECOMPENSA DIÁRIA EM DOBRO.	+25 GEMME AL GIORNO E PREMIO GIORNALIERO DOPPIO.	+25 KLEJNOTÓW DZIENNIE I PODWÓJNA NAGRODA.	+25 АЛМАЗОВ КАЖДЫЙ ДЕНЬ И ДВОЙНАЯ НАГРАДА.	+25 PERMATA TIAP HARI DAN HADIAH HARIAN GANDA.	+25 KIM CƯƠNG MỖI NGÀY VÀ THƯỞNG GẤP ĐÔI.
 magaza.hazine.a2	TÜM AVANTAJLAR KALICI, TEK SEFERLİK ALINIR.	ALL PERKS ARE PERMANENT, BOUGHT ONCE.	ALLE VORTEILE DAUERHAFT, EINMALIGER KAUF.	TOUS LES AVANTAGES SONT PERMANENTS, ACHAT UNIQUE.	TODAS LAS VENTAJAS SON PERMANENTES, COMPRA ÚNICA.	TODOS OS BENEFÍCIOS SÃO PERMANENTES, COMPRA ÚNICA.	TUTTI I VANTAGGI SONO PERMANENTI, ACQUISTO UNICO.	WSZYSTKIE BONUSY SĄ STAŁE, JEDNORAZOWY ZAKUP.	ВСЕ БОНУСЫ НАВСЕГДА, ПОКУПКА ОДИН РАЗ.	SEMUA MANFAAT PERMANEN, SEKALI BELI.	MỌI ƯU ĐÃI VĨNH VIỄN, MUA MỘT LẦN.
 magaza.gece.baslik	GECE VARDİYASI	NIGHT SHIFT	NACHTSCHICHT	ÉQUIPE DE NUIT	TURNO NOCTURNO	TURNO DA NOITE	TURNO DI NOTTE	NOCNA ZMIANA	НОЧНАЯ СМЕНА	SIF MALAM	CA ĐÊM
-magaza.gece.o1	ÇEVRİMDIŞI 8 SAAT	8 HOURS OFFLINE	8 STUNDEN OFFLINE	8 HEURES HORS LIGNE	8 HORAS SIN CONEXIÓN	8 HORAS OFFLINE	8 ORE OFFLINE	8 GODZIN OFFLINE	8 ЧАСОВ ОФЛАЙН	8 JAM OFFLINE	8 GIỜ NGOẠI TUYẾN
-magaza.gece.o2	UYURKEN DE KAZAN	EARN WHILE YOU SLEEP	VERDIENEN IM SCHLAF	GAGNEZ EN DORMANT	GANA MIENTRAS DUERMES	GANHE ENQUANTO DORME	GUADAGNA MENTRE DORMI	ZARABIAJ WE ŚNIE	ЗАРАБАТЫВАЙ ВО СНЕ	HASILKAN SAAT TIDUR	KIẾM TIỀN KHI NGỦ
+magaza.gece.o1	ÇEVRİMDIŞI 8 SAAT	8 HOURS OFFLINE	8 STUNDEN OFFLINE	8 HEURES HORS LIGNE	8 HORAS OFFLINE	8 HORAS OFFLINE	8 ORE OFFLINE	8 GODZIN OFFLINE	8 ЧАСОВ ОФЛАЙН	8 JAM OFFLINE	8 GIỜ NGOẠI TUYẾN
+magaza.gece.o2	UYURKEN DE KAZAN	EARN WHILE ASLEEP	VERDIENEN IM SCHLAF	GAGNEZ EN DORMANT	GANA DURMIENDO	GANHE DORMINDO	INCASSA DORMENDO	ZARABIAJ WE ŚNIE	ДОХОД ВО СНЕ	HASILKAN SAAT TIDUR	KIẾM TIỀN KHI NGỦ
 magaza.gece.o3	VERİM %50 → %75	RATE 50% → 75%	RATE 50% → 75%	TAUX 50% → 75%	TASA 50% → 75%	TAXA 50% → 75%	TASSO 50% → 75%	TEMPO 50% → 75%	ДОХОД 50% → 75%	RASIO 50% → 75%	TỶ LỆ 50% → 75%
 magaza.gece.a1	ÇEVRİMDIŞI KAZANÇ KALICI OLARAK ARTAR.	OFFLINE EARNINGS GO UP PERMANENTLY.	OFFLINE-EINNAHMEN STEIGEN DAUERHAFT.	LES GAINS HORS LIGNE AUGMENTENT DÉFINITIVEMENT.	LAS GANANCIAS SIN CONEXIÓN SUBEN PARA SIEMPRE.	OS GANHOS OFFLINE AUMENTAM PARA SEMPRE.	I GUADAGNI OFFLINE AUMENTANO PER SEMPRE.	ZAROBKI OFFLINE ROSNĄ NA STAŁE.	ОФЛАЙН-ДОХОД РАСТЁТ НАВСЕГДА.	PENGHASILAN OFFLINE NAIK PERMANEN.	THU NHẬP NGOẠI TUYẾN TĂNG VĨNH VIỄN.
 magaza.gece.a2	ZORUNLU REKLAMLAR KALICI OLARAK KALKAR.	FORCED ADS ARE GONE FOR GOOD.	PFLICHTWERBUNG VERSCHWINDET DAUERHAFT.	LES PUBS FORCÉES DISPARAISSENT POUR DE BON.	LOS ANUNCIOS FORZADOS DESAPARECEN PARA SIEMPRE.	OS ANÚNCIOS OBRIGATÓRIOS SOMEM DE VEZ.	GLI ANNUNCI FORZATI SPARISCONO PER SEMPRE.	WYMUSZONE REKLAMY ZNIKAJĄ NA ZAWSZE.	ПРИНУДИТЕЛЬНАЯ РЕКЛАМА ИСЧЕЗНЕТ НАВСЕГДА.	IKLAN PAKSA HILANG SELAMANYA.	QUẢNG CÁO BẮT BUỘC BIẾN MẤT VĨNH VIỄN.
 magaza.patron.baslik	MADEN PATRONU	MINE BOSS	MINENBOSS	PATRON DE LA MINE	JEFE DE LA MINA	CHEFE DA MINA	CAPO MINIERA	SZEF KOPALNI	БОСС ШАХТЫ	BOS TAMBANG	ÔNG CHỦ MỎ
-magaza.patron.o1	2× İSTASYON HIZI	2× STATION SPEED	2× STATIONSTEMPO	2× VITESSE DE STATION	2× VELOCIDAD DE ESTACIÓN	2× VELOCIDADE DA ESTAÇÃO	2× VELOCITÀ STAZIONE	2× SZYBKOŚĆ STACJI	2× СКОРОСТЬ СТАНЦИЙ	2× KECEPATAN STASIUN	2× TỐC ĐỘ TRẠM
+magaza.patron.o1	2× İSTASYON HIZI	2× STATION SPEED	2× STATIONSTEMPO	2× VITESSE STATION	2× RITMO ESTACIÓN	2× RITMO ESTAÇÃO	2× RITMO STAZIONE	2× SZYBKOŚĆ STACJI	2× ТЕМП СТАНЦИЙ	2× LAJU STASIUN	2× TỐC ĐỘ TRẠM
 magaza.patron.o2	SONSUZA KADAR	FOREVER	FÜR IMMER	POUR TOUJOURS	PARA SIEMPRE	PARA SEMPRE	PER SEMPRE	NA ZAWSZE	НАВСЕГДА	SELAMANYA	MÃI MÃI
 magaza.patron.a1	İSTASYON HIZI ARTIŞI KALICIDIR VE	THE STATION SPEED BOOST IS PERMANENT AND	DER TEMPO-BONUS IST DAUERHAFT UND	LE BONUS DE VITESSE EST PERMANENT ET	EL AUMENTO DE VELOCIDAD ES PERMANENTE Y	O AUMENTO DE VELOCIDADE É PERMANENTE E	IL BONUS VELOCITÀ È PERMANENTE E	BONUS SZYBKOŚCI JEST STAŁY I	БОНУС СКОРОСТИ ПОСТОЯННЫЙ И	PENINGKATAN KECEPATAN PERMANEN DAN	TĂNG TỐC ĐỘ LÀ VĨNH VIỄN VÀ
 magaza.patron.a2	TÜM ADALARDA GEÇERLİDİR.	APPLIES ON EVERY ISLAND.	GILT AUF JEDER INSEL.	S'APPLIQUE SUR TOUTES LES ÎLES.	SE APLICA EN TODAS LAS ISLAS.	VALE EM TODAS AS ILHAS.	VALE SU TUTTE LE ISOLE.	DZIAŁA NA KAŻDEJ WYSPIE.	ДЕЙСТВУЕТ НА ВСЕХ ОСТРОВАХ.	BERLAKU DI SEMUA PULAU.	ÁP DỤNG CHO MỌI ĐẢO.
@@ -127,7 +127,7 @@ istasyon.market	PAZAR	MARKET	MARKT	MARCHÉ	MERCADO	MERCADO	MERCATO	RYNEK	РЫН�
 istasyon.power_plant	ENERJİ SANTRALİ	POWER PLANT	KRAFTWERK	CENTRALE	CENTRAL ELÉCTRICA	USINA	CENTRALE	ELEKTROWNIA	ЭЛЕКТРОСТАНЦИЯ	PEMBANGKIT LISTRIK	NHÀ MÁY ĐIỆN
 # yukseltme eksenleri
 eksen.richness	ZENGİNLİK	Richness	Ergiebigkeit	Richesse	Riqueza	Riqueza	Ricchezza	Bogactwo	Богатство	Kekayaan	Độ giàu
-eksen.load_speed	YÜKLEME HIZI	Load Speed	Ladetempo	Vitesse de charge	Velocidad de carga	Velocidade de carga	Velocità di carico	Szybkość ładowania	Скорость погрузки	Kecepatan Muat	Tốc độ tải
+eksen.load_speed	YÜKLEME HIZI	Load Speed	Ladetempo	Chargement	Ritmo de carga	Ritmo de carga	Ritmo di carico	Tempo ładowania	Темп погрузки	Kecepatan Muat	Tốc độ tải
 eksen.speed	HIZ	Speed	Tempo	Vitesse	Velocidad	Velocidade	Velocità	Szybkość	Скорость	Kecepatan	Tốc độ
 eksen.wagons	VAGON	Wagons	Waggons	Wagons	Vagones	Vagões	Vagoni	Wagony	Вагоны	Gerbong	Toa xe
 eksen.wagon_cargo	VAGON YÜKÜ	Wagon Cargo	Waggonladung	Charge par wagon	Carga por vagón	Carga do vagão	Carico vagone	Ładunek wagonu	Груз вагона	Muatan Gerbong	Tải toa xe
@@ -184,9 +184,9 @@ magaza.gem_cash_30m	30 DK	30 MIN	30 MIN	30 MIN	30 MIN	30 MIN	30 MIN	30 MIN	30 М
 magaza.gem_cash_2h	2 SAAT	2 HOURS	2 STUNDEN	2 HEURES	2 HORAS	2 HORAS	2 ORE	2 GODZINY	2 ЧАСА	2 JAM	2 GIỜ
 magaza.gem_cash_8h	8 SAAT	8 HOURS	8 STUNDEN	8 HEURES	8 HORAS	8 HORAS	8 ORE	8 GODZIN	8 ЧАСОВ	8 JAM	8 GIỜ
 magaza.gem_offline_2h	+2 SAAT	+2 HOURS	+2 STUNDEN	+2 HEURES	+2 HORAS	+2 HORAS	+2 ORE	+2 GODZINY	+2 ЧАСА	+2 JAM	+2 GIỜ
-magaza.gem_ad_charge	+1 HAK	+1 CHARGE	+1 LADUNG	+1 CHARGE	+1 CARGA	+1 CARGA	+1 CARICA	+1 ŁADUNEK	+1 ПОПЫТКА	+1 KESEMPATAN	+1 LƯỢT
+magaza.gem_ad_charge	+1 HAK	+1 CHARGE	+1 LADUNG	+1 CHARGE	+1 CARGA	+1 CARGA	+1 CARICA	+1 ŁADUNEK	+1 ПОПЫТКА	+1 PELUANG	+1 LƯỢT
 magaza.gem_investor	%50	50%	50%	50%	50%	50%	50%	50%	50%	50%	50%
-magaza.gem_offline_2h.aciklama	Oyun kapalıyken kazanç süresi uzar	Longer earning window while the game is closed	Längeres Verdienstfenster im geschlossenen Spiel	Fenêtre de gains plus longue hors jeu	Más tiempo de ganancias con el juego cerrado	Mais tempo de ganhos com o jogo fechado	Finestra di guadagno più lunga a gioco chiuso	Dłuższe zarabianie przy zamkniętej grze	Дольше заработок при закрытой игре	Waktu penghasilan lebih lama saat game ditutup	Kiếm tiền lâu hơn khi đóng game
-magaza.gem_ad_charge.aciklama	Her reklam yuvasına günde bir hak daha	One extra charge a day on every ad slot	Täglich eine Ladung mehr pro Werbeplatz	Une charge de plus par jour sur chaque emplacement	Una carga más al día en cada anuncio	Mais uma carga por dia em cada anúncio	Una carica in più al giorno per ogni annuncio	Jeden ładunek więcej dziennie w każdym slocie	На одну попытку в день больше	Satu kesempatan ekstra per hari di tiap slot	Thêm một lượt mỗi ngày cho mỗi ô
-magaza.gem_daily_x2.aciklama	Günlük ödüller kalıcı olarak iki katı	Daily rewards permanently doubled	Tagesbelohnungen dauerhaft verdoppelt	Récompenses quotidiennes doublées définitivement	Recompensas diarias dobladas para siempre	Recompensas diárias dobradas para sempre	Premi giornalieri raddoppiati per sempre	Nagrody dzienne trwale podwojone	Ежедневные награды навсегда удвоены	Hadiah harian digandakan permanen	Thưởng hằng ngày nhân đôi vĩnh viễn
-magaza.gem_investor.aciklama	Prestij kazancının yarısı, adaların kalır	Half the prestige gain, and you keep your islands	Halber Prestige-Gewinn, Inseln bleiben	Moitié du gain de prestige, vous gardez vos îles	Mitad de la ganancia de prestigio, conservas tus islas	Metade do ganho de prestígio, você mantém as ilhas	Metà del guadagno di prestigio, tieni le isole	Połowa zysku z prestiżu, zachowujesz wyspy	Половина престижа, острова остаются	Setengah hasil prestise, pulau tetap milikmu	Một nửa danh vọng, giữ nguyên đảo
+magaza.gem_offline_2h.aciklama	Çevrimdışı kazanç uzar	Longer offline earnings	Längere Offline-Erträge	Gains hors ligne plus longs	Más ganancias sin conexión	Mais ganhos offline	Guadagni offline più lunghi	Dłuższe zarobki offline	Дольше офлайн-доход	Penghasilan offline lebih lama	Kiếm tiền offline lâu hơn
+magaza.gem_ad_charge.aciklama	Her reklama günde +1 hak	One extra ad charge a day	Täglich eine Ladung mehr	Une charge de plus par jour	Una carga más al día	Mais uma carga por dia	Una carica in più al giorno	Jeden ładunek więcej dziennie	Ещё одна попытка в день	Satu kesempatan ekstra/hari	Thêm một lượt mỗi ngày
+magaza.gem_daily_x2.aciklama	Günlük ödüller kalıcı ×2	Daily rewards doubled forever	Tagesbelohnungen dauerhaft ×2	Bonus du jour doublé à vie	Premio diario doblado siempre	Prêmio diário dobrado sempre	Premio giornaliero sempre ×2	Nagrody dzienne trwale ×2	Награда дня навсегда ×2	Hadiah harian permanen ×2	Thưởng ngày nhân đôi vĩnh viễn
+magaza.gem_investor.aciklama	Prestij yarısı, adalar kalır	Half prestige, keep islands	Halbes Prestige, Inseln bleiben	Moitié prestige, îles gardées	Mitad de prestigio, islas fijas	Metade do prestígio, ilhas ficam	Metà prestigio, isole restano	Pół prestiżu, wyspy zostają	Половина престижа, острова целы	Setengah prestise, pulau tetap	Nửa danh vọng, giữ đảo
