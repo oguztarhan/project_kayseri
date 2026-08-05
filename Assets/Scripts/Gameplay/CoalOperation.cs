@@ -141,6 +141,9 @@ namespace Game.Gameplay
 
         [Header("Path building")]
         [SerializeField] private float routeLaneWidth = 6f;   // gap between the out and back lanes of a truck route
+        [Tooltip("Bir kamyonun önündekine bırakacağı en az mesafe. Bir tırın boyundan biraz uzun olmalı, " +
+                 "yoksa kuyrukta gövdeler iç içe geçiyor.")]
+        [SerializeField] private float truckFollowGap = 12f;
         [SerializeField] private int queueSpacing = 2;           // loop points a queued truck stops short of the truck ahead
 
         [Header("Ring layout")]
@@ -204,14 +207,22 @@ namespace Game.Gameplay
         [SerializeField] private float ridgeClearance = 15f;  // keep peaks off any mine head or tunnel mouth
         [SerializeField] private float ridgeScale = 1.35f;    // peak size, relative to the mine spacing
         [SerializeField] private float portalScale = 3.4f;
+        [Tooltip("Elde çizilmiş adada raybaşına konan tünel ağzının ölçeği. Bir vagonu yutacak kadar " +
+                 "büyük olmalı, yoksa tren kayanın içine girerken görünmeye devam ediyor.")]
+        [SerializeField] private float authoredPortalScale = 5.2f;
         [SerializeField] private Color roadColor = new Color(0.47f, 0.40f, 0.32f);   // packed-dirt haul road
         [SerializeField] private Color roadLineColor = new Color(0.93f, 0.88f, 0.72f);
         [SerializeField] private Color ballastColor = new Color(0.41f, 0.37f, 0.32f);
         [SerializeField] private Color sleeperColor = new Color(0.23f, 0.17f, 0.12f);
         [SerializeField] private Color steelColor = new Color(0.60f, 0.62f, 0.66f);
+        // The pile markers in the authored island carry no mesh, so PileStack falls back to an 8×8 pad and
+        // sizes its chunks off that. Next to a phase-3 yard the result is a handful of pebbles lost on a
+        // 50-unit apron: the heap is the readout that says how full the yard is, and it has to be legible
+        // from the same camera height the whole island is played at.
+        [SerializeField] private float pileScale = 2.6f;
         [SerializeField] private Color sitePadColor = new Color(0.33f, 0.30f, 0.26f);
         [SerializeField] private Color plotPadColor = new Color(0.40f, 0.37f, 0.31f);    // surveyed but unbuilt ground
-        [SerializeField] private Color plotMarkColor = new Color(0.97f, 0.83f, 0.30f);   // its dashes and plus
+        [SerializeField] private Color plotMarkColor = new Color(0.97f, 0.83f, 0.30f);   // its dashed border
 
         [Header("Expansion buildings")]
         // The authored island meshes only carry the starting chain. Without these, six of the ten one-time
@@ -478,6 +489,10 @@ namespace Game.Gameplay
             public Transform engine;
             public Transform[] wagons;      // full pool (MaxWagons); only the first ActiveWagons show
             public GameObject[] wagonOre;
+            // The authored hopper carries its ore as its own top submesh, so the rake looked full on the
+            // way back however carefully the added blocks were hidden. Two meshes, swapped per leg.
+            public MeshFilter[] wagonSkin;
+            public Mesh[] wagonFull, wagonEmpty;
             public float engineY;           // the imported rig's own height — the generated island's rail bed
             public Vector3[] path;          // [0]=mountain gate … [n-1]=storage gate
             public float[] cum;             // cumulative arc length along path, so the rake can be spaced by distance
@@ -533,7 +548,10 @@ namespace Game.Gameplay
             public Vector3[] loop;
             public int wp;
             public int loadIdx, dropIdx, idleIdx;
+            public float[] cum;             // cumulative arc length along loop, for the follow-gap rule
+            public float loopLen;
             public Route route;
+            public int idx;                 // index into _agents, so a truck can look up who is ahead
             public int slot;                // order within its fleet; slot < fleet count → active
             public int sceneFleet;          // trucks physically placed on this loop (export fleet size)
             public double carry;
@@ -549,6 +567,7 @@ namespace Game.Gameplay
         private const string OreBodyTag = "_ore", CargoBodyTag = "_cargo";
         private static bool IsTagged(string n) => n.Contains(OreBodyTag) || n.Contains(CargoBodyTag);
         private TruckAgent[] _agents;
+        private float[] _arc;            // every truck's distance along its loop, refreshed once a frame
 
         private bool _ready;
 
@@ -632,6 +651,14 @@ namespace Game.Gameplay
             world = TopOf(t);
             return true;
         }
+
+        /// <summary>
+        /// The first line's locomotive while it is out of cover, else null. The tutorial's TRAIN beat
+        /// rides it: a caption about hauling over a shot of empty track teaches nothing, and the rake is
+        /// only on that stretch for part of its round trip.
+        /// </summary>
+        public Transform TrainEngine =>
+            _train1 != null && _train1.active && _train1.visible ? _train1.engine : null;
 
         private static Vector3 TopOf(Transform t)
         {
@@ -914,8 +941,13 @@ namespace Game.Gameplay
 
             // A level-0 yard reads as ten chunks; a fully upgraded one needs the widest grid to hold what
             // it can now store, which is the whole point of buying Capacity.
-            _oreYard = new PileStack(_orePile, _oreMat, storageCapacity / 10f, "OpOreHeap", MeshOf(oreChunkPrefab));
-            _barYard = new PileStack(_refinedPile, _barMat, barCapacity / 10f, "OpBarHeap", MeshOf(barChunkPrefab));
+            // Before either yard is built, get its spot out from under whatever is standing on it.
+            ClearHeapSpot(_orePile, 6f);
+            ClearHeapSpot(_refinedPile, 6f);
+            _oreYard = new PileStack(_orePile, _oreMat, storageCapacity / 10f, "OpOreHeap",
+                                     MeshOf(oreChunkPrefab), pileScale);
+            _barYard = new PileStack(_refinedPile, _barMat, barCapacity / 10f, "OpBarHeap",
+                                     MeshOf(barChunkPrefab), pileScale);
 
             // Lanes were assigned above, between the two placement passes, and the mines have been pinned
             // ever since — so the paths built here land exactly on the corridors that were kept clear.
@@ -930,6 +962,11 @@ namespace Game.Gameplay
             BuildTruckAgents();
             if (Authored) PruneUnusedVehicles();
             BuildSiteDressing();     // needs the rail paths the trains just resolved
+            if (Authored)
+            {
+                AuthoredTunnel(_train1, "1"); AuthoredTunnel(_train2, "2");
+                AuthoredTunnel(_train3, "3"); AuthoredTunnel(_train4, "4");
+            }
             BuildUnlockRegistry();   // and this needs the dressing parent, to hang the build plots off
             BuildSiteLife();
             ApplyFleetStates();
@@ -958,6 +995,7 @@ namespace Game.Gameplay
             if (_train2 != null && _train2.active) TrainTick(_train2, dt);
             if (_train3 != null && _train3.active) TrainTick(_train3, dt);
             if (_train4 != null && _train4.active) TrainTick(_train4, dt);
+            MeasureTruckArcs();
             for (int i = 0; i < _agents.Length; i++) if (_agents[i].active) TruckTick(_agents[i], dt);
             Smelt(dt);
             UpdateHeaps();
@@ -992,8 +1030,20 @@ namespace Game.Gameplay
             }
             a.wagons = wagons.ToArray();
             a.wagonOre = new GameObject[a.wagons.Length];
+            a.wagonSkin = new MeshFilter[a.wagons.Length];
+            a.wagonFull = new Mesh[a.wagons.Length];
+            a.wagonEmpty = new Mesh[a.wagons.Length];
             for (int i = 0; i < a.wagons.Length; i++)
             {
+                a.wagonSkin[i] = a.wagons[i].GetComponent<MeshFilter>();
+                if (a.wagonSkin[i] != null)
+                {
+                    a.wagonFull[i] = a.wagonSkin[i].sharedMesh;
+                    // The pool is cloned from one template, so the whole rake usually shares a mesh.
+                    for (int k = 0; k < i; k++)
+                        if (a.wagonFull[k] == a.wagonFull[i]) { a.wagonEmpty[i] = a.wagonEmpty[k]; break; }
+                    if (a.wagonEmpty[i] == null) a.wagonEmpty[i] = EmptyHopper(a.wagonFull[i]);
+                }
                 Bounds wb = BodyBox(a.wagons[i]);
                 // Centred, unlike a hauler: a wagon is a box on bogies with no cab to work round.
                 a.wagonOre[i] = MakeLoad(a.wagons[i], _oreMat, true,
@@ -1468,6 +1518,55 @@ namespace Game.Gameplay
         private void SetWagonOre(TrainAgent a, bool on)
         {
             for (int i = 0; i < a.wagonOre.Length; i++) Show(a.wagonOre[i], on && i < ActiveWagons);
+            for (int i = 0; i < a.wagonSkin.Length; i++)
+            {
+                if (a.wagonSkin[i] == null || a.wagonEmpty[i] == null) continue;
+                Mesh want = on ? a.wagonFull[i] : a.wagonEmpty[i];
+                if (a.wagonSkin[i].sharedMesh != want) a.wagonSkin[i].sharedMesh = want;
+            }
+        }
+
+        /// <summary>
+        /// The same hopper with its ore taken out, or null if this wagon carries none.
+        ///
+        /// The authored wagon is one mesh with the ore modelled into it as the last submesh, sitting
+        /// proud of the rim. Hiding the ore blocks the operation adds on top therefore did nothing for
+        /// the return leg: the rake still came back full, which reads as the train never delivering.
+        /// Dropping the last submesh leaves an empty hopper, and the two meshes swap per leg.
+        ///
+        /// Only the LAST submesh is ever dropped, and only when its floor sits in the top of the body —
+        /// on a generated island the wagons are bodywork all the way up and nothing is stripped.
+        /// The renderer keeps its full material list; Unity ignores the entries past the submesh count.
+        /// </summary>
+        private Mesh EmptyHopper(Mesh full)
+        {
+            if (full == null || full.subMeshCount < 2) return null;
+            Vector3 up = Quaternion.Inverse(_vehicleBaseRot) * Vector3.up;
+            Vector3[] verts = full.vertices;
+            float lo = float.MaxValue, hi = float.MinValue;
+            for (int i = 0; i < verts.Length; i++)
+            {
+                float d = Vector3.Dot(verts[i], up);
+                if (d < lo) lo = d;
+                if (d > hi) hi = d;
+            }
+            if (hi - lo < 1e-4f) return null;
+
+            int last = full.subMeshCount - 1;
+            int[] tris = full.GetTriangles(last);
+            if (tris.Length == 0) return null;
+            float floor = float.MaxValue;
+            for (int i = 0; i < tris.Length; i++)
+            {
+                float d = Vector3.Dot(verts[tris[i]], up);
+                if (d < floor) floor = d;
+            }
+            if ((floor - lo) / (hi - lo) < 0.6f) return null;
+
+            var empty = Instantiate(full);
+            empty.name = full.name + "_empty";
+            empty.subMeshCount = last;
+            return empty;
         }
 
         // ---------------- trucks ----------------
@@ -1585,6 +1684,15 @@ namespace Game.Gameplay
                         // their side while the moving ones looked right.
                         bayRot = along.sqrMagnitude > 0.01f ? VehicleFacing(along) : body.rotation,
                     };
+                    a.cum = new float[a.loop.Length];
+                    float run = 0f;
+                    for (int k = 1; k < a.loop.Length; k++)
+                    {
+                        run += Flat(a.loop[k] - a.loop[k - 1]).magnitude;
+                        a.cum[k] = run;
+                    }
+                    a.loopLen = run + Flat(a.loop[0] - a.loop[a.loop.Length - 1]).magnitude;
+
                     var rends = body.GetComponentsInChildren<Renderer>(true);
                     a.rends = rends;
                     a.origMats = new Material[rends.Length][];
@@ -1605,6 +1713,8 @@ namespace Game.Gameplay
                 }
             }
             _agents = agents.ToArray();
+            _arc = new float[_agents.Length];
+            for (int i = 0; i < _agents.Length; i++) _agents[i].idx = i;
             if (_agents.Length == 0) Debug.LogWarning("CoalOperation: no trucks found on any road loop.");
         }
 
@@ -2023,12 +2133,64 @@ namespace Game.Gameplay
             }
         }
 
+        /// <summary>
+        /// Every truck's distance around its own loop, taken once a frame so the follow rule below can
+        /// compare them without measuring the same body twice per neighbour.
+        /// </summary>
+        private void MeasureTruckArcs()
+        {
+            if (_agents == null || _arc == null) return;
+            for (int i = 0; i < _agents.Length; i++)
+            {
+                TruckAgent a = _agents[i];
+                if (a.cum == null || a.loopLen <= 0f) { _arc[i] = 0f; continue; }
+                // wp is the waypoint being driven TO, so the truck is that leg's remainder short of it.
+                float at = a.cum[a.wp] - Flat(a.loop[a.wp] - a.body.position).magnitude;
+                _arc[i] = at < 0f ? at + a.loopLen : at;
+            }
+        }
+
+        /// <summary>
+        /// How far ahead the next truck on the same loop is, in metres around the loop.
+        ///
+        /// Every truck on a route drives the same polyline at the same speed, so the moment one stops to
+        /// load the rest close up on it and the fleet ends up nose to tail — and then drives on as a
+        /// single train of overlapping bodies. Reading the gap here and refusing to spend more than it
+        /// turns that into a queue: they still bunch at the pile, but they bunch one truck-length apart
+        /// and pull away in order.
+        ///
+        /// A parked truck counts. It is standing on the loop and driving through it looks no better than
+        /// driving through a moving one; the queue behind it clears the moment work appears, because that
+        /// is what takes it out of Idle.
+        /// </summary>
+        private float GapAhead(TruckAgent a)
+        {
+            if (_agents == null || _arc == null || a.loopLen <= 0f) return float.MaxValue;
+            float mine = _arc[a.idx];
+            float best = float.MaxValue;
+            for (int i = 0; i < _agents.Length; i++)
+            {
+                TruckAgent o = _agents[i];
+                if (i == a.idx || o.route != a.route || !o.active) continue;
+                float d = _arc[i] - mine;
+                if (d < 0f) d += a.loopLen;
+                // Two bodies on the same spot — a fleet clone spawns on its template — would each read a
+                // zero gap and both stand still for good. The lower index pulls away first and the tie
+                // breaks itself on the next frame.
+                if (d < 0.05f) { if (i > a.idx) continue; d = 0f; }
+                if (d < best) best = d;
+            }
+            return best;
+        }
+
         /// <summary>Advances a truck forward around its loop toward the stop point. True on arrival.</summary>
         private bool DriveLoop(TruckAgent a, int stopIdx, float dt)
         {
             Vector3 pos = a.body.position;
             Vector3 dir = a.body.forward;
             float budget = (a.route == Route.Ore ? EffOreSpeed : EffCargoSpeed) * dt;
+            float room = GapAhead(a) - truckFollowGap;
+            if (room < budget) budget = room > 0f ? room : 0f;
             bool arrived = false;
             int guard = a.loop.Length + 2;
             while (budget > 0f && guard-- > 0)
@@ -2329,6 +2491,66 @@ namespace Game.Gameplay
         {
             _oreYard.Set(_storeOre, EffStorageFull);
             _barYard.Set(_bars, EffBarCap);
+        }
+
+        /// <summary>
+        /// Walks a yard's heap out from under any building standing on it.
+        ///
+        /// The two heap spots are one anchor plus a fixed offset, authored once. The district art is
+        /// rebuilt twice as the island advances, though, and a later phase drops a shed on the depot
+        /// spot: the ore heap ends up behind a wall, which is exactly the readout that has to be
+        /// visible — it is what says how full the yard is. So the search counts the bodies of ALL
+        /// three phases, live or not, and only then is the heap standing in the open at every one.
+        ///
+        /// Nothing moves when the spot is already clear, which is the usual case.
+        /// </summary>
+        private void ClearHeapSpot(Transform pad, float clearance)
+        {
+            if (pad == null || _islandRoot == null) return;
+            Vector3 home = pad.position;
+
+            var blockers = new List<Bounds>();
+            var rends = _islandRoot.GetComponentsInChildren<MeshRenderer>(true);
+            for (int i = 0; i < rends.Length; i++)
+            {
+                string n = rends[i].name;
+                // Ground, tarmac and scenery are things a heap may sit on; rolling stock moves away
+                // from wherever it happens to be parked at load. Only standing bodies block a heap.
+                if (n.StartsWith("Op") || n.StartsWith("Ground") || n.StartsWith("Road") ||
+                    n.StartsWith("Walk") || n.StartsWith("Site") || n.StartsWith("Street") ||
+                    n.StartsWith("Pine") || n.StartsWith("Bush") || n.StartsWith("Lamp") ||
+                    n.StartsWith("train") || n.StartsWith("wagon") || n.StartsWith("truck")) continue;
+                Bounds b = rends[i].bounds;
+                if (b.size.y < 2f) continue;
+                // A yard's perimeter fence and its boundary wall are single renderers spanning the
+                // whole site. Counted as solid they block every candidate, and the search gives up
+                // with the heap still behind the shed — which is the bug this method exists to fix.
+                if (b.size.x > 30f || b.size.z > 30f) continue;
+                float dx = b.center.x - home.x, dz = b.center.z - home.z;
+                if (dx * dx + dz * dz > 3600f) continue;
+                blockers.Add(b);
+            }
+            if (HeapFits(blockers, home, clearance)) return;
+            for (float step = 6f; step <= 26f; step += 2f)
+                for (int a = 0; a < 24; a++)
+                {
+                    float rad = a * (Mathf.PI / 12f);
+                    Vector3 p = home + new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)) * step;
+                    if (!HeapFits(blockers, p, clearance)) continue;
+                    pad.position = p;
+                    return;
+                }
+        }
+
+        private static bool HeapFits(List<Bounds> blockers, Vector3 p, float clearance)
+        {
+            for (int i = 0; i < blockers.Count; i++)
+            {
+                Bounds b = blockers[i];
+                if (p.x > b.min.x - clearance && p.x < b.max.x + clearance &&
+                    p.z > b.min.z - clearance && p.z < b.max.z + clearance) return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -3714,6 +3936,33 @@ namespace Game.Gameplay
             Bounds b = WorldBounds(t);
             if (b.size.y < 1.5f) return 0f;
             return Mathf.Abs(dir.x) * b.extents.x + Mathf.Abs(dir.z) * b.extents.z;
+        }
+
+        /// <summary>
+        /// The tunnel mouth an authored line runs out of.
+        ///
+        /// Authored islands model their own track, so the whole dressing pass is skipped for them — and
+        /// the portal went with it. The rake therefore slid straight into the bare cliff at the head of
+        /// the line and stayed visible the whole way in, which reads as a train driving through rock.
+        /// The mouth is a chunk of mountain with a doorway cut in it, dropped exactly on path[0], which
+        /// is where <see cref="PlaceCar"/> already starts hiding cars: they now vanish INTO something.
+        /// </summary>
+        private void AuthoredTunnel(TrainAgent a, string id)
+        {
+            if (a == null || a.path == null || a.path.Length < 2 || portalPrefab == null) return;
+            Vector3 head = a.path[0];
+            Vector3 dir = Flat(a.path[1] - head);
+            if (dir.sqrMagnitude < 0.01f) return;
+
+            var p = Instantiate(portalPrefab, _dressing);
+            p.name = "OpPortal_" + id;
+            // The doorway is cut into the prefab's -Z face, so the rock is aimed down the track and the
+            // opening ends up looking back along the rails. Turned the other way the train drives into a
+            // solid hillside — which is what it was doing before there was a portal at all.
+            p.transform.SetPositionAndRotation(head, Quaternion.LookRotation(-dir.normalized, Vector3.up));
+            p.transform.localScale = Vector3.one * authoredPortalScale;
+            a.portal = p;
+            p.SetActive(a.active);
         }
 
         /// <summary>Track plus the tunnel mouth the line runs out of, hidden until its train is bought.</summary>

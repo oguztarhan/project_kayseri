@@ -3,8 +3,8 @@ using UnityEngine;
 namespace Game.Gameplay
 {
     /// <summary>
-    /// The marked-out plot that stands where a locked expansion will one day be built: a paved pad, a
-    /// dashed border, and a plus in the middle.
+    /// The marked-out plot that stands where a locked expansion will one day be built: a paved pad
+    /// inside a dashed border.
     ///
     /// Locked buildings used to be shown as translucent copies of themselves. The intent was to let the
     /// player see the island's future, but a dozen see-through buildings scattered over open grass read as
@@ -44,13 +44,6 @@ namespace Game.Gameplay
             Edge(mb, c - f * halfZ, r, f, halfX, dash, gap, thick, up);   // near
             Edge(mb, c + r * halfX, f, r, halfZ, dash, gap, thick, up);   // right
             Edge(mb, c - r * halfX, f, r, halfZ, dash, gap, thick, up);   // left
-
-            // The plus. Sized off the smaller half-extent so it stays inside a plot of any proportion.
-            float arm = Mathf.Min(halfX, halfZ) * 0.42f;
-            float bar = arm * 0.30f;
-            Vector3 mid = c + up * 0.02f;
-            mb.AddBox(mid, r, up, f, new Vector3(arm, 0.06f, bar), Mark);
-            mb.AddBox(mid, r, up, f, new Vector3(bar, 0.06f, arm), Mark);
 
             var go = new GameObject(name);
             go.transform.SetParent(parent, true);

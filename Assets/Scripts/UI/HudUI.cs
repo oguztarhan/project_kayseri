@@ -26,6 +26,10 @@ namespace Game.UI
         [SerializeField] private TMP_Text gemsValue;
         [SerializeField] private TMP_Text rateValue;
         [SerializeField] private Button settingsButton;
+        [Tooltip("Altın hapının kendisi. Üstündeki + rozeti mağazayı vaat ediyor, o yüzden hap da mağazayı açar.")]
+        [SerializeField] private Button goldButton;
+        [Tooltip("Elmas hapının kendisi — altın hapı gibi mağazayı açar.")]
+        [SerializeField] private Button gemsButton;
 
         [Header("Sağ ray")]
         [SerializeField] private Button storeButton;
@@ -48,10 +52,8 @@ namespace Game.UI
         [Tooltip("Yükseltmenin solundaki kısayol: reklam izle, gelir 2× olsun. Hak ve bekleme süresi UI_Reklam'daki yuvanın.")]
         [SerializeField] private Button boostButton;
         [SerializeField] private Image boostButtonImage;
-        [Tooltip("Butonun ne sattığını yazan üst satır: \"×2 GELİR\".")]
+        [Tooltip("Butonun içindeki tek satır: \"×2 GELİR\". Kalan süre üstteki hızlandırıcı göstergesinde.")]
         [SerializeField] private TMP_Text boostButtonTitle;
-        [Tooltip("Alt satır: hazırken bedeli, çalışırken ve beklerken sayaç.")]
-        [SerializeField] private TMP_Text boostButtonLabel;
 
         [Header("Ekran bağlantıları (sahne nesneleri)")]
         [SerializeField] private PremiumStoreUI store;
@@ -85,6 +87,8 @@ namespace Game.UI
             BindEnabledOp();
 
             if (storeButton != null) storeButton.onClick.AddListener(OnStore);
+            if (goldButton != null) goldButton.onClick.AddListener(OnStore);
+            if (gemsButton != null) gemsButton.onClick.AddListener(OnStore);
             if (dailyButton != null) dailyButton.onClick.AddListener(OnDaily);
             if (mapButton != null) mapButton.onClick.AddListener(OnMap);
             if (contractButton != null) contractButton.onClick.AddListener(OnContract);
@@ -197,30 +201,46 @@ namespace Game.UI
                 // uGUI's disabled tint latches onto the graphic; stamp the state's colour back on
                 boostButtonImage.CrossFadeColor(ready ? Color.white : DimBoost, 0f, true, true);
 
-            if (boostButtonTitle != null)
-            {
-                // While a boost runs, the headline is whatever is actually multiplying the income —
-                // a store offer can set a different one, and the button must not claim the slot's.
-                double mult = boosted ? _boost.ActiveMultiplier
-                                      : (adScreen != null ? adScreen.BoostMultiplier : 2d);
-                boostButtonTitle.text = string.Format(Loc.T("hud.gelir"),
-                    mult.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
-            }
-
-            if (boostButtonLabel == null) return;
-            if (boosted)
-            {
-                boostButtonLabel.text = ContractUI.ClockText(_boost.SecondsLeft);
-                return;
-            }
-            // ready: say what it costs, because the ad badge no longer says it
-            if (ready) { boostButtonLabel.text = Loc.T("hud.reklam_izle"); return; }
-            // not ready for one of two reasons, and the player needs to be able to tell them apart
-            float wait = adScreen != null ? adScreen.BoostCooldown : 0f;
-            boostButtonLabel.text = wait > 0f ? ContractUI.ClockText(wait) : Loc.T("ortak.yarin");
+            if (boostButtonTitle == null) return;
+            // The label sits inside the button now, so it has to take the dim itself:
+            // CrossFadeColor only paints the graphic it is called on, never the children.
+            boostButtonTitle.color = ready ? Color.white : DimBoost;
+            // While a boost runs, the headline is whatever is actually multiplying the income —
+            // a store offer can set a different one, and the button must not claim the slot's.
+            double mult = boosted ? _boost.ActiveMultiplier
+                                  : (adScreen != null ? adScreen.BoostMultiplier : 2d);
+            boostButtonTitle.text = string.Format(Loc.T("hud.gelir"),
+                mult.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
         }
 
         private static readonly Color DimBoost = new Color(0.55f, 0.58f, 0.66f, 1f);
+
+        // ---- what the tutorial points at -------------------------------------------------------
+        // Read-only rects, so the onboarding can cut a hole over a real control instead of drawing a
+        // copy of it somewhere and hoping the two stay in the same place. Nothing here can move a
+        // button; the screen the player taps is still this one's.
+        public RectTransform UpgradeRect => Rect(upgradeButton);
+        public RectTransform ContractRect => Rect(contractButton);
+        public RectTransform BoostRect => Rect(boostButton);
+        public RectTransform DailyRect => Rect(dailyButton);
+        public RectTransform MapRect => Rect(mapButton);
+        public RectTransform PrestigeRect => Rect(prestigeButton);
+        public RectTransform GoldRect => Rect(goldButton);
+        /// <summary>The $/min pill, not the label inside it — the highlight has to sit on the art.</summary>
+        public RectTransform RateRect
+        {
+            get
+            {
+                if (rateValue == null) return null;
+                var parent = rateValue.transform.parent as RectTransform;
+                return parent != null ? parent : (RectTransform)rateValue.transform;
+            }
+        }
+
+        /// <summary>Whether the ×2 shortcut has a charge — the tip about it waits for this.</summary>
+        public bool BoostReady => adScreen != null && adScreen.BoostReady && (_boost == null || !_boost.IsActive);
+
+        private static RectTransform Rect(Button b) => b != null ? (RectTransform)b.transform : null;
 
         private void RefreshGems()
         {

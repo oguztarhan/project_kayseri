@@ -69,6 +69,10 @@ namespace Game.UI
 
         private bool _framed;
 
+        /// <summary>True once the opening shot has been solved — the tutorial waits for it before it
+        /// takes the camera, so the two are never easing it to different places in the same frame.</summary>
+        public bool Framed => _framed;
+
         private void Start() { Frame(); }
 
         // Retry until it succeeds: at boot (Bootstrap → Main load) the CameraController can be unfindable

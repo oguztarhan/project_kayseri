@@ -40,6 +40,8 @@ namespace Game.Systems
         public double boostMultiplier;               // running income boost and when it expires, as wall-clock
         public long boostEndUnix;                    // unix — the store sells boosts measured in hours, and an
                                                      // idle player spends most of those hours with the app shut
+        public int tutorialStep;                     // 0 = the opening has never been played, 100 = it has
+        public List<string> tutorialTipsSeen = new List<string>();  // one-shot hints already fired, by id
     }
 
     /// <summary>

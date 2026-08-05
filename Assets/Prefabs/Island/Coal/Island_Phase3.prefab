@@ -127,6 +127,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: 178939683255212082, guid: 5ef09b9f5a05e43ff80043f44b8ec367, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: ff0b92a82ead27347896087db87a5d70, type: 2}
     - target: {fileID: 828314137121420610, guid: 5ef09b9f5a05e43ff80043f44b8ec367, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -412,7 +416,11 @@ PrefabInstance:
       value: 2147483647
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 1157704840489430704, guid: d0866befa9b26465a8e2ef0304c74b62, type: 3}
+    - {fileID: -7705077570118452051, guid: d0866befa9b26465a8e2ef0304c74b62, type: 3}
+    - {fileID: 4540236211185752922, guid: d0866befa9b26465a8e2ef0304c74b62, type: 3}
+    - {fileID: -5937577527287713081, guid: d0866befa9b26465a8e2ef0304c74b62, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d0866befa9b26465a8e2ef0304c74b62, type: 3}
@@ -3573,6 +3581,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: -7878356817047616688, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 220b4c0c808bb7a4dba1fc1f488a6cfd, type: 2}
     - target: {fileID: -6848011175914762926, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -3617,6 +3629,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: -2424370737201848868, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 28a4daae55556d74cad86278ce364da4, type: 2}
     - target: {fileID: -2258416067944797684, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -3709,6 +3725,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: 3791239993274376777, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: ba6a7d544bfdc684eba13c7774357bb0, type: 2}
     - target: {fileID: 4212628468515796882, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -3717,6 +3737,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: 4673576711385765686, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 0aee3d39c2a51f74797e326fa5169a53, type: 2}
     - target: {fileID: 4853520038985484691, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -3745,6 +3769,14 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: 6851092097588223852, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 66641740cd176fa498e2b1160459fee8, type: 2}
+    - target: {fileID: 6938851250185282154, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 9f620fa406e51f14da4ec719b15154c8, type: 2}
     - target: {fileID: 7374251478212070479, guid: 3accec1d407174d30bdef0d6a094e53e, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -7116,7 +7148,13 @@ PrefabInstance:
       value: 2147483647
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: -7636045272818965894, guid: 219774b2e5a8f42fbaf82c00818576b0, type: 3}
+    - {fileID: 1607780162152010322, guid: 219774b2e5a8f42fbaf82c00818576b0, type: 3}
+    - {fileID: 1500935051159053418, guid: 219774b2e5a8f42fbaf82c00818576b0, type: 3}
+    - {fileID: 4386082419258098742, guid: 219774b2e5a8f42fbaf82c00818576b0, type: 3}
+    - {fileID: 4241806429730905124, guid: 219774b2e5a8f42fbaf82c00818576b0, type: 3}
+    - {fileID: -565299354493215879, guid: 219774b2e5a8f42fbaf82c00818576b0, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 219774b2e5a8f42fbaf82c00818576b0, type: 3}

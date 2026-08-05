@@ -54,6 +54,9 @@ namespace Game.UI
         [SerializeField] private Image dim;
         [SerializeField] private TMP_Text titleText;
         [SerializeField] private Image titleIcon;
+        [Tooltip("Cepteki altın. Bu ekran HUD'un üstünü örtüyor, oysa fiyatlara bakarken bakiyeyi " +
+                 "görmek tam da burada gerekiyor.")]
+        [SerializeField] private TMP_Text goldValue;
 
         [Header("Model sahnesi")]
         [SerializeField] private StationPreviewStage stage;
@@ -109,6 +112,8 @@ namespace Game.UI
         [SerializeField] private RectTransform shine;
         [SerializeField] private RectTransform phaseBanner;
         [SerializeField] private TMP_Text phaseBannerText;
+        [Tooltip("Faz atlayınca patlayan konfeti. Kendi canvas'ında durur; boşsa sessizce atlanır.")]
+        [SerializeField] private ConfettiBurst confetti;
 
         [Header("İstasyonlar")]
         [SerializeField] private List<StationEntry> stations = new List<StationEntry>();
@@ -191,6 +196,27 @@ namespace Game.UI
             if (_timer > 0f) return;
             _timer = refreshInterval;
             Refresh();
+        }
+
+        /// <summary>Whether the screen is up, and which upgrade it is showing — what the tutorial waits on.</summary>
+        public bool IsOpen => panelRoot != null && panelRoot.activeSelf;
+
+        public int OpenStation => _station;
+
+        /// <summary>
+        /// The price button for one axis of the open page, so the onboarding can cut its hole over the
+        /// real control. Null while that row is maxed, locked, or the tray has not been rebuilt yet.
+        /// </summary>
+        public RectTransform BuyRect(int axis)
+        {
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                Row r = _rows[i];
+                if (r.unlock >= 0 || r.axis != axis) continue;
+                if (r.buyGO == null || !r.buyGO.activeInHierarchy) return null;
+                return (RectTransform)r.buyGO.transform;
+            }
+            return null;
         }
 
         /// <summary>Whether this screen owns a station — what the map chips and the old panel ask.</summary>
@@ -589,6 +615,11 @@ namespace Game.UI
         // ---------- refresh ----------
         private void Refresh()
         {
+            // Bakiye istasyondan bağımsız — genişletmeler sayfasında da, operasyon bağlanmadan
+            // önce de yazılmalı, o yüzden aşağıdaki erken çıkışların üstünde duruyor.
+            if (goldValue != null && _wallet != null)
+                goldValue.text = NumberFormatter.Format(_wallet.Cash);
+
             if (_op == null || _station == -1) return;
 
             if (titleText != null) titleText.text = TitleFor(_station);
@@ -874,6 +905,9 @@ namespace Game.UI
 
             // 5 · name what just happened
             Refresh();
+            // Konfeti bandın hemen öncesinde: kağıt havaya çıkarken bant içeri kayıyor, ikisi
+            // aynı anda tepe yapıyor. Banttan sonra atılsa kutlama iki ayrı olaya bölünürdü.
+            if (confetti != null) confetti.Play();
             if (phaseBanner != null)
             {
                 if (phaseBannerText != null) phaseBannerText.text = string.Format(Loc.T("istasyon_ekrani.faz_bant"), phase);
@@ -985,7 +1019,7 @@ namespace Game.UI
 
         /// <summary>The strip's last tile is not a station — it is the one-time expansions.</summary>
         private const int ExpansionPage = -2;
-        private const float ExpansionTop = 410f;      // şeridin altı: tepsi genişletmelerde buraya kadar büyür
+        private const float ExpansionTop = 530f;      // altın hapının altı: tepsi genişletmelerde buraya kadar büyür
         private const float SheetBottom = 26f;
         private const float SheetStationHeight = 810f;
 

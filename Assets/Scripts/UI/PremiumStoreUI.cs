@@ -197,6 +197,20 @@ namespace Game.UI
             return 0d;
         }
 
+        /// <summary>
+        /// True when the offer would charge for an empty grant. A card priced in minutes of income pays
+        /// nothing while the empire has not reported a rate yet, and a card that converts progress into
+        /// investors pays nothing before there is any progress to convert. Gems leave the wallet before
+        /// <see cref="Grant"/> runs, so without this the sale takes the price and hands back nothing.
+        /// </summary>
+        private bool NothingToGrant(OfferBinding offer)
+        {
+            if (offer.incomeMinutes > 0f && IncomePerMinute() <= 0d) return true;
+            if (offer.investorShare > 0f && _prestige != null
+                && _prestige.PendingInvestors().Mantissa <= 0d) return true;
+            return false;
+        }
+
         /// <summary>Has this one-time offer already been bought? Untracked skus are always buyable.</summary>
         private bool Owned(OfferBinding offer)
         {
@@ -426,10 +440,7 @@ namespace Game.UI
             // back later. Both hand the same offer to the same grant.
             if (offer.gemPrice > 0)
             {
-                // A card priced in minutes of income pays nothing while the empire has not reported a
-                // rate yet — the first seconds after a launch, before the meter is trustworthy and with
-                // no saved rate behind it. Refuse the sale instead of taking the gems for an empty grant.
-                if (offer.incomeMinutes > 0f && IncomePerMinute() <= 0d) return;
+                if (NothingToGrant(offer)) return;
                 if (_wallet == null || !_wallet.TrySpendGems(offer.gemPrice)) return;
                 Grant(offer);
             }
@@ -489,8 +500,8 @@ namespace Game.UI
 
         /// <summary>
         /// A card greys out once what it sells is already owned; everything else stays buyable. Gem cards
-        /// grey out for a second reason too — not enough gems — which is the honest way to say "not yet"
-        /// on a currency the player earns rather than buys.
+        /// grey out for two more reasons — not enough gems, and nothing yet to grant — which is the honest
+        /// way to say "not yet" on a currency the player earns rather than buys.
         /// </summary>
         private void RefreshOffers()
         {
@@ -505,7 +516,8 @@ namespace Game.UI
             {
                 OfferBinding o = list[i];
                 if (o == null || o.button == null) continue;
-                bool spent = Owned(o) || (o.removeAds && AdsRemoved) || (o.gemPrice > 0 && gems < o.gemPrice);
+                bool spent = Owned(o) || (o.removeAds && AdsRemoved)
+                             || (o.gemPrice > 0 && (gems < o.gemPrice || NothingToGrant(o)));
                 o.button.interactable = !spent;
                 // The disabled tint latches when the panel opens and the state changes in the same
                 // frame; push the right colour straight away, as the other screens do.

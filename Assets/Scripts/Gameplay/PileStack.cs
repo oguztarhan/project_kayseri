@@ -34,14 +34,15 @@ namespace Game.Gameplay
         private readonly int[] _srcTris;
         private readonly float _srcFit;   // scale that makes one source mesh fill one grid cell
 
-        public PileStack(Transform pad, Material mat, float unitsPerChunk, string name, Mesh chunkMesh = null)
+        public PileStack(Transform pad, Material mat, float unitsPerChunk, string name, Mesh chunkMesh = null,
+                         float cellScale = 1f)
         {
             var pr = pad.GetComponentInChildren<Renderer>();
             Vector3 size = pr != null ? pr.bounds.size : new Vector3(8f, 1f, 8f);
             _baseY = pr != null ? pr.bounds.max.y : pad.position.y;
             // Sized so a level-0 yard (a 3-wide grid) still covers most of its pad. Dividing by MaxGrid
             // instead left the early game showing a handful of pebbles on a big empty slab.
-            _cell = Mathf.Max(1.4f, Mathf.Min(size.x, size.z) * 0.92f / 4.3f);
+            _cell = Mathf.Max(1.4f, Mathf.Min(size.x, size.z) * 0.92f / 4.3f) * Mathf.Max(0.1f, cellScale);
             _unitsPerChunk = Mathf.Max(0.01f, unitsPerChunk);
 
             var go = new GameObject(name);
