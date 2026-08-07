@@ -1,3 +1,4 @@
+using Game.Gameplay;
 using UnityEngine;
 
 namespace Game.UI
@@ -58,16 +59,17 @@ namespace Game.UI
 
         // District groups excluded from an AUTHORED island's framing only, so the generated
         // islands keep the framing they had. Terrain carries a 640-unit ground plane and the
-        // sea, which framed the island as a speck in an ocean; Foliage is scenery.
-        // Roads is excluded because the two main arms run out to the island edge, past the
-        // ring road the operation sits on — counting them framed mostly empty grass.
-        // Rail is COUNTED now: on the current authored maps it overhangs the districts by
-        // 23 units (coal) to 53 (iron) — measured, not guessed — and skipping it opened the
-        // iron island with the whole working line and its train just off the top of the frame.
-        private static readonly string[] SkipDistricts = { "Terrain", "Foliage", "Roads" };
+        // sea, which framed the island as a speck in an ocean; Foliage is scenery; Rail runs
+        // out to a tunnel in the massif far past the working site, and the train is meant to
+        // vanish into it rather than drag the whole playfield back to keep it on screen.
+        // Roads is excluded for the same reason as Rail: the two main arms run out to the
+        // island edge at +/-196, three times past the ring road the operation sits on, so
+        // counting them framed a playfield of mostly empty grass. The districts and the ring
+        // they enclose are what the player watches.
+        private static readonly string[] SkipDistricts = { "Terrain", "Foliage", "Rail", "Roads" };
 
         private bool _framed;
-        private int _readyFrames;   // frames the island's operation has been Ready before framing
+        private WorldIslands _world;
 
         /// <summary>True once the opening shot has been solved — the tutorial waits for it before it
         /// takes the camera, so the two are never easing it to different places in the same frame.</summary>
@@ -84,7 +86,21 @@ namespace Game.UI
         {
             operationRootName = rootName;
             _framed = false;
-            _readyFrames = 0;
+        }
+
+        /// <summary>
+        /// The island the game is actually standing on. The serialized name is only a fallback: it is
+        /// whatever the scene was authored with, and a player who quit on their second island comes back
+        /// to WorldIslands switching that island on and the coal one off — leaving this framed on hidden
+        /// geometry, which is an empty sea where the operation should be.
+        /// </summary>
+        private string LiveRoot()
+        {
+            if (_world == null) _world = FindAnyObjectByType<WorldIslands>();
+            if (_world == null) return operationRootName;
+            string live = _world.RootName(_world.ActiveIndex);
+            if (!string.IsNullOrEmpty(live)) operationRootName = live;
+            return operationRootName;
         }
 
         private void Frame()
@@ -92,43 +108,8 @@ namespace Game.UI
             var cam = Camera.main;
             if (cam == null) return;
             var cc = FindAnyObjectByType<CameraController>();
-
-            // WHICH island to frame is the world map's business, not this component's Inspector
-            // field — that is only the fallback for a scene with no world map in it.
-            //
-            // It used to be the only answer, and so a player who quit anywhere but the coal
-            // island came back to a camera parked over coal. The save restores the live island
-            // correctly and every other consumer follows it, but this framed whatever name was
-            // serialized here — and a DEACTIVATED island still reports renderer bounds, so the
-            // fit succeeded, the camera settled seven kilometres from the island actually being
-            // simulated, and _framed going true meant nothing ever went back to check.
-            //
-            // Travel goes through WorldIslands.Travel BEFORE it calls FrameOn, so the live index
-            // and that request never disagree.
-            var world = FindAnyObjectByType<Game.Gameplay.WorldIslands>();
-            if (world != null && world.Count > 0)
-            {
-                int live = Mathf.Clamp(world.ActiveIndex, 0, world.Count - 1);
-                operationRootName = world.RootName(live);
-
-                // Let the island finish booting, plus one settled frame for its first tick to
-                // place the heaps and vehicles. Bounds measured during the boot frame under-read
-                // the operation by ~20%, which opened the camera too close to see the whole site.
-                var op = world.Operation(live);
-                if (op != null && op.enabled)
-                {
-                    if (!op.Ready) { _readyFrames = 0; return; }
-                    if (_readyFrames++ < 1) return;
-                }
-            }
-
-            var root = FindRoot(operationRootName);
+            var root = FindRoot(LiveRoot());
             if (root == null) return;   // not ready this frame — Update() retries
-            // Never frame an island that is switched off. One is only ever hidden because the
-            // player is somewhere else, so this cannot be right, and framing it silently is
-            // exactly how the bug above stayed invisible. Returning here leaves _framed false,
-            // so Update keeps asking until the live island answers.
-            if (!root.activeInHierarchy) return;
 
             if (!OperationBounds(root.transform, out Bounds b)) return;
 
@@ -247,21 +228,9 @@ namespace Game.UI
 
         private static void Accumulate(Transform t, ref Bounds b, ref bool have)
         {
-            // Mesh renderers only. A ParticleSystemRenderer's bounds are whatever the last
-            // simulation left them — on the frame its object is created or activated that is a
-            // garbage box reaching toward the world origin, and travelling to the iron island
-            // framed its smelter smoke's unsimulated bounds: a 6500-unit span for a 500-unit
-            // island. VFX should never drive the framing; the structures are the playfield.
-            var rs = t.GetComponentsInChildren<MeshRenderer>();
+            var rs = t.GetComponentsInChildren<Renderer>();
             for (int i = 0; i < rs.Length; i++)
             {
-                // The harbour craft live INSIDE the Port district ("Port.Ship0", "Port.Tug",
-                // "Port.Wake") and sail out to sea, so counting them moves the frame with
-                // wherever the boats happen to be. The quay, piers and cranes still count.
-                string rn = rs[i].name;
-                if (rn.IndexOf("ship", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    rn.IndexOf("tug", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    rn.IndexOf("wake", System.StringComparison.OrdinalIgnoreCase) >= 0) continue;
                 if (!have) { b = rs[i].bounds; have = true; }
                 else b.Encapsulate(rs[i].bounds);
             }
