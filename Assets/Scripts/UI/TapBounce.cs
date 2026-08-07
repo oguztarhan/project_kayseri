@@ -76,6 +76,12 @@ namespace Game.UI
         {
             _selectable = GetComponent<Selectable>();
             _rest = transform.localScale;
+            // Bir giriş animasyonunun ortasında takılmış olabiliriz. WelcomeBackFx kartın parçalarını
+            // — iki butonu da — sıfır ölçekten büyütüyor, UiPanelSound ise bizi aynı aktivasyonda
+            // ekliyor; ikisinin sırası garanti değil. Sıfırı dinlenme pozu sanarsak OnDisable onu geri
+            // yazar, buton bir daha ne görünür ne dokunulur — ekran da kapatılamadığı için kilitlenir.
+            // Hiçbir butonun dinlenme ölçeği sıfır değildir: böyle okuduysak animasyonun ortasındayız.
+            if (_rest.x < 0.01f || _rest.y < 0.01f) _rest = Vector3.one;
         }
 
         public void OnPointerDown(PointerEventData eventData)

@@ -41,8 +41,14 @@ namespace Game.UI
             public string priceLabel = "";
             [Tooltip("IAP product id.")]
             public string sku = "";
-            [Tooltip("Cash granted — GoldPackIAP.")]
+            [Tooltip("Cash granted — GoldPackIAP. Taban görevi görür: incomeMinutes daha azını " +
+                     "hesaplarsa bu ödenir, yani hiçbir kart bu rakamın altına inmez.")]
             public double cashAmount = 0d;
+            [Tooltip("Kaç dakikalık imparatorluk geliri versin. 0'dan büyükse kart oyuncunun kendi " +
+                     "hızıyla ölçeklenir ve üstündeki rakam her açılışta yeniden yazılır. Sabit bir " +
+                     "tutar her adada başka bir ürün demek: 1M, maksimum kömürde on dakika, elmas " +
+                     "adasında altıda bir saniye.")]
+            public float incomeMinutes = 0f;
             [Tooltip("Gems granted — GemPackIAP.")]
             public long gemAmount = 0;
         }
@@ -230,6 +236,7 @@ namespace Game.UI
             ResolveServices();
             StampStarterWindow();
             if (panelRoot != null) panelRoot.SetActive(true);
+            RefreshGoldAmounts();
             RefreshOffers();
         }
 
@@ -300,6 +307,7 @@ namespace Game.UI
             if (_built || cellTemplate == null) return;
             _built = true;
             cellTemplate.SetActive(false);
+            CollectOfferLabels();
 
             for (int i = 0; i < items.Count; i++)
             {
@@ -320,6 +328,13 @@ namespace Game.UI
                 {
                     TMP_Text amountTxt = amountT.GetComponent<TMP_Text>();
                     if (amountTxt != null) amountTxt.text = item.title;
+                    // Gelire bağlı altın kartlarının rakamı sabit değil; her açılışta yeniden yazılsın
+                    // diye etiketi burada tutuyoruz. Elmas kartları sert para, onlar yazıldığı gibi kalır.
+                    if (amountTxt != null && item.kind == StoreItemKind.GoldPackIAP && item.incomeMinutes > 0f)
+                        _cashLabels.Add(new CashLabel
+                        {
+                            label = amountTxt, floor = item.cashAmount, minutes = item.incomeMinutes
+                        });
                 }
 
                 Transform priceT = go.transform.Find("Fiyat");
@@ -449,13 +464,81 @@ namespace Game.UI
             if (_iap != null) _iap.Purchase(sku, onDone);
         }
 
+        /// <summary>
+        /// What a cash card actually pays. Priced in minutes of the empire's own income, so one card is
+        /// worth the same share of progress on every island — a fixed sum is a different product on each
+        /// one and has to be rebalanced every time the curve moves. Each island earns 3.2× the one before
+        /// it, so by the diamond island a fixed million is under a second of income.
+        ///
+        /// The authored sum is kept as a floor rather than replaced. Three things fall out of that: no
+        /// card can ever pay less than the number it was designed around, the first half-minute of a new
+        /// save (where the meter has not measured a rate yet and the scaled figure would be zero) needs
+        /// no special case, and the starter pack — whose whole audience is players earning almost
+        /// nothing — keeps the 5M that makes it worth buying.
+        /// </summary>
+        private double CashGrant(double floor, float minutes)
+        {
+            if (minutes <= 0f) return floor;
+            double scaled = IncomePerMinute() * minutes;
+            return scaled > floor ? scaled : floor;
+        }
+
+        /// <summary>
+        /// Rewrites what the gold cards say they give. Called on every open because the answer changes
+        /// as the empire grows: the cells themselves are built once, but the number on them is not a
+        /// property of the cell, it is a property of the player.
+        /// </summary>
+        private void RefreshGoldAmounts()
+        {
+            for (int i = 0; i < _cashLabels.Count; i++)
+            {
+                CashLabel c = _cashLabels[i];
+                if (c.label == null) continue;
+                c.label.text = NumberFormatter.Format(new BigDouble(CashGrant(c.floor, c.minutes)));
+            }
+        }
+
+        /// <summary>
+        /// One number on a card that has to be recomputed rather than read. Gold cells and the two
+        /// cash offers land in the same list because the question they answer is the same one, and
+        /// the offers' labels are authored in the hierarchy where nothing else would find them.
+        /// </summary>
+        private struct CashLabel
+        {
+            public TMP_Text label;
+            public double floor;
+            public float minutes;
+        }
+
+        private readonly List<CashLabel> _cashLabels = new List<CashLabel>();
+
+        /// <summary>Finds the amount label authored on each hierarchy offer card. Runs once, at build.</summary>
+        private void CollectOfferLabels()
+        {
+            for (int i = 0; i < offers.Count; i++)
+            {
+                OfferBinding offer = offers[i];
+                if (offer == null || offer.button == null || offer.incomeMinutes <= 0f) continue;
+                var found = offer.button.GetComponentsInChildren<TMP_Text>(true);
+                for (int t = 0; t < found.Length; t++)
+                    if (found[t].name == "DegerAltin")
+                    {
+                        _cashLabels.Add(new CashLabel
+                        {
+                            label = found[t], floor = offer.cashAmount, minutes = offer.incomeMinutes
+                        });
+                        break;
+                    }
+            }
+        }
+
         private void Buy(StoreItem item, RectTransform card)
         {
             if (item.kind == StoreItemKind.GoldPackIAP)
                 PurchaseFlow(item.sku, ok =>
                 {
                     if (!ok) return;
-                    if (_wallet != null) _wallet.AddCash(new BigDouble(item.cashAmount));
+                    if (_wallet != null) _wallet.AddCash(new BigDouble(CashGrant(item.cashAmount, item.incomeMinutes)));
                     if (purchaseFx != null) purchaseFx.PlayCash(card);
                 });
             else
@@ -496,15 +579,12 @@ namespace Game.UI
 
         private void Grant(OfferBinding offer)
         {
-            if (_wallet != null && offer.cashAmount > 0d) _wallet.AddCash(new BigDouble(offer.cashAmount));
-            if (_wallet != null && offer.gemAmount > 0) _wallet.AddGems(offer.gemAmount);
-            // Priced in minutes of the empire's own income, so one card is worth the same share of
-            // progress whichever island the player is standing on.
-            if (_wallet != null && offer.incomeMinutes > 0f)
+            if (_wallet != null)
             {
-                double perMin = IncomePerMinute();
-                if (perMin > 0d) _wallet.AddCash(new BigDouble(perMin * offer.incomeMinutes));
+                double cash = CashGrant(offer.cashAmount, offer.incomeMinutes);
+                if (cash > 0d) _wallet.AddCash(new BigDouble(cash));
             }
+            if (_wallet != null && offer.gemAmount > 0) _wallet.AddGems(offer.gemAmount);
             if (_boost != null && offer.boostMultiplier > 1d && offer.boostSeconds > 0d)
                 _boost.SetBoost(offer.boostMultiplier, offer.boostSeconds);
             if (_prestige != null && offer.investorShare > 0f) _prestige.TakeInvestorShare(offer.investorShare);

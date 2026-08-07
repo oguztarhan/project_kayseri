@@ -4318,6 +4318,7 @@ MonoBehaviour:
     priceLabel: "\u20BA14,99"
     sku: gold_2500
     cashAmount: 2500
+    incomeMinutes: 15
     gemAmount: 0
   - title: 8K
     kind: 1
@@ -4325,6 +4326,7 @@ MonoBehaviour:
     priceLabel: "\u20BA39,99"
     sku: gold_8000
     cashAmount: 8000
+    incomeMinutes: 48
     gemAmount: 0
   - title: 25K
     kind: 1
@@ -4332,6 +4334,7 @@ MonoBehaviour:
     priceLabel: "\u20BA89,99"
     sku: gold_25000
     cashAmount: 25000
+    incomeMinutes: 150
     gemAmount: 0
   - title: 75K
     kind: 1
@@ -4339,6 +4342,7 @@ MonoBehaviour:
     priceLabel: "\u20BA199,99"
     sku: gold_75000
     cashAmount: 75000
+    incomeMinutes: 450
     gemAmount: 0
   - title: 250K
     kind: 1
@@ -4346,6 +4350,7 @@ MonoBehaviour:
     priceLabel: "\u20BA429,99"
     sku: gold_250000
     cashAmount: 250000
+    incomeMinutes: 1500
     gemAmount: 0
   - title: 1M
     kind: 1
@@ -4353,6 +4358,7 @@ MonoBehaviour:
     priceLabel: "\u20BA999,99"
     sku: gold_1000000
     cashAmount: 1000000
+    incomeMinutes: 6000
     gemAmount: 0
   - title: 80
     kind: 0
@@ -4360,6 +4366,7 @@ MonoBehaviour:
     priceLabel: "\u20BA19,99"
     sku: gems_80
     cashAmount: 0
+    incomeMinutes: 0
     gemAmount: 80
   - title: 250
     kind: 0
@@ -4367,6 +4374,7 @@ MonoBehaviour:
     priceLabel: "\u20BA49,99"
     sku: gems_250
     cashAmount: 0
+    incomeMinutes: 0
     gemAmount: 250
   - title: 700
     kind: 0
@@ -4374,6 +4382,7 @@ MonoBehaviour:
     priceLabel: "\u20BA109,99"
     sku: gems_700
     cashAmount: 0
+    incomeMinutes: 0
     gemAmount: 700
   - title: 1.8K
     kind: 0
@@ -4381,6 +4390,7 @@ MonoBehaviour:
     priceLabel: "\u20BA249,99"
     sku: gems_1800
     cashAmount: 0
+    incomeMinutes: 0
     gemAmount: 1800
   - title: 4.5K
     kind: 0
@@ -4388,6 +4398,7 @@ MonoBehaviour:
     priceLabel: "\u20BA549,99"
     sku: gems_4500
     cashAmount: 0
+    incomeMinutes: 0
     gemAmount: 4500
   - title: 12K
     kind: 0
@@ -4395,6 +4406,7 @@ MonoBehaviour:
     priceLabel: "\u20BA1.299,99"
     sku: gems_12000
     cashAmount: 0
+    incomeMinutes: 0
     gemAmount: 12000
   offers:
   - name: "Ba\u015Flang\u0131\xE7 Paketi"
@@ -4417,7 +4429,7 @@ MonoBehaviour:
     heroMotion: 1
     title: 
     description: 
-    incomeMinutes: 0
+    incomeMinutes: 49
     investorShare: 0
   - name: Reklam Yok
     button: {fileID: 6838375703838413410}
@@ -4483,7 +4495,7 @@ MonoBehaviour:
     heroMotion: 1
     title: 
     description: 
-    incomeMinutes: 0
+    incomeMinutes: 4872
     investorShare: 0
   gemOffers:
   - name: gem_boost_2h
