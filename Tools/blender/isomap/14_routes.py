@@ -22,6 +22,7 @@ between its control points - the smoothed loop bulges ~18 units past its corners
 import json
 import os
 import importlib
+from math import hypot
 import layout
 importlib.reload(layout)
 L = layout
@@ -80,12 +81,7 @@ anchors = [
     {"name": "haul", "pos": anchor(L.TOWN_HAUL)},
     {"name": "fleet", "pos": anchor(L.TOWN_FLEET)},
     {"name": "civic", "pos": anchor(L.TOWN_CIVIC)},
-    # Where the ring road meets each arterial. Unity's truck routes turn here,
-    # and with the ring a circle these are exact rather than nearest-vertex.
-    {"name": "loopE", "pos": anchor((L.LOOP_R, 0.0))},
-    {"name": "loopW", "pos": anchor((-L.LOOP_R, 0.0))},
-    {"name": "loopN", "pos": anchor((0.0, L.LOOP_R))},
-    {"name": "loopS", "pos": anchor((0.0, -L.LOOP_R))},
+
     {"name": "mine", "pos": anchor(L.MINE)},
     {"name": "depot", "pos": anchor(L.DEPOT)},
     {"name": "refinery", "pos": anchor(L.REFINERY)},
@@ -94,6 +90,15 @@ anchors = [
     {"name": "port", "pos": anchor(L.PORT)},
     {"name": "shipOut", "pos": anchor(L.SHIP_OUT)},
 ]
+# Where the loop meets each arterial. Unity's truck routes turn here, so these
+# have to be the real junctions rather than a mean radius. An island whose roads
+# form a tree exports none of them, and none of the "loop" path either - their
+# ABSENCE is what tells CoalOperation to retrace the arterials instead of
+# sending the empty truck round the outside. See isle_iron.
+for _i, _nm in enumerate(("loopE", "loopN", "loopW", "loopS")):
+    if L.LOOP_MEETS:
+        anchors.append({"name": _nm, "pos": anchor(L.LOOP_MEETS[_i])})
+
 for name, p, need in L.SITES:
     anchors.append({"name": "site_" + name, "pos": anchor(p)})
 
@@ -127,34 +132,28 @@ if _door:
 else:
     print("   WARNING: no rail_shed_door on the scene - run build(phase) first")
 
-rail_port = []
-if PHASE >= 3:
-    pp = [(p[0], p[1], 0.0) for p in L.RAIL_PORT]
-    rail_port = [pt(pos.x, pos.y, RAIL_Y + grade.road_z(pos.x, pos.y))
-                 for pos, _ in sample_bez(pp, 220)][::STEP]
-
 # ------------------------------------------------------------------ roads
 # Site spurs only exist once their site has unlocked, matching 03_roads.py.
 SITE_SPUR = {"Spur.Quarry": "quarry", "Spur.Store": "store", "Spur.Plant": "plant"}
 # One flat, name-keyed path list - Unity looks a route up by name. "loop" is the
 # only closed one; everything else is an out-and-back run.
 paths = [
-    {"name": "loop", "closed": True, "width": LOOP_W, "points": road_path(L.LOOP_C)},
     {"name": "roadX", "closed": False, "width": MAIN_W, "points": road_path(L.ROAD_X)},
     {"name": "roadY", "closed": False, "width": MAIN_W, "points": road_path(L.ROAD_Y)},
     {"name": "portRoad", "closed": False, "width": PORT_W,
      "points": road_path(L.PORT_ROAD)},
     {"name": "rail", "closed": False, "width": 0.0, "points": rail_thin},
-    # Pavement circuit the site crew walks. Width 0: it is not drivable.
-    {"name": "footpath", "closed": True, "width": 0.0,
+    # Pavement the site crew walks. Width 0: it is not drivable. Closed on the
+    # two islands whose pavement rings their loop, open on the one whose roads
+    # are a tree - SiteLife paces legs end to end either way.
+    {"name": "footpath", "width": 0.0,
+     "closed": hypot(L.FOOTPATH[0][0] - L.FOOTPATH[-1][0],
+                     L.FOOTPATH[0][1] - L.FOOTPATH[-1][1]) < 1e-6,
      "points": road_path(L.FOOTPATH, 0.16)},
     # Ships ride the waterline, not the road grade.
     {"name": "shipLane", "closed": False, "width": 0.0,
      "points": road_path(L.SHIP_LANE, L.SEA_Z + 0.15, graded=False)},
 ]
-if rail_port:
-    paths.append({"name": "railPort", "closed": False, "width": 0.0,
-                  "points": rail_port})
 
 for pts, name in L.SPURS:
     site = SITE_SPUR.get(name)
@@ -162,6 +161,13 @@ for pts, name in L.SPURS:
         continue
     paths.append({"name": name, "closed": False, "width": SPUR_W,
                   "points": road_path(pts)})
+
+# The ring goes in FIRST so it stays the head of the list, and only if the
+# island has one. Its absence is the signal CoalOperation reads to retrace the
+# arterials rather than send an empty truck round an outside that is not there.
+if L.LOOP_C:
+    paths.insert(0, {"name": "loop", "closed": True, "width": LOOP_W,
+                     "points": road_path(L.LOOP_C)})
 
 data = {
     "phase": PHASE,
@@ -178,13 +184,15 @@ dst = "%s/%s_routes_P%d.json" % (OUT, L.NAME, PHASE)
 with open(dst, "w") as f:
     json.dump(data, f, indent=1)
 
-lp = next(p for p in paths if p["name"] == "loop")["points"]
+lp = next((p for p in paths if p["name"] == "loop"),
+          next(p for p in paths if p["name"] == "roadX"))["points"]
 print("phase %d routes -> %s" % (PHASE, dst))
 print("   anchors %d  paths %d  rail %d pts (of %d laid)  sites %s"
       % (len(anchors), len(paths), len(rail_thin), len(rail), active or "none"))
 print("   names: %s" % ", ".join(p["name"] for p in paths))
-print("   loop x %.1f..%.1f  centre %.2f   rail x %.1f..%.1f"
-      % (min(p["x"] for p in lp), max(p["x"] for p in lp),
+print("   %s x %.1f..%.1f  centre %.2f   rail x %.1f..%.1f"
+      % ("loop" if L.LOOP_C else "roadX",
+         min(p["x"] for p in lp), max(p["x"] for p in lp),
          (min(p["x"] for p in lp) + max(p["x"] for p in lp)) / 2.0,
          min(p["x"] for p in rail_thin), max(p["x"] for p in rail_thin)))
 # Heights must VARY now. A flat 0.1 everywhere means grade.road_z never reached

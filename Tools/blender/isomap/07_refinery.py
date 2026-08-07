@@ -88,7 +88,7 @@ if PHASE >= 2:
     P.pipe_rack([(CX - 34, CY + 6, 0.3), (CX - 4, CY + 6, 0.3),
                  (CX + 20, CY + 4, 0.3), (CX + 32, CY + 4, 0.3)],
                 "Refinery.Rack1", C, PK(0, 4, 5), 0.34, 5.0)
-    P.pipe_rack([(CX - 4, CY + 22, 0.3), (CX - 4, CY - 18, 0.3)],
+    P.pipe_rack([(CX + 0, CY + 22, 0.3), (CX + 0, CY - 18, 0.3)],
                 "Refinery.Rack2", C, PK(0, 3, 4), 0.30, 3.6)
 if PHASE >= 3:
     P.pipe_rack([(CX + 15, CY + 24, 0.3), (CX + 15, CY - 20, 0.3)],
@@ -107,10 +107,10 @@ o.location = (CX - 32, CY + 28, 0.3)
 # ------------------------------------------------------------ process blocks
 P.warehouse("Refinery.Hall", PK(16, 24, 28), PK(11, 15, 17), PK(8, 11, 13), C,
             PK("wood_lt", "clad", "clad"), PK("roof_red", "roof_teal", "roof_teal")
-            ).location = (CX + 4, CY + 28, 0.3)
+            ).location = (CX + 4, CY + 23, 0.3)
 if PHASE >= 2:
     P.warehouse("Refinery.Shed", 18, 12, 8, C, "cream", "roof_orange").location = (
-        CX + 28, CY + 30, 0.3)
+        CX + 28, CY + 25, 0.3)
     P.office("Refinery.Office", 13, 11, PK(1, 2, 3), C).location = (
         CX - 28, CY - 28, 0.3)
 
@@ -148,7 +148,8 @@ if PHASE >= 3:
 if PHASE >= 2:
     P.fence_run([(CX - 35, CY + 33, 0.3), (CX + 35, CY + 33, 0.3),
                  (CX + 35, CY - 33, 0.3), (CX - 35, CY - 33, 0.3)],
-                "Refinery.Fence", C)
+                "Refinery.Fence", C,
+                gaps=[L.gate_point(L.REFINERY, L.PAD) + (11.0,)])
 for i, (lx, ly) in enumerate((((CX - 32, CY - 22), (CX + 32, CY - 22),
                                (CX + 0, CY - 32), (CX - 34, CY + 26))
                               [:PK(1, 3, 4)])):

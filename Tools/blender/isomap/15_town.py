@@ -46,9 +46,11 @@ def yard(cx, cy, name, C, m):
 
 
 def perimeter(cx, cy, name, C):
-    P.fence_run([(cx - HW + 1, cy - HH + 1, 0.3), (cx + HW - 1, cy - HH + 1, 0.3),
-                 (cx + HW - 1, cy + HH - 1, 0.3), (cx - HW + 1, cy + HH - 1, 0.3),
-                 (cx - HW + 1, cy - HH + 1, 0.3)], name, C, 2.4)
+    # On the slab edge, not a metre inside it: the workshop and the garage are
+    # sized to the yard, so their walls and roof overhang met the fence line.
+    P.fence_run([(cx - HW + 0.4, cy - HH + 0.4, 0.3), (cx + HW - 0.4, cy - HH + 0.4, 0.3),
+                 (cx + HW - 0.4, cy + HH - 0.4, 0.3), (cx - HW + 0.4, cy + HH - 0.4, 0.3),
+                 (cx - HW + 0.4, cy - HH + 0.4, 0.3)], name, C, 2.4)
 
 
 # ------------------------------------------------------------- power plant
@@ -56,24 +58,28 @@ PX, PY = L.TOWN_POWER
 yard(PX, PY, "Power.Yard", CP, YARD)
 
 # turbine hall
-P.warehouse("Power.Hall", PK(12.0, 14.0, 16.0), PK(8.0, 9.0, 10.0),
-            PK(7.0, 8.5, 10.0), CP, BODY, ROOF).location = (PX - 4, PY + 4, 0.3)
+P.warehouse("Power.Hall", PK(11.0, 13.0, 14.0), PK(8.0, 9.0, 10.0),
+            PK(7.0, 8.5, 10.0), CP, BODY, ROOF).location = (PX - 4, PY + 3.5, 0.3)
 
-# chimneys - the silhouette that reads as "power" from the play camera
-for i in range(PK(1, 2, 3)):
+# Chimneys - the silhouette that reads as "power" from the play camera. Two,
+# not three: at a 3.4 pitch and 2.1 radius they grew through each other, and
+# there is no pitch that fits three of them beside the turbine hall in a yard
+# this size.
+for i in range(PK(1, 2, 2)):
     P.stack("Power.Stack%d" % i, PK(1.6, 1.9, 2.1), PK(20.0, 27.0, 34.0),
-            CP).location = (PX + 6 + i * 3.4, PY + 7, 0.3)
+            CP).location = (PX + 4 + i * 5.0, PY + 8, 0.3)
 
-# fuel / feedwater tanks
+# Fuel / feedwater tanks, on a pitch wider than they are - 4.4 against a 6.8
+# diameter buried each one in the next.
 for i in range(PK(1, 2, 3)):
     P.tank("Power.Tank%d" % i, PK(2.6, 3.0, 3.4), PK(4.0, 5.0, 6.0), CP,
-           "steel_lt", "red").location = (PX - 8 + i * 4.4, PY - 8, 0.3)
+           "steel_lt", "red").location = (PX - 9 + i * 7.6, PY - 9, 0.3)
 
 # cooling towers once it is a real station
 if PHASE >= 2:
     ct = B().use("concrete")
-    for i in range(PK(0, 1, 2)):
-        cx, cy = PX + 4 + i * 7, PY - 7
+    for i in range(PK(0, 1, 1)):
+        cx, cy = PX + 8, PY - 1
         ct.conez(PK(0, 4.2, 4.6), PK(0, 2.8, 3.1), PK(0, 12.0, 15.0),
                  (cx, cy, 0.3), seg=18)
     ct.make("Power.CoolingTowers", collection=CP, smooth=True)
@@ -81,14 +87,14 @@ if PHASE >= 2:
 # switchyard: the transformer bank and its gantry of busbars
 sw = B().use("steel_dk")
 for i in range(PK(2, 3, 4)):
-    tx, ty = PX - 10, PY + 8 - i * 3.6
+    tx, ty = PX - 9, PY + 7 - i * 3.6
     sw.boxz((2.8, 3.0, 3.2), (tx, ty, 0.3))
     sw.cylz(0.45, 4.0, (tx + 0.9, ty, 3.5), seg=8)
 sw.use("metal_gal")
 for i in range(PK(2, 3, 4)):
-    ty = PY + 8 - i * 3.6
-    sw.tube(0.22, [(PX - 12.0, ty, 0.3), (PX - 12.0, ty, 8.4)], 6)
-    sw.tube(0.16, [(PX - 12.0, ty, 8.0), (PX - 7.0, ty, 8.0)], 6)
+    ty = PY + 7 - i * 3.6
+    sw.tube(0.22, [(PX - 11.0, ty, 0.3), (PX - 11.0, ty, 8.4)], 6)
+    sw.tube(0.16, [(PX - 11.0, ty, 8.0), (PX - 6.0, ty, 8.0)], 6)
 sw.make("Power.Switchyard", collection=CP)
 
 if PHASE >= 2:
@@ -96,7 +102,7 @@ if PHASE >= 2:
                 "Power.Pipes", CP, n=PK(0, 3, 4))
 
 perimeter(PX, PY, "Power.Fence", CP)
-for i, (lx, ly) in enumerate(((PX - 11, PY - 9), (PX + 11, PY + 9))):
+for i, (lx, ly) in enumerate(((PX - 7, PY - 9), (PX + 7, PY + 9))):
     P.streetlight("Power.Lamp%d" % i, 9.0, 3.0, CP).location = (lx, ly, 0.3)
 
 # --------------------------------------------------------------- haul yard
@@ -105,90 +111,96 @@ for i, (lx, ly) in enumerate(((PX - 11, PY - 9), (PX + 11, PY + 9))):
 HX, HY = L.TOWN_HAUL
 yard(HX, HY, "Haul.Yard", CH, PK("dirt", "gravel", "asphalt_lt"))
 
-P.warehouse("Haul.Workshop", PK(12.0, 15.0, 18.0), PK(8.0, 9.5, 11.0),
-            PK(6.0, 7.0, 8.0), CH, BODY, ROOF).location = (HX - 2, HY + 6, 0.3)
+# The yard is split across its middle: buildings north of HY, parked vehicles
+# south of it. A hauler is 13 long and the yard is 24 deep, so anything else is
+# a collision waiting to happen - the old layout parked five of them on a 5.6
+# pitch in two rows and each pair overlapped by 7.4.
+P.warehouse("Haul.Workshop", PK(9.0, 10.0, 11.0), PK(8.0, 9.5, 11.0),
+            PK(6.0, 7.0, 8.0), CH, BODY, ROOF).location = (HX - 4, HY + 4.5, 0.3)
 
 # loading hopper over a drive-through bay, so the yard reads as ore handling
 P.hopper("Haul.Hopper", PK(3.6, 4.4, 5.0), PK(8.0, 10.0, 11.0),
-         CH).location = (HX + 8, HY - 2, 0.3)
+         CH).location = (HX + 8, HY + 5, 0.3)
 if PHASE >= 2:
-    P.conveyor((HX - 2, HY - 8, 0.6), (HX + 8, HY - 2, 8.0), "Haul.Conv", CH, 2.2)
-    P.coal_pile("Haul.Stock", PK(0, 7.0, 9.0), PK(0, 4.0, 5.5), CH,
-                seed=7.0).location = (HX - 4, HY - 8, 0.3)
+    P.conveyor((HX + 1, HY + 5, 0.6), (HX + 8, HY + 5, 8.0), "Haul.Conv", CH, 2.2)
 
 # weighbridge on the way in
 wb = B().use("concrete_dk")
-wb.box((7.0, 4.0, 0.4), (HX - 9, HY - 9, 0.45))
+wb.box((7.0, 4.0, 0.4), (HX + 8, HY - 8, 0.45))
 wb.use("steel_lt")
-wb.boxz((1.2, 1.2, 2.6), (HX - 5.0, HY - 9, 0.5))
+wb.boxz((1.2, 1.2, 2.6), (HX + 11.5, HY - 8, 0.5))
 wb.make("Haul.Weighbridge", collection=CH)
 
-# the ore fleet, parked. Scenery: CoalOperation drives its own trucks.
+# The ore fleet, parked. Scenery: CoalOperation drives its own trucks. Laid
+# along X in ranks 5 apart, which is a truck's width and a door - the only way
+# two 13-long bodies fit in a yard this size without touching.
 ore_src = P.truck("Haul.TruckSrc", "yellow_lt", "coal", CH)
 ore_src.hide_render = ore_src.hide_viewport = True
-for i in range(PK(2, 3, 5)):
-    row, col = divmod(i, 3)
-    dup(ore_src, (HX - 9 + col * 7.0, HY + 0 - row * 5.6, 0.3),
-        (0, 0, radians(-90)), None, CH, "Haul.Parked%d" % i)
+for i in range(PK(1, 2, 2)):
+    dup(ore_src, (HX - 3, HY - 3.0 - i * 5.0, 0.3),
+        (0, 0, 0), None, CH, "Haul.Parked%d" % i)
 
 if PHASE >= 3:
-    P.loader("Haul.Loader", CH).location = (HX + 2, HY - 9, 0.3)
+    P.loader("Haul.Loader", CH).location = (HX + 7, HY - 9, 0.3)
 
 perimeter(HX, HY, "Haul.Fence", CH)
-for i, (lx, ly) in enumerate(((HX + 11, HY - 9), (HX - 11, HY + 9))):
+for i, (lx, ly) in enumerate(((HX + 7, HY - 9), (HX - 7, HY + 9))):
     P.streetlight("Haul.Lamp%d" % i, 9.0, 3.0, CH).location = (lx, ly, 0.3)
 
 # ------------------------------------------------------------- fleet depot
 FX, FY = L.TOWN_FLEET
 yard(FX, FY, "Fleet.Yard", CF, PK("dirt", "asphalt_lt", "asphalt_lt"))
 
-# garage: one open shed at phase 1, a proper multi-bay workshop later
-P.warehouse("Fleet.Garage", PK(11.0, 15.0, 18.0), PK(8.0, 9.5, 11.0),
-            PK(6.0, 7.5, 8.5), CF, BODY, ROOF).location = (FX - 2, FY + 6, 0.3)
+# Same split as the haul yard: garage across the north half, parked vehicles
+# across the south. The garage was 18 deep in a 24-deep yard sitting 6 north of
+# centre, which put its north wall out on the arterial on the copper island.
+P.warehouse("Fleet.Garage", PK(9.0, 10.0, 11.0), PK(8.0, 9.5, 11.0),
+            PK(6.0, 7.5, 8.5), CF, BODY, ROOF).location = (FX - 4, FY + 4.5, 0.3)
 
 # roller doors facing the yard, so the shed reads as a garage not a warehouse
 gd = B().use("steel_dk")
 for i in range(PK(2, 3, 4)):
-    gx = FX - 2 - PK(3.0, 5.2, 6.8) + i * PK(6.0, 5.2, 4.5)
-    gd.boxz((PK(3.0, 3.2, 3.4), 0.4, PK(4.0, 4.6, 5.2)), (gx, FY + 1.4, 0.35))
+    gx = FX - 4 - PK(3.0, 4.0, 4.5) + i * PK(6.0, 4.0, 3.0)
+    gd.boxz((PK(3.0, 2.8, 2.6), 0.4, PK(4.0, 4.6, 5.2)), (gx, FY + 0.4, 0.35))
 gd.make("Fleet.Doors", collection=CF)
 
 # fuel island
 fu = B().use("concrete_dk")
-fu.box((8.0, 4.0, 0.35), (FX + 5, FY - 6, 0.42))
+fu.box((7.0, 4.0, 0.35), (FX + 8, FY + 5, 0.42))
 fu.use("orange")
 for s in (-1, 1):
-    fu.boxz((0.8, 1.2, 3.0), (FX + 5 + s * 2.4, FY - 6, 0.6))
+    fu.boxz((0.8, 1.2, 3.0), (FX + 8 + s * 2.2, FY + 5, 0.6))
 fu.use("steel_lt")
-fu.box((9.0, 5.0, 0.5), (FX + 5, FY - 6, 5.4))
+fu.box((8.0, 5.0, 0.5), (FX + 8, FY + 5, 5.4))
 fu.use("steel_dk")
 for s in (-1, 1):
-    fu.tube(0.3, [(FX + 5 + s * 3.8, FY - 6, 0.6), (FX + 5 + s * 3.8, FY - 6, 5.2)], 6)
+    fu.tube(0.3, [(FX + 8 + s * 3.2, FY + 5, 0.6), (FX + 8 + s * 3.2, FY + 5, 5.2)], 6)
 fu.make("Fleet.FuelIsland", collection=CF)
 
-P.tank("Fleet.FuelTank", 2.2, 3.6, CF, "steel_lt", "red").location = (FX + 9, FY + 4, 0.3)
+P.tank("Fleet.FuelTank", 2.2, 3.6, CF, "steel_lt", "red").location = (FX + 9, FY - 2, 0.3)
 
+# Two ranks 4.5 apart - a body's width and a door. See Haul.Parked.
 park = P.truck("Fleet.TruckSrc", "white", "cargo", CF)
 park.hide_render = park.hide_viewport = True
-for i in range(PK(2, 3, 5)):
-    row, col = divmod(i, 3)
-    dup(park, (FX - 9 + col * 7.0, FY - 9 + row * 5.6, 0.3),
-        (0, 0, radians(90)), None, CF, "Fleet.Parked%d" % i)
+for i in range(PK(1, 2, 2)):
+    dup(park, (FX - 3, FY - 2.5 - i * 4.5, 0.3),
+        (0, 0, 0), None, CF, "Fleet.Parked%d" % i)
 
 if PHASE >= 2:
-    P.crate_stack("Fleet.Crates", CF).location = (FX - 10, FY + 0, 0.3)
+    P.crate_stack("Fleet.Crates", CF).location = (FX + 10, FY + 10, 0.3)
 if PHASE >= 3:
-    P.gantry("Fleet.WashGantry", 12.0, 6.5, CF).location = (FX + 4, FY + 8, 0.3)
+    # Across the yard mouth, which is what a wash arch spans.
+    P.gantry("Fleet.WashGantry", 12.0, 6.5, CF).location = (FX - 3, FY - 11.5, 0.3)
 
-# painted parking bays
+# painted parking bays, between the two ranks rather than under them
 if PHASE >= 2:
     pb = B().use("linepaint")
     for i in range(PK(0, 4, 6)):
-        pb.box((0.35, 5.6, 0.05), (FX - 11 + i * 4.0, FY - 9, 0.36))
+        pb.box((0.35, 4.0, 0.05), (FX - 10 + i * 3.4, FY - 4.75, 0.36))
     pb.make("Fleet.Bays", collection=CF)
 
 perimeter(FX, FY, "Fleet.Fence", CF)
-for i, (lx, ly) in enumerate(((FX - 11, FY + 9), (FX + 11, FY - 9))):
+for i, (lx, ly) in enumerate(((FX - 7, FY + 9), (FX + 7, FY - 9))):
     P.streetlight("Fleet.Lamp%d" % i, 9.0, 3.0, CF).location = (lx, ly, 0.3)
 
 # ------------------------------------------------------------- civic block
@@ -220,12 +232,12 @@ ct.conez(2.6, 0.0, 3.4, (VX + 5, VY + 8, PK(10.3, 15.3, 20.3)), seg=8)
 ct.make("Civic.Tower", collection=CV)
 
 # a row of shops along the south side
-for i in range(PK(1, 2, 3)):
+for i in range(PK(1, 2, 2)):
     P.shop("Civic.Shop%d" % i, 7.0, 6.0, PK(5.0, 6.0, 7.0), CV,
            PK("wood_lt", "offwhite", "clad"),
            ("roof_red", "roof_blue", "roof_teal")[i % 3],
            awning="orange" if PHASE >= 2 else None).location = (
-        VX - 8 + i * 8.0, VY - 8, 0.3)
+        VX - 8 + i * 8.0, VY - 5, 0.3)
 
 # water tower: the island's only civic infrastructure, and a good silhouette
 if PHASE >= 2:
@@ -242,7 +254,9 @@ if PHASE >= 2:
 # planting and benches - the thing that says "people live here"
 tree = P.pine("Civic.TreeSrc", 7.0, 2.0, CV, tiers=3, m="pine_lt")
 tree.hide_render = tree.hide_viewport = True
-for i, (tx, ty) in enumerate(((-10, 2), (-10, -2), (10, 6), (2, -10), (-2, 2))):
+# In the corners of the plaza, not on top of the town hall - the old row ran
+# straight through it.
+for i, (tx, ty) in enumerate(((10, 10), (10, -10), (-10, -10))):
     dup(tree, (VX + tx, VY + ty, 0.3), (0, 0, i * 1.1), (1, 1, 1), CV,
         "Civic.Tree%d" % i)
 bn = B().use("wood_lt")
@@ -252,8 +266,8 @@ for i in range(PK(2, 4, 6)):
     bn.box((2.6, 0.25, 0.9), (bx, by - 0.35, 1.4))
 bn.make("Civic.Benches", collection=CV)
 
-for i, (lx, ly) in enumerate(((VX - 11, VY - 9), (VX + 11, VY + 9),
-                              (VX - 11, VY + 9))):
+for i, (lx, ly) in enumerate(((VX - 7, VY - 9), (VX + 7, VY + 9),
+                              (VX - 7, VY + 9))):
     P.streetlight("Civic.Lamp%d" % i, 8.0, 2.6, CV).location = (lx, ly, 0.3)
 
 for name, (cx, cy) in (("Power", L.TOWN_POWER), ("Haul", L.TOWN_HAUL),

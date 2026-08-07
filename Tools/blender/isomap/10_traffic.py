@@ -65,17 +65,21 @@ def place(path, fracs, kind, side=1, z=0.30, flip=False, lane=None):
             (0, tilt, heading), None, C, "V." + kind)
 
 
-# Fractions along the two arterials. The old placement used its own hardcoded
-# polylines through the loop's former corners at (73, 0) and (0, 73); with the
-# ring a circle at 74 and the district spurs gone, every one of those trucks was
-# standing in the grass. Derived from the roads themselves now, so they cannot
-# drift apart again.
+# The arterials as they are actually LAID, not as the layout declares them:
+# 03_roads.py now stops each one at the works gate, so a truck placed by
+# fraction of the declared line stood in the depot yard or in the grass beyond
+# it. Same trim here, and every position below is given as a world coordinate
+# on the tarmac rather than a fraction of a line that no longer exists.
+RUN_X = L.trim_arterial(L.ROAD_X, L.GATES)[0]
+RUN_Y = L.trim_arterial(L.ROAD_Y, L.GATES)[0]
+
+
 def frac_x(x):
-    return (x - L.ROAD_X[0][0]) / (L.ROAD_X[-1][0] - L.ROAD_X[0][0])
+    return (x - RUN_X[0][0]) / (RUN_X[-1][0] - RUN_X[0][0])
 
 
 def frac_y(y):
-    return (y - L.ROAD_Y[0][1]) / (L.ROAD_Y[-1][1] - L.ROAD_Y[0][1])
+    return (y - RUN_Y[0][1]) / (RUN_Y[-1][1] - RUN_Y[0][1])
 
 
 def spread(a, b, n):
@@ -86,23 +90,28 @@ def spread(a, b, n):
 # levels) and 3 cargo (base 1 + 2) - so every body on the map gets adopted and
 # driven. One more of either would stand on the road forever.
 # ORE: storage -> crossroads -> refinery, laden south down roadY then east.
-for f in spread(frac_y(118), frac_y(20), 2):
-    place(L.ROAD_Y, [f], "ore", side=-1, flip=True)
-for f in spread(frac_x(20), frac_x(118), 2):
-    place(L.ROAD_X, [f], "ore2", side=-1)
+for f in spread(frac_y(84), frac_y(24), 2):
+    place(RUN_Y, [f], "ore", side=-1, flip=True)
+for f in spread(frac_x(24), frac_x(84), 2):
+    place(RUN_X, [f], "ore2", side=-1)
 # CARGO: refinery -> crossroads -> market, laden west then south.
-for f in spread(frac_x(112), frac_x(16), 2):
-    place(L.ROAD_X, [f], "cargo", side=1, flip=True)
-place(L.ROAD_Y, [frac_y(-64)], "cargo2", side=1, flip=True)
+for f in spread(frac_x(84), frac_x(24), 2):
+    place(RUN_X, [f], "cargo", side=1, flip=True)
+place(RUN_Y, [frac_y(-64)], "cargo2", side=1, flip=True)
 
-# light background traffic - Blender renders only, 13_export drops these
-place(L.ROAD_X, PK([0.14], [0.14, 0.30], [0.10, 0.22, 0.34]), "van", side=1,
-      flip=True)
-place(L.ROAD_Y, PK([0.90], [0.88, 0.94], [0.86, 0.92, 0.96]), "van2", side=-1)
+# Light background traffic - Blender renders only, 13_export drops these. Kept
+# on the half of each arterial the working fleet is not using, so the render
+# does not read as one long queue.
+place(RUN_X, [frac_x(v) for v in PK((-70,), (-70, -40), (-70, -40, -12))],
+      "van", side=1, flip=True)
+place(RUN_Y, [frac_y(v) for v in PK((-24,), (-24, -50), (-24, -50, -78))],
+      "van2", side=-1)
 if PHASE >= 3:
-    place(L.ROAD_X, [frac_x(-60)], "tank", side=-1)
-    place(L.LOOP_C, [0.12, 0.38, 0.64, 0.88], "van", side=-1, lane=LANE - 0.6)
+    place(RUN_X, [frac_x(-60)], "tank", side=-1)
+    if L.LOOP_C:
+        place(L.LOOP_C, [0.12, 0.38, 0.64, 0.88], "van", side=-1, lane=LANE - 0.6)
 elif PHASE == 2:
-    place(L.LOOP_C, [0.22, 0.72], "van", side=-1, lane=LANE - 0.6)
+    if L.LOOP_C:
+        place(L.LOOP_C, [0.22, 0.72], "van", side=-1, lane=LANE - 0.6)
 
 print("traffic ok", stats(), "phase", PHASE)

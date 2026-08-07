@@ -109,7 +109,7 @@ if PHASE >= 2:
         pl.cylz(2.4, 9.0, (px_ + 6, py_ + s * 3, ph_ + 1.5), seg=14)
     pl.make("Mine.Plant", collection=C)
     P.warehouse("Mine.Crusher", PK(0, 20, 24), PK(0, 13, 15), PK(0, 9, 11), C,
-                "clad", "roof_teal").location = (CX + 24, CY + 20, 0.3)
+                "clad", "roof_teal").location = (CX + 21, CY + 20, 0.3)
     # conveyors from the adits into the plant
     for k, ay in enumerate(ADY):
         P.conveyor((CX - 22, ay, 8.6), (px_ - 7, py_ - 6 + k * 5, ph_ + 0.5),
@@ -135,7 +135,7 @@ gt.make("Mine.LoadGantry", collection=C)
 HEAPS = PK([(24, -26, 9, 6)],
            [(26, -26, 11, 7), (10, -30, 8, 5), (-8, 30, 9, 6)],
            [(28, -26, 13, 8), (12, -32, 10, 6), (-8, 30, 11, 7),
-            (30, 10, 9, 6)])
+            (24, 20, 9, 6)])   # clear of the works gate at CX+36
 for i, (sx, sy, rr, hh) in enumerate(HEAPS):
     o = P.coal_pile("Mine.Spoil%d" % i, rr, hh, C, seed=i * 5.1)
     o.location = (CX + sx, CY + sy, 0.3)
@@ -158,11 +158,13 @@ ld.rotation_euler = (0, 0, radians(-40))
 if PHASE >= 3:
     dup(ld, (CX + 4, CY + 30, 0.3), (0, 0, radians(120)), None, C, "Mine.Loader2")
 
+# Both stand back from the gate at CX+36: a 13-long body reaches 5.6 along its
+# own axis, so parking one at CX+32 put its nose out on the arterial.
 tk = P.truck("Mine.Truck", PK("rust", "yellow_lt", "yellow_lt"), "coal", C)
-tk.location = (CX + 28, CY - 14, 0.3)
+tk.location = (CX + 20, CY - 20, 0.3)
 tk.rotation_euler = (0, 0, radians(150))
 if PHASE >= 2:
-    dup(tk, (CX + 32, CY + 2, 0.3), (0, 0, radians(-30)), None, C, "Mine.Truck2")
+    dup(tk, (CX + 28, CY + 4, 0.3), (0, 0, radians(-30)), None, C, "Mine.Truck2")
 
 # ------------------------------------------------------------------ details
 d = B().use("steel_dk")
@@ -170,13 +172,17 @@ for i in range(PK(3, 6, 8)):
     d.boxz((2.6, 2.6, 3.2), (CX - 14 + i * 5.5, CY - 33, 0.3))
 d.use("wood_lt")
 for i in range(PK(4, 8, 10)):
-    d.boxz((1.8, 1.8, 1.6), (CX + 33 + RNG.uniform(-3, 3),
-                             CY - 6 + i * 3.0, 0.3))
+    d.boxz((1.8, 1.8, 1.6), (CX + 30 + RNG.uniform(-2, 2),
+                             CY - 30 + i * 2.6, 0.3))
 d.make("Mine.Clutter", collection=C)
 
 if PHASE >= 2:
+    # Open at the works gate: the arterial now stops at the pad edge instead of
+    # running through the yard, so it ends against this fence - and the trucks,
+    # which still drive the whole centreline, would drive through it.
     P.fence_run([(CX + 36, CY - 34, 0.3), (CX + 36, CY + 32, 0.3),
-                 (CX + 6, CY + 35, 0.3)], "Mine.Fence", C)
+                 (CX + 6, CY + 35, 0.3)], "Mine.Fence", C,
+                gaps=[L.gate_point(L.MINE, L.PAD) + (11.0,)])
 for i, (lx, ly) in enumerate((((CX + 34, CY - 22), (CX + 34, CY + 14),
                                (CX + 4, CY - 32))[:PK(1, 2, 3)])):
     P.streetlight("Mine.Lamp%d" % i, 9.0, 3.0, C).location = (lx, ly, 0.3)

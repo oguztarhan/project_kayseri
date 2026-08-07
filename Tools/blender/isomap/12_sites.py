@@ -89,7 +89,7 @@ def build_quarry(cx, cy):
     # the shed's near corner reached r=82.7, which is inside the ring road's
     # outer footway, so the pavement ran straight through it.
     P.warehouse("Site.Quarry.Shed", 20, 13, 9, C, "clad",
-                "roof_orange").location = (cx + 15, cy + 4, 0.3)
+                "roof_orange").location = (cx + 2, cy + 20, 0.3)
     P.hopper("Site.Quarry.Hopper", 5.4, 11.0, C).location = (cx + 17, cy - 14, 0.3)
     P.conveyor((cx - 6, cy - 4, -8.0), (cx + 17, cy - 14, 11.0),
                "Site.Quarry.Conv", C, 2.4)
@@ -97,7 +97,7 @@ def build_quarry(cx, cy):
     ex.location = (cx - 10, cy - 8, -10.5)
     ex.rotation_euler = (0, 0, radians(120))
     tk = P.truck("Site.Quarry.Truck", "yellow_lt", "coal", C)
-    tk.location = (cx + 4, cy + 15, 0.3)
+    tk.location = (cx + 10, cy + 2, 0.3)
     tk.rotation_euler = (0, 0, radians(-40))
     o = P.coal_pile("Site.Quarry.Heap", 9.0, 6.0, C, seed=31.0)
     o.location = (cx - 18, cy + 14, 0.3)

@@ -69,6 +69,40 @@
    ]
   },
   {
+   "name": "brick",
+   "color": [
+    0.51836,
+    0.3369,
+    0.26109
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "bullion",
+   "color": [
+    0.82955,
+    0.71395,
+    0.36899
+   ],
+   "metallic": 0.75,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
    "name": "bush",
    "color": [
     0.39687,
@@ -222,6 +256,23 @@
    ]
   },
   {
+   "name": "copper_plate",
+   "color": [
+    0.72978,
+    0.43965,
+    0.19882
+   ],
+   "metallic": 0.45,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
    "name": "cream",
    "color": [
     0.86129,
@@ -230,6 +281,23 @@
    ],
    "metallic": 0.0,
    "smoothness": 0.4,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "crust",
+   "color": [
+    0.72203,
+    0.74191,
+    0.67998
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.05,
    "alpha": 1.0,
    "emission": 0.0,
    "emissionColor": [
@@ -443,6 +511,23 @@
    ]
   },
   {
+   "name": "leach",
+   "color": [
+    0.22092,
+    0.5371,
+    0.44297
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.8,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
    "name": "linepaint",
    "color": [
     0.90355,
@@ -545,6 +630,40 @@
    ]
   },
   {
+   "name": "ore_au",
+   "color": [
+    0.62621,
+    0.59137,
+    0.51242
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_au_shiny",
+   "color": [
+    0.70936,
+    0.6121,
+    0.35039
+   ],
+   "metallic": 0.35,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
    "name": "ore_cu",
    "color": [
     0.25956,
@@ -567,6 +686,40 @@
     0.29039,
     0.47968,
     0.42168
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_fe",
+   "color": [
+    0.44476,
+    0.2704,
+    0.20643
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_fe_shiny",
+   "color": [
+    0.48932,
+    0.30438,
+    0.23441
    ],
    "metallic": 0.0,
    "smoothness": 0.5,
@@ -851,6 +1004,23 @@
    ]
   },
   {
+   "name": "sluice_wood",
+   "color": [
+    0.49847,
+    0.46698,
+    0.4178
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.1,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
    "name": "smoke",
    "color": [
     0.93374,
@@ -860,6 +1030,23 @@
    "metallic": 0.0,
    "smoothness": 0.0,
    "alpha": 0.24,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "soot",
+   "color": [
+    0.24269,
+    0.2348,
+    0.23209
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.08,
+   "alpha": 1.0,
    "emission": 0.0,
    "emissionColor": [
     1.0,
@@ -978,6 +1165,40 @@
    ],
    "metallic": 0.0,
    "smoothness": 0.05,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "tunnel_void",
+   "color": [
+    0.07016,
+    0.07016,
+    0.0861
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.0,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "verdigris",
+   "color": [
+    0.26007,
+    0.59262,
+    0.52203
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.28,
    "alpha": 1.0,
    "emission": 0.0,
    "emissionColor": [

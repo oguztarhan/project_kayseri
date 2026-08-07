@@ -165,10 +165,68 @@ T("ore_cu", [(0.10, (0.018, 0.052, 0.048)), (0.40, (0.038, 0.135, 0.108)),
              (0.68, (0.085, 0.235, 0.165)), (0.90, (0.185, 0.105, 0.042))],
   rough=0.72, rough_hi=0.50, kind="voronoi", scale=0.34, bump=0.32,
   bump_dist=0.22, spec=0.40)
+# Haematite, for the iron island. Dark red-brown with a rust bloom on the
+# weathered faces and a steely glint in the fresh ore - the same shapes as the
+# other two islands' stockpiles, reading as neither coal nor malachite.
+T("ore_fe", [(0.10, (0.055, 0.022, 0.016)), (0.42, (0.135, 0.048, 0.030)),
+             (0.70, (0.245, 0.088, 0.048)), (0.90, (0.180, 0.150, 0.140))],
+  rough=0.74, rough_hi=0.52, kind="voronoi", scale=0.34, bump=0.32,
+  bump_dist=0.22, spec=0.40)
+T("ore_fe_shiny", [(0.12, (0.080, 0.032, 0.024)), (0.46, (0.185, 0.068, 0.042)),
+                   (0.74, (0.320, 0.120, 0.062)), (0.92, (0.245, 0.212, 0.196))],
+  rough=0.58, rough_hi=0.40, kind="voronoi", scale=0.9, bump=0.18,
+  bump_dist=0.07, spec=0.45)
+
 T("ore_cu_shiny", [(0.12, (0.030, 0.082, 0.072)), (0.46, (0.060, 0.180, 0.140)),
                    (0.74, (0.120, 0.290, 0.200)), (0.92, (0.235, 0.140, 0.058))],
   rough=0.58, rough_hi=0.40, kind="voronoi", scale=0.9, bump=0.18,
   bump_dist=0.07, spec=0.45)
+
+# Gold-bearing quartz, for the gold island. Mostly pale vein quartz - raw gold
+# ore is rock with colour in it, not bullion - with warm ochre staining and a
+# metallic fleck in the sun. The same heap shapes as every other ore, reading
+# as "pay dirt" next to the island's straw ground.
+T("ore_au", [(0.10, (0.155, 0.145, 0.125)), (0.42, (0.300, 0.272, 0.220)),
+             (0.70, (0.475, 0.400, 0.240)), (0.90, (0.620, 0.465, 0.145))],
+  rough=0.66, rough_hi=0.46, kind="voronoi", scale=0.34, bump=0.32,
+  bump_dist=0.22, spec=0.55)
+T("ore_au_shiny", [(0.12, (0.240, 0.185, 0.065)), (0.46, (0.430, 0.310, 0.095)),
+                   (0.74, (0.650, 0.470, 0.135)), (0.92, (0.830, 0.620, 0.200))],
+  rough=0.42, rough_hi=0.30, kind="voronoi", scale=0.9, bump=0.16,
+  bump_dist=0.07, spec=0.6, metal=0.35)
+# Gold island signature pieces: poured bullion for the strong-room stack, and
+# weathered sluice timber for the river workings - greyer than "wood", which
+# reads as fresh-sawn.
+T("bullion", [(0.25, (0.520, 0.360, 0.075)), (0.62, (0.720, 0.520, 0.130)),
+              (0.90, (0.870, 0.680, 0.220))],
+  rough=0.26, rough_hi=0.38, metal=0.75, scale=1.3, bump=0.06, bump_dist=0.03)
+T("sluice_wood", [(0.22, (0.150, 0.128, 0.100)), (0.60, (0.235, 0.205, 0.162)),
+                  (0.88, (0.320, 0.285, 0.230))],
+  rough=0.9, scale=0.8, detail=5.0, bump=0.2, bump_dist=0.08)
+
+# ---- island signature ---------------------------------------------------------
+# Materials that exist only to make one island read as ITSELF - see 16_theme.py.
+# They are in the shared palette rather than per-island because 13_export.py
+# merges the palette across islands anyway, and a third island will want to pick
+# from the same shelf.
+#
+# Coal: fired brick for the coke ovens, and the sooty wash that gathers wherever
+# the stuff is handled.
+T("brick", [(0.20, (0.150, 0.062, 0.040)), (0.55, (0.245, 0.098, 0.058)),
+            (0.88, (0.320, 0.150, 0.100))],
+  rough=0.86, rough_hi=0.70, scale=0.55, bump=0.26, bump_dist=0.10)
+F("soot", (0.048, 0.045, 0.044), rough=0.92)
+# Copper: the green liquor in the leach ponds, its crusted rim, and cathode
+# plate - the one place on the island the metal itself is on show.
+F("leach", (0.040, 0.250, 0.165), rough=0.20, spec=0.75)
+F("crust", (0.480, 0.510, 0.420), rough=0.95)
+# Blue kept near zero, like "orange" and "red" beside it. The first pass at this
+# sat around (0.68, 0.33, 0.15), which is a perfectly good copper on paper and
+# comes out of AgX as pale peach - the plate stacks read as cardboard.
+T("copper_plate", [(0.22, (0.300, 0.085, 0.018)), (0.60, (0.560, 0.190, 0.038)),
+                   (0.90, (0.760, 0.330, 0.075))],
+  rough=0.38, rough_hi=0.52, metal=0.45, scale=1.2, bump=0.08, bump_dist=0.04)
+F("verdigris", (0.055, 0.310, 0.235), rough=0.72)
 
 T("steel", [(0.25, (0.300, 0.316, 0.340)), (0.65, (0.395, 0.412, 0.436)),
             (0.90, (0.480, 0.498, 0.522))],
@@ -252,6 +310,10 @@ T("seabed", [(0.20, (0.115, 0.135, 0.115)), (0.60, (0.185, 0.200, 0.160)),
              (0.90, (0.260, 0.265, 0.205))],
   rough=0.94, scale=0.14, detail=5.0, bump=0.22, bump_dist=0.25)
 
+# The inside of a tunnel. Near-black and fully rough, so it takes no highlight
+# and reads as an opening rather than as a dark surface - see bore() in 04_rail.
+mat("tunnel_void", (0.006, 0.006, 0.008), rough=1.0, spec=0.0)
+
 # ---- foliage -----------------------------------------------------------------
 T("pine", [(0.20, (0.038, 0.115, 0.048)), (0.60, (0.070, 0.185, 0.072)),
            (0.90, (0.110, 0.245, 0.098))],
@@ -286,6 +348,69 @@ if L.ISLAND == "copper":
     T("sand", [(0.22, (0.352, 0.258, 0.160)), (0.60, (0.462, 0.360, 0.232)),
                (0.88, (0.565, 0.462, 0.312))],
       rough=0.95, scale=0.24, detail=5.0, bump=0.22, bump_dist=0.2)
+
+if L.ISLAND == "iron":
+    # THIS ISLAND IS NOT GREEN. isle_iron sets GROUND_RAMP, which paints the
+    # terrain's vertex colours red - but those only show once 13_export has
+    # baked them, so in Blender the map still came up green and read as the
+    # same island in a different arrangement. These are the same colours as
+    # materials, so what is on screen matches what ships.
+    #
+    # Ferruginous country: laterite and ore-stained ground, rust through ochre.
+    T("grass", [(0.20, (0.105, 0.048, 0.028)), (0.48, (0.215, 0.104, 0.052)),
+                (0.80, (0.345, 0.192, 0.092))],
+      rough=0.92, scale=0.26, detail=6.0, bump=0.30, bump_dist=0.25)
+    T("grass_dry", [(0.22, (0.268, 0.150, 0.070)), (0.60, (0.395, 0.245, 0.116)),
+                    (0.88, (0.505, 0.352, 0.180))],
+      rough=0.94, scale=0.24, detail=5.0, bump=0.26, bump_dist=0.22)
+    T("rock", [(0.18, (0.215, 0.150, 0.122)), (0.50, (0.330, 0.245, 0.198)),
+               (0.82, (0.452, 0.352, 0.286))],
+      rough=0.90, scale=0.30, detail=7.0, bump=0.46, bump_dist=0.30)
+    T("cliff", [(0.18, (0.300, 0.180, 0.118)), (0.52, (0.418, 0.272, 0.176)),
+                (0.85, (0.540, 0.392, 0.264))],
+      rough=0.92, scale=0.26, detail=7.0, bump=0.44, bump_dist=0.30)
+    T("sand", [(0.22, (0.408, 0.278, 0.162)), (0.60, (0.512, 0.375, 0.228)),
+               (0.88, (0.610, 0.482, 0.318))],
+      rough=0.95, scale=0.24, detail=5.0, bump=0.22, bump_dist=0.2)
+    # The trees go with it. Dry scrub-country foliage - olive and dust rather
+    # than the wet dark green of a conifer coast.
+    T("pine", [(0.20, (0.088, 0.098, 0.046)), (0.60, (0.148, 0.162, 0.070)),
+               (0.88, (0.215, 0.225, 0.102))],
+      rough=0.92, scale=0.5, detail=4.0, bump=0.25, bump_dist=0.2)
+    T("pine_lt", [(0.20, (0.152, 0.155, 0.070)), (0.60, (0.232, 0.228, 0.104)),
+                  (0.88, (0.318, 0.300, 0.146))],
+      rough=0.92, scale=0.5, detail=4.0, bump=0.25, bump_dist=0.2)
+
+if L.ISLAND == "gold":
+    # DRY COUNTRY, not green and not iron's red: sun-cured straw over pale
+    # quartz-bearing rock. Same reasoning as the iron block above - the vertex
+    # bake only shows in Unity, so the Blender materials have to say "arid"
+    # too or the preview reads as the green island rearranged.
+    T("grass", [(0.20, (0.130, 0.100, 0.045)), (0.48, (0.240, 0.190, 0.085)),
+                (0.80, (0.370, 0.300, 0.140))],
+      rough=0.92, scale=0.26, detail=6.0, bump=0.30, bump_dist=0.25)
+    T("grass_dry", [(0.22, (0.300, 0.235, 0.105)), (0.60, (0.425, 0.345, 0.165)),
+                    (0.88, (0.530, 0.445, 0.235))],
+      rough=0.94, scale=0.24, detail=5.0, bump=0.26, bump_dist=0.22)
+    T("rock", [(0.18, (0.250, 0.230, 0.200)), (0.50, (0.360, 0.335, 0.295)),
+               (0.82, (0.470, 0.445, 0.400))],
+      rough=0.90, scale=0.30, detail=7.0, bump=0.46, bump_dist=0.30)
+    T("cliff", [(0.18, (0.310, 0.265, 0.205)), (0.52, (0.425, 0.370, 0.290)),
+                (0.85, (0.545, 0.490, 0.395))],
+      rough=0.92, scale=0.26, detail=7.0, bump=0.44, bump_dist=0.30)
+    T("sand", [(0.22, (0.430, 0.345, 0.210)), (0.60, (0.530, 0.440, 0.285)),
+               (0.88, (0.625, 0.535, 0.370))],
+      rough=0.95, scale=0.24, detail=5.0, bump=0.22, bump_dist=0.2)
+    # Dry-summer eucalypt scrub: olive-gold canopies, dusty understorey.
+    T("pine", [(0.20, (0.105, 0.108, 0.042)), (0.60, (0.175, 0.170, 0.068)),
+               (0.88, (0.250, 0.235, 0.100))],
+      rough=0.92, scale=0.5, detail=4.0, bump=0.25, bump_dist=0.2)
+    T("pine_lt", [(0.20, (0.170, 0.160, 0.065)), (0.60, (0.255, 0.235, 0.100)),
+                  (0.88, (0.345, 0.315, 0.145))],
+      rough=0.92, scale=0.5, detail=4.0, bump=0.25, bump_dist=0.2)
+    T("bush", [(0.20, (0.140, 0.125, 0.050)), (0.65, (0.215, 0.195, 0.082)),
+               (0.92, (0.300, 0.270, 0.120))],
+      rough=0.90, scale=1.4, detail=4.0, bump=0.20, bump_dist=0.08)
 
 # ------------------------------------------------------------------ collections
 for c in ("Terrain", "Roads", "Rail", "Mine", "Depot", "Refinery", "Market",

@@ -10,7 +10,7 @@ so the choice survives the whole build.
     build(2)
 """
 
-ISLANDS = ("coal", "copper")
+ISLANDS = ("coal", "copper", "iron", "gold")
 
 NAME = "coal"
 

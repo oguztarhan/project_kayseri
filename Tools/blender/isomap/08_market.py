@@ -16,7 +16,9 @@ CX, CY = L.MARKET
 
 # --------------------------------------------------------------------- pads
 b = B().use(PK("dirt", "asphalt_lt", "asphalt_lt"))
-b.box((72, 68, 0.3), (CX, CY, 0.14))
+# 74 along the arterial - see the note on Depot.Yard: the road now stops at the
+# pad edge and this slab is the surface from there in.
+b.box((72, 74, 0.3), (CX, CY, 0.14))
 b.use("concrete")
 b.box(PK((28, 16, 0.34), (42, 22, 0.34), (48, 26, 0.34)), (CX - 4, CY + 20, 0.18))
 b.make("Market.Pad", collection=C)
@@ -32,27 +34,30 @@ if PHASE >= 2:
     pk.make("Market.Bays", collection=C)
 
 # ---------------------------------------------------------------- warehouses
-wh = P.warehouse("Market.WH1", PK(22, 32, 38), PK(14, 19, 22), PK(8, 11, 13), C,
+wh = P.warehouse("Market.WH1", PK(22, 28, 30), PK(14, 19, 22), PK(8, 11, 13), C,
                  PK("wood_lt", "cream", "cream"),
                  PK("roof_red", "roof_teal", "roof_teal"),
                  curved=(PHASE >= 2), doors=PK(2, 3, 4))
-wh.location = (CX - 8, CY + 22, 0.3)
+# Its south wall now lands at CY+3, which is where the loading dock stands in
+# FRONT of it - at 38 long it reached CY+41, four over the yard slab, and
+# swallowed both the dock and the crate yard.
+wh.location = (CX - 4, CY + 20, 0.3)
 if PHASE >= 2:
-    wh2 = P.warehouse("Market.WH2", PK(0, 22, 26), PK(0, 15, 17), PK(0, 8, 10),
+    wh2 = P.warehouse("Market.WH2", PK(0, 20, 24), PK(0, 15, 17), PK(0, 8, 10),
                       C, "clad", "roof_blue", doors=3)
-    wh2.location = (CX + 24, CY + 24, 0.3)
+    wh2.location = (CX + 23, CY + 24, 0.3)
 
 # loading dock
 if PHASE >= 2:
     dk = B().use("concrete_dk")
-    dk.boxz((38, 5.0, 1.3), (CX - 8, CY + 8, 0.3))
+    dk.boxz((38, 5.0, 1.3), (CX - 8, CY + 0, 0.3))
     dk.use("steel_dk")
     for i in range(4):
-        dk.boxz((5.0, 1.6, 0.5), (CX - 23 + i * 9.6, CY + 5.6, 0.9))
+        dk.boxz((5.0, 1.6, 0.5), (CX - 23 + i * 9.6, CY - 2.4, 0.9))
     dk.use("roof_grey")
-    dk.box((40, 4.0, 0.4), (CX - 8, CY + 7, 6.4))
+    dk.box((40, 4.0, 0.4), (CX - 8, CY - 1, 6.4))
     for i in range(5):
-        dk.boxz((0.4, 0.4, 6.2), (CX - 26 + i * 9.0, CY + 5.6, 1.6))
+        dk.boxz((0.4, 0.4, 6.2), (CX - 26 + i * 9.0, CY - 2.4, 1.6))
     dk.make("Market.Dock", collection=C)
 
 # ------------------------------------------------------------------- shops
@@ -84,7 +89,7 @@ for i in range(1, NST, 2):
     st.box((5.4, 4.4, 0.3), (CX - 28 + i * 6.2, CY - 34, 3.5))
 st.use("wood_lt")
 for i in range(NST):
-    st.boxz((4.4, 2.0, 1.0), (CX - 28 + i * 6.2, CY - 34, 0.3))
+    st.boxz((4.4, 2.0, 1.0), (CX - 28 + i * 6.2, CY - 30, 0.3))
 st.make("Market.Stalls", collection=C)
 
 # ------------------------------------------------------------- fuel station
@@ -107,7 +112,7 @@ if PHASE >= 2:
 
 if PHASE >= 2:
     P.office("Market.Office", 14, 12, PK(1, 2, 3), C).location = (
-        CX - 28, CY + 26, 0.3)
+        CX - 27, CY + 27, 0.3)
 
 # ---------------------------------------------------------------- vehicles
 tk = P.truck("Market.Truck", "white", "cargo", C)
@@ -136,11 +141,11 @@ for i, (dx, dy, a) in enumerate(PK((), ((-2, 13, 120),),
 cr = B().use("wood_lt")
 for i in range(PK(6, 12, 16)):
     s = RNG.uniform(1.4, 2.1)
-    cr.boxz((s, s, s * 0.8), (CX - 26 + RNG.uniform(0, 34),
-                              CY + 12 + RNG.uniform(-2, 3), 0.3))
+    cr.boxz((s, s, s * 0.8), (CX + 6 + RNG.uniform(0, 13),
+                              CY + 5 + RNG.uniform(-2, 3), 0.3))
 cr.use("blue")
 for i in range(PK(1, 3, 4)):
-    cr.boxz((7.0, 3.0, 3.0), (CX + 14 + i * 1.0, CY + 14 + i * 3.4, 0.3))
+    cr.boxz((7.0, 3.0, 3.0), (CX + 16 + i * 1.0, CY - 16 + i * 3.0, 0.3))
 cr.make("Market.Goods", collection=C)
 
 for i, (lx, ly) in enumerate((((CX - 32, CY - 16), (CX + 8, CY - 16),
@@ -149,8 +154,12 @@ for i, (lx, ly) in enumerate((((CX - 32, CY - 16), (CX + 8, CY - 16),
     P.streetlight("Market.Lamp%d" % i, 9.0, 3.0, C).location = (lx, ly, 0.3)
 
 if PHASE >= 2:
+    # A gate for the arterial and one for every other road that reaches here -
+    # the quay road on all three islands, and on the iron island the mine's own
+    # haul road as well, which comes in through the west fence.
     P.fence_run([(CX - 35, CY + 32, 0.3), (CX - 35, CY - 33, 0.3),
-                 (CX + 35, CY - 33, 0.3)], "Market.Fence", C, 2.0)
+                 (CX + 35, CY - 33, 0.3)], "Market.Fence", C, 2.0,
+                gaps=L.fence_gaps(L.MARKET, L.PAD, L.APPROACHES))
 
 
 # Built in local terms against a flat z=0, then moved onto the graded

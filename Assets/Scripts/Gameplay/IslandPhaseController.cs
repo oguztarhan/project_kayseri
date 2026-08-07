@@ -45,7 +45,7 @@ namespace Kayseri.Island
         {
             "Mine", "Rail", "Depot", "Refinery", "Market", "Port",
             "Power", "Haul", "Fleet", "Civic",
-            "Roads", "Sites", "Props", "Terrain", "Foliage",
+            "Roads", "Sites", "Props", "Terrain", "Foliage", "Theme",
         };
 
         /// <summary>Driver station per district; null = follow the furthest-advanced station.</summary>
@@ -59,9 +59,12 @@ namespace Kayseri.Island
             // station screen the haul yard rather than the road network, which
             // means nothing on a turntable. Civic has no station: it follows the
             // furthest-advanced one, so the town grows with the island.
+            // Theme is the island's signature dressing (iron's blast furnace and outcrops). It is
+            // authored ACTIVE under every phase root, so before it was a district here all three
+            // copies drew stacked on top of each other from the first Refresh.
             "MINE", "TRAIN", "STORAGE", "SMELTER", "MARKET", "CARGO TRUCKS",
             "POWER PLANT", "ORE TRUCKS", "CARGO TRUCKS", null,
-            "ORE TRUCKS", null, null, null, null,
+            "ORE TRUCKS", null, null, null, null, null,
         };
 
         // The operation binds to the train and truck Transforms once, at startup, and lifts them

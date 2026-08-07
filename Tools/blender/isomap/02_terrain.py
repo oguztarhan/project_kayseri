@@ -27,33 +27,45 @@ def bed_z(t):
     return z
 
 
-# The ring is a circle now, so its corridor is just a radial band - no sampling
-# needed, and no chance of the mask sitting anywhere other than under the tarmac.
+# Measured against the loop itself rather than against a circle of radius
+# LOOP_R. The iron island's ring wanders between 61 and 84, so a radial band
+# would flatten a corridor that misses the tarmac by up to 23.
 def loop_dist(x, y):
-    return abs(hypot(x, y) - L.LOOP_R)
+    if not L.LOOP_C:
+        return 1e9
+    d, _ = L.dist_to_path(x, y, L.LOOP_C)
+    return d
 
 
 def road_mask(x, y):
     """1 on the carriageway corridors. Kept separate from the pads so the
     tarmac corridor can be sunk slightly - see ROAD_CUT below."""
-    # Gate each arm to the road's ACTUAL extent, so the corridor stops at the
-    # road end instead of flattening the massif beyond it.
-    x0, x1 = L.ROAD_X[0][0], L.ROAD_X[-1][0]
-    gx = L.smoothstep(x0 - 20, x0 - 1, x) * (1.0 - L.smoothstep(x1 + 1, x1 + 20, x))
-    y0, y1 = L.ROAD_Y[0][1], L.ROAD_Y[-1][1]
-    gy = L.smoothstep(y0 - 20, y0 - 1, y) * (1.0 - L.smoothstep(y1 + 1, y1 + 20, y))
-    m = max(L.band(abs(y), L.ROAD_W * 0.9, L.ROAD_W * 2.1) * gx,
-            L.band(abs(x), L.ROAD_W * 0.9, L.ROAD_W * 2.1) * gy)
+    # Measured against the arterial ITSELF, not against the axis it happens to
+    # lie on. dist_to_path clamps to the ends, which is the same gating the two
+    # hand-written smoothsteps used to do; the iron island's arterials have a
+    # right-angle in each end, and an axis band flattened a corridor the road
+    # never reaches.
+    m = 0.0
+    for _art in (L.ROAD_X, L.ROAD_Y):
+        da, _ = L.dist_to_path(x, y, _art)
+        m = max(m, L.band(da, L.ROAD_W * 0.9, L.ROAD_W * 2.1))
     m = max(m, L.band(loop_dist(x, y), L.ROAD_W * 0.85, L.ROAD_W * 1.9))
     for pts, _n in L.SPURS:
         ds, _ = L.dist_to_path(x, y, pts)
         m = max(m, L.band(ds, 8.0, 17.0))
+    # Turning heads sit off the end of a spur, up to a bulb radius plus half a
+    # carriageway clear of its centreline - past the band above, so without this
+    # the far side of every bulb is laid on unflattened ground.
+    for pts, _n in L.HEADS:
+        dh, _ = L.dist_to_path(x, y, pts)
+        m = max(m, L.band(dh, 7.0, 15.0))
     dp, _ = L.dist_to_path(x, y, L.PORT_ROAD)
     m = max(m, L.band(dp, 9.0, 18.0))
     # The crew's pavement circuit needs levelling too - laid on unflattened
     # ground it sat up to 0.41 under the noise it was crossing. Concentric with
     # the ring, so the same radial band works for it.
-    m = max(m, L.band(abs(hypot(x, y) - L.WALK_R), 5.0, 13.0))
+    dw, _ = L.dist_to_path(x, y, L.FOOTPATH)
+    m = max(m, L.band(dw, 5.0, 13.0))
     return min(1.0, m)
 
 
@@ -61,8 +73,21 @@ def flat_mask(x, y):
     """1 where the ground must be flat (districts, sites, roads, rail)."""
     m = road_mask(x, y)
     # rail cutting, but not over the tunnelled first stretch
+    # The rail cutting - but NOT over the tunnelled stretch at the start, or the
+    # corridor levels the very hill the portal is bored into. How much of the
+    # line is underground is the island's business: coal and copper bore into a
+    # massif a few units in, the iron line runs 60 units inside its hill.
+    # The rail cutting - but NOT where the line is underground. TUNNEL is a LIST
+    # of spans now: the first is the bore it starts in, and any after it are
+    # through-tunnels partway along, which is the only way to build the thing a
+    # player actually reads as a tunnel - track, mountain, track. With one span
+    # the loop below never runs, so coal and copper are untouched.
     dr, tr = L.dist_to_path(x, y, L.RAIL)
-    m = max(m, L.band(dr, 9.0, 20.0) * L.smoothstep(0.035, 0.105, tr))
+    cut = L.smoothstep(L.TUNNEL[0][0], L.TUNNEL[0][1], tr)
+    for _a, _b in L.TUNNEL[1:]:
+        _c, _h = (_a + _b) * 0.5, (_b - _a) * 0.5
+        cut *= 1.0 - L.band(abs(tr - _c), _h * 0.65, _h)
+    m = max(m, L.band(dr, 9.0, 20.0) * cut)
     for cx, cy in L.DISTRICTS:
         m = max(m, L.rect_mask(x - cx, y - cy, L.PAD, L.PAD, 7))
     for _n, (sx, sy), _need in L.SITES:
@@ -222,6 +247,15 @@ EARTH = (0.175, 0.115, 0.058)
 ROCKC = (0.315, 0.300, 0.272)
 SANDC = (0.395, 0.330, 0.212)
 SEABD = (0.120, 0.150, 0.115)
+
+# An island may bring its own palette. The ramp above is the green country the
+# first two maps are in; the iron island is ferruginous ground and reads red.
+# Same five-stop shade-to-sun structure whatever the hue, so the slope and
+# height shading below is unchanged.
+GRASS = getattr(L, "GROUND_RAMP", GRASS)
+EARTH = getattr(L, "GROUND_EARTH", EARTH)
+ROCKC = getattr(L, "GROUND_ROCK", ROCKC)
+SANDC = getattr(L, "GROUND_SAND", SANDC)
 
 # The ground is painted here, not by a material, so the copper island's warmer
 # country rock has to be repeated in these constants or the outcrops in

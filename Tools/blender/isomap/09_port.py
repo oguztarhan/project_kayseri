@@ -119,14 +119,17 @@ if PHASE == 1:                       # simple timber derrick instead
 
 # ---------------------------------------------------------- container yard
 COLS = ("blue", "red", "teal", "orange", "green_ind", "yellow_lt", "blue_lt")
-NC = PK(0, 24, 54)
+NC = PK(0, 18, 36)
 cy = B() if NC else None
-ROWS, DEPTH = 7, 3          # shallow yard - keeps the port off the market pad
+# Down-shore half of the quay only. The yard used to run the whole length at
+# a = -27..14, which is exactly where the shed and the control office stand -
+# 292 triangles of container inside the shed and 242 inside the office.
+ROWS, DEPTH = 3, 3          # shallow yard - keeps the port off the market pad
 for i in range(NC):
     row = i % ROWS
     col = (i // ROWS) % DEPTH
     lay = i // (ROWS * DEPTH)
-    a = -QL * 0.42 + row * 6.8
+    a = -QL * 0.08 + row * 6.4
     n = -QW * 0.5 - 5.0 - col * 3.6
     pos = q(a, n)
     cy.use(COLS[(i * 3) % len(COLS)])
@@ -147,17 +150,25 @@ if PHASE == 1:                       # crates and barrels on the sand instead
     cs.make("Port.Crates", collection=C)
 
 # ------------------------------------------------------------- buildings
-# Sheds sit at the UP-shore end of the quay; putting them down-shore would push
-# them across the market's pad boundary.
-_ps = q(-QL * 0.14, -QW * 0.5 - 10)
-P.warehouse("Port.Shed", PK(16, 22, 26), PK(11, 14, 16), PK(6, 9, 11), C,
-            PK("wood_lt", "clad", "clad"),
-            PK("roof_red", "roof_blue", "roof_blue")).location = (
-    _ps[0], _ps[1], 0.6)
+# Everything on the quay is ordered along `a` so the haul road's approach stays
+# clear: sheds up-shore, container yard in the middle, and the down-shore third
+# left empty because that is the side the road comes in from. Putting the sheds
+# down-shore instead - which is where the containers used to be - simply swapped
+# which of them the road ran through.
+_ps = q(-QL * 0.33, -QW * 0.5 - 10)
+_shed = P.warehouse("Port.Shed", PK(14, 18, 22), PK(11, 14, 16), PK(6, 9, 11), C,
+                    PK("wood_lt", "clad", "clad"),
+                    PK("roof_red", "roof_blue", "roof_blue"))
+_shed.location = (_ps[0], _ps[1], 0.6)
+# Square to the quay, like everything else here. Left at world zero these two
+# stood at an angle to the wharf they belong to, which is what made the
+# container stacks read as stabbing into the shed rather than sitting beside it.
+_shed.rotation_euler = (0, 0, QYAW)
 if PHASE >= 2:
-    _pc = q(-QL * 0.46, -QW * 0.5 - 6)
-    P.office("Port.Control", 11, 9, PK(1, 2, 3), C).location = (
-        _pc[0], _pc[1], 0.6)
+    _pc = q(-QL * 0.42, -QW * 0.5 + 2)
+    _ctl = P.office("Port.Control", 11, 9, PK(1, 2, 3), C)
+    _ctl.location = (_pc[0], _pc[1], 0.6)
+    _ctl.rotation_euler = (0, 0, QYAW)
     # harbour light at the pier head
     hl = B().use("white")
     ph = q(QL * 0.5 + 4, PLEN + 6)
@@ -273,12 +284,14 @@ if tight:
              "   <-- OVERLAPPING" if gap < 0 else ""))
 
 # ------------------------------------------------------------- port traffic
+# Parked hard against the quay edge rather than out on the apron, which is
+# where the haul road from the market arrives.
 tk = P.truck("Port.Truck", "white", "cargo", C)
-p = q(-QL * 0.2, -QW * 0.5 + 3)
+p = q(-QL * 0.2, -QW * 0.5 + 8)
 tk.location = (p[0], p[1], 1.5)
 tk.rotation_euler = (0, 0, QYAW)
 for i, a in enumerate(PK((), (10.0,), (10.0, 24.0))):
-    pp = q(a, -QW * 0.5 + 3)
+    pp = q(a, -QW * 0.5 + 8)
     dup(tk, (pp[0], pp[1], 1.5), (0, 0, QYAW), None, C, "Port.Truck%d" % i)
 
 if PHASE >= 2:
@@ -288,7 +301,7 @@ if PHASE >= 2:
     fk.rotation_euler = (0, 0, QYAW + radians(50))
 if PHASE >= 3:
     ld = P.loader("Port.Reach", C)
-    pl = q(QL * 0.1, -QW * 0.5 - 9)
+    pl = q(-QL * 0.16, -QW * 0.5 - 8)    # beside the container yard, not in it
     ld.location = (pl[0], pl[1], 0.9)
     ld.rotation_euler = (0, 0, QYAW + radians(-40))
 

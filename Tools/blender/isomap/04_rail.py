@@ -1,7 +1,7 @@
 """Step 4: railway.  Upgrades with PHASE:
    1  short single track, timber sleepers, small loco + 5 wagons
    2  full line to the depot, ballasted, 11 wagons, signal posts
-   3  double track + catenary masts, 17 wagons, plus a branch to the port
+   3  double track + catenary masts, 17 wagons
 """
 import importlib
 import layout
@@ -173,31 +173,80 @@ def _run_len(run):
 viaduct(SAMP, "Rail")
 
 # ------------------------------------------------------------- tunnel portal
-p0, yaw0 = at(0.006)
-fx, fy = cos(yaw0), sin(yaw0)
-bt = B().use(PK("wood", "concrete", "concrete"))
-bt.box((3.4, PK(16.0, 22.0, 26.0), PK(11.0, 16.0, 19.0)),
-       (p0.x, p0.y, PK(4.6, 6.5, 8.0)), (0, 0, yaw0))
-bt.use("concrete_dk")
-for i in range(13):
-    a = radians(180) * i / 12.0
-    bt.box((1.1, 1.5, 1.5),
-           (p0.x + fx * 1.6 - sin(yaw0) * cos(a) * 5.0,
-            p0.y + fy * 1.6 + cos(yaw0) * cos(a) * 5.0,
-            1.2 + sin(a) * 5.6), (0, 0, yaw0))
-bt.use("rock_dark")
-bt.box((5.0, 8.4, 8.0), (p0.x - fx * 2.6, p0.y - fy * 2.6, 5.0), (0, 0, yaw0))
-bt.cyl(4.2, 5.0, (p0.x - fx * 2.6, p0.y - fy * 2.6, 9.0),
-       (0, radians(90), yaw0), 16)
-bt.use("concrete_dk")
-for s in (1, -1):
-    bt.box((2.4, 7.0, 11.0),
-           (p0.x + fx * 1.0 - sin(yaw0) * s * 8.0,
-            p0.y + fy * 1.0 + cos(yaw0) * s * 8.0, 5.0), (0, 0, yaw0))
-portal = bt.make("Rail.Portal", collection=CRail)
-# A single offset is right here, unlike the track: the portal is one compact
-# structure at the tunnel mouth rather than something spanning the whole fall.
-portal.location.z += GZ(p0.x, p0.y)
+_NUDGE = getattr(L, "PORTAL_NUDGE", [])
+
+
+def bore(t, into, name, idx):
+    """A tunnel mouth on the line at arc position t.
+
+    `into` is the direction the rock lies in: +1 when the hill is ahead of the
+    train at t (the mouth it drives INTO) and -1 when it is behind (the mouth it
+    comes OUT of). The whole structure is simply turned round, because a portal
+    is a face on a hillside and which way it looks is the only thing that
+    changes.
+
+    This used to be inline and built exactly once, at the railhead. The iron
+    island's line runs THROUGH a massif in the middle of the frame, and a bore
+    with no mouths is just track disappearing into a slope.
+    """
+    p0, yaw0 = at(t)
+    if into > 0:
+        yaw0 += radians(180)
+    fx, fy = cos(yaw0), sin(yaw0)
+    bt = B().use(PK("wood", "concrete", "concrete"))
+    bt.box((3.4, PK(16.0, 22.0, 26.0), PK(11.0, 16.0, 19.0)),
+           (p0.x, p0.y, PK(4.6, 6.5, 8.0)), (0, 0, yaw0))
+    bt.use("concrete_dk")
+    for i in range(13):
+        a = radians(180) * i / 12.0
+        bt.box((1.1, 1.5, 1.5),
+               (p0.x + fx * 1.6 - sin(yaw0) * cos(a) * 5.0,
+                p0.y + fy * 1.6 + cos(yaw0) * cos(a) * 5.0,
+                1.2 + sin(a) * 5.6), (0, 0, yaw0))
+    bt.use("rock_dark")
+    bt.box((5.0, 8.4, 8.0), (p0.x - fx * 2.6, p0.y - fy * 2.6, 5.0), (0, 0, yaw0))
+    bt.cyl(4.2, 5.0, (p0.x - fx * 2.6, p0.y - fy * 2.6, 9.0),
+           (0, radians(90), yaw0), 16)
+    # THE HOLE. Everything above is the surround; without this the mouth is a
+    # concrete arch laid flat against a hillside, which is what it looked like -
+    # an entrance that is not open. A near-black slab set just inside the arch
+    # and slightly narrower than it reads as depth: the eye takes an unlit
+    # opening as a tunnel going in, and no amount of arch detail does that on
+    # its own. Unlit rather than pure black so it still catches a little bounce.
+    bt.use("tunnel_void")
+    bt.box((1.2, 8.6, 8.2), (p0.x + fx * 1.15, p0.y + fy * 1.15, 5.0), (0, 0, yaw0))
+    bt.cyl(4.3, 1.2, (p0.x + fx * 1.15, p0.y + fy * 1.15, 9.1),
+           (0, radians(90), yaw0), 16)
+    bt.use("concrete_dk")
+    for s in (1, -1):
+        bt.box((2.4, 7.0, 11.0),
+               (p0.x + fx * 1.0 - sin(yaw0) * s * 8.0,
+                p0.y + fy * 1.0 + cos(yaw0) * s * 8.0, 5.0), (0, 0, yaw0))
+    ob = bt.make(name, collection=CRail)
+    # A single offset is right here, unlike the track: the portal is one compact
+    # structure at the tunnel mouth rather than something spanning the whole fall.
+    ob.location.z += GZ(p0.x, p0.y)
+    # The island's own seating offset, if it has one - see PORTAL_NUDGE in
+    # isle_iron. Applied last, so it reads as a nudge off the computed position
+    # rather than replacing it: move the line or the peaks and the portal still
+    # follows, with the same offset held.
+    if idx < len(_NUDGE):
+        _dx, _dy, _dz = _NUDGE[idx]
+        ob.location.x += _dx
+        ob.location.y += _dy
+        ob.location.z += _dz
+    return ob
+
+
+# The railhead. Its bore starts at t = 0, so there is no mouth to build at the
+# near end - the line simply begins inside the rock.
+bore(0.006, -1, "Rail.Portal", 0)
+
+# Every bore AFTER the first is a through-tunnel: the train has to be seen going
+# in one side and coming out the other, so both ends get a mouth.
+for _i, (_a, _b) in enumerate(L.TUNNEL[1:]):
+    bore(_a, 1, "Rail.PortalIn%d" % _i, 1 + _i * 2)
+    bore(_b, -1, "Rail.PortalOut%d" % _i, 2 + _i * 2)
 
 # --------------------------------------------------------- storage rail shed
 # The line ends inside the depot yard, where the train used to blink out of
@@ -313,29 +362,41 @@ if PHASE == 1:                                        # small starter loco
     loco_src.scale = (0.72, 0.72, 0.72)
     wag_src.scale = (0.76, 0.76, 0.76)
 
-GAP = PK(0.075, 0.056, 0.0455)
+# Car spacing in METRES along the rail, not as a fraction of the sample count.
+# SAMP is evenly spaced in CURVE PARAMETER, so a fixed step through it covers
+# different distances on the straights than through the curves - which is why a
+# 0.0455 fractional pitch put 5.2 of every car inside the one in front. The
+# pitch here is the longest body (the loco, 13.6) plus a coupling.
+CAR_PITCH = PK(11.0, 13.0, 15.5)
+_CUM = [0.0]
+for _i in range(1, len(SAMP)):
+    _CUM.append(_CUM[-1] + hypot(SAMP[_i][0].x - SAMP[_i - 1][0].x,
+                                 SAMP[_i][0].y - SAMP[_i - 1][0].y))
+_TRACK = _CUM[-1] or 1.0
+
+
+def at_dist(d):
+    """The sample `d` metres along the laid track."""
+    lo, hi = 0, len(_CUM) - 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if _CUM[mid] < d:
+            lo = mid + 1
+        else:
+            hi = mid
+    return SAMP[lo]
+
+
 HEAD = PK(0.90, 0.955, 0.965)
-CARS = [("loco", HEAD)] + [("wagon", HEAD - GAP - i * GAP) for i in range(NCARS)]
-for kind, f in CARS:
-    if not (-0.02 < f < 0.995):
+for _k, kind in enumerate(["loco"] + ["wagon"] * NCARS):
+    d = HEAD * _TRACK - _k * CAR_PITCH
+    if d < 0.0:
         continue
-    f = max(f, 0.0)
-    pos, yaw = at(f)
+    pos, yaw = at_dist(d)
     src = loco_src if kind == "loco" else wag_src
     nx, ny = -sin(yaw), cos(yaw)
     tx, ty = pos.x + nx * TRAIN_OFF, pos.y + ny * TRAIN_OFF
     dup(src, (tx, ty, RZ - 0.85 + GZ(tx, ty)),
         (0, pitch(tx, ty, yaw), yaw), None, CRail, "Train." + kind)
-
-# ------------------------------------------------------ phase 3: port branch
-if PHASE >= 3:
-    pp = [(p[0], p[1], 0.0) for p in L.RAIL_PORT]
-    psamp = sample_bez(pp, 220)
-    lay_track(pp, psamp, "RailPort")
-    for f in (0.30, 0.46, 0.62):
-        i = int(f * (len(psamp) - 1))
-        pos, yaw = psamp[i]
-        dup(wag_src, (pos.x, pos.y, RZ - 0.85 + GZ(pos.x, pos.y)),
-            (0, pitch(pos.x, pos.y, yaw), yaw), None, CRail, "PortTrain.wagon")
 
 print("rail ok", stats(), "phase", PHASE, "cars", NCARS)

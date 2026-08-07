@@ -186,6 +186,10 @@ namespace Game.Gameplay
         [SerializeField] private float seaScale = 3.4f;
         [SerializeField] private float shipSpeed = 5f;
         [SerializeField] private float shipYawOffset = 0f;     // authored ship meshes may not face +Z
+        [Tooltip("Limanın ağzında bekleme süresi. Gemi buradan açığa doğru yola çıkar.")]
+        [SerializeField] private float shipPortDwell = 7f;
+        [Tooltip("Ekran dışında bekleme süresi - gemi bu süre boyunca görünmez, sonra geri döner.")]
+        [SerializeField] private float shipSeaDwell = 22f;
         // Same problem for the land fleet. LookRotation aims a mesh's +Z down the road, but the
         // authored island's train and trucks are modelled with their length along local X, so
         // they drove broadside until this turned them. 0 on the generated islands, whose
@@ -197,6 +201,12 @@ namespace Game.Gameplay
         // before it reaches it.
         [SerializeField] private float vehicleTurnRate = 170f;    // degrees per second
         [SerializeField] private float vehicleLookAhead = 7f;     // metres down the route
+        [Tooltip("Hıza göre eklenen bakış mesafesi. Hızlı giden bir tır virajı daha erken görür, " +
+                 "yoksa köşeye varana kadar düz gidip orada dönüyor.")]
+        [SerializeField] private float lookAheadPerSpeed = 0.4f;
+        [Tooltip("Yol köşelerinin yuvarlatma yarıçapı. 0 = köşeler keskin kalır.")]
+        [SerializeField] private float cornerRadius = 7f;
+        [SerializeField] private float cornerMinAngle = 18f;   // below this a vertex is a straight
         // The model's upright pose, read off the imported vehicles. Identity on the generated
         // islands, whose vehicles are authored in Unity space already.
         private Quaternion _vehicleBaseRot = Quaternion.identity;
@@ -256,6 +266,9 @@ namespace Game.Gameplay
         [SerializeField] private float workerScale = 2.2f;
         [SerializeField] private int maxWorkers = 8;
         [SerializeField] private int workerLevelsPer = 24;    // one extra worker per this many axis levels
+        [Tooltip("Bir işçinin yola adım atmadan önce kamyona bırakacağı en az mesafe. " +
+                 "Yarım şerit artı bir tır boyu kadar olmalı.")]
+        [SerializeField] private float pedestrianClearance = 8f;
         [SerializeField] private int maxSmokePuffs = 10;
         [SerializeField] private float smokePuffLife = 3.2f;
         [SerializeField] private float smokePuffRise = 3.4f;
@@ -410,6 +423,35 @@ namespace Game.Gameplay
 
         // ---- harbour life: authored ships shuttling between the pier and the offshore trade post ----
         private struct Ship { public Transform t; public Vector3 pier, sea; public float prog, dwell, phase; public bool toSea; }
+
+        /// <summary>
+        /// A ship working the authored island's shipping lane: out of the harbour mouth, off the
+        /// edge of the map, a spell away, then back in.
+        ///
+        /// Separate from <see cref="Ship"/> because that one lerps between two fixed points, and
+        /// this follows an exported polyline that bends round the headland. It is also the only
+        /// harbour life the two real islands have: BuildHarbor and its shuttle only run on the
+        /// GENERATED map — BuildSiteDressing returns early when the island is authored — so
+        /// until now the exported "shipLane" route was written out by 14_routes.py every build
+        /// and never read by anything.
+        /// </summary>
+        private sealed class Voyage
+        {
+            public Transform hull, smoke;
+            public Vector3[] lane;
+            public float[] cum;       // arc length to each lane point
+            public float len;
+            public float dist;        // metres from the harbour mouth
+            public int dir;           // +1 outbound, -1 coming home
+            public float dwell, bob, baseY;
+            public Vector3 smokeLocal;   // the plume's place in the hull's own frame
+            // The hull's authored pose relative to the lane's outbound heading, captured at its
+            // berth. Composed onto LookRotation while sailing, so the ship keeps the exact
+            // upright pose and bow the artist parked it with — LookRotation alone assumed a
+            // +Z-nosed Y-up mesh, and the authored hulls are neither, so they sailed broadside.
+            public Quaternion poseOffset = Quaternion.identity;
+        }
+        private readonly List<Voyage> _voyages = new List<Voyage>();
         private readonly List<Ship> _ships = new List<Ship>();
         private float _waterY;
         private Vector3 _landCentre;     // island footprint, inset — the area a shoved building may use
@@ -554,6 +596,7 @@ namespace Game.Gameplay
             public int idx;                 // index into _agents, so a truck can look up who is ahead
             public int slot;                // order within its fleet; slot < fleet count → active
             public int sceneFleet;          // trucks physically placed on this loop (export fleet size)
+            public float crossStall;        // seconds stood still on a cross-route wait — see DriveLoop
             public double carry;
             public float timer;
             public TK state;
@@ -570,6 +613,11 @@ namespace Game.Gameplay
         private float[] _arc;            // every truck's distance along its loop, refreshed once a frame
 
         private bool _ready;
+
+        /// <summary>True once Start has built the whole operation — heaps, vehicles, dressing.
+        /// The camera boot waits for it: bounds measured during the boot frame under-read the
+        /// island and once caught a phase burst's unsimulated bounds reaching the world origin.</summary>
+        public bool Ready => _ready;
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
         //  PUBLIC SURFACE — everything the UI is allowed to touch
@@ -862,6 +910,7 @@ namespace Game.Gameplay
             if (_routes != null) _routes.Rebase(_islandRoot);
             _phases = _islandRoot.GetComponent<Kayseri.Island.IslandPhaseController>();
             if (Authored) PrepareAuthoredIsland();
+            if (Authored) ClipPavementOverRoads();
 
             _mountain = Child(_islandRoot, mineObjectName);
             _ghostMine = Child(_islandRoot, "ghost_mine");
@@ -962,6 +1011,10 @@ namespace Game.Gameplay
             BuildTruckAgents();
             if (Authored) PruneUnusedVehicles();
             BuildSiteDressing();     // needs the rail paths the trains just resolved
+            // The authored map's own harbour life. BuildSiteDressing builds the generated
+            // island's shuttle and returns early here, so this is the only thing that moves
+            // water-side on coal and copper.
+            if (Authored) BuildVoyages();
             if (Authored)
             {
                 AuthoredTunnel(_train1, "1"); AuthoredTunnel(_train2, "2");
@@ -1216,10 +1269,23 @@ namespace Game.Gameplay
                 // Capture the upright pose before anything drives these. Pitch and roll are the
                 // Z-up -> Y-up conversion and belong to the model; the yaw is only where the
                 // generator happened to park it, and gets replaced by the heading each frame.
+                //
+                // The yaw is removed as the rotation about WORLD Y (swing-twist), not by zeroing
+                // the Euler y term: at -90 pitch the Euler decomposition is degenerate, and on
+                // the iron island the parked yaw came back as ROLL — which poisoned this pose,
+                // faced the whole fleet backwards and laid every load ACROSS its truck. On a
+                // vehicle parked with no yaw (coal) the twist is identity and nothing changes.
                 if (move.Count > 0)
                 {
-                    Vector3 e = move[0].localRotation.eulerAngles;
-                    _vehicleBaseRot = Quaternion.Euler(e.x, 0f, e.z);
+                    Quaternion q = move[0].localRotation;
+                    var twist = new Quaternion(0f, q.y, 0f, q.w);
+                    float tm = Mathf.Sqrt(twist.y * twist.y + twist.w * twist.w);
+                    if (tm > 1e-4f)
+                    {
+                        twist.y /= tm; twist.w /= tm;
+                        _vehicleBaseRot = Quaternion.Inverse(twist) * q;
+                    }
+                    else _vehicleBaseRot = q;
                 }
 
                 for (int i = 0; i < move.Count; i++) move[i].SetParent(_islandRoot, true);
@@ -1243,6 +1309,128 @@ namespace Game.Gameplay
             // way to the shed, and the old offset laid the waiting bay straight across the track, so
             // the next truck up for sale stood parked on the rails.
             EnsureAnchor("waiting ore trucks wait here", "depot", new Vector3(14f, 0f, 16f));
+        }
+
+        /// <summary>
+        /// Cuts the authored pavement out of the carriageways.
+        ///
+        /// The exporter draws each road's shoulders, kerbs and walkway strips the full length
+        /// of the road, so wherever two roads cross, each one's pavement runs straight across
+        /// the other's asphalt — pale slabs through every junction. The routes file already
+        /// describes every carriageway (centreline plus width), so this drops each pavement
+        /// triangle whose centre lies inside one, leaving clean asphalt at the crossings. A
+        /// strip never falls inside its OWN road — it runs alongside, past the half-width — so
+        /// no ownership bookkeeping is needed.
+        ///
+        /// Runs over every phase root, live or not: the phases swap districts as the island
+        /// grows, and a junction cleaned only on phase 1 would grow its slabs back at phase 2.
+        /// </summary>
+        private void ClipPavementOverRoads()
+        {
+            var lines = new List<Vector3[]>();
+            var halfW = new List<float>();
+            if (_routes.paths != null)
+                for (int i = 0; i < _routes.paths.Length; i++)
+                {
+                    var p = _routes.paths[i];
+                    if (p == null || p.width <= 0f || p.points == null || p.points.Length < 2) continue;
+                    var pts = new Vector3[p.points.Length];
+                    for (int k = 0; k < pts.Length; k++) pts[k] = p.points[k].ToVector3();
+                    lines.Add(pts);
+                    halfW.Add(p.width * 0.5f - 0.6f);   // margin spares the strip's own edge stones
+                }
+            if (lines.Count == 0) return;
+
+            foreach (Transform phase in _islandRoot)
+            {
+                if (!phase.name.StartsWith("Island_Phase")) continue;
+                Transform roads = phase.Find("Roads");
+                if (roads == null) continue;
+                foreach (Transform piece in roads)
+                {
+                    string n = piece.name;
+                    if (!n.StartsWith("Walk") && !n.StartsWith("Kerb") && !n.Contains(".shoulder")) continue;
+                    var filters = piece.GetComponentsInChildren<MeshFilter>(true);
+                    for (int f = 0; f < filters.Length; f++) ClipMesh(filters[f], lines, halfW);
+                }
+            }
+        }
+
+        private static void ClipMesh(MeshFilter filter, List<Vector3[]> lines, List<float> halfW)
+        {
+            Mesh src = filter.sharedMesh;
+            if (src == null) return;
+            if (!src.isReadable)
+            {
+                Debug.LogWarning("[Island] Pavement mesh '" + src.name +
+                                 "' is not readable — cannot clip it out of the junctions.", filter);
+                return;
+            }
+
+            // Only the road stretches this strip actually reaches: prefiltering by the strip's
+            // bounds keeps the triangle test to a handful of segments instead of the whole map.
+            var rend = filter.GetComponent<Renderer>();
+            Bounds wb = rend != null ? rend.bounds
+                : new Bounds(filter.transform.TransformPoint(src.bounds.center), src.bounds.size);
+            var segs = new List<Vector4>();
+            var segHalf = new List<float>();
+            for (int l = 0; l < lines.Count; l++)
+            {
+                Vector3[] pts = lines[l];
+                float h = halfW[l];
+                for (int i = 1; i < pts.Length; i++)
+                {
+                    float minX = Mathf.Min(pts[i - 1].x, pts[i].x) - h, maxX = Mathf.Max(pts[i - 1].x, pts[i].x) + h;
+                    float minZ = Mathf.Min(pts[i - 1].z, pts[i].z) - h, maxZ = Mathf.Max(pts[i - 1].z, pts[i].z) + h;
+                    if (maxX < wb.min.x || minX > wb.max.x || maxZ < wb.min.z || minZ > wb.max.z) continue;
+                    segs.Add(new Vector4(pts[i - 1].x, pts[i - 1].z, pts[i].x, pts[i].z));
+                    segHalf.Add(h);
+                }
+            }
+            if (segs.Count == 0) return;
+
+            Matrix4x4 toWorld = filter.transform.localToWorldMatrix;
+            Vector3[] verts = src.vertices;
+            int sub = src.subMeshCount;
+            var kept = new List<int>[sub];
+            bool changed = false;
+            for (int m = 0; m < sub; m++)
+            {
+                int[] tris = src.GetTriangles(m);
+                var keep = new List<int>(tris.Length);
+                for (int t = 0; t < tris.Length; t += 3)
+                {
+                    Vector3 c = (toWorld.MultiplyPoint3x4(verts[tris[t]])
+                               + toWorld.MultiplyPoint3x4(verts[tris[t + 1]])
+                               + toWorld.MultiplyPoint3x4(verts[tris[t + 2]])) / 3f;
+                    if (InsideRoad(c, segs, segHalf)) { changed = true; continue; }
+                    keep.Add(tris[t]); keep.Add(tris[t + 1]); keep.Add(tris[t + 2]);
+                }
+                kept[m] = keep;
+            }
+            if (!changed) return;
+
+            Mesh cut = Instantiate(src);
+            cut.name = src.name + "_clip";
+            for (int m = 0; m < sub; m++) cut.SetTriangles(kept[m], m);
+            filter.sharedMesh = cut;
+        }
+
+        /// <summary>Whether the point stands on any carriageway: within half-width of a centreline, in XZ.</summary>
+        private static bool InsideRoad(Vector3 c, List<Vector4> segs, List<float> segHalf)
+        {
+            for (int s = 0; s < segs.Count; s++)
+            {
+                Vector4 sg = segs[s];
+                float dx = sg.z - sg.x, dz = sg.w - sg.y;
+                float len2 = dx * dx + dz * dz;
+                float t = len2 > 1e-6f ? ((c.x - sg.x) * dx + (c.z - sg.y) * dz) / len2 : 0f;
+                if (t < 0f) t = 0f; else if (t > 1f) t = 1f;
+                float px = sg.x + dx * t - c.x, pz = sg.y + dz * t - c.z;
+                float h = segHalf[s];
+                if (px * px + pz * pz < h * h) return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -1541,6 +1729,10 @@ namespace Game.Gameplay
         private Mesh EmptyHopper(Mesh full)
         {
             if (full == null || full.subMeshCount < 2) return null;
+            // Reading vertices needs Read/Write enabled on the import. The authored Vehicles FBXs
+            // have it; the generated islands' big combined meshes deliberately do not (it doubles
+            // their memory), and their wagons have nothing to strip anyway — skip, don't error.
+            if (!full.isReadable) return null;
             Vector3 up = Quaternion.Inverse(_vehicleBaseRot) * Vector3.up;
             Vector3[] verts = full.vertices;
             float lo = float.MaxValue, hi = float.MinValue;
@@ -1591,19 +1783,27 @@ namespace Game.Gameplay
                 Route route = (Route)li;   // BuildRoadLoops emits exactly one loop per route, in Route order
                 Vector3 srcPos = route == Route.Ore ? _orePile.position : _refinedPile.position;
                 Vector3 dstPos = route == Route.Ore ? _refinery.position : route == Route.Market ? _market.position : _dock.position;
+                // Direction first, then shape, then index. The lane offset is taken to the RIGHT
+                // of travel, so it has to know which way the loop runs before it can pick a side;
+                // and the fillet inserts points, so any index taken before it would afterwards
+                // point at a different place on the road.
+                {
+                    int n0 = loop.Count;
+                    int l0 = NearestIndex(loop, srcPos), d0 = NearestIndex(loop, dstPos);
+                    // One-way: drive the short way from pickup to drop-off. Only for the
+                    // synthesised oval — an authored circuit already runs the direction it was
+                    // built to run, and the two disagree. AuthoredCircuit puts the loaded leg on
+                    // the arterial through the crossroads and sends the empty truck home round
+                    // the ring, which is 51% of the circuit by point count, so this flipped it
+                    // and drove the ring loaded.
+                    if (!Authored && ((d0 - l0 + n0) % n0) > n0 / 2) loop.Reverse();
+                }
+                ShiftIntoLane(loop);
+                FilletCorners(loop);
+
                 int load = NearestIndex(loop, srcPos);
                 int drop = NearestIndex(loop, dstPos);
                 int n = loop.Count;
-                // One-way: drive the short way from pickup to drop-off. Only for the synthesised
-                // oval — an authored circuit already runs the direction it was built to run, and
-                // the two disagree. AuthoredCircuit puts the loaded leg on the arterial through
-                // the crossroads and sends the empty truck home round the ring, which is 51% of
-                // the circuit by point count, so this flipped it and drove the ring loaded.
-                if (!Authored && ((drop - load + n) % n) > n / 2)
-                {
-                    loop.Reverse();
-                    load = n - 1 - load; drop = n - 1 - drop;
-                }
                 int idle = route == Route.Ore && _waitSpot != null && MinSqrXZ(loop, _waitSpot.position) < 400f ? NearestIndex(loop, _waitSpot.position) : load;
 
                 // parking-lot bay row for locked trucks: at the wait marker if this loop has one,
@@ -1717,6 +1917,108 @@ namespace Game.Gameplay
             for (int i = 0; i < _agents.Length; i++) _agents[i].idx = i;
             if (_agents.Length == 0) Debug.LogWarning("CoalOperation: no trucks found on any road loop.");
         }
+
+        /// <summary>
+        /// Shifts a driving loop into the right-hand lane of the road it follows.
+        ///
+        /// Every authored route is built on the road CENTRELINE, and the routes overlap: the
+        /// ore run and the cargo run share the arterial between the crossroads and the
+        /// refinery, in opposite directions, and each route retraces part of its own outward
+        /// leg on the way home. Driven down the middle they meet head-on and pass straight
+        /// through each other — which the follow-gap rule cannot help with, because it
+        /// compares distances around one loop and two trucks on different loops have no
+        /// common measure.
+        ///
+        /// Offsetting to the right of travel solves it geometrically instead: opposing flows
+        /// end up on opposite sides of the same tarmac, exactly like the parked traffic the
+        /// generator lays down, and where a route doubles back on itself the outward and
+        /// return legs separate for free.
+        ///
+        /// The shift is taken along the AVERAGE of the incoming and outgoing directions, so
+        /// a corner keeps its offset through the turn rather than cutting it.
+        /// </summary>
+        private void ShiftIntoLane(List<Vector3> loop)
+        {
+            int n = loop.Count;
+            if (n < 3 || routeLaneWidth <= 0f) return;
+            float lane = routeLaneWidth * 0.5f;
+
+            // Read from a copy: offsetting in place would measure the next point's tangent
+            // against a point that has already moved.
+            if (_laneScratch == null || _laneScratch.Length < n) _laneScratch = new Vector3[n];
+            for (int i = 0; i < n; i++) _laneScratch[i] = loop[i];
+
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 into = Flat(_laneScratch[i] - _laneScratch[(i - 1 + n) % n]);
+                Vector3 outof = Flat(_laneScratch[(i + 1) % n] - _laneScratch[i]);
+                if (into.sqrMagnitude > 1e-6f) into.Normalize();
+                if (outof.sqrMagnitude > 1e-6f) outof.Normalize();
+                Vector3 d = into + outof;
+                // A hairpin — the quay road is retraced end to end — cancels the average out.
+                // The leg being driven INTO is the one that decides the side there.
+                if (d.sqrMagnitude < 1e-4f) d = outof;
+                if (d.sqrMagnitude < 1e-6f) continue;
+                d.Normalize();
+                Vector3 p = loop[i];
+                loop[i] = new Vector3(p.x + d.z * lane, p.y, p.z - d.x * lane);
+            }
+        }
+        private Vector3[] _laneScratch;
+
+        /// <summary>
+        /// Rounds the sharp vertices of a driving loop into short arcs.
+        ///
+        /// The routes are built from road centrelines that meet at right angles — the arterials
+        /// cross the ring square on, and a circuit turns through 90 degrees at every junction.
+        /// A truck arriving at a bare vertex has nothing to follow but the corner itself, so it
+        /// reaches the point and pivots on the spot: the steering can be smoothed all it likes,
+        /// but the PATH still has a kink in it, and while the body swings round it sweeps into
+        /// the lane beside it.
+        ///
+        /// Replacing each corner with a quadratic through the vertex gives the truck an arc to
+        /// drive instead. It also barely changes the loop's length — a 90-degree corner cut at
+        /// this radius is about 4 metres shorter than the two legs it replaces, against loops of
+        /// 600-plus — so the measured income curve still describes the same island.
+        /// </summary>
+        private void FilletCorners(List<Vector3> loop)
+        {
+            int n = loop.Count;
+            if (n < 3 || cornerRadius <= 0f) return;
+            if (_filletScratch == null) _filletScratch = new List<Vector3>(n * 2);
+            _filletScratch.Clear();
+
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 prev = loop[(i - 1 + n) % n], here = loop[i], next = loop[(i + 1) % n];
+                Vector3 a = Flat(prev - here), b = Flat(next - here);
+                float la = a.magnitude, lb = b.magnitude;
+                if (la < 0.01f || lb < 0.01f) { _filletScratch.Add(here); continue; }
+                a /= la; b /= lb;
+
+                // Straight enough to leave alone. Rounding every point would turn the ring road,
+                // which is already 16 short segments, into a mush of interpolation.
+                float turn = Vector3.Angle(-a, b);
+                if (turn < cornerMinAngle) { _filletScratch.Add(here); continue; }
+
+                // Never eat more than half a leg, or two neighbouring fillets overlap and the
+                // road folds back on itself.
+                float d = Mathf.Min(cornerRadius, la * 0.5f, lb * 0.5f);
+                Vector3 p0 = here + a * d, p2 = here + b * d;
+                for (int s = 0; s <= CornerSteps; s++)
+                {
+                    float t = s / (float)CornerSteps;
+                    float u = 1f - t;
+                    _filletScratch.Add(u * u * p0 + 2f * u * t * here + t * t * p2);
+                }
+            }
+            loop.Clear();
+            loop.AddRange(_filletScratch);
+        }
+        private List<Vector3> _filletScratch;
+        // 6 rather than 4: at the wider corner radius a 4-step arc still read as a chain of
+        // short straights, and the body visibly re-aimed at each one instead of sweeping.
+        private const int CornerSteps = 6;
 
         /// <summary>Active trucks drive; the next locked truck sits ghosted in the parking bay; the rest hide.</summary>
         private void ApplyFleetStates()
@@ -1876,26 +2178,42 @@ namespace Game.Gameplay
         /// </summary>
         private List<Vector3> AuthoredCircuit(RoadLink a, RoadLink b)
         {
-            var ring = AuthoredRing();
             var artA = _routes.GetPath(a.Artery);
             var artB = _routes.GetPath(b.Artery);
-            if (ring == null || ring.Count < 6 || artA == null || artB == null) return null;
+            if (artA == null || artB == null) return null;
 
-            Vector3 centre, ancA, ancB, meetA, meetB;
+            Vector3 centre, ancA, ancB;
             if (!_routes.TryGetAnchor("center", out centre)) return null;
             if (!_routes.TryGetAnchor(a.Anchor, out ancA)) return null;
             if (!_routes.TryGetAnchor(b.Anchor, out ancB)) return null;
-            if (!RingMeet(ancA, out meetA)) return null;
-            if (!RingMeet(ancB, out meetB)) return null;
 
             var path = new List<Vector3>(256);
             // Loaded run: A's yard, in to the crossroads, out to B's yard.
             Append(path, Sub(artA, ancA, centre));
             Append(path, Sub(artB, centre, ancB));
-            // Home the long way: back down B's arterial to the ring, round it, and up A's.
-            Append(path, Sub(artB, ancB, meetB));
-            Append(path, RingArc(ring, meetB, meetA));
-            Append(path, Sub(artA, meetA, ancA));
+
+            // Home. An island with a ring road sends the empty truck the long way round the
+            // outside, which is what makes the ring something every truck laps rather than
+            // scenery.
+            var ring = AuthoredRing();
+            Vector3 meetA, meetB;
+            if (ring != null && ring.Count >= 6 && RingMeet(ancA, out meetA) && RingMeet(ancB, out meetB))
+            {
+                Append(path, Sub(artB, ancB, meetB));
+                Append(path, RingArc(ring, meetB, meetA));
+                Append(path, Sub(artA, meetA, ancA));
+            }
+            else
+            {
+                // An island whose roads form a TREE has no outside to go round — see the iron
+                // island, which is a gearshift gate with a turning head on every dead end. It
+                // retraces instead, exactly as the harbour run already does: ShiftIntoLane
+                // offsets to the RIGHT of travel, so the empty leg comes home on the far side
+                // of the same two-lane carriageway, and the reversal at each end is the
+                // hairpin that method already handles.
+                Append(path, Sub(artB, ancB, centre));
+                Append(path, Sub(artA, centre, ancA));
+            }
             return path.Count >= 8 ? path : null;
         }
 
@@ -1953,9 +2271,24 @@ namespace Game.Gameplay
             int n = ring.Count;
             int i0 = NearestIndex(ring, from), i1 = NearestIndex(ring, to);
             var arc = new List<Vector3>();
+            // ALWAYS FORWARD, never "whichever way is shorter".
+            //
+            // A ring road is lapped in ONE direction by everything that uses it. This used to
+            // take the short way round, which was invisible on coal and copper because their
+            // ring is a circle with its four junctions at exactly 90 degrees: opposite meets are
+            // half the ring either way, the tie resolved forward, and every truck happened to lap
+            // it counter-clockwise.
+            //
+            // The iron ring is an irregular circuit — its four junctions sit at 76, 63, 65 and 54
+            // out — so "shorter" resolves differently per route: the mine-refinery run came back
+            // clockwise and the depot-market run counter-clockwise. ShiftIntoLane offsets to the
+            // right of travel, so the two laps ended up on opposite sides of the same tarmac,
+            // driving head-on. Forward for everyone keeps them in one stream.
+            //
+            // Coal and copper are unchanged by this: their arcs are exact ties, and a tie already
+            // resolved forward.
             int fwd = (i1 - i0 + n) % n;
-            if (fwd <= n - fwd) for (int k = 0; k <= fwd; k++) arc.Add(ring[(i0 + k) % n]);
-            else for (int k = 0; k <= n - fwd; k++) arc.Add(ring[(i0 - k + n) % n]);
+            for (int k = 0; k <= fwd; k++) arc.Add(ring[(i0 + k) % n]);
             return arc;
         }
 
@@ -2183,6 +2516,44 @@ namespace Game.Gameplay
             return best;
         }
 
+        /// <summary>
+        /// How far the road ahead is clear of trucks on OTHER routes, in metres.
+        ///
+        /// <see cref="GapAhead"/> only compares trucks around one loop, because that is the
+        /// only place an arc distance means anything. But the routes share tarmac — the ore
+        /// run and the cargo run both use the arterial out to the refinery — and lanes only
+        /// separate traffic going opposite ways. Two trucks travelling the SAME way on the
+        /// same lane still have to queue, and this is what makes them.
+        ///
+        /// Measured as a forward projection with a lateral cut-off, so a truck in the other
+        /// lane or on the crossing arterial does not brake anyone. Costs one pass over the
+        /// fleet: about fifteen bodies, no allocation.
+        /// </summary>
+        private float CrossRouteGap(TruckAgent a, Vector3 pos, Vector3 dir)
+        {
+            if (_agents == null || dir.sqrMagnitude < 1e-6f) return float.MaxValue;
+            float best = float.MaxValue;
+            float halfLane = routeLaneWidth * 0.5f;
+            for (int i = 0; i < _agents.Length; i++)
+            {
+                TruckAgent o = _agents[i];
+                if (i == a.idx || o.route == a.route || !o.active || o.body == null) continue;
+                Vector3 to = Flat(o.body.position - pos);
+                float along = Vector3.Dot(to, dir);
+                if (along <= 0f || along >= best) continue;
+                if ((to - dir * along).sqrMagnitude > halfLane * halfLane) continue;
+                // Queue only behind a truck driving broadly the SAME way — that is the situation
+                // this method exists for. An oncoming truck is passing in its own lane, and braking
+                // for it is how the iron island's ore and cargo leads ended up nose to nose, each
+                // waiting for the other, with both fleets gridlocked behind them for good.
+                Vector3 oHead = Flat(o.loop[o.wp] - o.body.position);
+                if (oHead.sqrMagnitude < 1e-4f) oHead = Flat(o.loop[(o.wp + 1) % o.loop.Length] - o.body.position);
+                if (oHead.sqrMagnitude >= 1e-4f && Vector3.Dot(oHead.normalized, dir) < 0.5f) continue;
+                best = along;
+            }
+            return best;
+        }
+
         /// <summary>Advances a truck forward around its loop toward the stop point. True on arrival.</summary>
         private bool DriveLoop(TruckAgent a, int stopIdx, float dt)
         {
@@ -2190,7 +2561,25 @@ namespace Game.Gameplay
             Vector3 dir = a.body.forward;
             float budget = (a.route == Route.Ore ? EffOreSpeed : EffCargoSpeed) * dt;
             float room = GapAhead(a) - truckFollowGap;
+            // The look-ahead direction is where the truck is DRIVING, read off the route. The body's
+            // forward axis is not that: an authored vehicle's transform carries the mesh's Z-up import
+            // pose, so its forward points near-vertical, and the sliver that survives Flat() can face
+            // anywhere — on the iron island it faced backwards, every lead truck braked for a queue
+            // BEHIND it, and both fleets gridlocked for good the moment they grew past two trucks.
+            Vector3 heading = Flat(a.loop[a.wp] - pos);
+            if (heading.sqrMagnitude < 1e-4f) heading = Flat(a.loop[(a.wp + 1) % a.loop.Length] - pos);
+            float cross = CrossRouteGap(a, pos, heading.normalized) - truckFollowGap;
+            // A cross-route wait can deadlock where two routes' stops share a yard corner: the
+            // gold island parks its bars pickup beside the ore drop, the two leads converged
+            // nose-to-nose at the corner, each read the other as traffic ahead, and both fleets
+            // stood for good. Same-route gaps cannot cycle (one loop, ordered arcs) but
+            // cross-route ones can, so a truck that a cross wait has held STILL for a few
+            // seconds stops honouring it and drives through — a moment of overlap on a yard
+            // corner reads far better than a dead island.
+            bool crossBinding = cross < room;
+            if (crossBinding && a.crossStall < 4f) room = cross;
             if (room < budget) budget = room > 0f ? room : 0f;
+            if (crossBinding && budget <= 0f) a.crossStall += dt; else a.crossStall = 0f;
             bool arrived = false;
             int guard = a.loop.Length + 2;
             while (budget > 0f && guard-- > 0)
@@ -2221,10 +2610,18 @@ namespace Game.Gameplay
             // Aim down the road rather than at the vertex being driven to, then turn toward it at a
             // fixed rate. Snapping straight to the segment direction spun the body 90 degrees in one
             // frame at every junction.
-            Vector3 aim = LoopLookAhead(a, pos, vehicleLookAhead);
+            // Look further down the road the faster the truck is going, so it starts its turn at
+            // the same DISTANCE from a corner whatever its speed - a fixed look-ahead makes a
+            // fully upgraded fleet corner much later than a starter one.
+            float speed = a.route == Route.Ore ? EffOreSpeed : EffCargoSpeed;
+            Vector3 aim = LoopLookAhead(a, pos, vehicleLookAhead + speed * lookAheadPerSpeed);
             if (aim.sqrMagnitude > 1e-4f) dir = aim.normalized;
+            // Following a fillet of radius r at speed v needs v/r of yaw per second, and the
+            // authored rate stops being enough once the speed upgrades pass it — a maxed fleet
+            // out-drives 170°/s and slid through corners half sideways, straightening late.
+            float turn = Mathf.Max(vehicleTurnRate, Mathf.Rad2Deg * speed / Mathf.Max(1f, cornerRadius));
             a.body.rotation = Quaternion.RotateTowards(a.body.rotation, VehicleFacing(dir),
-                                                       vehicleTurnRate * dt);
+                                                       turn * dt);
             return arrived;
         }
 
@@ -3828,6 +4225,109 @@ namespace Game.Gameplay
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
+        /// <summary>
+        /// Puts every authored "Port.ShipOut" on the island's shipping lane.
+        ///
+        /// One per phase root, because the phases are separate models and only one is ever
+        /// enabled; the hidden ones cost two transform writes a frame and keep their voyage in
+        /// step, so switching phase never shows a ship that has drifted somewhere else.
+        /// </summary>
+        private void BuildVoyages()
+        {
+            if (_routes == null) return;
+            Vector3[] lane = _routes.GetPath("shipLane");
+            if (lane == null || lane.Length < 2) return;
+
+            var hulls = _islandRoot.GetComponentsInChildren<Transform>(true);
+            int k = 0;
+            for (int i = 0; i < hulls.Length; i++)
+            {
+                if (hulls[i].name != "Port.ShipOut") continue;
+                Transform smoke = null;
+                Transform parent = hulls[i].parent;
+                if (parent != null) smoke = Child(parent, "Port.ShipSmoke");
+
+                var v = new Voyage
+                {
+                    hull = hulls[i],
+                    smoke = smoke,
+                    lane = lane,
+                    dir = 1,
+                    // The lane is authored FROM the ship's modelled berth outward, so distance
+                    // zero is exactly where the artist parked it and nothing jumps on the first
+                    // frame. The height comes from the hull, not the lane: the lane rides the
+                    // waterline and the hull sits in it.
+                    dist = 0f,
+                    baseY = hulls[i].position.y,
+                    bob = k * 1.7f,
+                    dwell = shipPortDwell,
+                };
+                if (smoke != null) v.smokeLocal = hulls[i].InverseTransformPoint(smoke.position);
+
+                v.cum = new float[lane.Length];
+                for (int p = 1; p < lane.Length; p++)
+                    v.cum[p] = v.cum[p - 1] + Flat(lane[p] - lane[p - 1]).magnitude;
+                v.len = v.cum[lane.Length - 1];
+                if (v.len < 1f) continue;
+
+                // The ship is parked at distance zero facing however the artist berthed it, and
+                // the lane's first stretch is the direction it sails out. The difference between
+                // the two IS the mesh's pose correction — measured, not configured, so it is
+                // right on every island without a per-island yaw in the Inspector.
+                Vector3 head0 = Vector3.zero;
+                for (int p = 1; p < lane.Length && head0.sqrMagnitude < 1e-4f; p++)
+                    head0 = Flat(lane[p] - lane[p - 1]);
+                if (head0.sqrMagnitude > 1e-4f)
+                    v.poseOffset = Quaternion.Inverse(Quaternion.LookRotation(head0.normalized, Vector3.up))
+                                 * hulls[i].rotation;
+
+                _voyages.Add(v);
+                k++;
+            }
+        }
+
+        /// <summary>Position and heading <paramref name="d"/> metres along a voyage's lane.</summary>
+        private static Vector3 LanePoint(Voyage v, float d, out Vector3 tangent)
+        {
+            int i = 1;
+            while (i < v.cum.Length - 1 && v.cum[i] < d) i++;
+            float seg = v.cum[i] - v.cum[i - 1];
+            float t = seg > 1e-4f ? (d - v.cum[i - 1]) / seg : 0f;
+            tangent = Flat(v.lane[i] - v.lane[i - 1]);
+            return Vector3.Lerp(v.lane[i - 1], v.lane[i], Mathf.Clamp01(t));
+        }
+
+        /// <summary>Sails each voyage out past the edge of the map and back again.</summary>
+        private void TickVoyages(float dt)
+        {
+            for (int i = 0; i < _voyages.Count; i++)
+            {
+                Voyage v = _voyages[i];
+                if (v.hull == null) continue;
+                if (v.dwell > 0f) v.dwell -= dt;
+                else
+                {
+                    v.dist += shipSpeed * dt * v.dir;
+                    if (v.dist >= v.len) { v.dist = v.len; v.dir = -1; v.dwell = shipSeaDwell; }
+                    else if (v.dist <= 0f) { v.dist = 0f; v.dir = 1; v.dwell = shipPortDwell; }
+                }
+
+                Vector3 tangent;
+                Vector3 p = LanePoint(v, v.dist, out tangent);
+                p.y = v.baseY + Mathf.Sin(Time.time * 0.7f + v.bob) * 0.18f;
+                v.hull.position = p;
+
+                Vector3 head = tangent * v.dir;
+                // Turned into rather than snapped, so the moment it puts about at either end
+                // reads as a ship coming round rather than one flipping on the spot.
+                if (v.dwell <= 0f && head.sqrMagnitude > 1e-4f)
+                    v.hull.rotation = Quaternion.Slerp(v.hull.rotation,
+                        Quaternion.LookRotation(head.normalized, Vector3.up)
+                            * Quaternion.Euler(0f, shipYawOffset, 0f) * v.poseOffset, dt * 0.8f);
+                if (v.smoke != null) v.smoke.position = v.hull.TransformPoint(v.smokeLocal);
+            }
+        }
+
         /// <summary>Advances the harbour ships: sail, dwell, turn, with a slow bob so they sit in water.</summary>
         private void TickShips(float dt)
         {
@@ -4151,6 +4651,27 @@ namespace Game.Gameplay
             _life = new SiteLife(_islandRoot, workerPrefab, smokePuffPrefab, smoke,
                                  patrol, chimney, _deckY, workerScale,
                                  maxWorkers, maxSmokePuffs, smokePuffLife, smokePuffRise, smokePuffSpread);
+            // The crew gives way to the fleet. Assigned once, so the per-frame check costs a
+            // delegate call and no allocation.
+            _life.Hazard = TrafficNear;
+        }
+
+        /// <summary>
+        /// Whether a truck is close enough to <paramref name="p"/> that a worker should let it
+        /// pass. Trucks only ever exist on roads, so this is true exactly at the crossings and
+        /// nowhere else — no crossing list to author or keep in step with the map.
+        /// </summary>
+        private bool TrafficNear(Vector3 p)
+        {
+            if (_agents == null) return false;
+            float r2 = pedestrianClearance * pedestrianClearance;
+            for (int i = 0; i < _agents.Length; i++)
+            {
+                TruckAgent a = _agents[i];
+                if (!a.active || a.body == null) continue;
+                if (Flat(a.body.position - p).sqrMagnitude < r2) return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -4198,6 +4719,7 @@ namespace Game.Gameplay
             float rate = _smeltGlow > 0f ? Mathf.Clamp(EffSmelt * 0.55f, 0.8f, 6f) : 0f;
             _life.Tick(dt, rate);
             TickShips(dt);
+            TickVoyages(dt);
         }
 
         // ---------------- upgrade feedback ----------------

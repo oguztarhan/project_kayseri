@@ -110,14 +110,43 @@ def carriageway(pts, w, name, z=Z_ROAD):
                  dirt_colour if PHASE == 1 else asphalt_colour)
 
 
-roads = [(L.ROAD_X, MAIN_W, "Road.X"), (L.ROAD_Y, MAIN_W, "Road.Y"),
-         (L.LOOP_C, LOOP_W, "Road.Loop")]
+# Every road except the ring stops at the works gates - see geom.gates. The
+# ring passes nothing: it is 29 clear of the closest town yard on either island.
+# Trimming it would also break its one property nothing else has, being closed.
+def gated(pts):
+    return L.trim_zones(pts, L.GATES)
+
+
+RUN_X = L.trim_arterial(L.ROAD_X, L.GATES)
+RUN_Y = L.trim_arterial(L.ROAD_Y, L.GATES)
+
+# The tarmac comes from the island's own list, not from the two route paths -
+# see CARRIAGEWAYS in isle_*.py. RUN_X and RUN_Y are still wanted below for the
+# markings and the pavement, which follow the arterials specifically.
+_WIDTH = {"main": MAIN_W, "loop": LOOP_W, "spur": SPUR_W}
+_TRIM = {"arterial": lambda p: L.trim_arterial(p, L.GATES),
+         "gated": lambda p: L.trim_zones(p, L.GATES),
+         "none": lambda p: [p]}
+roads = []
+for _pts, _wk, _name, _mode in L.CARRIAGEWAYS:
+    roads += [(run, _WIDTH[_wk], _name) for run in _TRIM[_mode](_pts)]
 for pts, name in L.SPURS:
     # site spurs only exist once that site is unlocked
     need = {"Spur.Quarry": 2, "Spur.Store": 2, "Spur.Plant": 3}.get(name, 1)
     if PHASE >= need:
-        roads.append((pts, SPUR_W, name))
-roads.append((L.PORT_ROAD, PK(8.0, 10.0, 12.0), "Road.Port"))
+        roads += [(run, SPUR_W, name) for run in gated(pts)]
+roads += [(run, PK(8.0, 10.0, 12.0), "Road.Port") for run in gated(L.PORT_ROAD)]
+
+# Turning heads. Deliberately NOT gated: each one is already placed to finish on
+# the town side of its works gate, and trimming it against that same zone would
+# cut the far half off the circle and leave a road ending in a "C".
+#
+# A head only appears once the road it belongs to does - Head.Quarry with
+# Spur.Quarry - so an unlocked site does not get a disc of tarmac in the grass.
+_NEED = {"Head.Quarry": 2, "Head.Store": 2, "Head.Plant": 3}
+roads += [(pts, SPUR_W, name) for pts, name in L.HEADS
+          if PHASE >= _NEED.get(name, 1)]
+
 for pts, w, name in roads:
     carriageway(pts, w, name)
 
@@ -130,38 +159,55 @@ for pts, w, name in roads:
 
 # -------------------------------------------------------------------- markings
 if MARKED:
-    def dashes(pts, spacing=10.0, ln=4.0, wd=0.5, skip=None):
+    def dashes(runs, spacing=10.0, ln=4.0, wd=0.5, skip=None):
         b = B()
-        for pos, yaw in scatter_along([(p[0], p[1], 0.0) for p in pts], spacing):
-            if skip and any(hypot(pos.x - c[0], pos.y - c[1]) < c[2] for c in skip):
-                continue
-            b.box((ln, wd, 0.04), (pos.x, pos.y, Z_MARK + GZ(pos.x, pos.y)),
-                  (0, pitch(pos.x, pos.y, yaw), yaw))
+        for pts in runs:
+            for pos, yaw in scatter_along([(p[0], p[1], 0.0) for p in pts], spacing):
+                if skip and any(hypot(pos.x - c[0], pos.y - c[1]) < c[2] for c in skip):
+                    continue
+                b.box((ln, wd, 0.04), (pos.x, pos.y, Z_MARK + GZ(pos.x, pos.y)),
+                      (0, pitch(pos.x, pos.y, yaw), yaw))
         return b
 
-    def edgelines(pts, w, name):
-        p3 = [(p[0], p[1], 0.0) for p in pts]
-        for s in (1, -1):
-            off = []
-            for pos, yaw in sample_bez(p3, max(8, len(p3) * 16)):
-                nx, ny = -sin(yaw), cos(yaw)
-                off.append((pos.x + nx * s * (w * 0.5 - 0.9),
-                            pos.y + ny * s * (w * 0.5 - 0.9), 0.0))
-            strip(off, 0.42, z=Z_MARK, name=name + ".edge",
-                  material=mat("linepaint"), collection=CR, zfun=GZ)
+    def edgelines(runs, w, name):
+        for pts in runs:
+            p3 = [(p[0], p[1], 0.0) for p in pts]
+            for s in (1, -1):
+                off = []
+                for pos, yaw in sample_bez(p3, max(8, len(p3) * 16)):
+                    nx, ny = -sin(yaw), cos(yaw)
+                    off.append((pos.x + nx * s * (w * 0.5 - 0.9),
+                                pos.y + ny * s * (w * 0.5 - 0.9), 0.0))
+                strip(off, 0.42, z=Z_MARK, name=name + ".edge",
+                      material=mat("linepaint"), collection=CR, zfun=GZ)
 
     # No centre line through a junction.
     SKIP = [(0, 0, 19)] \
-        + [(L.LOOP_R * a, L.LOOP_R * b, 15) for a, b in ((1, 0), (-1, 0), (0, 1), (0, -1))] \
+        + [(mx, my, 15) for mx, my in L.LOOP_MEETS] \
         + [(p[0][0], p[0][1], 12) for p, n in L.SPURS if not n.startswith("Street.")] \
         + [(0, p[1][1], 12) for p, n in L.SPURS if n.startswith("Street.")]
 
-    dashes(L.ROAD_X, skip=SKIP).make("Mark.X", mat("linepaint"), CR)
-    dashes(L.ROAD_Y, skip=SKIP).make("Mark.Y", mat("linepaint"), CR)
-    dashes(L.LOOP_C, spacing=8.0, ln=3.0, skip=SKIP).make("Mark.Loop",
-                                                          mat("linepaint"), CR)
-    edgelines(L.ROAD_X, MAIN_W, "Road.X")
-    edgelines(L.ROAD_Y, MAIN_W, "Road.Y")
+    dashes(RUN_X, skip=SKIP).make("Mark.X", mat("linepaint"), CR)
+    dashes(RUN_Y, skip=SKIP).make("Mark.Y", mat("linepaint"), CR)
+    if L.LOOP_C:
+        dashes([L.LOOP_C], spacing=8.0, ln=3.0, skip=SKIP).make("Mark.Loop",
+                                                                mat("linepaint"), CR)
+    edgelines(RUN_X, MAIN_W, "Road.X")
+    edgelines(RUN_Y, MAIN_W, "Road.Y")
+
+    # Direction arrows on the one-way runs. Every other stretch of tarmac on the
+    # map carries both directions, so an arrow anywhere else would be noise -
+    # these mark the one place a driver has no choice, which is the mine.
+    for _pts, _name in L.ONEWAY:
+        ar = B().use("linepaint")
+        for pos, yaw in scatter_along([(p[0], p[1], 0.0) for p in _pts], 26.0):
+            ar.box((3.4, 0.55, 0.04), (pos.x, pos.y, Z_MARK + GZ(pos.x, pos.y)),
+                   (0, pitch(pos.x, pos.y, yaw), yaw))
+            hx, hy = pos.x + cos(yaw) * 1.15, pos.y + sin(yaw) * 1.15
+            for _s in (1, -1):
+                ar.box((2.0, 0.55, 0.04), (hx, hy, Z_MARK + GZ(hx, hy)),
+                       (0, pitch(hx, hy, yaw), yaw + _s * 0.62))
+        ar.make(_name, collection=CR)
 
 if PHASE >= 3:
     bx = B().use("linepaint")
@@ -174,7 +220,7 @@ if PHASE >= 3:
     bx.make("Crosswalk", collection=CR)
     # kerbstones along the main arterials
     kb = B().use("kerb")
-    for path in (L.ROAD_X, L.ROAD_Y):
+    for path in RUN_X + RUN_Y:
         p3 = [(p[0], p[1], 0.0) for p in path]
         for pos, yaw in scatter_along(p3, 5.0, offset=MAIN_W * 0.5 + 1.1,
                                       both=True):
@@ -205,34 +251,53 @@ strip([(p[0], p[1], 0.0) for p in L.FOOTPATH], PAVE_W, z=Z_PAVE,
 # out to the ring pavement; outside it they carry on to each district's gate.
 # Both stop short of the ring road itself - that crossing is a crosswalk, below.
 _off = MAIN_W * 0.5 + PAVE_W * 0.5 + 1.0
-_in0, _in1 = 20.0, L.LOOP_R - 8.0
-_out0, _out1 = L.LOOP_R + 8.0, 92.0
-for s in (1, -1):
-    for r0, r1, tag in ((_in0, _in1, "I"), (_out0, _out1, "O")):
-        strip([(r0, s * _off, 0.0), (r1, s * _off, 0.0)], PAVE_W, z=Z_PAVE,
-              name="Walk.XE" + tag, material=mat(PAVE), collection=CR, zfun=GZ)
-        strip([(-r1, s * _off, 0.0), (-r0, s * _off, 0.0)], PAVE_W, z=Z_PAVE,
-              name="Walk.XW" + tag, material=mat(PAVE), collection=CR, zfun=GZ)
-        strip([(s * _off, r0, 0.0), (s * _off, r1, 0.0)], PAVE_W, z=Z_PAVE,
-              name="Walk.YN" + tag, material=mat(PAVE), collection=CR, zfun=GZ)
-        strip([(s * _off, -r1, 0.0), (s * _off, -r0, 0.0)], PAVE_W, z=Z_PAVE,
-              name="Walk.YS" + tag, material=mat(PAVE), collection=CR, zfun=GZ)
 
-# Crossings where the footways meet the ring road, so the pavement visibly
-# continues over the tarmac instead of just stopping either side of it.
-if MARKED:
-    cw = B().use("linepaint")
-    for s in (1, -1):
-        for k in range(6):
-            o = s * _off - PAVE_W * 0.5 + 0.4 + k * (PAVE_W - 0.8) / 5.0
-            for a in (1, -1):
-                cw.box((LOOP_W + 3.0, 0.6, 0.05),
-                       (a * L.LOOP_R, o, Z_MARK + GZ(a * L.LOOP_R, o)),
-                       (0, pitch(a * L.LOOP_R, o, 0.0), 0.0))
-                cw.box((0.6, LOOP_W + 3.0, 0.05),
-                       (o, a * L.LOOP_R, Z_MARK + GZ(o, a * L.LOOP_R)),
-                       (0, pitch(o, a * L.LOOP_R, 1.5708), 1.5708))
-    cw.make("Walk.Crossings", collection=CR)
+if L.LOOP_C:
+    # Each arm meets the ring at its OWN distance out, so the footway is laid in
+    # two runs per side with a gap for the crossing.
+    _MEET = {"XE": L.LOOP_MEETS[0][0], "YN": L.LOOP_MEETS[1][1],
+             "XW": -L.LOOP_MEETS[2][0], "YS": -L.LOOP_MEETS[3][1]}
+
+    def footway(arm, r0, r1, tag, side):
+        """One run of pavement beside an arterial, on that arm own axis."""
+        if arm == "XE":
+            pts = [(r0, side * _off, 0.0), (r1, side * _off, 0.0)]
+        elif arm == "XW":
+            pts = [(-r1, side * _off, 0.0), (-r0, side * _off, 0.0)]
+        elif arm == "YN":
+            pts = [(side * _off, r0, 0.0), (side * _off, r1, 0.0)]
+        else:
+            pts = [(side * _off, -r1, 0.0), (side * _off, -r0, 0.0)]
+        strip(pts, PAVE_W, z=Z_PAVE, name="Walk." + arm + tag,
+              material=mat(PAVE), collection=CR, zfun=GZ)
+
+    for _side in (1, -1):
+        for _arm, _meet in _MEET.items():
+            footway(_arm, 20.0, _meet - 8.0, "I", _side)
+            footway(_arm, _meet + 8.0, 92.0, "O", _side)
+
+    # Crossings where the footways meet the ring road, so the pavement visibly
+    # continues over the tarmac instead of just stopping either side of it.
+    if MARKED:
+        cw = B().use("linepaint")
+        for s in (1, -1):
+            for k in range(6):
+                o = s * _off - PAVE_W * 0.5 + 0.4 + k * (PAVE_W - 0.8) / 5.0
+                for cx in (_MEET["XE"], -_MEET["XW"]):
+                    cw.box((LOOP_W + 3.0, 0.6, 0.05), (cx, o, Z_MARK + GZ(cx, o)),
+                           (0, pitch(cx, o, 0.0), 0.0))
+                for cy in (_MEET["YN"], -_MEET["YS"]):
+                    cw.box((0.6, LOOP_W + 3.0, 0.05), (o, cy, Z_MARK + GZ(o, cy)),
+                           (0, pitch(o, cy, 1.5708), 1.5708))
+        cw.make("Walk.Crossings", collection=CR)
+else:
+    # No ring, so no gap to leave and no crossing to paint: the pavement simply
+    # runs the length of both gates, offset either side of the carriageway.
+    for _i, _run in enumerate(RUN_X + RUN_Y):
+        for _s in (1, -1):
+            strip([(p[0], p[1], 0.0) for p in L.offset_open(_run, _s * _off)],
+                  PAVE_W, z=Z_PAVE, name="Walk.Gate%d" % _i,
+                  material=mat(PAVE), collection=CR, zfun=GZ)
 
 if PHASE >= 2:
     kb = B().use("kerb")

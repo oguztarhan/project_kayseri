@@ -37,6 +37,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: brick
+    second: {fileID: 2100000, guid: 8d477dc8bc4fa43dca80fa9c09710235, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: bush
     second: {fileID: 2100000, guid: 32d8848c17e3940edb57ffe565000374, type: 2}
   - first:
@@ -82,8 +87,18 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: copper_plate
+    second: {fileID: 2100000, guid: b9a02141234d94469b149c1034772731, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: cream
     second: {fileID: 2100000, guid: 2e3a2bd9af49244b581aaef41e0605ef, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: crust
+    second: {fileID: 2100000, guid: 9466268df8fd04156b27cce3585e6694, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -144,6 +159,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: lamp_glow
     second: {fileID: 2100000, guid: a92e5208a17cd427191c87e1a6abc305, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: leach
+    second: {fileID: 2100000, guid: 1d4654c92eeeb4f4c9e9678abe541982, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -272,6 +292,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: soot
+    second: {fileID: 2100000, guid: 115db302bec9e4425ba7af956d68cf17, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: steel
     second: {fileID: 2100000, guid: fdee73e94a3aa4016b2fb1f57e3ff7c1, type: 2}
   - first:
@@ -304,6 +329,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: trunk
     second: {fileID: 2100000, guid: 301c594b91d0b4125ba437536bab5345, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: verdigris
+    second: {fileID: 2100000, guid: e5e2a87fa968a46148e383ea3067c930, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -365,7 +395,7 @@ ModelImporter:
     extraExposedTransformPaths: []
     extraUserProperties: []
     clipAnimations: []
-    isReadable: 0
+    isReadable: 1
   meshes:
     lODScreenPercentages: []
     globalScale: 1

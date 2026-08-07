@@ -33,8 +33,10 @@ modelled facing -X, so the massif has to stay west of it.
 """
 from math import exp, hypot
 
-from geom import (SQ2, band, dist_to_path, rect_mask, ring, shore_fns,
-                  site_filters, smoothstep, straight)
+from geom import (SQ2, band, crossings, dist_to_path, fence_gaps, gate_point, gates, offset_open,
+                  rect_mask, ring,
+                  shore_fns, site_filters, smoothstep, straight, trim_arterial,
+                  trim_zones)
 
 NAME = "copper"
 # Wider than the coal island's 380. The river runs the full width of the frame,
@@ -118,6 +120,10 @@ ROAD_Y = straight((0.0, -196.0), (0.0, 196.0))
 LOOP_R = 74.0
 LOOP_C = ring(LOOP_R)
 LOOP = LOOP_C[:-1]
+# Where the ring meets each arterial: E, N, W, S. On this island it is just
+# +-LOOP_R, but the iron map's loop is not a circle, so everything downstream
+# reads these rather than assuming a radius. See geom.ring_meets.
+LOOP_MEETS = [(LOOP_R, 0.0), (0.0, LOOP_R), (-LOOP_R, 0.0), (0.0, -LOOP_R)]
 
 # Town centre. The river sweeps through the south-eastern quarter of the ring
 # on this island, so the coal island's neat square of yards on the diagonals is
@@ -168,6 +174,7 @@ SPURS = [
 # market -> port haul road, north out of the market pad to the quay
 PORT_ROAD = [(4, 166), (10, 178), (15, 190), (18, 198)]
 
+
 # ------------------------------------------------------------------- railway
 # Tunnel high in the western massif, then a long sweep south and east around
 # the outside of everything into the depot. It runs entirely SOUTH of the
@@ -178,8 +185,6 @@ PORT_ROAD = [(4, 166), (10, 178), (15, 190), (18, 198)]
 RAIL = [(-248, 24), (-250, -12), (-244, -50), (-230, -88), (-210, -124),
         (-182, -156), (-148, -182), (-110, -200), (-70, -206), (-32, -196),
         (-2, -176), (18, -148)]
-# Phase-3 quayside siding, running up the coast past the market to the port.
-RAIL_PORT = [(52, 96), (54, 126), (52, 156), (46, 180), (34, 196)]
 
 # ---------------------------------------------------------------------- water
 # The river is the headline feature of this island: it rises on the southern
@@ -283,6 +288,13 @@ sea_depth = shore_fns(SHORE, SEA_AXIS[0], SEA_AXIS[1])
 # - the coal island had this at 4.8 and it read as one continuous industrial
 # smear.
 PORT = (18.0, 200.0)             # mid-quay, set 6 back off the waterline
+# Further out than coal's 26: this quay runs down-shore across the road's
+# approach, so the gate has to clear the end crane and the container yard as
+# well as the apron. At 33 the haul road is gone entirely on this island, which
+# is right - the market pad and the quay apron are only 66 apart here, so what
+# was left between them was a four-metre stub of tarmac between two paved
+# surfaces. The trucks still drive the exported centreline across both.
+PORT_GATE = 33.0
 PORT_YAW = -0.9651               # atan2(-13, 9) - the straight face above
 PORT_APRON = (-13.0, -9.0)       # landward along the quay's normal
 # Ship under way, standing out to sea. It has to leave the harbour PAST the
@@ -320,5 +332,68 @@ PEAKS = [
     (-166, 116, 24, 30), (-146, 176, 23, 26), (-84, 196, 23, 24),
     (-46, 210, 23, 22),
 ]
+
+# No turning heads. The iron island ends every dead-end road in a bulb so a
+# loaded truck can turn; these two predate it and their roads simply stop.
+HEADS = []
+# Nor any one-way run - see isle_iron.ONEWAY.
+ONEWAY = []
+
+# Every road that reaches a district, so its fence knows where to leave a
+# gate - see geom.fence_gaps. The arterials are not listed: they end at the
+# gate point every district script already opens for.
+APPROACHES = [PORT_ROAD]
+
+# Transmission lines, as runs of pylon feet. Per island because they have to
+# thread between the works, and no two islands put those in the same place.
+PYLONS = [[(196, -30), (162, -66), (128, -102), (94, -138)],
+          [(52, 178), (86, 146), (120, 114), (154, 82), (188, 50)]]
+
+# THE TARMAC, as opposed to the truck ROUTES.
+#
+# These were the same data until now, which is the single reason every attempt
+# at this island came back as a cross: ROAD_X and ROAD_Y are what Unity drives,
+# and they were also what got drawn, so the moment two routes wanted to share a
+# stretch of trunk the drawing put two ribbons of asphalt on the same line.
+#
+# Split, a route may overlap another freely - nothing draws it - and the tarmac
+# is free to be a branching tree with T-junctions instead of a crossroads.
+#
+#   (points, width key, name, trim mode)
+#   trim "arterial"  cut at the works gates, keep the run through the middle
+#        "gated"     cut at the works gates, keep every run
+#        "none"      lay it whole
+CARRIAGEWAYS = [(ROAD_X, "main", "Road.X", "arterial"),
+                (ROAD_Y, "main", "Road.Y", "arterial"),
+                (LOOP_C, "loop", "Road.Loop", "none")]
+
+# How much of the railway is inside the tunnel, as a span of its arc length.
+# 02_terrain leaves this stretch unflattened so the rock stays solid over the
+# bore; past it the cutting takes over.
+TUNNEL = [(0.035, 0.105)]
+
+# Where the tarmac stops - see geom.gates. Town yards get 2 units of clearance
+# on top of their pad so a cross street ends at the kerb rather than against the
+# gate itself; the districts and sites are cut exactly at the pad, which is also
+# the edge of the yard slab that takes over inside. The port is in the list for
+# the same reason a district is: the quay apron is the driving surface from
+# there in, and the haul road used to run on under it.
+GATES = gates(DISTRICTS, PAD, SITES, SITE_PAD,
+              extra=[(x, y, TOWN_PAD + 2.0) for x, y in TOWNS] + [PORT + (PORT_GATE,)])
+
+# ------------------------------------------------------------------- theme
+# Which set of signature props this island gets - see 16_theme.py. The two maps
+# share every building, so without these they are the same island in two
+# colours; these are the pieces that say at a glance which ore is mined here.
+THEME = "copper"
+
+# See the note in isle_coal.py: open ground between the ring and a district,
+# clear of the roads, the rail, the river and the shore.
+THEME_SPOTS = {
+    "works": (96.0, -52.0),     # leach ponds, between refinery and plant
+    "yard": (-106.0, 48.0),     # cathode plate and slag pots, up by the mine
+}
+THEME_SPILLS = [(-91, -101), (53, -133), (51, 140), (48, -76), (-26, 84),
+                (117, 54)]
 
 active_sites, locked_sites = site_filters(SITES)

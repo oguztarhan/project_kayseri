@@ -134,9 +134,9 @@ namespace Game.Data
         }
 
         /// <summary>
-        /// A named route as world points ("loop", "rail", "railPort", "roadX",
-        /// "roadY", "portRoad", "shipLane", "Spur.Mine", ...). Null when the phase
-        /// does not have that route - phase 1 has no "railPort", for instance.
+        /// A named route as world points ("loop", "rail", "roadX", "roadY",
+        /// "portRoad", "shipLane", "Spur.Quarry", ...). Null when the phase does
+        /// not have that route - phase 1 has no site spurs, for instance.
         /// </summary>
         public Vector3[] GetPath(string pathName)
         {

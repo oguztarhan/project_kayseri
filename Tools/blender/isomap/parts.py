@@ -242,17 +242,44 @@ def pylon(name, h=26.0, C=None):
     return b.make(name, collection=C)
 
 
-def fence_run(pts, name, C=None, h=2.4, post=2.6, m="steel_dk"):
-    """Chain-link style fence following a list of (x,y,z) points."""
-    from lib import sample_bez, scatter_along
+def fence_run(pts, name, C=None, h=2.4, post=2.6, m="steel_dk", gaps=()):
+    """Chain-link style fence following a list of (x,y,z) points.
+
+    Walked as STRAIGHT segments rather than through sample_bez. A yard
+    perimeter is a rectangle, and Catmull-Rom through its corners bows every
+    side outward - 2.7 units at the town yards, which is what put three of the
+    four fences out on the cross street they are meant to stand back from, and
+    the depot's and market's out on the arterial.
+
+    gaps = [(x, y, r), ...]: the works gates, left open. Every district is
+    fenced and the arterial now runs up to the yard rather than through it, so
+    without this the road ends against a continuous fence and the trucks drive
+    through it. A fence that never comes within r of a gate is unaffected, which
+    is why all four districts can pass their own gate whether or not their fence
+    reaches it - the two islands disagree about that, see geom.gate_point. The
+    market needs two: the arterial and the haul road out to the quay.
+    """
+    def blocked(x, y):
+        return any(hypot(x - g[0], y - g[1]) < g[2] for g in gaps)
+
     b = B().use(m)
-    for pos, yaw in scatter_along(pts, post):
-        b.boxz((0.18, 0.18, h), (pos.x, pos.y, pos.z))
-    samples = sample_bez(pts, max(8, len(pts) * 14))
-    for i in range(len(samples) - 1):
-        a, c = samples[i][0], samples[i + 1][0]
-        for zz in (h * 0.95, h * 0.55, h * 0.15):
-            b.tube(0.055, [(a.x, a.y, a.z + zz), (c.x, c.y, c.z + zz)], 4)
+    for a, c in zip(pts, pts[1:]):
+        seg = hypot(c[0] - a[0], c[1] - a[1])
+        if seg < 1e-6:
+            continue
+        n = max(1, int(round(seg / post)))
+        for i in range(n):
+            t0, t1 = i / float(n), (i + 1) / float(n)
+            p = [(a[k] + (c[k] - a[k]) * t0) for k in range(3)]
+            q = [(a[k] + (c[k] - a[k]) * t1) for k in range(3)]
+            if not blocked(p[0], p[1]):         # the run's last post is added
+                b.boxz((0.18, 0.18, h), p)      # below, so corners do not get two
+            if blocked((p[0] + q[0]) * 0.5, (p[1] + q[1]) * 0.5):
+                continue
+            for zz in (h * 0.95, h * 0.55, h * 0.15):
+                b.tube(0.055, [(p[0], p[1], p[2] + zz), (q[0], q[1], q[2] + zz)], 4)
+    if not blocked(pts[-1][0], pts[-1][1]):
+        b.boxz((0.18, 0.18, h), (pts[-1][0], pts[-1][1], pts[-1][2]))
     return b.make(name, collection=C)
 
 

@@ -31,7 +31,7 @@ namespace Kayseri.IslandTools
         private const string PrefabRoot = "Assets/Prefabs/Island";
 
         /// <summary>Folder name per island, matching isle_&lt;name&gt;.py in the generator.</summary>
-        private static readonly string[] Islands = { "Coal", "Copper" };
+        private static readonly string[] Islands = { "Coal", "Copper", "Iron", "Gold" };
 
         private static string ModelsFor(string island) => $"{ModelsRoot}/{island}";
         private static string PrefabsFor(string island) => $"{PrefabRoot}/{island}";
@@ -48,6 +48,10 @@ namespace Kayseri.IslandTools
             // Town centre inside the ring road - one yard per quadrant, each
             // advancing on its own station (Civic follows the island as a whole).
             "Power", "Haul", "Fleet", "Civic",
+            // The island's signature props - coke ovens on coal, leach ponds on
+            // copper. See 16_theme.py: without these the two maps are the same
+            // island in two colours.
+            "Theme",
             // Driven by the gameplay layer rather than scenery: the train rake and the
             // road fleet, which CoalOperation lifts onto the island root at startup.
             "Vehicles"
@@ -58,7 +62,26 @@ namespace Kayseri.IslandTools
         // Camera/light values transposed from the Blender scene (Z-up -> Y-up).
         private static readonly Vector3 CameraEuler = new Vector3(48f, -45f, 0f);
         private static readonly Vector3 CameraPos = new Vector3(331f, 520f, -331f);
-        private const float CameraOrthoSize = 126.7f;
+        // Orthographic HALF-HEIGHT, per island. The generator authors each map to
+        // its own ortho_scale - the width of the frame in world units - and the
+        // render is 3:2, so the half-height Unity wants is ortho_scale / 3.
+        //
+        // This was one shared 126.7, which is coal's 380/3. The iron island is
+        // authored at 460 because it carries three more roads and four more pads
+        // than coal, and at coal's value its mine, depot and the eastern massif
+        // were all cropped. Keep this in step with ORTHO in isle_<name>.py.
+        private const float DefaultOrthoSize = 126.7f;          // ORTHO 380
+        private static readonly Dictionary<string, float> OrthoSizes =
+            new Dictionary<string, float>
+            {
+                { "Coal", 126.7f },      // isle_coal.ORTHO   380
+                { "Copper", 126.7f },    // isle_copper.ORTHO 380
+                { "Iron", 153.3f },      // isle_iron.ORTHO   460
+                { "Gold", 146.7f },      // isle_gold.ORTHO   440
+            };
+
+        private static float OrthoSizeFor(string island) =>
+            OrthoSizes.TryGetValue(island, out var size) ? size : DefaultOrthoSize;
         private static readonly Vector3 SunEuler = new Vector3(44f, 128f, 0f);
 
         [MenuItem("Kayseri/Island/Build All (Coal)", false, 0)]
@@ -67,7 +90,13 @@ namespace Kayseri.IslandTools
         [MenuItem("Kayseri/Island/Build All (Copper)", false, 1)]
         public static void BuildAllCopper() { BuildAll("Copper"); }
 
-        [MenuItem("Kayseri/Island/Build All (every island)", false, 2)]
+        [MenuItem("Kayseri/Island/Build All (Iron)", false, 2)]
+        public static void BuildAllIron() { BuildAll("Iron"); }
+
+        [MenuItem("Kayseri/Island/Build All (Gold)", false, 3)]
+        public static void BuildAllGold() { BuildAll("Gold"); }
+
+        [MenuItem("Kayseri/Island/Build All (every island)", false, 4)]
         public static void BuildAllIslands()
         {
             foreach (var island in Islands) BuildAll(island);
@@ -195,7 +224,14 @@ namespace Kayseri.IslandTools
                     importer.optimizeMeshPolygons = true;
                     importer.optimizeMeshVertices = true;
                     importer.meshCompression = ModelImporterMeshCompression.Off;
-                    importer.isReadable = false;
+                    // The gameplay layer reads two groups' meshes at runtime:
+                    // CoalOperation strips the ore out of the wagon hoppers for
+                    // the empty return leg (Vehicles) and clips the pavement out
+                    // of the road junctions (Roads). Everything else stays
+                    // unreadable - readable meshes double their memory.
+                    string file = Path.GetFileName(path);
+                    importer.isReadable = file.StartsWith("Vehicles_") ||
+                                          file.StartsWith("Roads_");
                     importer.addCollider = false;
                     importer.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
                     importer.materialLocation = ModelImporterMaterialLocation.InPrefab;
@@ -344,6 +380,21 @@ namespace Kayseri.IslandTools
                     // drawn geometry stops following the transform - the train's position moves
                     // while its body stays behind, rendering as an untextured slab.
                     SetStaticRecursive(instance, group != "Vehicles");
+                    // The pavement stays OUT of the static batch: CoalOperation clips the
+                    // shoulders, kerbs and walk strips out of the road junctions at boot, and
+                    // a batched renderer hands it the combined unreadable mesh instead of its
+                    // own. The SRP batcher still draws these efficiently per material.
+                    if (group == "Roads")
+                        foreach (Transform piece in instance.transform)
+                        {
+                            string n = piece.name;
+                            if (!n.StartsWith("Walk") && !n.StartsWith("Kerb") &&
+                                !n.Contains(".shoulder")) continue;
+                            foreach (var tr in piece.GetComponentsInChildren<Transform>(true))
+                                GameObjectUtility.SetStaticEditorFlags(tr.gameObject,
+                                    GameObjectUtility.GetStaticEditorFlags(tr.gameObject)
+                                    & ~StaticEditorFlags.BatchingStatic);
+                        }
                     added++;
                 }
 
@@ -380,7 +431,7 @@ namespace Kayseri.IslandTools
             var camGo = new GameObject("IsoCamera");
             var cam = camGo.AddComponent<Camera>();
             cam.orthographic = true;
-            cam.orthographicSize = CameraOrthoSize;
+            cam.orthographicSize = OrthoSizeFor(island);
             cam.nearClipPlane = 1f;
             cam.farClipPlane = 3000f;
             cam.clearFlags = CameraClearFlags.SolidColor;

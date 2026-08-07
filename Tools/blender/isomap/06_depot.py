@@ -16,12 +16,19 @@ CX, CY = L.DEPOT
 
 # --------------------------------------------------------------------- yard
 b = B().use(PK("dirt", "concrete_dk", "concrete"))
-b.box((72, 68, 0.3), (CX, CY, 0.14))
+# 74 along the arterial, not 68: 03_roads.py stops the tarmac at the pad edge
+# (36 out) and the yard slab is the surface from there in, so the slab has to
+# reach the road or the two are separated by a strip of grass. The mine and
+# refinery already reach theirs - their arterial runs the 72-unit axis.
+b.box((72, 74, 0.3), (CX, CY, 0.14))
 b.use(L.ORE_SHINY)
 b.box(PK((36, 26, 0.34), (46, 32, 0.34), (54, 38, 0.34)), (CX - 2, CY + 2, 0.18))
 if PHASE >= 2:
+    # The truck lane. Narrowed from 16 to 6 and pulled west: at its old width
+    # the office, both hoppers and the second shed all stood in it, which is
+    # why every parked truck was inside a building.
     b.use("asphalt")
-    b.box((16, 60, 0.36), (CX + 27, CY - 2, 0.19))
+    b.box((6, 60, 0.36), (CX + 23, CY - 2, 0.19))
 b.make("Depot.Yard", collection=C)
 
 # --------------------------------------------------------------- coal piles
@@ -41,7 +48,7 @@ if PHASE >= 2:
     w = B().use("concrete")
     for i in range(5):
         w.boxz((3.0, 16.0, 4.0), (CX - 33, CY - 14 + i * 8.0, 0.3))
-    w.boxz((48.0, 3.0, 4.0), (CX - 4, CY + 31, 0.3))
+    w.boxz((34.0, 3.0, 4.0), (CX - 15, CY + 31, 0.3))
     w.make("Depot.Walls", collection=C)
 
 # ------------------------------------------------- stacker / conveyor bridge
@@ -77,38 +84,38 @@ if PHASE >= 2:
     g.location = (CX - 18, CY + 6, 0.3)
 
 # ------------------------------------------------------------------- silos
-SILOS = PK([], [(-26, "cream"), (-17, "white")],
-           [(-28, "cream"), (-19, "white"), (-10, "teal"), (-1, "cream")])
+SILOS = PK([], [(-29, "cream"), (-19, "white")],
+           [(-31, "cream"), (-21.4, "white"), (-11.8, "teal"), (-2.2, "cream")])
 for i, (dx, cm) in enumerate(SILOS):
     P.silo("Depot.Silo%d" % i, 4.4, PK(0, 17.0, 22.0), C, m=cm).location = (
         CX + dx, CY + 26, 0.3)
 
 # --------------------------------------------------------------- warehouses
-P.warehouse("Depot.Shed1", PK(18, 26, 30), PK(12, 15, 17), PK(7, 9, 11), C,
+P.warehouse("Depot.Shed1", PK(14, 16, 18), PK(12, 15, 17), PK(7, 9, 11), C,
             PK("wood_lt", "clad", "clad"),
             PK("roof_red", "roof_red", "roof_red")).location = (
-    CX + 22, CY + 26, 0.3)
+    CX + 11, CY + 25, 0.3)
+# East of the truck lane, all of them - see the note on Depot.Yard.
 if PHASE >= 2:
     # Smaller, and pushed east against the fence: the rail line ends at (18, 108)
     # and this warehouse used to stand right on top of the buffer stop.
     P.warehouse("Depot.Shed2", 13, 10, 7, C, "cream", "roof_blue").location = (
-        CX + 27, CY - 26, 0.3)
+        CX + 27, CY - 25, 0.3)
     P.office("Depot.Office", 12, 10, PK(1, 2, 3), C).location = (
-        CX + 28, CY - 9, 0.3)
+        CX + 31, CY - 12, 0.3)
 
 if PHASE >= 2:
-    P.hopper("Depot.Hopper", 6.0, 12.0, C).location = (CX + 26, CY + 9, 0.3)
-if PHASE >= 3:
-    P.hopper("Depot.Hopper2", 5.4, 11.0, C).location = (CX + 26, CY - 2, 0.3)
+    P.hopper("Depot.Hopper", 5.0, 12.0, C).location = (CX + 31, CY + 4, 0.3)
 
 # ------------------------------------------------------------------ vehicles
 tk = P.truck("Depot.Truck", "orange", "coal", C)
-tk.location = (CX + 27, CY + 14, 0.3)
+tk.location = (CX + 23, CY + 14, 0.3)
 tk.rotation_euler = (0, 0, radians(-90))
-# The south end of the lane belongs to Shed2 now, and the yard's west apron to
-# the gameplay fleet's waiting bay, so the parked dressing stops at (27, 118).
-for i, dy in enumerate(PK((2,), (2, -10), (2, -10))):
-    dup(tk, (CX + 27, CY + dy, 0.3), (0, 0, radians(-90)), None, C,
+tk.hide_render = tk.hide_viewport = True     # template only; the dups below are the fleet
+# In the lane, on a 16 pitch: the body is 13 long, so the old 12 put a metre of
+# each truck inside the next and the south one inside the office.
+for i, dy in enumerate(PK((2,), (2, 20), (2, 20))):
+    dup(tk, (CX + 23, CY + dy, 0.3), (0, 0, radians(-90)), None, C,
         "Depot.Truck%d" % i)
 
 ld = P.loader("Depot.Loader", C)
@@ -124,7 +131,8 @@ if PHASE >= 2:
 # -------------------------------------------------------------------- detail
 if PHASE >= 2:
     P.fence_run([(CX - 35, CY - 32, 0.3), (CX + 35, CY - 32, 0.3),
-                 (CX + 35, CY + 32, 0.3)], "Depot.Fence", C)
+                 (CX + 35, CY + 32, 0.3)], "Depot.Fence", C,
+                gaps=[L.gate_point(L.DEPOT, L.PAD) + (11.0,)])
 for i, (lx, ly) in enumerate((((CX + 35, CY + 18), (CX + 35, CY - 16),
                                (CX - 32, CY - 26), (CX + 6, CY - 30))
                               [:PK(1, 3, 4)])):

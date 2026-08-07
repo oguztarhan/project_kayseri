@@ -25,7 +25,27 @@ namespace Game.Gameplay
             public float speed;
             public float wait;        // pause at each end
             public float bob;         // phase offset so the crew doesn't bob in lockstep
+            public float held;        // how long this one has been stood at the kerb
         }
+
+        /// <summary>
+        /// "Is it unsafe to walk to here?" — asked before a worker takes its next step, and
+        /// answered by <see cref="CoalOperation"/>, which is the only thing that knows where
+        /// the trucks are.
+        ///
+        /// A delegate rather than a reference to the operation because this class deliberately
+        /// knows nothing about the simulation. It also needs no notion of where the crossings
+        /// are: trucks only ever exist on roads, so "a truck is close to my next step" is true
+        /// exactly at the places a pedestrian has to give way, and nowhere else.
+        /// </summary>
+        public System.Func<Vector3, bool> Hazard;
+
+        /// <summary>
+        /// How long a worker will hold at the kerb before crossing anyway. Without a limit a
+        /// truck parked in its bay next to the pavement would freeze that worker for the rest
+        /// of the session.
+        /// </summary>
+        private const float MaxHold = 6f;
 
         private readonly Walker[] _walkers;
         private readonly Transform[] _puffs;
@@ -123,7 +143,18 @@ namespace Game.Gameplay
                 Walker w = _walkers[i];
                 if (w.wait > 0f) { w.wait -= dt; continue; }
 
-                w.u += w.dir * w.speed * dt;
+                // Look where the next step lands before taking it. The ring pavement crosses
+                // both arterials, so a worker who never checked walked straight through the
+                // traffic - and out the other side of it.
+                float next = Mathf.Clamp01(w.u + w.dir * w.speed * dt);
+                if (Hazard != null && w.held < MaxHold && Hazard(Vector3.Lerp(w.a, w.b, next)))
+                {
+                    w.held += dt;
+                    continue;                      // stand at the kerb and let it pass
+                }
+                w.held = 0f;
+
+                w.u = next;
                 if (w.u >= 1f) { w.u = 1f; w.dir = -1f; w.wait = 0.6f + (i % 4) * 0.35f; }
                 else if (w.u <= 0f) { w.u = 0f; w.dir = 1f; w.wait = 0.6f + (i % 4) * 0.35f; }
 

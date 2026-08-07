@@ -38,7 +38,7 @@ os.makedirs(OUT, exist_ok=True)
 
 # --------------------------------------------------------------- strip vehicles
 # Ships, cranes, loaders, excavators and forklifts stay - they read as scenery.
-DROP = ("Truck", "Van", "Train.", "PortTrain", "Loco.", "Wagon", "V.ore",
+DROP = ("Truck", "Van", "Train.", "Loco.", "Wagon", "V.ore",
         "V.cargo", "V.tank", "V.van", "Market.T")
 KEEP = ("Ship", "Boat", "Tug", "Crane", "Gantry", "Loader", "Excav", "Fork")
 
@@ -170,7 +170,7 @@ removed = strip_vehicles()
 # --------------------------------------------------------------------- export
 GROUPS = ("Terrain", "Roads", "Rail", "Mine", "Depot", "Refinery", "Market",
           "Port", "Sites", "Props", "Foliage",
-          "Power", "Haul", "Fleet", "Civic")
+          "Power", "Haul", "Fleet", "Civic", "Theme")
 
 # Settle what this run writes before baking anything: with ONLY narrowing the
 # run there is no reason to sample a quarter of a million corners of ground that

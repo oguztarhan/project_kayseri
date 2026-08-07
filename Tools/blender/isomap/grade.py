@@ -118,22 +118,23 @@ def _end_district(path, idx):
 
 def _arterial(path):
     """Profile for one arterial: flat over each end district, flat over the
-    centre, smoothstep ramps between."""
+    centre, smoothstep ramps between.
+
+    The four knot positions are found by crossing a circle rather than by
+    stepping PAD_HW along whichever axis the road runs. On a straight arterial
+    the two give the same point, so the coal and copper profiles are unchanged;
+    on the iron island's gates, which have a right-angle in each end, the axis
+    version put the district's flat run at t = 0 and ramped the whole road.
+    """
     (lo, lo_z), (hi, hi_z) = _end_district(path, 0), _end_district(path, -1)
-    horiz = abs(path[-1][0] - path[0][0]) > abs(path[-1][1] - path[0][1])
-    if horiz:
-        lo_edge, hi_edge = (lo[0] + PAD_HW, lo[1]), (hi[0] - PAD_HW, hi[1])
-        c0 = (L.CENTER[0] - CENTER_HW, L.CENTER[1])
-        c1 = (L.CENTER[0] + CENTER_HW, L.CENTER[1])
-    else:
-        lo_edge, hi_edge = (lo[0], lo[1] + PAD_HW), (hi[0], hi[1] - PAD_HW)
-        c0 = (L.CENTER[0], L.CENTER[1] - CENTER_HW)
-        c1 = (L.CENTER[0], L.CENTER[1] + CENTER_HW)
+    lo_x = L.crossings(path, lo, PAD_HW)
+    hi_x = L.crossings(path, hi, PAD_HW)
+    mid = L.crossings(path, L.CENTER, CENTER_HW)
     return (path, [(0.0, lo_z),
-                   (_t_at(path, lo_edge[0], lo_edge[1]), lo_z),
-                   (_t_at(path, c0[0], c0[1]), CENTER_Z),
-                   (_t_at(path, c1[0], c1[1]), CENTER_Z),
-                   (_t_at(path, hi_edge[0], hi_edge[1]), hi_z),
+                   (lo_x[0] if lo_x else 0.0, lo_z),
+                   (mid[0] if mid else 0.45, CENTER_Z),
+                   (mid[-1] if mid else 0.55, CENTER_Z),
+                   (hi_x[-1] if hi_x else 1.0, hi_z),
                    (1.0, hi_z)])
 
 
@@ -161,18 +162,32 @@ def _arterial_z(x, y):
 # a few metres put a 59% slope on the south-west corner.
 #
 # Its knots are read off the arterial field at the four points where it crosses
-# them - which, now that the ring is a circle, are exactly control points 0, 4, 8
-# and 12 - so the junctions agree with the arterials without being hand-matched,
-# and each quarter interpolates over 116 units, which is gentle.
+# them, so the junctions agree with the arterials without being hand-matched.
 #
 # Four knots and not sixteen: a knot at every control point faithfully reproduced
 # the arterial field's own variation, including the part where the mine's arm and
 # the market's arm disagree, and that came out at 24% on the ring.
-_CROSS = [(L.LOOP_R, 0.0), (0.0, L.LOOP_R), (-L.LOOP_R, 0.0), (0.0, -L.LOOP_R)]
-LOOP_KNOTS = [(i * 0.25, _arterial_z(px, py)) for i, (px, py) in enumerate(_CROSS)]
-LOOP_KNOTS.append((1.0, LOOP_KNOTS[0][1]))
-
-PROFILES_MAIN = PROFILES + [(L.LOOP_C, LOOP_KNOTS)]
+#
+# Where each crossing falls along the loop is MEASURED, not assumed to be a
+# quarter. On a circle it is (0, .25, .5, .75) and this reproduces that exactly;
+# on the iron island's circuit the four sides are 50-100 units long and their
+# crossings land at .07, .29, .48 and .77, so evenly spaced knots would have
+# ramped each height change over the wrong stretch of road.
+# An island whose roads form a tree has no loop to profile - see isle_iron.
+if L.LOOP_C:
+    _CROSS = sorted((L.dist_to_path(px, py, L.LOOP_C)[1], _arterial_z(px, py))
+                    for px, py in L.LOOP_MEETS)
+    # The wrap-round knot: the height at t=0, interpolated across the gap from
+    # the last crossing to the first. Without it _profile holds the first
+    # crossing's height flat all the way back to t=0 and steps at the seam.
+    _gap = _CROSS[0][0] + (1.0 - _CROSS[-1][0])
+    _wrap = (_CROSS[-1][1] + (_CROSS[0][1] - _CROSS[-1][1]) * ((1.0 - _CROSS[-1][0]) / _gap)
+             if _gap > 1e-6 else _CROSS[0][1])
+    LOOP_KNOTS = [(0.0, _wrap)] + _CROSS + [(1.0, _wrap)]
+    PROFILES_MAIN = PROFILES + [(L.LOOP_C, LOOP_KNOTS)]
+else:
+    LOOP_KNOTS = []
+    PROFILES_MAIN = PROFILES
 
 
 def _main_z(x, y):
@@ -237,7 +252,6 @@ CONNECTORS.append(_two_knot(L.PORT_ROAD))
 # a lorry, impossible for a train. Its own two-knot ramp runs the length of the
 # arc, which puts it under 1%.
 CONNECTORS.append(_two_knot(L.RAIL))
-CONNECTORS.append(_two_knot(L.RAIL_PORT))
 
 PROFILES_ALL = PROFILES_MAIN + CONNECTORS
 
