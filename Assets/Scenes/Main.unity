@@ -3450,7 +3450,7 @@ MonoBehaviour:
   oreColor: {r: 0.1, g: 0.1, b: 0.12, a: 1}
   barColor: {r: 0.88, g: 0.55, b: 0.18, a: 1}
   valueMultiplier: 1
-  costMultiplier: 0.48
+  costMultiplier: 0.3491
   axisLevelCap: 50
   incomeCapPerMin: 102626
   warmStartFill: 0.5
@@ -3620,7 +3620,7 @@ MonoBehaviour:
   oreColor: {r: 0.75, g: 0.95, b: 1, a: 1}
   barColor: {r: 0.85, g: 0.97, b: 1, a: 1}
   valueMultiplier: 3435.97
-  costMultiplier: 218269.55
+  costMultiplier: 155879.89
   axisLevelCap: 50
   incomeCapPerMin: 352620250.9754369
   warmStartFill: 0.5
@@ -3739,7 +3739,7 @@ MonoBehaviour:
   oreColor: {r: 0.15, g: 0.75, b: 0.35, a: 1}
   barColor: {r: 0.49, g: 0.85, b: 0.61, a: 1}
   valueMultiplier: 1073.74
-  costMultiplier: 63310.656
+  costMultiplier: 46036.234
   axisLevelCap: 50
   incomeCapPerMin: 110193828.42982404
   warmStartFill: 0.5
@@ -3858,7 +3858,7 @@ MonoBehaviour:
   oreColor: {r: 0.85, g: 0.15, b: 0.25, a: 1}
   barColor: {r: 0.91, g: 0.49, b: 0.55, a: 1}
   valueMultiplier: 335.544
-  costMultiplier: 16718.379
+  costMultiplier: 12152.15
   axisLevelCap: 50
   incomeCapPerMin: 34435571.384320006
   warmStartFill: 0.5
@@ -3977,7 +3977,7 @@ MonoBehaviour:
   oreColor: {r: 0.95, g: 0.78, b: 0.22, a: 1}
   barColor: {r: 0.97, g: 0.87, b: 0.53, a: 1}
   valueMultiplier: 104.858
-  costMultiplier: 3783.3154
+  costMultiplier: 2746.6458
   axisLevelCap: 50
   incomeCapPerMin: 10761116.057600003
   warmStartFill: 0.5
@@ -4096,7 +4096,7 @@ MonoBehaviour:
   oreColor: {r: 0.85, g: 0.87, b: 0.92, a: 1}
   barColor: {r: 0.91, g: 0.92, b: 0.95, a: 1}
   valueMultiplier: 32.768
-  costMultiplier: 787.0063
+  costMultiplier: 569.0778
   axisLevelCap: 50
   incomeCapPerMin: 3362848.7680000006
   warmStartFill: 0.5
@@ -4215,7 +4215,7 @@ MonoBehaviour:
   oreColor: {r: 0.62, g: 0.63, b: 0.68, a: 1}
   barColor: {r: 0.77, g: 0.78, b: 0.81, a: 1}
   valueMultiplier: 10.24
-  costMultiplier: 147.8513
+  costMultiplier: 105.429
   axisLevelCap: 50
   incomeCapPerMin: 1050890.2400000002
   warmStartFill: 0.5
@@ -4334,7 +4334,7 @@ MonoBehaviour:
   oreColor: {r: 0.72, g: 0.45, b: 0.2, a: 1}
   barColor: {r: 0.83, g: 0.67, b: 0.52, a: 1}
   valueMultiplier: 3.2
-  costMultiplier: 20.6487
+  costMultiplier: 15.0172
   axisLevelCap: 50
   incomeCapPerMin: 328403.2
   warmStartFill: 0.5

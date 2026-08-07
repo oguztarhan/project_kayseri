@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: ContractConfig
   m_EditorClassIdentifier: Game.Data::Game.Data.ContractConfig
   targetUnits: 50
-  timeLimitSeconds: 60
+  timeLimitSeconds: 90
   rewardCash: 500
   rewardGems: 2

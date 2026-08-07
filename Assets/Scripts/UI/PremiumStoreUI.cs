@@ -470,17 +470,44 @@ namespace Game.UI
         /// one and has to be rebalanced every time the curve moves. Each island earns 3.2× the one before
         /// it, so by the diamond island a fixed million is under a second of income.
         ///
-        /// The authored sum is kept as a floor rather than replaced. Three things fall out of that: no
-        /// card can ever pay less than the number it was designed around, the first half-minute of a new
-        /// save (where the meter has not measured a rate yet and the scaled figure would be zero) needs
-        /// no special case, and the starter pack — whose whole audience is players earning almost
-        /// nothing — keeps the 5M that makes it worth buying.
+        /// The authored sum is kept as a floor rather than replaced, which covers the case the income
+        /// path cannot: a player whose measured rate is far below what they have actually unlocked.
+        /// That is not a corner case — an island bought but not yet built reports nothing, so without
+        /// a floor the whole store collapses to pocket change the moment someone sails somewhere new.
+        ///
+        /// Every floor is written against ONE reference — about 19.3K/min, which is a fifth of what
+        /// building the coal island costs spread over the smallest pack's fifteen minutes. Before this
+        /// the six gold packs sat at 166.7/min and the two offers at 102,626/min, six hundred times
+        /// apart, and the ₺999,99 pack paid less than the cheapest offer. One reference is the fix;
+        /// the exact number is a balance choice, not arithmetic.
+        ///
+        /// That fifth is what has to be held, not the reference itself: re-solving the ladder moves
+        /// every island's cost multiplier, so the floors move with it. They were last recomputed on
+        /// 2026-08-07, when coal's build cost went from 1,995,902 to 1,451,603 and all eight floors
+        /// were scaled by the same 0.7273.
+        ///
+        /// The floor is then scaled by the island, because a fifth of coal is nothing on diamond.
         /// </summary>
         private double CashGrant(double floor, float minutes)
         {
-            if (minutes <= 0f) return floor;
+            double scaledFloor = floor * IslandScale();
+            if (minutes <= 0f) return scaledFloor;
             double scaled = IncomePerMinute() * minutes;
-            return scaled > floor ? scaled : floor;
+            return scaled > scaledFloor ? scaled : scaledFloor;
+        }
+
+        /// <summary>
+        /// Where the player is standing, as a multiple of coal: 1 on coal, 3.2 on copper, 10.24 on iron.
+        ///
+        /// Read off the island caps rather than written down again, so the day the ladder's step changes
+        /// the store follows it instead of quietly paying the old curve.
+        /// </summary>
+        private double IslandScale()
+        {
+            if (_world == null) return 1d;
+            double coal = _world.CapPerMin(0);
+            if (coal <= 0d) return 1d;
+            return _world.CapPerMin(_world.ActiveIndex) / coal;
         }
 
         /// <summary>
@@ -586,7 +613,7 @@ namespace Game.UI
             }
             if (_wallet != null && offer.gemAmount > 0) _wallet.AddGems(offer.gemAmount);
             if (_boost != null && offer.boostMultiplier > 1d && offer.boostSeconds > 0d)
-                _boost.SetBoost(offer.boostMultiplier, offer.boostSeconds);
+                _boost.AddBoost(offer.boostMultiplier, offer.boostSeconds);
             if (_prestige != null && offer.investorShare > 0f) _prestige.TakeInvestorShare(offer.investorShare);
             if (offer.removeAds) AdsRemoved = true;
             GrantPermanent(offer);

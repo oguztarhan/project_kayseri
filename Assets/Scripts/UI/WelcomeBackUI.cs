@@ -14,9 +14,15 @@ namespace Game.UI
     /// in the Inspector, so medallion, rows and buttons are all tunable from the hierarchy.
     ///
     /// <see cref="GameBootstrap"/> already paid the base amount into the wallet at launch; this only
-    /// reports it. The 2× button pays the SAME amount a second time, so the total is double. Clearing
+    /// reports it. The ad button pays a FRACTION of that amount on top. Clearing
     /// <see cref="OfflineReport.Pending"/> is what stops it reappearing when the player sails between
     /// islands and this screen is rebuilt.
+    ///
+    /// That fraction used to be a full second payment, uncapped and with no charge check — the single
+    /// largest number in the whole ad economy. A twice-a-day player collects 5.6 income-hours without
+    /// ads and this button alone was worth another 4.9, so an ad-watcher finished the island ladder in
+    /// half the designed time. It is now charged out of the same daily table the ad screen's three
+    /// slots use (<see cref="FreeRewardService"/>), and pays a fraction rather than a double.
     /// </summary>
     public sealed class WelcomeBackUI : MonoBehaviour
     {
@@ -37,9 +43,27 @@ namespace Game.UI
         [Tooltip("Ada kamerası yerine oturana kadar bekle, sonra aç.")]
         [SerializeField] private float appearDelay = 0.6f;
 
+        [Header("Ödüllü reklam")]
+        [Tooltip("Düğmenin günde kaç kez kullanılabileceği. Oyuncu günde iki kez döndüğü için 2, " +
+                 "pratikte \"her dönüşte bir kez\" demektir; 1 yaparsan ikinci dönüşte düğme hiç görünmez.")]
+        [SerializeField, Min(0)] private int adChargesPerDay = 2;
+        [Tooltip("Reklamın çevrimdışı kazancın yüzde kaçını EK olarak ödediği. 0,5 = %50 fazlası, " +
+                 "1 = ikiye katlar. Düğmenin yazısı bu değerden üretilir, ayrıca güncellemen gerekmez.")]
+        [SerializeField, Range(0f, 2f)] private float adBonusFraction = 0.5f;
+
+        /// <summary>
+        /// Slot id in the shared daily table. Deliberately not one of the ad screen's three, so the
+        /// "+1 hak" perk the store sells does not quietly hand out extra doubles here as well.
+        /// </summary>
+        private const string AdSlotId = "hosgeldin";
+
         private OfflineReport _report;
         private WalletService _wallet;
         private IAdService _ad;
+        private FreeRewardService _free;
+        private SaveService _save;
+        private SaveData _data;
+        private TMP_Text _adLabel;
         private float _delay;
         private bool _shown;
 
@@ -48,6 +72,13 @@ namespace Game.UI
             _report = ServiceLocator.Get<OfflineReport>();
             _wallet = ServiceLocator.Get<WalletService>();
             _ad = ServiceLocator.Get<IAdService>();
+            _free = ServiceLocator.Get<FreeRewardService>();
+            _save = ServiceLocator.Get<SaveService>();
+            _data = ServiceLocator.Get<SaveData>();
+            // The caption is computed from adBonusFraction, so the label carries no LocalizedText —
+            // the two would overwrite each other. Found once here rather than wired in the Inspector,
+            // the way PremiumStoreUI finds the amount label on its offer cards.
+            if (adButton != null) _adLabel = adButton.GetComponentInChildren<TMP_Text>(true);
             _delay = appearDelay;
 
             if (closeButton != null) closeButton.onClick.AddListener(Dismiss);
@@ -73,7 +104,16 @@ namespace Game.UI
             if (amountText != null) amountText.text = "$" + NumberFormatter.Format(_report.Amount);
             if (durationText != null) durationText.text = DurationText(_report.AwaySeconds);
             if (capNoteText != null) capNoteText.text = RuleText();
-            if (adButton != null) adButton.gameObject.SetActive(_ad != null && _ad.Available);
+            if (adButton != null)
+            {
+                // Out of charges hides the button rather than dimming it: this screen is dismissed in
+                // one tap and a dead control on it reads as the game being broken, not as a limit.
+                bool offer = _ad != null && _ad.Available && CanDouble();
+                adButton.gameObject.SetActive(offer);
+                if (offer && _adLabel != null)
+                    _adLabel.text = string.Format(Loc.T("hosgeldin.bonus"),
+                                                  Mathf.RoundToInt(adBonusFraction * 100f));
+            }
             panelRoot.SetActive(true);
             var audio = ServiceLocator.Get<AudioService>();
             if (audio != null) audio.Play(SoundId.Coin);
@@ -81,13 +121,24 @@ namespace Game.UI
 
         private void OnDouble()
         {
-            if (_ad == null || !_ad.Available) return;
+            if (_ad == null || !_ad.Available || !CanDouble()) return;
             _ad.ShowRewarded(() =>
             {
-                if (_wallet != null && _report != null) _wallet.AddCash(_report.Amount);
+                if (_wallet != null && _report != null)
+                    _wallet.AddCash(_report.Amount * new BigDouble(adBonusFraction));
+                if (_free != null) _free.Consume(AdSlotId);
+                // Charges are the thing a player would reload the app to get back; write them now.
+                if (_save != null && _data != null) _save.Save(_data);
                 Dismiss();
             });
         }
+
+        /// <summary>
+        /// No cooldown is passed: the panel only exists once per return, so the return itself is the
+        /// spacing. Charges are what stops a player who backgrounds and reopens the app all evening
+        /// from collecting the bonus every time.
+        /// </summary>
+        private bool CanDouble() => _free == null || _free.CanWatch(AdSlotId, adChargesPerDay, 0f);
 
         private void Dismiss()
         {
@@ -109,12 +160,12 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// The offline rule, stated plainly. Efficiency is always shown — at 50%, an hour away pays
-        /// half an hour of production, and a player who does the arithmetic on an unlabelled number
-        /// concludes the game shorted them. The cap half only appears when it actually bit.
+        /// The offline rule, stated plainly. Efficiency is always shown — at 35%, an hour away pays
+        /// about twenty minutes of production, and a player who does the arithmetic on an unlabelled
+        /// number concludes the game shorted them. The cap half only appears when it actually bit.
         ///
-        /// Deliberately the same two numbers the GECE VARDİYASI offer improves ("ÇEVRİMDIŞI 8 SAAT",
-        /// "VERİM %50 → %75"), so the offer reads as an upgrade to a rule the player has already seen.
+        /// Deliberately the same two numbers the GECE VARDİYASI offer improves ("ÇEVRİMDIŞI 14 SAAT",
+        /// "VERİM %35 → %60"), so the offer reads as an upgrade to a rule the player has already seen.
         /// </summary>
         private string RuleText()
         {

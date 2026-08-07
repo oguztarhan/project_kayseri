@@ -24,9 +24,19 @@ namespace Game.Systems
         private readonly double _floorReward;
         private readonly long _rewardGems;
 
-        // How much of a minute's income one contract asks for. Above 1.0 the player has to actually push
-        // — buy an upgrade, unlock a truck — rather than wait it out, which is the point of the timer.
-        private const double MinutesOfIncome = 1.35d;
+        // How much of a minute's income one contract asks for, against a window the config sets (90 s).
+        // So passive play delivers 1.5 minutes of income into a 1.2-minute ask: a 25% margin at
+        // difficulty 1, which the streak eats in two claims (x1.12 each) before the player has to find
+        // the rest somewhere — a boost, a burst of upgrades — or drop a notch and start climbing again.
+        //
+        // It was 1.35 against a 60-second window, which asked for 35% MORE than the window could
+        // passively produce. The comment here used to say the player should "buy an upgrade, unlock a
+        // truck" to cover that, and on the first island's opening levels they could: at level 1 one axis
+        // purchase is worth 6.8% and five of them clear it. By level 5 an axis is worth 0.34% and it
+        // takes 89 purchases in sixty seconds. So from a few minutes in, the contract could only be won
+        // inside a rewarded-ad boost window, which is not what a "there is always something to do" loop
+        // is for. Measured off EconomyCurve's samples, 2026-08-07.
+        private const double MinutesOfIncome = 1.2d;
         private const double RewardFraction = 0.45d;   // bonus paid, as a share of the target
         private const double StreakStep = 1.12d;       // each claim makes the next one this much harder
         private const double StreakCap = 4d;

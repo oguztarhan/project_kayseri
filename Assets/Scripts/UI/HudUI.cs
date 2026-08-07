@@ -262,7 +262,11 @@ namespace Game.UI
         private void RefreshBoostButton(bool boosted)
         {
             if (boostButton == null) return;
-            bool ready = !boosted && adScreen != null && adScreen.BoostReady;
+            // Not gated on "no boost running" any more. That gate existed because a second boost used to
+            // wipe the first, so tapping this while a package ran destroyed the package. Boosts stack
+            // now (BoostService.AddBoost), so locking the shortcut would only mean a player who bought
+            // the 24-hour offer loses their three free charges for the day.
+            bool ready = adScreen != null && adScreen.BoostReady;
             boostButton.interactable = ready;
 
             if (boostButtonImage != null)
@@ -333,7 +337,7 @@ namespace Game.UI
         }
 
         /// <summary>Whether the ×2 shortcut has a charge — the tip about it waits for this.</summary>
-        public bool BoostReady => adScreen != null && adScreen.BoostReady && (_boost == null || !_boost.IsActive);
+        public bool BoostReady => adScreen != null && adScreen.BoostReady;
 
         private static RectTransform Rect(Button b) => b != null ? (RectTransform)b.transform : null;
 

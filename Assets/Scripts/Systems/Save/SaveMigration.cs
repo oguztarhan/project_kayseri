@@ -25,11 +25,12 @@ namespace Game.Systems
     public static class SaveMigration
     {
         /// <summary>
-        /// Version 4: the economy rebalance — cost and unlock curves, offline cap, prestige and
-        /// the fleet caps all moved, so every level on a version-3 save was bought at a price
-        /// that no longer exists.
+        /// Version 5: the ad-economy pass. Offline efficiency dropped from 50% to 35%, the
+        /// welcome-back ad stopped paying a second full grant without limit, and the ladder was
+        /// re-solved against the daily budget that left — so every unlock price and every island's
+        /// cost multiplier moved. A version-4 save's levels were bought at prices that are gone.
         /// </summary>
-        public const int CurrentVersion = 4;
+        public const int CurrentVersion = 5;
 
         /// <summary>True when <paramref name="data"/> came from a build whose progress cannot carry over.</summary>
         public static bool NeedsReset(SaveData data) => data == null || data.version != CurrentVersion;

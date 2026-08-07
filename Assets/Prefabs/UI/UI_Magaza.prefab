@@ -4317,7 +4317,7 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 7fb5c7504fefa6949b1035a2eda090fd, type: 3}
     priceLabel: "\u20BA14,99"
     sku: gold_2500
-    cashAmount: 2500
+    cashAmount: 290000
     incomeMinutes: 15
     gemAmount: 0
   - title: 8K
@@ -4325,7 +4325,7 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: d94c16c77545a7a41a92eaf1141781ae, type: 3}
     priceLabel: "\u20BA39,99"
     sku: gold_8000
-    cashAmount: 8000
+    cashAmount: 930000
     incomeMinutes: 48
     gemAmount: 0
   - title: 25K
@@ -4333,7 +4333,7 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: fdf929e07b0688d4eb1731c709db7e39, type: 3}
     priceLabel: "\u20BA89,99"
     sku: gold_25000
-    cashAmount: 25000
+    cashAmount: 2900000
     incomeMinutes: 150
     gemAmount: 0
   - title: 75K
@@ -4341,7 +4341,7 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 1546777dac247f44897de2569c359529, type: 3}
     priceLabel: "\u20BA199,99"
     sku: gold_75000
-    cashAmount: 75000
+    cashAmount: 8700000
     incomeMinutes: 450
     gemAmount: 0
   - title: 250K
@@ -4349,7 +4349,7 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 86e105618abf5e04ebe40f0465742eb9, type: 3}
     priceLabel: "\u20BA429,99"
     sku: gold_250000
-    cashAmount: 250000
+    cashAmount: 29000000
     incomeMinutes: 1500
     gemAmount: 0
   - title: 1M
@@ -4357,7 +4357,7 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 19a9912d0954e9d41acaa1d54b17950e, type: 3}
     priceLabel: "\u20BA999,99"
     sku: gold_1000000
-    cashAmount: 1000000
+    cashAmount: 116000000
     incomeMinutes: 6000
     gemAmount: 0
   - title: 80
@@ -4412,7 +4412,7 @@ MonoBehaviour:
   - name: "Ba\u015Flang\u0131\xE7 Paketi"
     button: {fileID: 5808807268847988884}
     sku: offer_baslangic
-    cashAmount: 5000000
+    cashAmount: 950000
     gemAmount: 250
     boostMultiplier: 2
     boostSeconds: 345600
@@ -4431,9 +4431,9 @@ MonoBehaviour:
     description: 
     incomeMinutes: 49
     investorShare: 0
-  - name: Reklam Yok
+  - name: "G\xFCnl\xFCk Hazine"
     button: {fileID: 6838375703838413410}
-    sku: offer_reklamyok
+    sku: offer_hazine
     cashAmount: 0
     gemAmount: 500
     boostMultiplier: 1
@@ -4478,7 +4478,7 @@ MonoBehaviour:
   - name: Maden Patronu
     button: {fileID: 3836880484917672375}
     sku: offer_madenpatronu
-    cashAmount: 500000000
+    cashAmount: 95000000
     gemAmount: 1400
     boostMultiplier: 1
     boostSeconds: 0

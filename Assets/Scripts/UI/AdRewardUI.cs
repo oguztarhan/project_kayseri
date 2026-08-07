@@ -279,7 +279,7 @@ namespace Game.UI
                         if (_wallet != null) _wallet.AddCash(new BigDouble(IncomePerMinute() * slot.incomeMinutes));
                         break;
                     default:
-                        if (_boost != null) _boost.SetBoost(slot.boostMultiplier, slot.boostSeconds);
+                        if (_boost != null) _boost.AddBoost(slot.boostMultiplier, slot.boostSeconds);
                         break;
                 }
                 _free.Consume(slot.id);

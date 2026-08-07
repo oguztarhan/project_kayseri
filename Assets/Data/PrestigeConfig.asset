@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Data::Game.Data.PrestigeConfig
   investorK: 10
   bonusPerInvestor: 0.1
-  referenceLifetime: 1100000
+  referenceLifetime: 43000000
   tierStep: 3.2
   minIslandsOwned: 3
   readyFraction: 0.5

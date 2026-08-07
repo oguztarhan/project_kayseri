@@ -66,7 +66,14 @@ namespace Game.Systems
             ServiceLocator.Register<IRemoteConfig>(new LocalRemoteConfigService());
             ServiceLocator.Register<ICloudSave>(new LocalCloudSaveStub());
             ServiceLocator.Register<IAdService>(new StubAdService());
+            // Gerçek kasa yalnız cihazda. Editörde Play Billing yok; oradaki test yolu mağazanın kendi
+            // devFreeIAP anahtarı. Kuralı gevşetip editörde de açarsak, UGS bağlantısı olmadığı her
+            // oturumda konsol bir başlatma hatası yazar.
+#if UNITY_ANDROID && !UNITY_EDITOR
+            ServiceLocator.Register<IIAPService>(new GooglePlayIAPService());
+#else
             ServiceLocator.Register<IIAPService>(new StubIAPService());
+#endif
             ServiceLocator.Register<INotifications>(new StubNotifications());
 
             Save = new SaveService();

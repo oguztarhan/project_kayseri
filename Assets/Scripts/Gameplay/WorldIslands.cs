@@ -200,7 +200,7 @@ namespace Game.Gameplay
         /// point it is simply ×<see cref="TierStep"/> and needs no more hand-picked numbers.
         /// </summary>
         private static readonly double[] RampUnlock =
-        { 0d, 1.89e6d, 81.41e6d, 614.78e6d, 3.1e9d, 15.73e9d, 65.91e9d, 263.25e9d };
+        { 0d, 1.45e6d, 59.21e6d, 438.39e6d, 2.24e9d, 10.83e9d, 50.53e9d, 181.5e9d };
 
         private static double UnlockCostFor(int n)
             => n <= 0 ? 0d

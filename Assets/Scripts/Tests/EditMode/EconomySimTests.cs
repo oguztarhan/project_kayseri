@@ -33,14 +33,14 @@ namespace Game.Tests
         // as long to buy as the island is meant to last (Kayseri/Economy/Solve Ladder).
         private static double ValueMultiplier(int n) => Math.Pow(3.2d, n);
         private static readonly double[] CostMul =
-        { 0.48, 20.6487, 147.8513, 787.0063, 3783.3154, 16718.3784, 63310.6556, 218269.5513 };
+        { 0.3491, 15.0172, 105.429, 569.0778, 2746.6457, 12152.1508, 46036.2334, 155879.8923 };
         private static double CostMultiplier(int n) => n < Ramp
             ? CostMul[n]
             : CostMul[Ramp - 1] * Math.Pow(3.2d, n - Ramp + 1);
 
         // Unlock costs, mirroring WorldIslands.DefaultLadder.
         private static readonly double[] Unlock =
-        { 0d, 1.89e6d, 81.41e6d, 614.78e6d, 3.1e9d, 15.73e9d, 65.91e9d, 263.25e9d };
+        { 0d, 1.45e6d, 59.21e6d, 438.39e6d, 2.24e9d, 10.83e9d, 50.53e9d, 181.5e9d };
         private static double UnlockCost(int n) => n < Ramp
             ? Unlock[n]
             : Unlock[Ramp - 1] * Math.Pow(3.2d, n - Ramp + 1);

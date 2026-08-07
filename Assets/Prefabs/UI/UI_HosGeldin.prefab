@@ -228,9 +228,6 @@ MonoBehaviour:
   stepSeconds: 0.36
   fromScale: 0.5
   overshoot: 1.7
-  dim: {fileID: 3255979022898382795}
-  dimSeconds: 0.25
-  dimAlpha: 0.84
   medallion: {fileID: 5596118521559309488}
   glow: {fileID: 2806860710815165637}
   glowSpin: 9
@@ -1743,7 +1740,6 @@ GameObject:
   - component: {fileID: 613977436790332530}
   - component: {fileID: 3582331495015899206}
   - component: {fileID: 7418472563406616669}
-  - component: {fileID: 1351047688690360434}
   m_Layer: 5
   m_Name: Etiket
   m_TagString: Untagged
@@ -1870,19 +1866,6 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!114 &1351047688690360434
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6445909762405296052}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30c864ace83457f4189c91c792b8b089, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.UI::Game.UI.LocalizedText
-  key: hosgeldin.ikiye_katla
 --- !u!1 &6564434627043084918
 GameObject:
   m_ObjectHideFlags: 0

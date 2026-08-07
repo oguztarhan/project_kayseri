@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: OfflineConfig
   m_EditorClassIdentifier: Game.Data::Game.Data.OfflineConfig
   enabled: 1
-  efficiency: 0.5
+  efficiency: 0.35
   capHours: 8

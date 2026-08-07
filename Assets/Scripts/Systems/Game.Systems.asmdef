@@ -4,7 +4,9 @@
     "references": [
         "Game.Core",
         "Game.Data",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "Unity.Purchasing",
+        "Unity.Services.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

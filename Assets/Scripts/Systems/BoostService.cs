@@ -22,12 +22,38 @@ namespace Game.Systems
             _time = time;
         }
 
-        /// <summary>Starts a boost, replacing any running one rather than stacking with it.</summary>
-        public void SetBoost(double mult, double seconds)
+        /// <summary>
+        /// Adds a boost on top of whatever is already running. It never shortens and never replaces.
+        ///
+        /// Overwriting was the old behaviour and it was a refund request waiting to happen: a player who
+        /// paid for the 24-hour package and then tapped a free ×2/5dk ad was left holding five minutes.
+        /// It also quietly punished buying two packages, which is the opposite of what the store wants.
+        ///
+        /// Plain extension does not work either, because the two boosts can carry different multipliers
+        /// and only one of them can be THE multiplier. So the stronger one is kept and the other's time
+        /// is converted into it. What a boost is worth is (mult − 1) × seconds — the income it adds over
+        /// running unboosted — and that total is what the conversion preserves exactly. A ×2/5dk ad
+        /// dropped onto a running ×3 buys 150 seconds rather than 300, and pays the same money for it.
+        /// </summary>
+        public void AddBoost(double mult, double seconds)
         {
             if (mult <= 1d || seconds <= 0d) return;
-            _data.boostMultiplier = mult;
-            _data.boostEndUnix = _time.NowUnix() + (long)seconds;
+
+            long now = _time.NowUnix();
+            long left = _data.boostEndUnix - now;
+            if (left <= 0L || _data.boostMultiplier <= 1d)
+            {
+                _data.boostMultiplier = mult;
+                _data.boostEndUnix = now + (long)seconds;
+                return;
+            }
+
+            double running = _data.boostMultiplier;
+            double keep = running > mult ? running : mult;
+            double worth = left * (running - 1d) + seconds * (mult - 1d);
+
+            _data.boostMultiplier = keep;
+            _data.boostEndUnix = now + (long)(worth / (keep - 1d));
         }
 
         public double ActiveMultiplier => _time.NowUnix() < _data.boostEndUnix ? _data.boostMultiplier : 1d;
