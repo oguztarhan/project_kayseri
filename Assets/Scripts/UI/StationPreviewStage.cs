@@ -41,6 +41,10 @@ namespace Game.UI
         [SerializeField] private float yaw = 38f;
         [Tooltip("Modelin kareyi ne kadar doldurduğu. 1 = kenarlara değer.")]
         [SerializeField, Range(0.3f, 1f)] private float fill = 0.88f;
+        [Tooltip("Kadrajın alabileceği en geniş bölge (dünya birimi). Bundan uzun bir bölge ortasından " +
+                 "çekilir, uçları kareden taşar — demiryolu 250 birim, tamamı kareye sığdırılınca " +
+                 "bina değil saç teli oluyordu. 0 = sınırsız.")]
+        [SerializeField, Min(0f)] private float maxSpan = 120f;
 
         [Header("Salınım")]
         [Tooltip("Tabla tam tur dönmez, sağa sola salınır — binanın hep iyi cephesi kamerada kalsın diye.")]
@@ -80,6 +84,7 @@ namespace Game.UI
                 }
                 Build();
                 if (_cam == null) return;
+                _cam.targetTexture = Texture;   // the texture may have been rebuilt since the last open
                 _cam.enabled = true;
                 _sway = 0f;
             }
@@ -94,11 +99,18 @@ namespace Game.UI
                 {
                     _rt = new RenderTexture(textureWidth, textureHeight, 24, RenderTextureFormat.Default);
                     _rt.name = "IstasyonOnizleme";
-                    _rt.antiAliasing = 2;     // the buildings are all hard silhouettes against a flat sky
+                    // The buildings are all hard silhouettes against a flat sky, so MSAA earns its keep —
+                    // but only where the device has it. Asking for it on a GPU that cannot do it fails the
+                    // whole allocation, and the screen then draws an empty frame with no error the player
+                    // could report beyond "the model is gone".
+                    _rt.antiAliasing = SystemInfo.supportsMultisampledTextures != 0 ? 2 : 1;
                     _rt.useMipMap = false;
                     _rt.filterMode = FilterMode.Bilinear;
                     _rt.Create();
                 }
+                // Android throws the contents away whenever the app loses its graphics context — coming
+                // back from a rewarded ad is enough. The camera would keep rendering into a dead handle.
+                else if (!_rt.IsCreated()) _rt.Create();
                 return _rt;
             }
         }
@@ -230,38 +242,64 @@ namespace Game.UI
                 rs[i].localBounds = wide;
             }
 
-            _radius = Mathf.Max(0.5f, districtBounds.extents.magnitude);
-            _distance = FitDistance(districtBounds);
+            Bounds framed = Framed(districtBounds);
+            _radius = Mathf.Max(0.5f, framed.extents.magnitude);
+            // The table is turning the whole time, so the shot has to hold at both ends of the sway as
+            // well as at rest — a fit solved only for the resting angle lets the corners of a long
+            // building swing out through the sides of the frame.
+            _distance = Mathf.Max(FitDistance(framed, yaw),
+                        Mathf.Max(FitDistance(framed, yaw - swayDegrees),
+                                  FitDistance(framed, yaw + swayDegrees)));
+            // A district that needed a long dolly must not fall out the back of the frustum. The backdrop
+            // rides the camera at 900, so the plane can only ever move outward from there.
+            _cam.farClipPlane = Mathf.Max(1400f, _distance * 1.6f);
             return holder.transform;
+        }
+
+        /// <summary>
+        /// The part of the district the camera is asked to hold. Everything on this island is a
+        /// building except the railway, which is a quarter of a kilometre of track; fitting that whole
+        /// length into a 4:3 frame drew a hairline with two dots on it. Past <see cref="maxSpan"/> the
+        /// shot is taken on the middle of the district at building scale and the ends run out of frame,
+        /// which is what a model of a railway is supposed to look like.
+        /// </summary>
+        private Bounds Framed(Bounds b)
+        {
+            if (maxSpan <= 0f) return b;
+            Vector3 s = b.size;
+            if (s.x <= maxSpan && s.z <= maxSpan) return b;
+            return new Bounds(b.center, new Vector3(Mathf.Min(s.x, maxSpan), s.y, Mathf.Min(s.z, maxSpan)));
         }
 
         /// <summary>
         /// How far back the camera has to stand for this building to fill the frame.
         ///
-        /// Measured off the eight corners of its box turned into camera space, not off a bounding
-        /// sphere. A district is a wide, flat slab — a market pad is twelve metres tall and seventy
-        /// across — and the sphere around it is nearly all empty air, which pushed the camera back far
-        /// enough that the building sat in the middle of the frame like a stamp.
+        /// Solved per corner: each one has to sit inside both the horizontal and the vertical frustum
+        /// at the dolly distance, and the answer is the largest demand any of the eight makes. The old
+        /// version took the widest corner and the deepest corner and added them, which is only the same
+        /// number when they are the same corner — on anything longer than it is wide it stood the
+        /// camera back by half the length for nothing, and the building came out a stamp in the middle
+        /// of the frame.
         /// </summary>
-        private float FitDistance(Bounds b)
+        private float FitDistance(Bounds b, float atYaw)
         {
-            Quaternion inv = Quaternion.Inverse(Quaternion.Euler(pitch, yaw, 0f));
+            Quaternion inv = Quaternion.Inverse(Quaternion.Euler(pitch, atYaw, 0f));
+            float vTan = Mathf.Tan(fieldOfView * 0.5f * Mathf.Deg2Rad) * Mathf.Max(0.05f, fill);
+            float hTan = vTan * ((float)textureWidth / Mathf.Max(1, textureHeight));
+
             Vector3 e = b.extents;
-            float hx = 0f, hy = 0f, hz = 0f;
-            for (int i = 0; i < 8; i++)
-            {
-                var corner = new Vector3((i & 1) == 0 ? -e.x : e.x,
-                                         (i & 2) == 0 ? -e.y : e.y,
-                                         (i & 4) == 0 ? -e.z : e.z);
-                Vector3 v = inv * corner;
-                hx = Mathf.Max(hx, Mathf.Abs(v.x));
-                hy = Mathf.Max(hy, Mathf.Abs(v.y));
-                hz = Mathf.Max(hz, Mathf.Abs(v.z));
-            }
-            float halfTan = Mathf.Tan(fieldOfView * 0.5f * Mathf.Deg2Rad);
-            float aspect = (float)textureWidth / Mathf.Max(1, textureHeight);
-            float need = Mathf.Max(hx / Mathf.Max(0.05f, aspect), hy);
-            return need / Mathf.Max(0.05f, fill * halfTan) + hz;
+            float dist = 1f;
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sy = -1; sy <= 1; sy += 2)
+                    for (int sz = -1; sz <= 1; sz += 2)
+                    {
+                        Vector3 local = inv * new Vector3(e.x * sx, e.y * sy, e.z * sz);
+                        float needH = Mathf.Abs(local.x) / hTan - local.z;
+                        float needV = Mathf.Abs(local.y) / vTan - local.z;
+                        if (needH > dist) dist = needH;
+                        if (needV > dist) dist = needV;
+                    }
+            return dist;
         }
 
         public void Clear()

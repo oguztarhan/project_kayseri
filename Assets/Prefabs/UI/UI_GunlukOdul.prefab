@@ -2618,6 +2618,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9164764624891558182}
+  - component: {fileID: 2830387123159995271}
+  - component: {fileID: 1558630509501453199}
   m_Layer: 5
   m_Name: Pencere
   m_TagString: Untagged
@@ -2648,6 +2650,32 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!225 &2830387123159995271
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3803800193755725502}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &1558630509501453199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3803800193755725502}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fdca7245741e87244b35fdbca77705eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PanelOpenFx
+  fromScale: 0.95
+  seconds: 0.18
 --- !u!1 &4080628333153114927
 GameObject:
   m_ObjectHideFlags: 0

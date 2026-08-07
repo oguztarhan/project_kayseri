@@ -58,6 +58,9 @@ namespace Game.UI
         [SerializeField] private Sprite pipOff;        // pip_bos
         [Tooltip("Turda dünyadaki durağın üstünde duran iğne — rozet_buradasin.")]
         [SerializeField] private Sprite worldPin;
+        [Tooltip("Oyuncunun gerçekten dokunması beklenen anlarda halkanın ortasında beliren el. "
+                 + "Boş bırakılırsa el hiç çıkmaz, eğitim aynen çalışır.")]
+        [SerializeField] private Sprite tapHand;
         [Tooltip("Boşken sahnedeki ilk TMP yazı tipi ödünç alınır.")]
         [SerializeField] private TMP_FontAsset font;
 
@@ -69,15 +72,25 @@ namespace Game.UI
         [SerializeField] private float beatSeconds = 4.2f;
         [Tooltip("Kameranın bir duraktan diğerine süzülme süresi.")]
         [SerializeField] private float flySeconds = 1.15f;
-        [Tooltip("Bir durakta ekranın dikeyde kapsadığı dünya birimi — küçüldükçe yakınlaşır. " +
-                 "Ölçüldü: adanın bölgeleri 70-87 birim, 66'da maden kadraja sığmıyordu.")]
-        [SerializeField] private float beatSpan = 92f;
+        [Tooltip("Bir durakta ekranın dikeyde kapsadığı EN AZ dünya birimi. Bölgesi ölçülebilen " +
+                 "duraklar kendi sınırlarından daha genişini isteyebilir; bu taban, tren gibi tek " +
+                 "gövdeli durakların da fazla yakın çekilmemesi için.")]
+        [SerializeField] private float beatSpan = 110f;
+        [Tooltip("Bölge sınırının yatay çapı bu katsayıyla çarpılıp kadraj ona açılır — kenarlarda " +
+                 "nefes payı. Depo 76 birim; 1.5 ile 114'lük kadraja oturur ve tamamı görünür.")]
+        [SerializeField] private float focusPadding = 1.6f;
         [Tooltip("Durağın ekranın ne kadar yukarısına oturacağı, ekran yüksekliğinin oranı olarak. " +
-                 "Kart alt üçte biri kaplıyor; anlattığı binanın üstünü örtmemeli. 0.16'da izabenin " +
-                 "42 birimlik bacası üstten kesiliyordu — tavan bu yüzden alçak.")]
-        [SerializeField] private float beatRise = 0.11f;
+                 "Kart alt üçte biri kaplıyor; bölge merkezi kartın ÜSTÜNDE kalan alanın ortasına " +
+                 "oturmalı — kapladığı oranın yarısı. DİKKAT: bu alanlar UI_HUD prefabında serileşmiş " +
+                 "durumda; buradaki varsayılanı değiştirmek yetmez, prefabı da güncellemek gerekir.")]
+        [SerializeField] private float beatRise = 0.15f;
         [Tooltip("Bağlamsal ipucu kartının ekranda kalma süresi.")]
         [SerializeField] private float tipSeconds = 5.5f;
+        [Tooltip("Kapanıştaki hızlı buton turunda her butonun ekranda kalma süresi. Dokunuş beklemez, "
+                 + "dokunulursa hemen geçer.")]
+        [SerializeField] private float buttonStopSeconds = 1.9f;
+        [Tooltip("Elin bir dokunuşunun süresi. Yavaş olsun: hızlısı dokunmuyor, titriyor gibi duruyor.")]
+        [SerializeField] private float handTapSeconds = 0.9f;
 
         [Header("Renkler")]
         [SerializeField] private Color shadeColor = new Color(0.02f, 0.04f, 0.09f, 0.80f);
@@ -89,16 +102,24 @@ namespace Game.UI
         private const float CanvasHeight = 2340f;
         private const int SortingOrder = 250;      // hoş geldin ekranı 200; eğitim her şeyin üstünde
 
+        // panel_ayarlar'ın dilim kenarı 120 px; çarpansız 940×330'luk kartta üst+alt kenar 240 px yer
+        // yiyor ve iç kapsül bir şeride iniyordu — madalyon da yazı da süslü kenarın üstüne taşıyordu.
+        // Ayarlar penceresinin kendi çözümü neyse o: çarpan 2, kenar 60'a iner, içerik 60'ın içinde kalır.
+        private const float CardPpu = 2f;
+        private const float CardInset = 60f;
         private const float CardWidth = 940f;
-        private const float CardHeight = 306f;
+        private const float CardHeight = 330f;
         private const float RibbonWidth = 700f;
         private const float RibbonHeight = 168f;
-        private const float MedalSize = 156f;
+        private const float MedalSize = 140f;
         private const float PipSize = 22f;
-        private const float NextSize = 104f;
+        private const float NextSize = 84f;
         private const float CardBottomY = 470f;    // ekranın altından — HUD'un alt sırasının üstünde
         private const float CardTopY = -540f;      // ekranın üstünden
         private const float RingPad = 26f;         // deliğin kenarından halkanın dışına
+        private const float CardGap = 44f;         // halkanın dışından kartın kenarına — kalan nefes payı
+        private const float RibbonRise = 92f;      // şeridin kartın üst kenarından yukarı taşan payı
+        private const float PipDrop = 58f;         // noktaların kartın alt kenarından aşağı taşan payı
 
         // ------------------------------------------------------------------ tur
         private struct Beat
@@ -117,6 +138,31 @@ namespace Game.UI
             new Beat { station = IslandEconomy.Smelter, key = "izabe",  icon = 3 },
             new Beat { station = IslandEconomy.Market,  key = "pazar",  icon = 4 },
             new Beat { station = -1,                    key = "zincir", icon = 5 },
+        };
+
+        /// <summary>One stop of the closing button pass. <see cref="StopRect"/> holds the matching rect.</summary>
+        private struct Stop
+        {
+            public string key;     // egitim.<key>_b / _m
+            public string tip;     // aynı şeyi anlatan ipucunun kimliği; tanıtılınca o ipucu bir daha çıkmaz
+        }
+
+        /// <summary>
+        /// HUD'un okunma sırası: üst sıra soldan sağa, sağ ray yukarıdan aşağı, sonra alt sıra. Bazı
+        /// duraklar mevcut ipucu metnini yeniden kullanıyor — aynı butonu iki farklı cümleyle anlatmanın
+        /// bir faydası yok, üstelik o ipuçları on bir dile çevrilmiş durumda.
+        /// </summary>
+        private static readonly Stop[] Stops =
+        {
+            new Stop { key = "buton_ayarlar" },
+            new Stop { key = "buton_magaza"  },
+            new Stop { key = "ipucu_gunluk",  tip = "gunluk"  },
+            new Stop { key = "ipucu_ada",     tip = "ada"     },
+            new Stop { key = "buton_kontrat", tip = "kontrat" },
+            new Stop { key = "buton_reklam"  },
+            new Stop { key = "buton_teklif"  },
+            new Stop { key = "ipucu_boost",   tip = "boost"   },
+            new Stop { key = "ipucu_prestij", tip = "prestij" },
         };
 
         // ------------------------------------------------------------------ servisler
@@ -151,6 +197,7 @@ namespace Game.UI
         private RectTransform _skip;
         private TMP_Text _skipText;
         private RectTransform _pin;
+        private RectTransform _hand;
 
         private Sprite _ringSprite;
 
@@ -221,6 +268,15 @@ namespace Game.UI
             if (_op == null && ops.Length > 0) _op = ops[0];
         }
 
+        /// <summary>
+        /// Whether any of the onboarding is on screen — the tour's dimmer or a one-shot tip. Both
+        /// live under the same runtime root, which is built on first use and switched off between
+        /// beats. <see cref="OfferPopupUI"/> asks so an offer never lands on a hint the player is
+        /// still reading; the tips fire long after the tour is finished, so its step counter alone
+        /// would not catch them.
+        /// </summary>
+        public bool IsShowing => _root != null && _root.gameObject.activeSelf;
+
         /// <summary>Replays the whole thing — the settings screen's EĞİTİM row.</summary>
         public void Replay()
         {
@@ -250,6 +306,7 @@ namespace Game.UI
 
             yield return TourPart();
             if (!_skipped) yield return UpgradePart();
+            if (!_skipped) yield return ButtonsPart();
 
             Finish();
         }
@@ -276,12 +333,21 @@ namespace Game.UI
             for (int i = 0; i < Tour.Length && !_skipped; i++)
             {
                 // Son durak tek bir istasyon değil, zincirin tamamı: açılış çerçevesine geri süzülür.
+                // Bölgesi ölçülebilen duraklarda hedef bölgenin MERKEZİ, kadraj bölgenin çapı — nokta
+                // hedefler (zemin hizasındaki işaretçiler) depoyu iki yığın ve yarım baraka yapıyordu.
                 Vector3 look = Vector3.zero;
+                float span = beatSpan;
                 bool onStation = Tour[i].station >= 0 && _op.StationAnchor(Tour[i].station, out look);
+                Bounds area;
+                if (onStation && _op.StationFocus(Tour[i].station, out area))
+                {
+                    look = area.center;
+                    span = Mathf.Max(span, Mathf.Max(area.size.x, area.size.z) * focusPadding);
+                }
                 _ride = Tour[i].ride ? _op.TrainEngine : null;
                 if (_ride != null) look = _ride.position;
 
-                if (onStation) yield return Fly(cam, rot, look, beatSpan);
+                if (onStation) yield return Fly(cam, rot, look, span);
                 else yield return FlyHome(cam, home);
 
                 SetPips(i);
@@ -415,6 +481,75 @@ namespace Game.UI
             _tapAdvances = false;
         }
 
+        /// <summary>
+        /// The closing pass. Every button on the HUD, one spotlight each, fast — the player has just
+        /// bought a level and the game is about to hand the screen back, so this is the last moment they
+        /// will look at the frame rather than through it.
+        ///
+        /// A button that is not on screen yet is skipped rather than pointed at, and only the ones
+        /// actually shown are struck off the tip list: prestige and the ×2 shortcut unlock later, and
+        /// they still deserve their card the day they appear.
+        /// </summary>
+        private IEnumerator ButtonsPart()
+        {
+            if (_hud == null) yield break;
+            yield return HideCard();
+            yield return new WaitForSecondsRealtime(0.2f);
+
+            _tapAdvances = true;
+            ShowSkip(true);
+            bool wrote = false;
+
+            for (int i = 0; i < Stops.Length && !_skipped; i++)
+            {
+                RectTransform target = StopRect(i);
+                Rect r;
+                if (target == null || !CanvasRectOf(target, out r)) continue;
+
+                _targetRect = target;
+                SetHole(r);
+                PlaceRing(r);
+                ShowRing(true);
+                ShowCard(Loc.T("egitim." + Stops[i].key + "_b"), Loc.T("egitim." + Stops[i].key + "_m"),
+                         null, PlaceFor(target), false);
+                Sound(SoundId.Tick);
+
+                if (Stops[i].tip != null && _data != null && !_data.tutorialTipsSeen.Contains(Stops[i].tip))
+                {
+                    _data.tutorialTipsSeen.Add(Stops[i].tip);
+                    wrote = true;
+                }
+
+                yield return WaitTap(buttonStopSeconds);
+                yield return HideCard();
+            }
+
+            // Tek yazma: dokuz durak için dokuz kez şifreleyip diske yazmanın anlamı yok.
+            if (wrote && _save != null) _save.Save(_data);
+
+            _targetRect = null;
+            ShowRing(false);
+            ShowSkip(false);
+            SetHole(new Rect());
+            _tapAdvances = false;
+        }
+
+        private RectTransform StopRect(int i)
+        {
+            switch (i)
+            {
+                case 0: return _hud.SettingsRect;
+                case 1: return _hud.StoreRect;
+                case 2: return _hud.DailyRect;
+                case 3: return _hud.MapRect;
+                case 4: return _hud.ContractRect;
+                case 5: return _hud.AdRect;
+                case 6: return _hud.OfferRect;
+                case 7: return _hud.BoostRect;
+                default: return _hud.PrestigeRect;
+            }
+        }
+
         /// <summary>"$180 / $500" — the balance against the price of the level being waited for.</summary>
         private string Progress(BigDouble price)
         {
@@ -504,7 +639,8 @@ namespace Game.UI
             _targetRect = target;
             ShowRing(target != null);
 
-            ShowCard(Loc.T("egitim.ipucu_" + id + "_b"), Loc.T("egitim.ipucu_" + id + "_m"), null, CardTopY, false);
+            ShowCard(Loc.T("egitim.ipucu_" + id + "_b"), Loc.T("egitim.ipucu_" + id + "_m"),
+                     null, PlaceFor(target), false);
             Sound(SoundId.Tick);
             yield return WaitTap(tipSeconds);
             yield return HideCard();
@@ -590,6 +726,10 @@ namespace Game.UI
             _cardBody.text = body;
             _cardIcon.transform.parent.gameObject.SetActive(icon != null);
             _cardIcon.sprite = icon;
+            // Simgesiz kartta (ipuçları) yazı madalyonun boşluğuna kadar genişler.
+            var brt = (RectTransform)_cardBody.transform;
+            brt.offsetMin = new Vector2(icon != null ? CardInset + MedalSize + 24f : CardInset + 26f,
+                                        brt.offsetMin.y);
             _next.gameObject.SetActive(_tapAdvances);
 
             bool top = y < 0f;
@@ -641,12 +781,43 @@ namespace Game.UI
             _cardFade.alpha = 1f;
         }
 
-        /// <summary>Puts the card in whichever half of the screen the highlighted control is not in.</summary>
+        /// <summary>
+        /// Which end of the screen the card goes to so that it cannot cover the control it is talking
+        /// about. Halves were not enough: a button sitting just above the middle still ended up under a
+        /// card anchored to the top, and the daily-reward button — the one the card was pointing at —
+        /// was the one it hid. This measures both bands against the highlighted rect instead of guessing.
+        ///
+        /// The bottom is the default: that is where the thumb already is, and a card there covers the
+        /// world rather than the HUD.
+        /// </summary>
         private float PlaceFor(RectTransform target)
         {
             Rect r;
             if (!CanvasRectOf(target, out r)) return CardBottomY;
-            return r.center.y < CanvasHeight * 0.55f ? CardTopY : CardBottomY;
+
+            // Halka deliğin kenarından dışarı taşıyor; kart onun da dışında kalmalı.
+            float keepLo = r.yMin - RingPad - CardGap;
+            float keepHi = r.yMax + RingPad + CardGap;
+
+            float bLo, bHi, tLo, tHi;
+            CardBand(CardBottomY, out bLo, out bHi);
+            CardBand(CardTopY, out tLo, out tHi);
+
+            float bottomOver = Mathf.Min(bHi, keepHi) - Mathf.Max(bLo, keepLo);
+            if (bottomOver <= 0f) return CardBottomY;
+            float topOver = Mathf.Min(tHi, keepHi) - Mathf.Max(tLo, keepLo);
+            if (topOver <= 0f) return CardTopY;
+            // İkisi de çakışıyorsa (ekranı boydan boya kaplayan bir hedef) az olanı seç.
+            return bottomOver <= topOver ? CardBottomY : CardTopY;
+        }
+
+        /// <summary>The strip of canvas the card would occupy at <paramref name="y"/>, ribbon and pips included.</summary>
+        private void CardBand(float y, out float lo, out float hi)
+        {
+            float h = _canvasRect != null ? _canvasRect.rect.height : CanvasHeight;
+            float bottom = y < 0f ? h + y - CardHeight : y;   // eksi y = üstten sarkar
+            lo = bottom - PipDrop;
+            hi = bottom + CardHeight + RibbonRise;
         }
 
         private IEnumerator WaitTap(float seconds)
@@ -685,6 +856,20 @@ namespace Game.UI
                 _pulse.rectTransform.localScale = new Vector3(s, s, 1f);
                 var c = ringColor; c.a = 0.55f * (1f - p);
                 _pulse.color = c;
+            }
+
+            // El yalnız oyuncunun gerçekten o kontrole dokunması beklenirken çıkar. Kartın "devam"
+            // beklediği duraklarda ekranın her yeri geçerli bir dokunuş, orada el yanlış yeri gösterir.
+            if (_hand != null)
+            {
+                bool want = _targetRect != null && _ring != null && _ring.enabled && !_tapAdvances;
+                if (_hand.gameObject.activeSelf != want) _hand.gameObject.SetActive(want);
+                if (want)
+                {
+                    float p = Mathf.PingPong(Time.unscaledTime * (2f / Mathf.Max(0.1f, handTapSeconds)), 1f);
+                    float s = 1f - 0.13f * (p * p * (3f - 2f * p));
+                    _hand.localScale = new Vector3(s, s, 1f);
+                }
             }
 
             if (_pin != null && _pin.gameObject.activeSelf) PlacePin();
@@ -736,6 +921,11 @@ namespace Game.UI
             _ring.rectTransform.sizeDelta = size;
             _pulse.rectTransform.anchoredPosition = hole.center;
             _pulse.rectTransform.sizeDelta = size;
+
+            if (_hand == null) return;
+            float hh = Mathf.Clamp(hole.height * 0.95f, 110f, 190f);
+            _hand.sizeDelta = new Vector2(hh * (256f / 340f), hh);
+            _hand.anchoredPosition = hole.center;
         }
 
         /// <summary>A UI rect in this canvas's own bottom-left-origin coordinates.</summary>
@@ -924,6 +1114,27 @@ namespace Game.UI
             var c = ringColor; c.a = 0.95f;
             _ring.color = c;
             ShowRing(false);
+            BuildHand();          // halkadan sonra: el her zaman halkanın üstünde çizilsin
+        }
+
+        /// <summary>
+        /// The hand that taps. Its pivot sits on the fingertip, so wherever the hand is put is where the
+        /// finger lands, and the press animation — shrinking towards that pivot — keeps the fingertip
+        /// still while the rest of the hand moves into it.
+        /// </summary>
+        private void BuildHand()
+        {
+            if (tapHand == null) return;
+            var go = new GameObject("El", typeof(RectTransform), typeof(Image));
+            _hand = (RectTransform)go.transform;
+            _hand.SetParent(_root, false);
+            _hand.anchorMin = _hand.anchorMax = Vector2.zero;
+            _hand.pivot = new Vector2(0.40f, 0.87f);     // parmak ucunun resim içindeki yeri
+            var img = go.GetComponent<Image>();
+            img.sprite = tapHand;
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            go.SetActive(false);
         }
 
         private Image RingImage(string name)
@@ -965,6 +1176,7 @@ namespace Game.UI
             var body = go.GetComponent<Image>();
             body.sprite = cardPanel != null ? cardPanel : UiSkin.Panel;
             body.type = Image.Type.Sliced;
+            body.pixelsPerUnitMultiplier = CardPpu;
             body.color = cardPanel != null ? Color.white : new Color(0.97f, 0.95f, 0.88f, 1f);
             body.raycastTarget = false;
 
@@ -994,7 +1206,9 @@ namespace Game.UI
             mrt.SetParent(_card, false);
             mrt.anchorMin = mrt.anchorMax = new Vector2(0f, 0.5f);
             mrt.sizeDelta = new Vector2(MedalSize, MedalSize);
-            mrt.anchoredPosition = new Vector2(112f, -24f);
+            // Merkez = kenar + yarıçap: madalyon iç kapsülün İÇİNDE durur, çizgisine binmez.
+            // -20: şerit üstten pay yediği için içeriğin görsel ortası kart ortasının azıcık altında.
+            mrt.anchoredPosition = new Vector2(CardInset + MedalSize * 0.5f, -20f);
             var medImg = med.GetComponent<Image>();
             medImg.sprite = medallion;
             medImg.raycastTarget = false;
@@ -1011,23 +1225,23 @@ namespace Game.UI
             _cardIcon.raycastTarget = false;
             _cardIcon.preserveAspect = true;
 
-            // gövde yazısı
+            // gövde yazısı — sol kenarı simgeye göre ShowCard ayarlıyor (ipuçlarının simgesi yok)
             _cardBody = Text(_card, "Metin", 42f, TextAlignmentOptions.Left, inkColor);
             var brt = (RectTransform)_cardBody.transform;
-            brt.offsetMin = new Vector2(212f, 46f);
-            brt.offsetMax = new Vector2(-64f, -104f);
+            brt.offsetMin = new Vector2(CardInset + MedalSize + 24f, CardInset - 4f);
+            brt.offsetMax = new Vector2(-(CardInset + 26f), -(RibbonHeight * 0.5f + 8f + 22f));
             _cardBody.enableAutoSizing = true;
             _cardBody.fontSize = 42f;
             _cardBody.fontSizeMin = 28f;
             _cardBody.fontSizeMax = 44f;
 
-            // ileri oku
+            // ileri oku — iç kapsülün sağ alt köşesine, kenarın içinde
             var nx = new GameObject("Ileri", typeof(RectTransform), typeof(Image));
             _next = (RectTransform)nx.transform;
             _next.SetParent(_card, false);
             _next.anchorMin = _next.anchorMax = new Vector2(1f, 0f);
             _next.sizeDelta = new Vector2(NextSize, NextSize);
-            _next.anchoredPosition = new Vector2(-72f, 66f);
+            _next.anchoredPosition = new Vector2(-(CardInset + NextSize * 0.5f - 8f), CardInset + NextSize * 0.5f - 8f);
             var nimg = nx.GetComponent<Image>();
             nimg.sprite = nextIcon;
             nimg.raycastTarget = false;
@@ -1085,6 +1299,9 @@ namespace Game.UI
             var b = go.GetComponent<Button>();
             b.targetGraphic = img;
             b.onClick.AddListener(OnSkip);
+            // Yalnız bu butona: kalkanlar da Button ama onlar dokunuş yiyen görünmez levhalar,
+            // ölçeklenirlerse aralarından delik açılır.
+            TapBounce.Attach(b);
             // Hap koyu lacivert; kartın mürekkebi de öyle. Bu yazı beyaz olmak zorunda.
             _skipText = Text(_skip, "Yazi", 40f, TextAlignmentOptions.Center, Color.white);
             _skipText.text = Loc.T("egitim.atla");

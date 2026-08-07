@@ -33,7 +33,13 @@ namespace Game.UI
 
         [Header("Sağ ray")]
         [SerializeField] private Button storeButton;
-        [SerializeField] private Button offerButton;      // Faz 10: popup_teklif açacak
+        [Tooltip("Reklam butonunun altındaki fırsat kısayolu. HUD'un kalıcı parçası: açık teklif yokken "
+                 + "de yerinde durur, o hâlde mağazayı açar.")]
+        [SerializeField] private Button offerButton;
+        [Tooltip("Fırsat butonunun altındaki geri sayım.")]
+        [SerializeField] private TMP_Text offerTimerValue;
+        [Tooltip("Geri sayımın kapsülü. Satacak paket kalmayınca kapanır — buton kalır, sayaç gider.")]
+        [SerializeField] private GameObject offerTimerChip;
         [SerializeField] private Button dailyButton;
         [SerializeField] private Button mapButton;
         [SerializeField] private Button contractButton;
@@ -66,8 +72,19 @@ namespace Game.UI
         [SerializeField] private PrestigeUI prestigeScreen;
         [SerializeField] private ContractUI contractScreen;
         [SerializeField] private AdRewardUI adScreen;
+        [Tooltip("Açılır fırsat penceresi. Kendi zamanlamasını kendi yönetir; HUD sadece butonu ona açar.")]
+        [SerializeField] private OfferPopupUI offerScreen;
 
         [SerializeField] private float refreshInterval = 0.25f;
+
+        [Header("Sayaç vuruşu")]
+        [Tooltip("Para geldiğinde sayının ne kadar büyüdüğü. Hapın kendisi değil, içindeki sayı zıplar — "
+                 + "hapa dokunma yaylanması yazıyor, ikisi aynı ölçeği paylaşamaz.")]
+        [SerializeField] private float counterPunch = 0.16f;
+        [SerializeField] private float counterPunchSeconds = 0.28f;
+        [Tooltip("Elmas sayacının dolma hızı. Nakitinki 9 — para saniyede bir damlıyor, elmas ise "
+                 + "yılda birkaç kez; yavaş sayması izlenecek bir şey oluyor. Küçük değer = yavaş.")]
+        [SerializeField] private float gemRollSpeed = 5.5f;
 
         private WalletService _wallet;
         private ContractService _contract;
@@ -77,6 +94,11 @@ namespace Game.UI
         private float _timer;
         private double _shownCash;        // eased display value behind the real balance
         private bool _haveShownCash;
+        private double _shownGems;        // same easing for gems — they used to snap
+        private long _writtenGems = -1;   // last integer actually written, so a settled counter allocates nothing
+        private bool _haveShownGems;
+        private float _goldPunch;         // seconds left on the pop
+        private float _gemPunch;
 
         private void Start()
         {
@@ -93,6 +115,7 @@ namespace Game.UI
             if (mapButton != null) mapButton.onClick.AddListener(OnMap);
             if (contractButton != null) contractButton.onClick.AddListener(OnContract);
             if (adButton != null) adButton.onClick.AddListener(OnAds);
+            if (offerButton != null) offerButton.onClick.AddListener(OnOffer);
             if (upgradeButton != null) upgradeButton.onClick.AddListener(OnUpgrades);
             if (boostButton != null) boostButton.onClick.AddListener(OnBoost);
             if (prestigeButton != null) prestigeButton.onClick.AddListener(OnPrestige);
@@ -117,6 +140,9 @@ namespace Game.UI
             if (_op == null || !_op.enabled) BindEnabledOp();
             if (_contract != null) _contract.Tick(Time.deltaTime, IncomePerMinute());
             RollCash(Time.unscaledDeltaTime);
+            RollGems(Time.unscaledDeltaTime);
+            Punch(goldValue, ref _goldPunch, Time.unscaledDeltaTime);
+            Punch(gemsValue, ref _gemPunch, Time.unscaledDeltaTime);
             _timer -= Time.unscaledDeltaTime;
             if (_timer > 0f) return;
             _timer = refreshInterval;
@@ -136,10 +162,50 @@ namespace Game.UI
             {
                 double diff = target - _shownCash;
                 // snap on a big jump (a purchase, an offline grant) so the counter never crawls for seconds
-                if (diff < 0d || System.Math.Abs(diff) > System.Math.Max(1d, target * 0.35d)) _shownCash = target;
+                if (diff < 0d || System.Math.Abs(diff) > System.Math.Max(1d, target * 0.35d))
+                {
+                    // The jump is also the only cash worth celebrating. Income arrives every second of
+                    // the game; a pop on that would be a counter that never stops twitching.
+                    if (diff > 0d) _goldPunch = counterPunchSeconds;
+                    _shownCash = target;
+                }
                 else _shownCash += diff * (1d - System.Math.Exp(-9d * dt));
             }
             goldValue.text = NumberFormatter.Format(new BigDouble(_shownCash));
+        }
+
+        /// <summary>
+        /// Gems used to snap from one integer to the next, which made buying a hundred of them look
+        /// exactly like spending one. They roll now, the same way cash does — and because gems only ever
+        /// move when the player did something, every rise is worth a pop.
+        ///
+        /// The text is written only when the whole number it shows actually changes, so a settled
+        /// counter costs nothing per frame.
+        /// </summary>
+        private void RollGems(float dt)
+        {
+            if (_wallet == null || gemsValue == null) return;
+            double target = _wallet.Gems;
+            if (!_haveShownGems) { _shownGems = target; _haveShownGems = true; }
+            else if (target < _shownGems) _shownGems = target;    // spending lands at once
+            else _shownGems += (target - _shownGems) * (1d - System.Math.Exp(-gemRollSpeed * dt));
+
+            long show = (long)(_shownGems + 0.5d);
+            if (show == _writtenGems) return;
+            _writtenGems = show;
+            gemsValue.text = show.ToString();
+        }
+
+        /// <summary>A short rise-and-fall on a counter that just grew. Rests at exactly 1.</summary>
+        private void Punch(TMP_Text label, ref float left, float dt)
+        {
+            if (left <= 0f || label == null) return;
+            left -= dt;
+            float s = left > 0f
+                ? 1f + counterPunch * Mathf.Sin(Mathf.Clamp01(1f - left / counterPunchSeconds) * Mathf.PI)
+                : 1f;
+            label.transform.localScale = new Vector3(s, s, 1f);
+            if (left <= 0f) left = 0f;
         }
 
         /// <summary>Several operations live on the controller (one per island) — bind the enabled one.</summary>
@@ -173,6 +239,8 @@ namespace Game.UI
                                                "$" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)));
             if (contractTimerValue != null && _contract != null)
                 contractTimerValue.text = _contract.Claimable ? Loc.T("ortak.hazir") : ContractUI.ClockText(_contract.SecondsLeft);
+
+            RefreshOfferButton();
 
             bool boosted = _boost != null && _boost.IsActive;
             if (boostIndicator != null)
@@ -213,6 +281,29 @@ namespace Game.UI
                 mult.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
         }
 
+        /// <summary>
+        /// The offer shortcut is the quiet half of the pop-up: the window itself interrupts once, and
+        /// from then on this button is the only reminder the player gets. It is furniture rather than a
+        /// notification, so it never switches itself off — paying for a pack clears the offer and arms
+        /// the next one, and a button tied to that would blink out and back in the player's face at the
+        /// exact moment they handed over money. Only the clock chip comes and goes, and only where
+        /// there is genuinely no clock: an island with nothing left to sell.
+        /// </summary>
+        private void RefreshOfferButton()
+        {
+            if (offerButton == null) return;
+            bool live = offerScreen != null && offerScreen.HasLiveOffer;
+            if (offerTimerChip != null && offerTimerChip.activeSelf != live) offerTimerChip.SetActive(live);
+            if (!live || offerTimerValue == null) return;
+
+            // The contract clock counts minutes because a contract runs for minutes; an offer runs for
+            // a day, and "1439:56" is not a number anyone reads as "a day left".
+            long left = offerScreen.SecondsLeft();
+            offerTimerValue.text = left >= 3600L
+                ? (left / 3600L) + ":" + (left / 60L % 60L).ToString("00")
+                : ContractUI.ClockText(left);
+        }
+
         private static readonly Color DimBoost = new Color(0.55f, 0.58f, 0.66f, 1f);
 
         // ---- what the tutorial points at -------------------------------------------------------
@@ -226,6 +317,10 @@ namespace Game.UI
         public RectTransform MapRect => Rect(mapButton);
         public RectTransform PrestigeRect => Rect(prestigeButton);
         public RectTransform GoldRect => Rect(goldButton);
+        public RectTransform SettingsRect => Rect(settingsButton);
+        public RectTransform StoreRect => Rect(storeButton);
+        public RectTransform AdRect => Rect(adButton);
+        public RectTransform OfferRect => Rect(offerButton);
         /// <summary>The $/min pill, not the label inside it — the highlight has to sit on the art.</summary>
         public RectTransform RateRect
         {
@@ -242,9 +337,11 @@ namespace Game.UI
 
         private static RectTransform Rect(Button b) => b != null ? (RectTransform)b.transform : null;
 
+        /// <summary>The number itself rolls in <see cref="RollGems"/>; this only notices that it went up.</summary>
         private void RefreshGems()
         {
-            if (gemsValue != null && _wallet != null) gemsValue.text = _wallet.Gems.ToString();
+            if (_wallet == null || !_haveShownGems) return;
+            if (_wallet.Gems > _shownGems) _gemPunch = counterPunchSeconds;
         }
 
         private void OnStore()
@@ -285,6 +382,11 @@ namespace Game.UI
         private void OnAds()
         {
             if (adScreen != null) adScreen.Toggle();
+        }
+
+        private void OnOffer()
+        {
+            if (offerScreen != null) offerScreen.Open();
         }
 
         /// <summary>Straight to the ad — the shortcut exists precisely to skip opening the ad screen.</summary>

@@ -24,6 +24,9 @@ namespace Game.UI
         [Tooltip("Bir parçanın havada kalma süresi (sn). Hepsi aynı anda inmesin diye ±%25 sapar.")]
         [SerializeField] private float lifeSeconds = 3.0f;
         [SerializeField] private Vector2 pieceSize = new Vector2(20f, 30f);
+        [Tooltip("Boş bırakılırsa parçalar düz dikdörtgen kağıt olur. Bir sikke koyulursa aynı fizik "
+                 + "para yağmuru oynatır: takla zaten madeni paranın kendi ekseninde dönüşü gibi okunuyor.")]
+        [SerializeField] private Sprite pieceSprite;
         [SerializeField] private float speedMin = 900f;
         [SerializeField] private float speedMax = 2000f;
         [Tooltip("Yerçekimi (birim/sn²). Negatif = aşağı.")]
@@ -87,6 +90,7 @@ namespace Game.UI
 
                 Image im = go.GetComponent<Image>();
                 im.raycastTarget = false;
+                if (pieceSprite != null) im.sprite = pieceSprite;
 
                 go.SetActive(false);
                 _rects[i] = rt;

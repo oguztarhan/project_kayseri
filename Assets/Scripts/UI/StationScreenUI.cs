@@ -279,10 +279,15 @@ namespace Game.UI
         /// Turns the screen into whichever of its two shapes the current page needs. The expansions have
         /// no building and no phase, so both of those leave and the tray takes the room they were using —
         /// the same sheet, further up, rather than a second screen on top of this one.
+        ///
+        /// The islands past copper are generated rather than authored: they have no phase art at all, so
+        /// there is no building to photograph and no rebuild to count toward. They take the same shape.
+        /// Leaving the studio up on those islands is what an empty picture frame in the middle of the
+        /// screen was — the player reads a missing model, not an island that never had one.
         /// </summary>
         private void ApplyPage()
         {
-            bool expansions = _station == ExpansionPage;
+            bool expansions = _station == ExpansionPage || Phases == null;
             if (stageGroup != null) stageGroup.SetActive(!expansions);
             if (phaseGroup != null) phaseGroup.SetActive(!expansions);
             if (sheet == null) return;
@@ -421,7 +426,7 @@ namespace Game.UI
             if (stage == null) return;
             stage.Clear();
             _model = null;
-            if (_station == ExpansionPage) { stage.Live = false; return; }
+            if (_station == ExpansionPage || Phases == null) { stage.Live = false; return; }
             stage.Zoom = 1f;
             stage.Live = true;
             if (modelView != null) modelView.texture = stage.Texture;

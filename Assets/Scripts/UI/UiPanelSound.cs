@@ -8,8 +8,13 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// One panel's whole sound: a click under every button it contains, and a whoosh when it opens and
-    /// closes. Carrying it means a screen needs no other audio wiring at all.
+    /// One panel's whole answer to being touched: a click, a haptic tick and a <see cref="TapBounce"/>
+    /// under every button it contains, and a whoosh when it opens and closes. Carrying it means a screen
+    /// needs no other feedback wiring at all.
+    ///
+    /// The bounce rides along here rather than being authored on each prefab because this scan already
+    /// happens at exactly the right moment — every button the panel contains, including the rows it
+    /// built in code since the last open.
     ///
     /// Buttons are hooked in <see cref="OnEnable"/>, which is what makes cards work. The screens here
     /// build their rows once and then switch the panel on; hooking at open therefore catches whatever was
@@ -64,7 +69,10 @@ namespace Game.UI
             var found = GetComponentsInChildren<Button>(true);
             for (int i = 0; i < found.Length; i++)
                 if (_hooked.Add(found[i]))
+                {
                     found[i].onClick.AddListener(_click);
+                    TapBounce.Attach(found[i]);
+                }
 
             Play(openSound);
         }

@@ -42,6 +42,26 @@ namespace Game.Systems
                                                      // idle player spends most of those hours with the app shut
         public int tutorialStep;                     // 0 = the opening has never been played, 100 = it has
         public List<string> tutorialTipsSeen = new List<string>();  // one-shot hints already fired, by id
+        public bool firstSaleSeen;                   // the one-off celebration when the chain first pays out
+
+        // ---- pop-up teklifler (OfferPopupUI) --------------------------------------------------
+        // The IAP skus are consumable and shared by all eight islands, so purchasedOffers cannot
+        // gate these: buying the small pack on coal would lock it on copper too. The pop-up keeps
+        // its own "island:tier" receipts instead, and leaves the shared sku out of that list.
+        public List<string> islandOffersBought = new List<string>();
+        public long offerShownUnix;                  // when the last pop-up opened; paces the next one
+        public int offerDayNumber;                   // UTC day the daily counter belongs to
+        public int offerShownToday;
+        public int offerWeekNumber;                  // UTC week the weekly counter belongs to
+        public int offerShownThisWeek;
+        public int offerDeclineStreak;               // pop-ups closed without buying, in a row; a sale
+                                                     // resets it and each step widens the gap
+        public string offerLiveKey = "";             // the offer the HUD button opens ("" = none). Armed
+        public long offerLiveStartUnix;              // silently; the clock only starts (and this is only
+                                                     // stamped) once the pop-up has actually interrupted
+        public string offerPoppedKey = "";           // the offer already shown as a pop-up. Separate from
+                                                     // offerLiveKey so the button can stay lit for an offer
+                                                     // the player has already been asked about once
     }
 
     /// <summary>

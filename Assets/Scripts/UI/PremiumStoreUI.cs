@@ -124,6 +124,10 @@ namespace Game.UI
         [Tooltip("Elmasla satın alınanlar. gemPrice > 0 olmalı; hücreleri gemSpendGrid'e klonlanır.")]
         [SerializeField] private List<OfferBinding> gemOffers = new List<OfferBinding>();
 
+        [Tooltip("ELMAS İLE AL kartlarında fiyatın soluna konan elmas. Boş bırakılırsa fiyat çıplak bir " +
+                 "sayı kalır ve neyle ödendiği yazmaz.")]
+        [SerializeField] private Sprite gemIcon;
+
         [Tooltip("Editör testi: IAP stub'ı her satın almayı reddettiği için, bu açıkken ödüller IAP'siz anında verilir. Cihaz sürümünde yok sayılır.")]
         [SerializeField] private bool devFreeIAP;
 
@@ -360,7 +364,11 @@ namespace Game.UI
                 if (priceT != null)
                 {
                     TMP_Text priceTxt = priceT.GetComponent<TMP_Text>();
-                    if (priceTxt != null) priceTxt.text = offer.gemPrice.ToString();
+                    if (priceTxt != null)
+                    {
+                        priceTxt.text = offer.gemPrice.ToString();
+                        GemMark(priceTxt);
+                    }
                 }
 
                 // A price and a duration explain themselves; "×2" and "%50" do not. Only the cards that
@@ -398,6 +406,33 @@ namespace Game.UI
             }
         }
 
+        /// <summary>
+        /// Puts the gem beside a gem card's price. The packs above are priced in real money and carry the
+        /// currency symbol with them; these cards showed a bare "35", which says how many but never of
+        /// what. The badge goes to the left of the digits and the digits slide right by half of it, so the
+        /// pair still reads as centred on the card whatever the price is.
+        /// </summary>
+        private void GemMark(TMP_Text price)
+        {
+            if (gemIcon == null || price == null) return;
+            const float size = 42f, gap = 6f;
+            float digits = price.GetPreferredValues(price.text).x;
+
+            var go = new GameObject("Elmas", typeof(RectTransform), typeof(Image));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(price.rectTransform, false);
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(size, size);
+            rt.anchoredPosition = new Vector2(-(digits * 0.5f + gap + size * 0.5f), 0f);
+
+            Image img = go.GetComponent<Image>();
+            img.sprite = gemIcon;
+            img.preserveAspect = true;
+            img.raycastTarget = false;   // the whole card is the button
+
+            price.rectTransform.anchoredPosition += new Vector2((size + gap) * 0.5f, 0f);
+        }
+
         /// <summary>Translated line for <paramref name="key"/>, or the authored text when the table has
         /// no row for it — a card added in the Inspector shows something either way.</summary>
         private static string Line(string key, string authored)
@@ -432,21 +467,30 @@ namespace Game.UI
                 });
         }
 
-        private void BuyOffer(OfferBinding offer)
+        /// <summary>
+        /// The one till in the game. <see cref="OfferPopupUI"/> sells through here as well rather than
+        /// keeping a second copy of the grant rules — a pop-up sale and a store sale then cannot drift
+        /// apart, and the pop-up's cards get the same sound, haptic and effects for free. It calls this
+        /// while the store is shut, hence the resolve: nothing else has run on this component yet.
+        /// <paramref name="onDone"/> reports whether anything was actually granted.
+        /// </summary>
+        public void BuyOffer(OfferBinding offer, Action<bool> onDone = null)
         {
-            if (Owned(offer)) return;
+            ResolveServices();
+            if (offer == null || Owned(offer)) { onDone?.Invoke(false); return; }
             // Two tills, one till-slip. A gem card is paid for out of the wallet and either succeeds or
             // does not, so there is nothing to wait for; a money card goes out to the store and comes
             // back later. Both hand the same offer to the same grant.
             if (offer.gemPrice > 0)
             {
-                if (NothingToGrant(offer)) return;
-                if (_wallet == null || !_wallet.TrySpendGems(offer.gemPrice)) return;
+                if (NothingToGrant(offer)) { onDone?.Invoke(false); return; }
+                if (_wallet == null || !_wallet.TrySpendGems(offer.gemPrice)) { onDone?.Invoke(false); return; }
                 Grant(offer);
+                onDone?.Invoke(true);
             }
             else
             {
-                PurchaseFlow(offer.sku, ok => { if (ok) Grant(offer); });
+                PurchaseFlow(offer.sku, ok => { if (ok) Grant(offer); onDone?.Invoke(ok); });
             }
         }
 
