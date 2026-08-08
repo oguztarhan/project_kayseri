@@ -29,21 +29,7 @@ namespace Game.Systems
         private readonly OfflineConfig _config;
         private readonly TimeService _time;
         private readonly INotifications _sink;
-        private readonly int _benchSpacing;
-
-        /// <summary>
-        /// Whether the bench schedule is in use: all six notifications <see cref="_benchSpacing"/>
-        /// seconds apart instead of the real 3/6/9/12/24/48-hour one. Driven by the Ayarlar switch, so
-        /// an installed APK can be moved between the two without another Gradle run.
-        ///
-        /// A bool rather than the interval itself, so the interval lives in exactly one place — the
-        /// bootstrapper's inspector — and the UI never has to carry a copy of a number it does not own.
-        ///
-        /// Setting it reschedules nothing. The queue only exists while the player is away: it is built
-        /// fresh in OnApplicationPause, and what this holds at that moment is what gets used. Flip the
-        /// switch, then leave the game.
-        /// </summary>
-        public bool TestMode { get; set; }
+        private readonly int _testSpacing;
         private readonly NotificationSlot[] _slots = new NotificationSlot[NotificationPlan.MaxSlots];
 
         public NotificationService(SaveData data, OfflineConfig config, TimeService time,
@@ -53,7 +39,7 @@ namespace Game.Systems
             _config = config;
             _time = time;
             _sink = sink;
-            _benchSpacing = testSpacingSeconds < 0 ? 0 : testSpacingSeconds;
+            _testSpacing = testSpacingSeconds;
         }
 
         /// <summary>Queues the whole absence. Replaces anything already queued.</summary>
@@ -73,12 +59,11 @@ namespace Game.Systems
             bool pays = _config != null && _config.Enabled && efficiency > 0d && _data.incomeRatePerSec > 0d;
             long boostLeft = _data.boostEndUnix - _time.NowUnix();
 
-            int spacing = TestMode ? _benchSpacing : 0;
-            int count = NotificationPlan.Build(DateTime.Now, cap, _slots, spacing);
-            if (spacing > 0)
+            int count = NotificationPlan.Build(DateTime.Now, cap, _slots, _testSpacing);
+            if (_testSpacing > 0)
                 UnityEngine.Debug.LogWarning($"[Bildirim] TEST MODU acik: {count} bildirim " +
-                                             $"{spacing} saniye arayla gidecek. Gercek programa donmek " +
-                                             "icin Ayarlar'daki TEST MODU dugmesini kapat.");
+                                             $"{_testSpacing} saniye arayla gidecek. Yayina cikmadan " +
+                                             "GameBootstrap'taki test araligini 0 yap.");
 
             for (int i = 0; i < count; i++)
             {

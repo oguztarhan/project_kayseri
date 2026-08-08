@@ -37,12 +37,6 @@ namespace Game.UI
         [SerializeField] private Sprite switchOn;      // anahtar_acik
         [SerializeField] private Sprite switchOff;     // anahtar_kapali
 
-        [Header("Bildirim test modu")]
-        [Tooltip("Açıkken altı bildirim, gerçek saatler yerine GameBootstrap'taki test aralığıyla " +
-                 "arka arkaya gider. Kurulu bir APK'yı yeniden derlemeden denemek için.")]
-        [SerializeField] private Button testButton;
-        [SerializeField] private Image testImage;
-
         [Header("Liste satırları")]
         [SerializeField] private Button languageButton;
         [SerializeField] private Button privacyButton;
@@ -60,7 +54,6 @@ namespace Game.UI
         private AudioService _audio;
         private HapticService _haptic;
         private bool _hapticOn;
-        private bool _testOn;
         private float _nextPreview;
 
         private void Start()
@@ -72,13 +65,11 @@ namespace Game.UI
             float sfx = PlayerPrefs.GetFloat(KeySfx, _audio != null ? _audio.Sfx : 0.8f);
             float music = PlayerPrefs.GetFloat(KeyMusic, _audio != null ? _audio.Music : 0.6f);
             _hapticOn = PlayerPrefs.GetInt(KeyHaptic, _haptic != null && _haptic.Enabled ? 1 : 0) == 1;
-            _testOn = PlayerPrefs.GetInt(GameBootstrap.NotificationTestKey, 0) == 1;
             Apply(sfx, music, _hapticOn);
 
             if (sfxSlider != null) { sfxSlider.SetValueWithoutNotify(sfx); sfxSlider.onValueChanged.AddListener(OnSfx); }
             if (musicSlider != null) { musicSlider.SetValueWithoutNotify(music); musicSlider.onValueChanged.AddListener(OnMusic); }
             if (hapticButton != null) hapticButton.onClick.AddListener(OnHaptic);
-            if (testButton != null) testButton.onClick.AddListener(OnTestMode);
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
             if (privacyButton != null) privacyButton.onClick.AddListener(OnPrivacy);
             if (languageButton != null) languageButton.onClick.AddListener(OnLanguage);
@@ -148,26 +139,6 @@ namespace Game.UI
         private void RefreshSwitch()
         {
             if (hapticImage != null) hapticImage.sprite = _hapticOn ? switchOn : switchOff;
-            if (testImage != null) testImage.sprite = _testOn ? switchOn : switchOff;
-        }
-
-        /// <summary>
-        /// Flips the notification bench schedule. Writing the pref is what makes it survive a restart;
-        /// pushing it into the live service is what makes it take effect without one.
-        ///
-        /// Nothing is rescheduled here on purpose — the queue is built when the app goes to background,
-        /// so the switch is read at the moment it matters. Flip it, then leave the game.
-        /// </summary>
-        private void OnTestMode()
-        {
-            _testOn = !_testOn;
-            PlayerPrefs.SetInt(GameBootstrap.NotificationTestKey, _testOn ? 1 : 0);
-            PlayerPrefs.Save();
-
-            var notifications = ServiceLocator.Get<NotificationService>();
-            if (notifications != null) notifications.TestMode = _testOn;
-
-            RefreshSwitch();
         }
 
         private void OnPrivacy()
