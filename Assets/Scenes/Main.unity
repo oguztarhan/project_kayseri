@@ -3404,6 +3404,7 @@ GameObject:
   - component: {fileID: 2135659114}
   - component: {fileID: 2135659115}
   - component: {fileID: 2135659116}
+  - component: {fileID: 2135659117}
   m_Layer: 0
   m_Name: CoalController
   m_TagString: Untagged
@@ -4470,6 +4471,27 @@ MonoBehaviour:
   fontSize: 30
   spreadPixels: 42
   cashColor: {r: 0.42, g: 0.92, b: 0.4, a: 1}
+--- !u!114 &2135659117
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2135659099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c734f2eaa668c54a937e459fe15e865, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.UpgradeReadyMarkers
+  badge: {fileID: 21300000, guid: 232a481beab3a1249b6fdd75e6e318a9, type: 3}
+  size: 104
+  worldLift: 10
+  sortingOrder: 92
+  bobPixels: 5
+  bobSeconds: 2.4
+  pulseAmount: 0.03
+  popSeconds: 0.28
+  scanSeconds: 0.25
 --- !u!33 &1358364995091767
 MeshFilter:
   m_ObjectHideFlags: 0

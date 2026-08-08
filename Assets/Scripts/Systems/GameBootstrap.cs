@@ -26,9 +26,16 @@ namespace Game.Systems
         [Tooltip("Boşsa Main tek karede yüklenir ve açılış görseli görünmez.")]
         [SerializeField] private LoadingScreen loadingScreen;
 
-        [Tooltip("SADECE TEST. 0 = kapalı, yani gerçek program (3/6/9/12 saat, gece susar). " +
-                 "Sıfırdan büyükse altı bildirimin hepsi bu kadar saniye arayla gider, cihazda " +
-                 "birkaç dakikada izlenebilsin diye. YAYINA ÇIKMADAN ÖNCE 0 YAP.")]
+        /// <summary>
+        /// PlayerPrefs key for the Ayarlar test-mode switch. Lives here rather than in SettingsUI
+        /// because this is the side that has to read it at boot, before any UI exists.
+        /// </summary>
+        public const string NotificationTestKey = "ayar_bildirim_test";
+
+        [Tooltip("Ayarlar'daki TEST MODU düğmesi AÇIKKEN altı bildirimin hepsi bu kadar saniye arayla " +
+                 "gider, cihazda birkaç dakikada izlenebilsin diye. Düğme kapalıyken bu değer hiç " +
+                 "kullanılmaz ve gerçek program işler (3/6/9/12/24/48 saat, gece susar). Düğme " +
+                 "varsayılan olarak KAPALI.")]
         [SerializeField, Min(0)] private int notificationTestSpacingSeconds = 30;
 
         public GameClock Clock { get; private set; }
@@ -154,9 +161,13 @@ namespace Game.Systems
 
             // Nothing is queued here — a notification only makes sense once the player has left, so the
             // queue is built in OnApplicationPause and torn down again on the way back.
+            // Test mode is a device preference, not a build setting: it is flipped from Ayarlar so an
+            // installed APK can be switched between the real schedule and the bench one without going
+            // back through Gradle. Default OFF, so a player who never opens that row gets real timings.
             _notifications = new NotificationService(Data, offlineConfig, _time,
                                                      ServiceLocator.Get<INotifications>(),
                                                      notificationTestSpacingSeconds);
+            _notifications.TestMode = UnityEngine.PlayerPrefs.GetInt(NotificationTestKey, 0) == 1;
             ServiceLocator.Register(_notifications);
 
             ServiceLocator.Get<IAnalytics>()?.Log("session_start");

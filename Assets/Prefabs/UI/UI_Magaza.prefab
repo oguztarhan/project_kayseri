@@ -3400,8 +3400,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -28}
-  m_SizeDelta: {x: 244, y: 44}
+  m_AnchoredPosition: {x: 0, y: -18}
+  m_SizeDelta: {x: 244, y: 66}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1110274028485755608
 CanvasRenderer:
@@ -3458,12 +3458,12 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 14
+  m_fontSize: 20
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
-  m_fontSizeMin: 10
-  m_fontSizeMax: 14
+  m_fontSizeMin: 16
+  m_fontSizeMax: 20
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
@@ -4639,7 +4639,7 @@ MonoBehaviour:
     boostSeconds: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
-    offlineCapBonusHours: 2
+    offlineCapBonusHours: 4
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
@@ -4648,8 +4648,8 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 211253b264b288141b16e56873bf2bed, type: 3}
     hero: {fileID: 21300000, guid: ba0a9257f109af54cacebfd5e2679dc8, type: 3}
     heroMotion: 4
-    title: +2 SAAT
-    description: "Oyun kapal\u0131yken\nkazan\xE7 s\xFCresi uzar"
+    title: +4 SAAT
+    description: "\xC7evrimd\u0131\u015F\u0131 kazan\xE7\ns\xFCresi 4 saat uzar"
     incomeMinutes: 0
     investorShare: 0
   - name: gem_ad_charge
@@ -4718,7 +4718,7 @@ MonoBehaviour:
     description: "Prestij kazanc\u0131n\u0131n yar\u0131s\u0131,\nadalar\u0131n kal\u0131r"
     incomeMinutes: 0
     investorShare: 0.5
-  gemIcon: {fileID: 21300000, guid: dbe3829665812ac47953360220d749a2, type: 3}
+  gemIcon: {fileID: 21300000, guid: a20a9f9dbc3cec944b3b4a4504d3c2b5, type: 3}
   devFreeIAP: 1
   purchaseFx: {fileID: 5059351080587554020}
 --- !u!114 &5059351080587554020
@@ -6422,7 +6422,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 70}
+  m_AnchoredPosition: {x: 0, y: 88}
   m_SizeDelta: {x: 146, y: 146}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1497217474189424712

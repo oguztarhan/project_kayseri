@@ -460,7 +460,7 @@ MonoBehaviour:
   mainSceneName: Main
   loadMainOnStart: 1
   loadingScreen: {fileID: 310829363}
-  notificationTestSpacingSeconds: 30
+  notificationTestSpacingSeconds: 0
 --- !u!4 &332712978
 Transform:
   m_ObjectHideFlags: 0

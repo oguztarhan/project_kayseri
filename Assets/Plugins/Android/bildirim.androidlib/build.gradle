@@ -1,0 +1,31 @@
+// A resource-only Android library whose entire job is to get one file into res/raw, where Android can
+// see it as a notification sound. It carries no code.
+//
+// Why a library module at all: Android will only play a channel sound from a resource URI
+// (android.resource://<package>/raw/<name>), and the only supported way to put a file in res/ from a
+// Unity project since the old Assets/Plugins/Android/res folder was dropped is an .androidlib module.
+//
+// The shape below is copied from com.unity.mobile.notifications' own mobilenotifications.androidlib,
+// which is the one module in this project known to configure cleanly against the Android Gradle Plugin
+// version Unity 6000.4.9f1 ships (9.0.0). Deviating from it is how you get a Gradle failure that only
+// shows up at build time.
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    namespace "com.intakeentertainment.islandminingtycoon.bildirim"
+
+    def unityLib = project(':unityLibrary').extensions.getByName('android')
+    compileSdkVersion unityLib.compileSdkVersion.find('\\d+').toInteger()
+    buildToolsVersion unityLib.buildToolsVersion
+
+    defaultConfig {
+        minSdkVersion 22
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}

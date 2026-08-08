@@ -74,7 +74,9 @@ namespace Game.UI
             public bool removeAds = false;
             [Tooltip("Kalıcı çevrimdışı verim artışı, puan olarak (0.25 = %50'den %75'e). Temel değer OfflineConfig'te.")]
             public double offlineEfficiencyBonus = 0d;
-            [Tooltip("Kalıcı çevrimdışı tavan artışı, saat (6 = 2 saatten 8 saate).")]
+            [Tooltip("Kalıcı çevrimdışı tavan artışı, saat. Taban OfflineConfig'te ve 8 saat — " +
+                     "yani 6 yazarsan 8 saatten 14 saate çıkar. Bu alanlar toplanır: iki ayrı " +
+                     "teklif alan oyuncunun tavanı ikisinin toplamı kadar yükselir.")]
             public float offlineCapBonusHours = 0f;
             [Tooltip("Günlük ödüle kalıcı çarpan; temel 1× üstüne eklenir, yani 1 = ödül ikiye katlanır.")]
             public double dailyRewardBonusMult = 0d;

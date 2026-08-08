@@ -9,10 +9,15 @@ namespace Game.Systems
     /// hands them to the platform. Called as the app goes to background and cancelled when it returns
     /// — see <see cref="GameBootstrap"/>.
     ///
-    /// The money in the text is not a guess. Offline income is fully determined the moment the player
-    /// leaves: the rate is frozen, the efficiency and cap are known, and the boost either has time left
-    /// on it or does not. So each line quotes the figure the welcome-back screen will actually pay,
-    /// computed from the same <see cref="OfflineEarnings.ComputeTotal"/> call that pays it.
+    /// The money in the text is the player's WHOLE VAULT at the moment the line fires: what is in the
+    /// wallet now, plus everything the mine will have earned by then. Not the offline haul on its own —
+    /// early in a run the wallet is the larger half of it, so a figure that counted only the absence
+    /// read as a smaller sum than the player knows they own.
+    ///
+    /// Neither half is a guess. Offline income is fully determined the moment the player leaves: the
+    /// rate is frozen, the efficiency and cap are known, and the boost either has time left on it or
+    /// does not. The accrued half comes from the same <see cref="OfflineEarnings.ComputeTotal"/> call
+    /// the welcome-back screen pays out of, so the notification and the screen can never disagree.
     ///
     /// Everything is rebuilt from scratch on every background, which is also why nothing here has to
     /// care about the player changing language: the queue is only ever hours old, and it is written in
@@ -24,7 +29,21 @@ namespace Game.Systems
         private readonly OfflineConfig _config;
         private readonly TimeService _time;
         private readonly INotifications _sink;
-        private readonly int _testSpacing;
+        private readonly int _benchSpacing;
+
+        /// <summary>
+        /// Whether the bench schedule is in use: all six notifications <see cref="_benchSpacing"/>
+        /// seconds apart instead of the real 3/6/9/12/24/48-hour one. Driven by the Ayarlar switch, so
+        /// an installed APK can be moved between the two without another Gradle run.
+        ///
+        /// A bool rather than the interval itself, so the interval lives in exactly one place — the
+        /// bootstrapper's inspector — and the UI never has to carry a copy of a number it does not own.
+        ///
+        /// Setting it reschedules nothing. The queue only exists while the player is away: it is built
+        /// fresh in OnApplicationPause, and what this holds at that moment is what gets used. Flip the
+        /// switch, then leave the game.
+        /// </summary>
+        public bool TestMode { get; set; }
         private readonly NotificationSlot[] _slots = new NotificationSlot[NotificationPlan.MaxSlots];
 
         public NotificationService(SaveData data, OfflineConfig config, TimeService time,
@@ -34,7 +53,7 @@ namespace Game.Systems
             _config = config;
             _time = time;
             _sink = sink;
-            _testSpacing = testSpacingSeconds;
+            _benchSpacing = testSpacingSeconds < 0 ? 0 : testSpacingSeconds;
         }
 
         /// <summary>Queues the whole absence. Replaces anything already queued.</summary>
@@ -54,11 +73,12 @@ namespace Game.Systems
             bool pays = _config != null && _config.Enabled && efficiency > 0d && _data.incomeRatePerSec > 0d;
             long boostLeft = _data.boostEndUnix - _time.NowUnix();
 
-            int count = NotificationPlan.Build(DateTime.Now, cap, _slots, _testSpacing);
-            if (_testSpacing > 0)
+            int spacing = TestMode ? _benchSpacing : 0;
+            int count = NotificationPlan.Build(DateTime.Now, cap, _slots, spacing);
+            if (spacing > 0)
                 UnityEngine.Debug.LogWarning($"[Bildirim] TEST MODU acik: {count} bildirim " +
-                                             $"{_testSpacing} saniye arayla gidecek. Yayina cikmadan " +
-                                             "GameBootstrap'taki test araligini 0 yap.");
+                                             $"{spacing} saniye arayla gidecek. Gercek programa donmek " +
+                                             "icin Ayarlar'daki TEST MODU dugmesini kapat.");
 
             for (int i = 0; i < count; i++)
             {
@@ -70,10 +90,11 @@ namespace Game.Systems
                     // Sized from AwaySeconds, not from when it fires: under the test spacing those
                     // differ, and the figure the line quotes is the one the player would really be
                     // coming back to.
-                    BigDouble amount = OfflineEarnings.ComputeTotal(
+                    BigDouble total = OfflineEarnings.ComputeTotal(
                         new BigDouble(_data.incomeRatePerSec), _slots[i].AwaySeconds, efficiency, cap,
                         _data.boostMultiplier, boostLeft);
-                    if (amount.Mantissa > 0d) money = "$" + NumberFormatter.Format(amount);
+                    if (_data.wallet != null) total = total + _data.wallet.cash;
+                    if (total.Mantissa > 0d) money = "$" + NumberFormatter.Format(total);
                 }
 
                 _sink.Schedule(Loc.T(TitleKey(kind)), Body(kind, money), _slots[i].AfterSeconds);

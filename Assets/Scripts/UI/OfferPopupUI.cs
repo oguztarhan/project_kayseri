@@ -581,7 +581,7 @@ namespace Game.UI
                 irt.anchorMin = irt.anchorMax = new Vector2(0.5f, 1f);
                 irt.pivot = new Vector2(0.5f, 1f);
                 irt.sizeDelta = new Vector2(cardIconSize, cardIconSize);
-                irt.anchoredPosition = new Vector2(0f, -26f);
+                irt.anchoredPosition = new Vector2(0f, -22f);
                 var im = iconGo.GetComponent<Image>();
                 im.raycastTarget = false;
                 im.preserveAspect = true;
@@ -591,9 +591,15 @@ namespace Game.UI
                     root = go,
                     rect = rt,
                     icon = im,
-                    value = CardText(rt, "Deger", 54f, new Vector2(0f, -(cardIconSize + 34f)), 70f,
+                    // The two boxes used to be -138..-208 and -196..-264, which overlapped by twelve
+                    // pixels: at the sizes auto-sizing actually settles on, both fill their box, so the
+                    // value's last line sat on top of the caption's first. They are stacked with a gap
+                    // now, and the caption is taller because nine of the eleven languages wrap it onto
+                    // two lines ("24 SAATLİK GELİR", "24 GODZ. DOPALACZA") — at 68 high that forced it
+                    // down to 21pt on some cards and 27pt on others, which read as a mistake.
+                    value = CardText(rt, "Deger", 54f, new Vector2(0f, -(cardIconSize + 28f)), 74f,
                                      new Color32(0x2A, 0x3A, 0x5C, 0xFF)),
-                    caption = CardText(rt, "Alt", 28f, new Vector2(0f, -(cardIconSize + 92f)), 68f,
+                    caption = CardText(rt, "Alt", 28f, new Vector2(0f, -(cardIconSize + 106f)), 80f,
                                        new Color32(0x6B, 0x7A, 0x99, 0xFF)),
                 };
                 go.SetActive(false);
@@ -609,9 +615,12 @@ namespace Game.UI
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(0.5f, 1f);
-            rt.offsetMin = new Vector2(10f, 0f);
-            rt.offsetMax = new Vector2(-10f, 0f);
-            rt.sizeDelta = new Vector2(-20f, height);
+            // 18 rather than 10: the caption is the widest thing on the card and at 10 it measured the
+            // full 196 of a 216-wide card, so the text ran up against the frame the sprite paints
+            // around the edge and read as spilling out of it.
+            rt.offsetMin = new Vector2(18f, 0f);
+            rt.offsetMax = new Vector2(-18f, 0f);
+            rt.sizeDelta = new Vector2(-36f, height);
             rt.anchoredPosition = pos;
             var tmp = go.GetComponent<TextMeshProUGUI>();
             if (cardFont != null) tmp.font = cardFont;
