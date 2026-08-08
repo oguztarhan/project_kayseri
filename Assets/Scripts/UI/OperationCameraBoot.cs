@@ -37,7 +37,11 @@ namespace Game.UI
         // A deliberately narrow band around the opening shot: the playfield is composed to be
         // read at one distance, so zoom is for a closer look at a station rather than a way to
         // pull back to a map view. Opening sits at defaultZoomFraction, roughly mid-band.
-        [SerializeField] private float zoomInFactor = 0.22f;   // closest dolly, as a fraction of the whole-operation fit
+        // Was 0.22, which put the closest dolly only 27% in from the opening shot — the whole band was
+        // 2x and pinching felt like it did nothing. Getting right up to a single station is the point
+        // of zooming in a game where the stations are the content, so the floor is now low enough to
+        // fill the screen with one of them.
+        [SerializeField] private float zoomInFactor = 0.07f;   // closest dolly, as a fraction of the whole-operation fit
         [SerializeField] private float zoomOutFactor = 0.44f;  // a step back, not a map view
         [SerializeField] private float panPadding = 40f;       // slack beyond the operation footprint
 

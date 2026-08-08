@@ -18,8 +18,10 @@ namespace Game.UI
         [SerializeField] private Camera cam;
         [SerializeField] private float minSize = 8f;
         [SerializeField] private float maxSize = 95f;
-        [SerializeField] private float scrollZoomSpeed = 6f;
-        [SerializeField] private float pinchZoomSpeed = 0.04f;
+        // Both are FRACTIONS, not world units — see Zoom(). 0.12 per notch is a 13% step; 0.0025 per
+        // pixel means a 500-pixel pinch changes the distance about three and a half times.
+        [SerializeField] private float scrollZoomSpeed = 0.12f;
+        [SerializeField] private float pinchZoomSpeed = 0.0025f;
         [SerializeField] private float panSpeed = 1f;             // 1 = content tracks the finger 1:1
         [SerializeField] private float smoothTime = 0.07f;        // transform → target easing
         [SerializeField] private float inertiaDamping = 6f;       // higher = flick stops sooner
@@ -91,13 +93,28 @@ namespace Game.UI
             return false;
         }
 
+        /// <summary>
+        /// Zoom is MULTIPLICATIVE, not additive — a pinch scales the distance rather than subtracting a
+        /// fixed number of world units from it.
+        ///
+        /// It used to subtract, and that cannot be tuned to feel right at both ends. The travel here
+        /// runs from roughly 150 units to 930, so a step big enough to be felt at 930 threw the camera
+        /// through the floor at 150, and a step safe at 150 was invisible at 930. Measured before the
+        /// change: pinchZoomSpeed 0.05 meant a 500-pixel pinch moved 25 units — five per cent of the
+        /// range — which is why zoom read as broken rather than as slow.
+        ///
+        /// Exponent rather than a plain multiply so the sign is symmetric: pinching out by n pixels
+        /// undoes pinching in by n pixels exactly, and no delta can ever drive the distance negative.
+        /// The two speeds are therefore FRACTIONS PER PIXEL / PER NOTCH, not world units.
+        /// </summary>
         private void Zoom()
         {
             var mouse = Mouse.current;
             if (mouse != null)
             {
                 float scroll = mouse.scroll.ReadValue().y;
-                if (Mathf.Abs(scroll) > 0.01f) SetZoom(CurrentZoom - Mathf.Sign(scroll) * scrollZoomSpeed);
+                if (Mathf.Abs(scroll) > 0.01f)
+                    SetZoom(CurrentZoom * Mathf.Exp(-Mathf.Sign(scroll) * scrollZoomSpeed));
             }
 
             var ts = Touchscreen.current;
@@ -114,7 +131,7 @@ namespace Game.UI
                 if (n == 2)
                 {
                     float dist = Vector2.Distance(a, b);
-                    if (_lastPinch > 0f) { float d = dist - _lastPinch; if (Mathf.Abs(d) > 0.01f) SetZoom(CurrentZoom - d * pinchZoomSpeed); }
+                    if (_lastPinch > 0f) { float d = dist - _lastPinch; if (Mathf.Abs(d) > 0.01f) SetZoom(CurrentZoom * Mathf.Exp(-d * pinchZoomSpeed)); }
                     _lastPinch = dist;
                 }
                 else { _lastPinch = 0f; }

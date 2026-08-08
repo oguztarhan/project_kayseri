@@ -596,8 +596,8 @@ MonoBehaviour:
   cam: {fileID: 0}
   minSize: 6
   maxSize: 42
-  scrollZoomSpeed: 8
-  pinchZoomSpeed: 0.05
+  scrollZoomSpeed: 0.12
+  pinchZoomSpeed: 0.0025
   panSpeed: 1
   smoothTime: 0.07
   inertiaDamping: 6
@@ -3565,7 +3565,7 @@ MonoBehaviour:
   defaultZoomFraction: 0.3
   hudTopFraction: 0.09
   hudBottomFraction: 0.17
-  zoomInFactor: 0.22
+  zoomInFactor: 0.07
   zoomOutFactor: 0.44
   panPadding: 40
 --- !u!114 &2135659105

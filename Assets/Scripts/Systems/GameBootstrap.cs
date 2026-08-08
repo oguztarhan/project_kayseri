@@ -26,6 +26,11 @@ namespace Game.Systems
         [Tooltip("Boşsa Main tek karede yüklenir ve açılış görseli görünmez.")]
         [SerializeField] private LoadingScreen loadingScreen;
 
+        [Tooltip("SADECE TEST. 0 = kapalı, yani gerçek program (3/6/9/12 saat, gece susar). " +
+                 "Sıfırdan büyükse altı bildirimin hepsi bu kadar saniye arayla gider, cihazda " +
+                 "birkaç dakikada izlenebilsin diye. YAYINA ÇIKMADAN ÖNCE 0 YAP.")]
+        [SerializeField, Min(0)] private int notificationTestSpacingSeconds = 30;
+
         public GameClock Clock { get; private set; }
         public SaveService Save { get; private set; }
         public SaveData Data { get; private set; }
@@ -34,6 +39,7 @@ namespace Game.Systems
         public OfflineReport Offline { get; private set; }
 
         private TimeService _time;
+        private NotificationService _notifications;
 
         private void Awake()
         {
@@ -74,7 +80,13 @@ namespace Game.Systems
 #else
             ServiceLocator.Register<IIAPService>(new StubIAPService());
 #endif
+            // Local notifications only exist on a device: the editor has no notification manager to
+            // register a channel with, so play mode keeps the stub the same way IAP does.
+#if UNITY_ANDROID && !UNITY_EDITOR
+            ServiceLocator.Register<INotifications>(new AndroidNotifications());
+#else
             ServiceLocator.Register<INotifications>(new StubNotifications());
+#endif
 
             Save = new SaveService();
             ServiceLocator.Register(Save);
@@ -140,6 +152,13 @@ namespace Game.Systems
             // toward the opening contract.
             contract.Seed(Data.incomeRatePerSec * 60d);
 
+            // Nothing is queued here — a notification only makes sense once the player has left, so the
+            // queue is built in OnApplicationPause and torn down again on the way back.
+            _notifications = new NotificationService(Data, offlineConfig, _time,
+                                                     ServiceLocator.Get<INotifications>(),
+                                                     notificationTestSpacingSeconds);
+            ServiceLocator.Register(_notifications);
+
             ServiceLocator.Get<IAnalytics>()?.Log("session_start");
         }
 
@@ -155,19 +174,14 @@ namespace Game.Systems
             if (efficiency > 1d) efficiency = 1d;
             long cap = offlineConfig.CapSeconds + Data.offlineCapBonusSeconds;
 
-            BigDouble earned = OfflineEarnings.Compute(new BigDouble(Data.incomeRatePerSec), elapsed, efficiency, cap);
-
             // A boost bought with gems is sold in hours, and an idle player spends most of those hours
-            // with the app closed — so the part of the credited window the boost was still running for
-            // pays at its multiplier. Only the EXTRA is added here; the line above already paid the
-            // whole window at ×1. The credited window starts when the player left, so the overlap is
-            // measured from savedUnixSeconds forward, not backward from now.
-            long credited = (cap > 0L && elapsed > cap) ? cap : elapsed;
-            long boosted = Data.boostEndUnix - Data.savedUnixSeconds;
-            if (boosted > credited) boosted = credited;
-            if (boosted > 0L && Data.boostMultiplier > 1d)
-                earned += OfflineEarnings.Compute(new BigDouble(Data.incomeRatePerSec), boosted,
-                                                  efficiency * (Data.boostMultiplier - 1d), 0L);
+            // with the app closed, so the part of the credited window it was still running for pays at
+            // its multiplier. That overlap lives inside ComputeTotal rather than here because
+            // NotificationService has to predict this exact figure hours in advance — see
+            // OfflineEarnings for why the two must not be allowed to drift apart.
+            BigDouble earned = OfflineEarnings.ComputeTotal(
+                new BigDouble(Data.incomeRatePerSec), elapsed, efficiency, cap,
+                Data.boostMultiplier, Data.boostEndUnix - Data.savedUnixSeconds);
 
             if (earned.Mantissa > 0d)
             {
@@ -191,7 +205,29 @@ namespace Game.Systems
 
         private void Update() => Clock?.Advance(Time.deltaTime);
 
-        private void OnApplicationPause(bool paused) { if (paused) Save?.Save(Data); }
-        private void OnApplicationQuit() => Save?.Save(Data);
+        /// <summary>
+        /// Android's reliable "the player is leaving" signal, and where the absence is written down.
+        ///
+        /// The save has to come FIRST. The notification queue predicts what the welcome-back screen
+        /// will pay, and that grant is measured from <c>savedUnixSeconds</c> — so queueing against a
+        /// save that has not been stamped yet would quote a figure counted from the previous session.
+        /// </summary>
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused)
+            {
+                Save?.Save(Data);
+                _notifications?.ScheduleAway();
+            }
+            else _notifications?.Cancel();   // the absence it described is over
+        }
+
+        private void OnApplicationQuit()
+        {
+            Save?.Save(Data);
+            // Android normally pauses before it quits, so this is usually a re-queue of the same plan
+            // a second later. ScheduleAway clears the queue before rebuilding it, so that is harmless.
+            _notifications?.ScheduleAway();
+        }
     }
 }

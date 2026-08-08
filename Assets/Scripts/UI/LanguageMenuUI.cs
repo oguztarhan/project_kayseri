@@ -118,10 +118,16 @@ namespace Game.UI
             // ayarlar penceresinin üstüne çiziliyor. İç içe Canvas olsaydı sortingOrder'ın iş görmesi için
             // overrideSorting gerekirdi ve bir batch daha bölünürdü.
             //
-            // Güvenli alanın içine kuruluyor, kökün altına değil: ayarlar penceresi orada duruyor ve
-            // çentikli bir telefonda ikisi aynı miktarda içeri kaymazsa panel bir kenara doğru kayar.
-            var safe = GetComponentInChildren<SafeArea>(true);
-            _root = Full(safe != null ? safe.transform : transform, "UI_DilSecimi");
+            // KÖK TAM KANAMA, İÇERİK GÜVENLİ ALANDA — ikisi ayrı olmak zorunda.
+            //
+            // Kökün tamamı güvenli alana kurulduğunda karartma da onunla birlikte içeri kayıyordu, yani
+            // çentiğin ve alt çubuğun bulunduğu şeritler karartılmadan kalıyor ve ekran tam ekran bir
+            // sayfa gibi değil, bir delikten dışarı bakıyormuş gibi duruyordu. Karartmanın işi arkada
+            // ne varsa hepsini götürmek; o yüzden karartma kökte.
+            //
+            // Panel ve kapat düğmesi yine güvenli alanda: ayarlar penceresi orada duruyor ve çentikli
+            // bir telefonda ikisi aynı miktarda içeri kaymazsa panel bir kenara doğru kayar.
+            _root = Full(transform, "UI_DilSecimi");
 
             RectTransform dim = Full(_root, "Karartma");
             var dimArt = dim.gameObject.AddComponent<Image>();
@@ -130,9 +136,12 @@ namespace Game.UI
             dimBtn.transition = Selectable.Transition.None;
             dimBtn.onClick.AddListener(Hide);
 
+            RectTransform icerik = Full(_root, "GuvenliAlan");
+            icerik.gameObject.AddComponent<SafeArea>();
+
             var panelGO = new GameObject("Panel", typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(PanelOpenFx));
             var panel = (RectTransform)panelGO.transform;
-            panel.SetParent(_root, false);
+            panel.SetParent(icerik, false);
             panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(0.5f, 1f);
             panel.sizeDelta = new Vector2(PanelWidth, PanelHeight);
             panel.anchoredPosition = new Vector2(0f, PanelTop);
@@ -142,7 +151,7 @@ namespace Game.UI
 
             BuildList(panel);
             BuildRibbon(panel);
-            BuildClose();
+            BuildClose(icerik);
 
             // Panel sesi kapalıyken takılır, yoksa kuruluşta bir açılış sesi çalar (UiPanelSound'un kuralı).
             _root.gameObject.SetActive(false);
@@ -273,11 +282,13 @@ namespace Game.UI
         /// this game parks every X in the same corner of the screen, and landing on top of the one
         /// underneath means two taps close two screens without the finger moving.
         /// </summary>
-        private void BuildClose()
+        /// <summary>Sağ üste oturuyor, o yüzden karartmanın değil güvenli alanın çocuğu — çentikli bir
+        /// telefonda kökün köşesi kesiğin altında kalıyor.</summary>
+        private void BuildClose(RectTransform icerik)
         {
             var go = new GameObject("BtnKapat", typeof(RectTransform), typeof(Image), typeof(Button));
             var rt = (RectTransform)go.transform;
-            rt.SetParent(_root, false);
+            rt.SetParent(icerik, false);
             rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = new Vector2(CloseSize, CloseSize);

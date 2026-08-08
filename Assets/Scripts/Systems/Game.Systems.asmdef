@@ -6,7 +6,8 @@
         "Game.Data",
         "Unity.TextMeshPro",
         "Unity.Purchasing",
-        "Unity.Services.Core"
+        "Unity.Services.Core",
+        "Unity.Notifications.Android"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

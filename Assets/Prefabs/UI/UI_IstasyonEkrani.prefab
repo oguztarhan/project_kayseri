@@ -1151,6 +1151,7 @@ MonoBehaviour:
   pieceCount: 80
   lifeSeconds: 3
   pieceSize: {x: 20, y: 30}
+  pieceSprite: {fileID: 0}
   speedMin: 900
   speedMax: 2000
   gravity: -1000
@@ -1476,7 +1477,6 @@ RectTransform:
   - {fileID: 411121118778547230}
   - {fileID: 8060948901927630122}
   - {fileID: 6108831868569024436}
-  - {fileID: 223134265709742865}
   m_Father: {fileID: 351497496708060334}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1758,6 +1758,7 @@ RectTransform:
   - {fileID: 351497496708060334}
   - {fileID: 710549315825287440}
   - {fileID: 3441341372412978023}
+  - {fileID: 223134265709742865}
   m_Father: {fileID: 4089418531193212708}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2427,11 +2428,11 @@ RectTransform:
   - {fileID: 5528942562226565252}
   - {fileID: 5369127219461818153}
   - {fileID: 3598236379102233235}
-  m_Father: {fileID: 8844271197338895475}
+  m_Father: {fileID: 819633802393544094}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 250}
+  m_AnchoredPosition: {x: 0, y: 512}
   m_SizeDelta: {x: 900, y: 210}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!225 &6067707705388399679

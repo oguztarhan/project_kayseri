@@ -1,4 +1,5 @@
 using System.Collections;
+using Game.Core;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -39,10 +40,14 @@ namespace Game.Systems
         [SerializeField] private TMP_Text barLabel;
 
         [Tooltip("Ekran en az bu kadar durur. Yükleme daha erken biterse bile göz görsün diye.")]
-        [SerializeField, Min(0f)] private float minimumSeconds = 1.4f;
+        [SerializeField, Min(0f)] private float minimumSeconds = 3.5f;
 
         [Tooltip("Main hazır olduktan sonraki açılma süresi.")]
         [SerializeField, Min(0f)] private float fadeSeconds = 0.45f;
+
+        [Tooltip("Bildirim izni açılıştan bu kadar saniye sonra sorulur. Sıfır yaparsan diyalog ilk " +
+                 "karede gelir ve oyuncu neyi onayladığını görmeden karar verir.")]
+        [SerializeField, Min(0f)] private float permissionDelaySeconds = 0.9f;
 
         private void Awake() => DontDestroyOnLoad(gameObject);
 
@@ -87,10 +92,30 @@ namespace Game.Systems
             // Unity parks a scene that is loaded but not yet activated at 0.9 — it never reaches 1
             // until activation is allowed, so waiting for isDone here would deadlock.
             float held = 0f;
+            bool asked = false;
             Progress(0f);
             while (op.progress < 0.9f || held < minimumSeconds)
             {
                 held += Time.unscaledDeltaTime;
+
+                // The notification permission is asked HERE, on the very first launch, because Android
+                // 13+ stops showing the dialog for good after two refusals and this is the only moment
+                // that is guaranteed to happen exactly once and to have the player looking at the game
+                // rather than at something they were in the middle of doing.
+                //
+                // Not on the first frame: the splash has to be on screen first, or the player answers a
+                // system dialog before they have seen what is asking. The service itself only ever asks
+                // when Android reports the permission as never-requested, so this runs every launch and
+                // shows a dialog on one of them.
+                //
+                // The dialog pauses the app, so the bar freezes behind it and resumes once answered —
+                // which is why the delay sits well inside the minimum hold rather than near its end.
+                if (!asked && held >= permissionDelaySeconds)
+                {
+                    asked = true;
+                    ServiceLocator.Get<NotificationService>()?.RequestPermission();
+                }
+
                 // Whichever of the two is further behind is what the bar shows, so it arrives at full
                 // exactly when this loop lets go. Drawing raw progress instead would throw the bar to
                 // the end on the first frame and leave it sitting there — Main loads in well under the

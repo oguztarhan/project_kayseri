@@ -31,11 +31,26 @@ namespace Game.Systems
 
     public interface INotifications
     {
-        void Schedule(string id, string message, int afterSeconds);
+        /// <summary>Queues one local notification. Android renders a title and a body as separate
+        /// lines and collapses to the title alone on a locked screen, so both are required.</summary>
+        void Schedule(string title, string message, int afterSeconds);
+
+        /// <summary>Drops everything still queued. Called when the player opens the game: the queue is
+        /// a prediction of an absence that has just ended, so none of it is true any more.</summary>
+        void CancelAll();
+
+        /// <summary>
+        /// Asks for permission to post, once. Android 13+ requires it at runtime and stops asking
+        /// after two refusals, so the caller picks the moment — see <see cref="Game.UI.WelcomeBackUI"/>,
+        /// which asks as the player closes a screen that has just handed them offline money.
+        /// </summary>
+        void RequestPermission();
     }
 
     public sealed class StubNotifications : INotifications
     {
-        public void Schedule(string id, string message, int afterSeconds) { }
+        public void Schedule(string title, string message, int afterSeconds) { }
+        public void CancelAll() { }
+        public void RequestPermission() { }
     }
 }
