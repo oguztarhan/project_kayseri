@@ -856,6 +856,8 @@ MonoBehaviour:
   capNoteText: {fileID: 7049295815071979438}
   noteSeparator: " \xB7 "
   appearDelay: 0.6
+  adChargesPerDay: 2
+  adBonusFraction: 0.3
 --- !u!1 &3918174058800657673
 GameObject:
   m_ObjectHideFlags: 0

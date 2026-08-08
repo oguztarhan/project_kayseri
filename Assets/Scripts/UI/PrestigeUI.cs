@@ -99,14 +99,17 @@ namespace Game.UI
 
             double lifetime = _prestige.LifetimeCash.ToDouble();
             double threshold = _prestige.Threshold;
+            int islandsLeft = _prestige.IslandsStillNeeded;
             if (barFillArea != null)
             {
-                float p = threshold > 0d ? Mathf.Clamp01((float)(lifetime / threshold)) : 1f;
+                float p = Mathf.Clamp01((float)_prestige.UnlockProgress01);
                 barFillArea.sizeDelta = new Vector2(_barFullWidth * p, barFillArea.sizeDelta.y);
             }
+            // Which gate is shut decides what the line says. Cash is met long before the islands are,
+            // so asking for money the player already has would print a negative number under a full bar.
             if (barNoteText != null)
-                barNoteText.text = ready
-                    ? Loc.T("prestij.hazir")
+                barNoteText.text = ready ? Loc.T("prestij.hazir")
+                    : islandsLeft > 0 ? string.Format(Loc.T("prestij.ada_gerek"), islandsLeft)
                     : string.Format(Loc.T("prestij.esik"), NumberFormatter.Format(new BigDouble(threshold - lifetime)));
 
             if (prestigeButton != null) prestigeButton.interactable = ready;

@@ -76,12 +76,18 @@ namespace Game.Core
         //  which is why it is quoted here rather than buried in OfflineConfig.
         //
         //  THIS NUMBER IS THE NO-ADS BASELINE, and the gap matters. A player who takes
-        //  every rewarded ad collects 11.5 instead: the welcome-back doubler pays the
-        //  whole offline grant a second time on each return (+4.9), the cash slot adds
-        //  15 min x 3 charges (+0.75) and the x2 boost slot 5 min x 3 (+0.25). So the
-        //  ladder finishes in 40 real days for one player and 19 for the other, off the
-        //  same 222 income-hours. Efficiency was cut from 50% to 35% on 2026-08-07 to
-        //  narrow that spread — at 50% it was 7.7 against 15.7, a clean 2x.
+        //  every rewarded ad collects 8.07: the welcome-back button pays 30% of the
+        //  offline grant on each of two returns (+1.47), the cash slot adds 15 min x 3
+        //  charges (+0.75) and the x2 boost slot 5 min x 3 (+0.25). Off the same 160
+        //  income-hours that is 28.5 real days against 19.8, which is the spread the
+        //  ladder is designed for: all eight islands ship together, so the archipelago
+        //  is the whole first month for both of them.
+        //
+        //  Both halves of that gap were closed deliberately. Offline efficiency went
+        //  from 50% to 35% on 2026-08-07. The welcome-back button went from an uncapped
+        //  second payment of the entire grant — worth +4.9 by itself, 88% of the whole
+        //  ad economy — to two daily charges at 50%, then to 30% on 2026-08-08. Before
+        //  any of it the two players finished in 40 real days and 19.
         // ─────────────────────────────────────────────────────────────────────────────
 
         /// <summary>Income-hours a twice-a-day player collects, at the 8 h / 35% offline cap.</summary>

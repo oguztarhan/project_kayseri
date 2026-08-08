@@ -22,7 +22,10 @@ namespace Game.UI
     /// largest number in the whole ad economy. A twice-a-day player collects 5.6 income-hours without
     /// ads and this button alone was worth another 4.9, so an ad-watcher finished the island ladder in
     /// half the designed time. It is now charged out of the same daily table the ad screen's three
-    /// slots use (<see cref="FreeRewardService"/>), and pays a fraction rather than a double.
+    /// slots use (<see cref="FreeRewardService"/>), and pays a fraction rather than a double: at two
+    /// charges and 30% it is worth 1.47, which finishes the ladder in 19.8 real days against the
+    /// baseline player's 28.5. It is still the most valuable ad in the game — one watch returns about
+    /// 44 minutes of income, where the ad screen's cash slot returns 15.
     /// </summary>
     public sealed class WelcomeBackUI : MonoBehaviour
     {
@@ -47,9 +50,9 @@ namespace Game.UI
         [Tooltip("Düğmenin günde kaç kez kullanılabileceği. Oyuncu günde iki kez döndüğü için 2, " +
                  "pratikte \"her dönüşte bir kez\" demektir; 1 yaparsan ikinci dönüşte düğme hiç görünmez.")]
         [SerializeField, Min(0)] private int adChargesPerDay = 2;
-        [Tooltip("Reklamın çevrimdışı kazancın yüzde kaçını EK olarak ödediği. 0,5 = %50 fazlası, " +
+        [Tooltip("Reklamın çevrimdışı kazancın yüzde kaçını EK olarak ödediği. 0,3 = %30 fazlası, " +
                  "1 = ikiye katlar. Düğmenin yazısı bu değerden üretilir, ayrıca güncellemen gerekmez.")]
-        [SerializeField, Range(0f, 2f)] private float adBonusFraction = 0.5f;
+        [SerializeField, Range(0f, 2f)] private float adBonusFraction = 0.3f;
 
         /// <summary>
         /// Slot id in the shared daily table. Deliberately not one of the ad screen's three, so the

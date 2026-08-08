@@ -22,13 +22,33 @@ namespace Game.Systems
         }
 
         /// <summary>
-        /// What a full run is worth at the tier the player has reached. Every island earns
-        /// <c>tierStep</c> more than the last, so without scaling by it a reset would be worth
-        /// exponentially more the further up the ladder it was taken — which is exactly how
-        /// prestige used to hand out a 70× multiplier for finishing the first island.
+        /// What a full run is worth — at the tier the player has reached, and against what they have
+        /// already banked. Two factors, for two different runaways.
+        ///
+        /// TIER: every island earns <c>tierStep</c> more than the last, so without scaling by it a
+        /// reset would be worth exponentially more the further up the ladder it was taken — which is
+        /// exactly how prestige used to hand out a 70× multiplier for finishing the first island.
+        ///
+        /// INVESTORS ALREADY BANKED, squared: <see cref="Prestige.Investors"/> takes a square root, so
+        /// squaring here divides the payout by the factor exactly. Without it every prestige paid the
+        /// SAME amount — the reference cannot move while the island count does not move, and the
+        /// lifetime cash needed to reach a given gate is fixed — so the fastest way to play was to stop
+        /// advancing and farm the earliest legal reset forever, each loop cheaper than the last.
+        /// Measured 2026-08-07: every loop at the iron gate returned the same 15.06 investors (at the
+        /// 43e6 reference in force that day), and six of them took the whole ladder from 159.6
+        /// income-hours down to 50.6. With this term there is an optimum instead — about four resets —
+        /// and prestiging past it makes the player slower, which is the shape the mechanic wanted.
+        /// Dividing by <c>_k</c> makes the term read as "reference runs already banked", which is why
+        /// a player holding none is unaffected: their FIRST prestige is worth what it always was.
         /// </summary>
-        private BigDouble Reference =>
-            new BigDouble(_reference * System.Math.Pow(_tierStep, IslandsOwned));
+        private BigDouble Reference
+        {
+            get
+            {
+                double banked = _k > 0d ? 1d + _data.wallet.investors / _k : 1d;
+                return new BigDouble(_reference * System.Math.Pow(_tierStep, IslandsOwned) * banked * banked);
+            }
+        }
 
         /// <summary>Islands bought beyond the starter one, which is always owned.</summary>
         private int IslandsOwned => _data.unlockedIslands != null ? _data.unlockedIslands.Count : 0;
@@ -49,6 +69,38 @@ namespace Game.Systems
 
         /// <summary>Lifetime cash needed before prestige unlocks — the prestige screen draws a bar toward it.</summary>
         public double Threshold => Reference.ToDouble() * _readyFraction;
+
+        /// <summary>
+        /// Islands still to buy before the gate opens; 0 once it has. The screen needs this because the
+        /// two gates do not fall in the same order: the cash threshold is met around the third island
+        /// while the island gate holds until the last, so a bar drawn on cash alone sits full against a
+        /// locked button and the "how much more" line goes negative.
+        /// </summary>
+        public int IslandsStillNeeded
+        {
+            get
+            {
+                int need = _minIslands - (IslandsOwned + 1);
+                return need > 0 ? need : 0;
+            }
+        }
+
+        /// <summary>
+        /// How close prestige is to unlocking, 0..1 — islands while those are what is shut, then
+        /// lifetime cash. Tracking whichever gate is actually closed is the whole point; a bar that
+        /// tracks the open one tells the player they are ready when they are not.
+        /// </summary>
+        public double UnlockProgress01
+        {
+            get
+            {
+                if (IslandsStillNeeded > 0) return (IslandsOwned + 1) / (double)_minIslands;
+                double t = Threshold;
+                if (t <= 0d) return 1d;
+                double p = _data.wallet.lifetimeCash.ToDouble() / t;
+                return p < 0d ? 0d : p > 1d ? 1d : p;
+            }
+        }
         public BigDouble LifetimeCash => _data.wallet.lifetimeCash;
 
         /// <summary>What the multiplier becomes once the pending investors are cashed in.</summary>
