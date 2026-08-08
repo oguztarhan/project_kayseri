@@ -186,10 +186,9 @@ namespace Game.Gameplay
         [SerializeField] private float seaScale = 3.4f;
         [SerializeField] private float shipSpeed = 5f;
         [SerializeField] private float shipYawOffset = 0f;     // authored ship meshes may not face +Z
-        // Same problem for the land fleet. LookRotation aims a mesh's +Z down the road, but the
-        // authored island's train and trucks are modelled with their length along local X, so
-        // they drove broadside until this turned them. 0 on the generated islands, whose
-        // vehicles already face +Z.
+        // Extra correction for a vehicle mesh that faces somewhere unusual. The standard export is
+        // handled without it - see _vehicleNoseYaw - so this is 0 on every island we ship and only
+        // exists for an asset that does not come out of the generator.
         [SerializeField] private float vehicleYawOffset = 0f;
         // A truck used to be assigned the direction of the road segment it was on, which snapped its
         // whole body round in one frame at every junction. It turns at a rate now, and aims at a point
@@ -197,9 +196,16 @@ namespace Game.Gameplay
         // before it reaches it.
         [SerializeField] private float vehicleTurnRate = 170f;    // degrees per second
         [SerializeField] private float vehicleLookAhead = 7f;     // metres down the route
-        // The model's upright pose, read off the imported vehicles. Identity on the generated
-        // islands, whose vehicles are authored in Unity space already.
+        // The model's upright pose. Identity on the generated islands, whose vehicles are authored
+        // in Unity space already; the -90 pitch of the FBX conversion on the authored ones.
         private Quaternion _vehicleBaseRot = Quaternion.identity;
+        // Which way the mesh's nose points once it is standing up. parts.truck() builds the cab at
+        // Blender +x and the FBX conversion negates that axis, so the nose is local -x and needs a
+        // quarter turn to line up with the +z LookRotation aims down the road. Measured, not
+        // guessed: the headlight submesh sits at x -0.05 and the taillight at +0.07 on all four
+        // islands. Kept apart from _vehicleBaseRot because MakeLoad inverts that one to place a
+        // load in the bed, and it can only do so while it is the pitch alone.
+        private float _vehicleNoseYaw;
         [SerializeField] private int scatterProps = 16;        // cloned scenery pieces that fill the empty grass
         [SerializeField] private GameObject portalPrefab;     // tunnel mouth each rail line emerges from
         [SerializeField] private int ridgeRocks = 14;         // peaks in the generated range
@@ -210,6 +216,20 @@ namespace Game.Gameplay
         [Tooltip("Elde çizilmiş adada raybaşına konan tünel ağzının ölçeği. Bir vagonu yutacak kadar " +
                  "büyük olmalı, yoksa tren kayanın içine girerken görünmeye devam ediyor.")]
         [SerializeField] private float authoredPortalScale = 5.2f;
+        // The works gate: how far short of a district's centre its arterial stops being tarmac.
+        // The generator trims the drawn road at exactly this radius (PAD in every isle_*.py) but
+        // exports the centreline untrimmed, all the way through the district and out the far side —
+        // and the works are built ON that centreline. Aiming trucks at the district anchor therefore
+        // drove them off the road and through the stacker tower for the last 36 metres, which is what
+        // "vehicles mesh into the buildings" was. Keep this equal to PAD.
+        [Tooltip("Elde çizilmiş adada arterin asfaltı bölge merkezinden bu kadar önce biter — " +
+                 "işletmenin kapısı burasıdır. isle_*.py içindeki PAD ile aynı olmalı.")]
+        [SerializeField] private float districtGateRadius = 36f;
+        // Where the stockpile stands relative to that gate: a little way in off the road, and off to
+        // one side of the lane the trucks use. Both piles are the yard's fill readout, so they belong
+        // on the district's open road-facing front rather than wherever a fixed world offset landed.
+        [SerializeField] private float yardApronInset = 11f;   // in from the gate, toward the works
+        [SerializeField] private float yardApronSide = 14f;    // off the arterial's centreline
         [SerializeField] private Color roadColor = new Color(0.47f, 0.40f, 0.32f);   // packed-dirt haul road
         [SerializeField] private Color roadLineColor = new Color(0.93f, 0.88f, 0.72f);
         [SerializeField] private Color ballastColor = new Color(0.41f, 0.37f, 0.32f);
@@ -1242,14 +1262,19 @@ namespace Game.Gameplay
                 var move = new List<Transform>();
                 foreach (Transform t in vehicles) move.Add(t);
 
-                // Capture the upright pose before anything drives these. Pitch and roll are the
-                // Z-up -> Y-up conversion and belong to the model; the yaw is only where the
-                // generator happened to park it, and gets replaced by the heading each frame.
-                if (move.Count > 0)
-                {
-                    Vector3 e = move[0].localRotation.eulerAngles;
-                    _vehicleBaseRot = Quaternion.Euler(e.x, 0f, e.z);
-                }
+                // The upright pose is a constant of the export, not something to read off a parked
+                // vehicle: -90 about X is Blender's Z-up becoming Unity's Y-up, and that is all of
+                // it. Reading move[0]'s euler and keeping x and z looked equivalent and was not.
+                // 10_traffic.py parks every vehicle pitched to the road grade AND turned to its
+                // heading, and Unity's ZXY decomposition smears that heading through all three
+                // components - the measured eulers run (275.8, 0, 90), (281.5, 270, 270),
+                // (291.7, 0, 90). So the "base pose" came out holding up to 21 degrees of hillside
+                // plus a quarter turn of whichever vehicle happened to sort first in the group,
+                // and that went onto every truck on the island for the whole session. It is why no
+                // single vehicleYawOffset ever squared the fleet up, and why MakeLoad's inverse
+                // laid the cargo across the bed instead of along it.
+                _vehicleBaseRot = Quaternion.Euler(-90f, 0f, 0f);
+                _vehicleNoseYaw = 90f;
 
                 for (int i = 0; i < move.Count; i++) move[i].SetParent(_islandRoot, true);
                 vehicles.gameObject.SetActive(false);
@@ -1260,18 +1285,28 @@ namespace Game.Gameplay
                                  + " — the train and trucks will be missing.", this);
             }
 
-            // Offsets pull the yards off their building centre so trucks stop beside the shed
-            // rather than inside it - the same job StopInset does on a generated island.
             EnsureAnchor(mineObjectName, "mine", Vector3.zero);
             EnsureAnchor("storage", "depot", Vector3.zero);
-            EnsureAnchor("storage ore pile here", "depot", new Vector3(0f, 0f, 14f));
             EnsureAnchor("refinery", "refinery", Vector3.zero);
-            EnsureAnchor("refined ores pile here", "refinery", new Vector3(-14f, 0f, 0f));
             EnsureAnchor("market", "market", Vector3.zero);
-            // South-west of the yard, not due west of its centre: the rail crosses the depot on its
-            // way to the shed, and the old offset laid the waiting bay straight across the track, so
-            // the next truck up for sale stood parked on the rails.
-            EnsureAnchor("waiting ore trucks wait here", "depot", new Vector3(14f, 0f, 16f));
+
+            // The two heaps and the waiting bay stand in their district's gate apron, not at a fixed
+            // world offset from its centre.
+            //
+            // The offsets these replace were world-axis constants — ore at depot +Z, bars at refinery
+            // −X — which only ever pointed anywhere sensible because coal, copper and iron happen to
+            // face their districts the same way. Gold turns the whole chain a quarter turn and the
+            // same offsets pointed sideways across it. Either way they aimed INTO the works, so both
+            // heaps landed behind a building and ClearHeapSpot then walked them up to 26 metres in
+            // whichever direction happened to be free — usually out of sight behind the shed. A heap
+            // is the readout that says how full the yard is; it has to be where the player is looking.
+            //
+            // The apron is the open ground just inside the gate, which is the district's road-facing
+            // front and the side the camera watches from. The heap sits off one flank of the lane and
+            // the waiting trucks off the other, so neither stands in the other's way.
+            ApronAnchor("storage ore pile here", "depot", yardApronInset, -yardApronSide);
+            ApronAnchor("refined ores pile here", "refinery", yardApronInset, -yardApronSide);
+            ApronAnchor("waiting ore trucks wait here", "depot", -2f, yardApronSide);
         }
 
         /// <summary>
@@ -1318,8 +1353,6 @@ namespace Game.Gameplay
         /// <summary>Creates a named landmark at an exported anchor, unless the map authored one.</summary>
         private void EnsureAnchor(string objectName, string anchorName, Vector3 offset)
         {
-            if (Child(_islandRoot, objectName) != null) return;
-
             Vector3 pos;
             if (!_routes.TryGetAnchor(anchorName, out pos))
             {
@@ -1327,9 +1360,80 @@ namespace Game.Gameplay
                 return;
             }
 
+            var existing = Child(_islandRoot, objectName);
+            if (existing != null)
+            {
+                if (!Stray(existing, pos, objectName, anchorName)) return;
+                existing.position = pos + offset;
+                return;
+            }
+
             var go = new GameObject(objectName);
             go.transform.SetParent(_islandRoot, false);
             go.transform.position = pos + offset;
+        }
+
+        /// <summary>
+        /// Whether a landmark the map already carries is standing anywhere near the district it names.
+        ///
+        /// An object placed in its own works is the map authoring its own landmark, which wins — that is
+        /// the whole point of looking for one first. But six of the eight islands carry a full set of
+        /// these clustered within 60 metres of the island's root origin: the empties the ORIGINAL island
+        /// was laid out with, duplicated along with everything else when the islands were cloned. Their
+        /// districts stand 128 to 148 metres out, so honouring those put the ore drop, the sale point and
+        /// both heaps in an empty field in the middle of the map, and drove every truck to it.
+        ///
+        /// The works' own pad is the line, because that is the boundary the thing is named after: a
+        /// landmark belonging to a district stands inside that district's gate. Drawing it further out
+        /// was not enough — gold's stray market sits 72m from its anchor, and the works are 134m away.
+        /// </summary>
+        private bool Stray(Transform t, Vector3 home, string objectName, string anchorName)
+        {
+            float limit = districtGateRadius;
+            float d = Flat(t.position - home).magnitude;
+            if (d < limit) return false;
+            Debug.Log("[Island] '" + objectName + "' stood " + d.ToString("F0") + "m from the "
+                      + anchorName + " anchor — moved onto it.", this);
+            return true;
+        }
+
+        /// <summary>
+        /// Creates a named landmark in a district's gate apron, unless the map authored one.
+        ///
+        /// <paramref name="inset"/> runs from the gate on toward the works (negative stands it out on
+        /// the road side of the gate), <paramref name="side"/> across the arterial. Both are measured
+        /// off the district's own facing, so one pair of numbers reads the same on all four islands
+        /// however each one turns its chain.
+        /// </summary>
+        private void ApronAnchor(string objectName, string anchorName, float inset, float side)
+        {
+            Vector3 gate, inward;
+            if (!DistrictGate(anchorName, out gate, out inward))
+            {
+                Debug.LogWarning("[Island] No gate for '" + anchorName + "' — landmark '" + objectName
+                                 + "' falls back to the district centre.", this);
+                EnsureAnchor(objectName, anchorName, Vector3.zero);
+                return;
+            }
+
+            Vector3 across = new Vector3(-inward.z, 0f, inward.x);
+            Vector3 apron = gate + inward * inset + across * side;
+
+            // A marker the map placed in its own yard is a deliberate override and is left alone; one of
+            // the cloned strays left at the island's origin is not — see Stray.
+            var existing = Child(_islandRoot, objectName);
+            if (existing != null)
+            {
+                Vector3 home;
+                if (!_routes.TryGetAnchor(anchorName, out home)) return;
+                if (!Stray(existing, home, objectName, anchorName)) return;
+                existing.position = apron;
+                return;
+            }
+
+            var go = new GameObject(objectName);
+            go.transform.SetParent(_islandRoot, false);
+            go.transform.position = apron;
         }
 
         private Vector3[] BuildRailPath(Transform mountain, Transform storage)
@@ -1530,7 +1634,7 @@ namespace Game.Gameplay
             // upright pose - returning identity here laid every stopped truck on its back.
             if (dir.sqrMagnitude < 1e-6f) return _vehicleBaseRot;
             return Quaternion.LookRotation(dir, Vector3.up)
-                 * Quaternion.Euler(0f, vehicleYawOffset, 0f)
+                 * Quaternion.Euler(0f, _vehicleNoseYaw + vehicleYawOffset, 0f)
                  * _vehicleBaseRot;
         }
 
@@ -1852,20 +1956,70 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// How a district joins the authored road network: the exported anchor at its centre,
-        /// and the arterial that runs the length of it. Which end of that arterial meets the
-        /// ring is not named here — see <see cref="RingMeet"/>.
+        /// How a district joins the authored road network: the exported anchor at its centre.
+        /// Which arterial runs the length of it is measured, not named — see <see cref="Artery"/> —
+        /// and which end of that arterial meets the ring is not named either, see <see cref="RingMeet"/>.
         /// </summary>
         private struct RoadLink
         {
-            public readonly string Anchor, Artery;
-            public RoadLink(string anchor, string artery)
-            { Anchor = anchor; Artery = artery; }
+            public readonly string Anchor;
+            public RoadLink(string anchor) { Anchor = anchor; }
         }
 
-        private static readonly RoadLink LinkDepot = new RoadLink("depot", "roadY");
-        private static readonly RoadLink LinkRefinery = new RoadLink("refinery", "roadX");
-        private static readonly RoadLink LinkMarket = new RoadLink("market", "roadY");
+        private static readonly RoadLink LinkDepot = new RoadLink("depot");
+        private static readonly RoadLink LinkRefinery = new RoadLink("refinery");
+        private static readonly RoadLink LinkMarket = new RoadLink("market");
+
+        /// <summary>The two arterials, in the order the exporter writes them.</summary>
+        private static readonly string[] Arteries = { "roadX", "roadY" };
+
+        /// <summary>
+        /// The arterial that serves a district: whichever of the two passes nearer its centre.
+        ///
+        /// This used to be named per district — depot on roadY, refinery on roadX — which held only
+        /// because coal, copper and iron all stand their depot and market on the north-south axis.
+        /// The gold island rotates the whole chain a quarter turn, putting its depot and market on
+        /// the EAST-WEST arterial, so the named version handed every one of its districts the road
+        /// at right angles to it: measured from the anchors, gold's four districts sat 138, 128, 134
+        /// and 142 units off the arterial they were supposedly served by. Every turn-off then
+        /// collapsed onto the centre crossroads and the trucks simply lapped the ring.
+        /// </summary>
+        private Vector3[] Artery(Vector3 district)
+        {
+            Vector3[] best = null;
+            float bestSqr = float.MaxValue;
+            for (int i = 0; i < Arteries.Length; i++)
+            {
+                var path = _routes.GetPath(Arteries[i]);
+                if (path == null || path.Length < 2) continue;
+                float d = Flat(path[NearestIndex(path, district)] - district).sqrMagnitude;
+                if (d < bestSqr) { bestSqr = d; best = path; }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// A district's works gate: the point on its arterial where the tarmac ends and the yard begins.
+        ///
+        /// Every district is built centred ON its arterial, so the generator stops the drawn road a
+        /// pad-radius short of the centre rather than running it through the middle of the works. It
+        /// exports the centreline whole, though, so anything aiming at the district anchor aims at a
+        /// point 36 metres inside the buildings. This is the point to aim at instead: on tarmac, in
+        /// the open, facing the island centre — which is also the side the camera watches from.
+        /// </summary>
+        private bool DistrictGate(string anchorName, out Vector3 gate, out Vector3 inward)
+        {
+            gate = Vector3.zero; inward = Vector3.forward;
+            Vector3 c, mid;
+            if (!_routes.TryGetAnchor(anchorName, out c)) return false;
+            if (!_routes.TryGetAnchor("center", out mid)) return false;
+            Vector3 out2 = Flat(mid - c);
+            if (out2.sqrMagnitude < 1f) return false;
+            out2.Normalize();
+            inward = -out2;                        // from the gate on into the works
+            gate = c + out2 * districtGateRadius;
+            return true;
+        }
 
         /// <summary>The four exported points where the ring road crosses an arterial.</summary>
         private static readonly string[] RingMeets = { "loopN", "loopE", "loopS", "loopW" };
@@ -1908,25 +2062,30 @@ namespace Game.Gameplay
         private List<Vector3> AuthoredCircuit(RoadLink a, RoadLink b)
         {
             var ring = AuthoredRing();
-            var artA = _routes.GetPath(a.Artery);
-            var artB = _routes.GetPath(b.Artery);
-            if (ring == null || ring.Count < 6 || artA == null || artB == null) return null;
+            if (ring == null || ring.Count < 6) return null;
 
-            Vector3 centre, ancA, ancB, meetA, meetB;
+            Vector3 centre, ancA, ancB, meetA, meetB, gateA, gateB;
             if (!_routes.TryGetAnchor("center", out centre)) return null;
             if (!_routes.TryGetAnchor(a.Anchor, out ancA)) return null;
             if (!_routes.TryGetAnchor(b.Anchor, out ancB)) return null;
+            var artA = Artery(ancA);
+            var artB = Artery(ancB);
+            if (artA == null || artB == null) return null;
             if (!RingMeet(ancA, out meetA)) return null;
             if (!RingMeet(ancB, out meetB)) return null;
+            // Turn at the works gate, not at the district centre. The exported centreline runs on
+            // through the yard and out the far side, and the tarmac does not — see DistrictGate.
+            if (!DistrictGate(a.Anchor, out gateA, out _)) gateA = ancA;
+            if (!DistrictGate(b.Anchor, out gateB, out _)) gateB = ancB;
 
             var path = new List<Vector3>(256);
-            // Loaded run: A's yard, in to the crossroads, out to B's yard.
-            Append(path, Sub(artA, ancA, centre));
-            Append(path, Sub(artB, centre, ancB));
+            // Loaded run: A's gate, in to the crossroads, out to B's gate.
+            Append(path, Sub(artA, gateA, centre));
+            Append(path, Sub(artB, centre, gateB));
             // Home the long way: back down B's arterial to the ring, round it, and up A's.
-            Append(path, Sub(artB, ancB, meetB));
+            Append(path, Sub(artB, gateB, meetB));
             Append(path, RingArc(ring, meetB, meetA));
-            Append(path, Sub(artA, meetA, ancA));
+            Append(path, Sub(artA, meetA, gateA));
             return path.Count >= 8 ? path : null;
         }
 
@@ -2567,6 +2726,7 @@ namespace Game.Gameplay
                 {
                     float rad = a * (Mathf.PI / 12f);
                     Vector3 p = home + new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)) * step;
+                    if (!InsideYard(p)) continue;
                     if (!HeapFits(blockers, p, clearance)) continue;
                     pad.position = p;
                     return;
@@ -2583,6 +2743,28 @@ namespace Game.Gameplay
             }
             return true;
         }
+
+        /// <summary>
+        /// Whether a heap pushed off its spot is still standing in a works yard.
+        ///
+        /// The search above walks out as far as 26 metres, which from the gate apron is enough to put
+        /// the heap outside the fence, on bare grass or across the arterial the trucks drive. A yard's
+        /// pad ends at the gate radius, so that is the fence the heap stays inside. Always true on a
+        /// generated island, which has no districts and lays its own yards out.
+        /// </summary>
+        private bool InsideYard(Vector3 p)
+        {
+            if (!Authored || _routes == null) return true;
+            for (int i = 0; i < DistrictAnchors.Length; i++)
+            {
+                Vector3 c;
+                if (!_routes.TryGetAnchor(DistrictAnchors[i], out c)) continue;
+                if (Flat(p - c).sqrMagnitude <= districtGateRadius * districtGateRadius) return true;
+            }
+            return false;
+        }
+
+        private static readonly string[] DistrictAnchors = { "mine", "depot", "refinery", "market" };
 
         /// <summary>
         /// Grows the island and pushes everything on it apart from the site centre, so the buildings,

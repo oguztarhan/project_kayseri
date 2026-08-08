@@ -133,7 +133,12 @@ PORT_ROAD = [(-20, -126), (-38, -124), (-54, -120), (-66, -115)]
 # into the depot.  One line only: the quayside siding that used to run from the
 # market to the port is gone - it crossed the market yard, parked a wagon inside
 # Market.Office, and duplicated a haul the port road already makes.
-RAIL = [(-186, -6), (-172, 12), (-156, 32), (-138, 52), (-118, 70),
+# Swung wide of the mine's north-west corner: the old (-156, 32) control
+# point sat exactly on the adit row, so the laid line ran the length of the
+# mine's frontage 0-5 metres from the timberwork and through the back of the
+# third adit. Hugging the cliff face instead reads as a cutting, which is
+# what a line squeezed between a rock face and a works should be.
+RAIL = [(-186, -6), (-176, 14), (-170, 42), (-138, 52), (-118, 70),
         (-96, 88), (-72, 104), (-46, 116), (-20, 122), (4, 118), (18, 108)]
 
 # ---------------------------------------------------------------------- water
@@ -271,8 +276,12 @@ THEME = "coal"
 # them that way - so a landmark of its own is both the only room there is and
 # the better read.
 THEME_SPOTS = {
-    "works": (98.0, 52.0),      # coke-oven battery, between refinery and store
-    "yard": (-106.0, 48.0),     # pit props and sawn timber, up by the mine
+    # Both moved off working ground. The battery at (98, 52) shared its footing
+    # with the refinery's west flank - the ore feed heap and a tank stood in the
+    # ovens on every phase-3 build - and the timber yard at (-106, 48) backed
+    # into the mine plant AND ended up eight metres off the rerouted railway.
+    "works": (140.0, 66.0),     # coke-oven battery, on the rise north of the refinery
+    "yard": (-134.0, -54.0),    # pit props and sawn timber, south-west of the mine
 }
 # Spills of the stuff this island handles, out on the bare ground. Cheap, and
 # they carry the theme right out to the edges of the frame where there is

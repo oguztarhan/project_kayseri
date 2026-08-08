@@ -244,8 +244,20 @@ PAVE = PK("gravel", "concrete", "concrete")
 PAVE_W = PK(2.6, 3.2, 3.6)
 Z_PAVE = Z_ROAD + 0.06
 
-strip([(p[0], p[1], 0.0) for p in L.FOOTPATH], PAVE_W, z=Z_PAVE,
-      name="Walk.Ring", material=mat(PAVE), collection=CR, zfun=GZ)
+# Gapped where the four arterials cross it. As one closed ribbon it ran
+# straight over all four carriageways - raised pavement lying on the tarmac at
+# every junction, which is the "sidewalk on the road" it reads as. The gaps are
+# measured off the ring meets, so they follow whatever radius each island's ring
+# happens to sit at.
+_RING_GAPS = [(mx, my, MAIN_W * 0.5 + 4.0) for mx, my in L.LOOP_MEETS] \
+    if L.LOOP_C else []
+for _i, _run in enumerate(L.trim_zones([(p[0], p[1]) for p in L.FOOTPATH],
+                                       _RING_GAPS) if _RING_GAPS
+                          else [[(p[0], p[1]) for p in L.FOOTPATH]]):
+    if len(_run) < 2:
+        continue
+    strip([(p[0], p[1], 0.0) for p in _run], PAVE_W, z=Z_PAVE,
+          name="Walk.Ring%d" % _i, material=mat(PAVE), collection=CR, zfun=GZ)
 
 # Both sides of each arterial. Inside the ring they run from the centre junction
 # out to the ring pavement; outside it they carry on to each district's gate.
@@ -257,6 +269,16 @@ if L.LOOP_C:
     # two runs per side with a gap for the crossing.
     _MEET = {"XE": L.LOOP_MEETS[0][0], "YN": L.LOOP_MEETS[1][1],
              "XW": -L.LOOP_MEETS[2][0], "YS": -L.LOOP_MEETS[3][1]}
+
+    # How far out each arm's own district stands. Measured rather than named:
+    # the four districts sit at different radii on the iron and gold maps, and
+    # which of them is on which arm changes from island to island.
+    _ARM_END = {
+        "XE": max(d[0] for d in L.DISTRICTS),
+        "XW": -min(d[0] for d in L.DISTRICTS),
+        "YN": max(d[1] for d in L.DISTRICTS),
+        "YS": -min(d[1] for d in L.DISTRICTS),
+    }
 
     def footway(arm, r0, r1, tag, side):
         """One run of pavement beside an arterial, on that arm own axis."""
@@ -274,7 +296,10 @@ if L.LOOP_C:
     for _side in (1, -1):
         for _arm, _meet in _MEET.items():
             footway(_arm, 20.0, _meet - 8.0, "I", _side)
-            footway(_arm, _meet + 8.0, 92.0, "O", _side)
+            # stops short of the works gate: the last few metres are the
+            # mouth the lorries turn in through, and pavement laid across it
+            # is pavement on the road.
+            footway(_arm, _meet + 8.0, _ARM_END[_arm] - L.PAD - 7.0, "O", _side)
 
     # Crossings where the footways meet the ring road, so the pavement visibly
     # continues over the tarmac instead of just stopping either side of it.

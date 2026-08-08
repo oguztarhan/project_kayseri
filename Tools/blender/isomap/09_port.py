@@ -97,8 +97,18 @@ for k in range(NPIER):
 
 # --------------------------------------------------------------- cranes
 NCRANE = PK(0, 1, 3)
+# Spaced by the crane's own width, not by a fraction of the quay. Three 25-wide
+# cranes spread over 0.68 of a short quay end up 20 apart, which stands each one
+# inside the next; the gantries then read as one tangled machine.
+_CW = PK(0.0, 21.0, 25.0)
+# And no more of them than the quay can actually hold. Spacing alone was not
+# enough: three 25-wide cranes need 59 metres of quay, and where the quay is
+# shorter than that they were simply pushed off the ends and bunched.
+if _CW > 0.0:
+    NCRANE = max(1, min(NCRANE, int(QL * 0.92 / (_CW * 1.18))))
+_STEP = max(QL * 0.68 / max(1, NCRANE - 1), _CW * 1.18) if NCRANE > 1 else 0.0
 for k in range(NCRANE):
-    a = (-QL * 0.34 + k * (QL * 0.68 / max(1, NCRANE - 1))) if NCRANE > 1 else 0.0
+    a = (-_STEP * (NCRANE - 1) * 0.5 + k * _STEP) if NCRANE > 1 else 0.0
     p = q(a, 5.0)
     cr = P.port_crane("Port.Crane%d" % k, PK(0, 21.0, 25.0),
                       PK(0, 24.0, 29.0), C, PK("orange", "orange", "yellow_lt"))

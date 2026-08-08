@@ -270,7 +270,7 @@ PlayerSettings:
   AndroidAllowedArchitectures: -13
   AndroidSplashScreenScale: 0
   androidSplashScreen: {fileID: 0}
-  AndroidKeystoreName: A:/topsecretfckngislandmining.keystore
+  AndroidKeystoreName: /Users/macbookair/Desktop/intake/islandminingtycoon/topsecretfckngislandmining.keystore
   AndroidKeyaliasName: islandmining
   AndroidEnableArmv9SecurityFeatures: 0
   AndroidEnableArm64MTE: 0

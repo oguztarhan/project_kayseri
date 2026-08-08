@@ -75,6 +75,8 @@ namespace Game.UI
             if (languageButton != null) languageButton.onClick.AddListener(OnLanguage);
             RefreshSwitch();
 
+            BuildTestButton();
+
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
@@ -82,6 +84,7 @@ namespace Game.UI
         public void Toggle()
         {
             if (panelRoot != null) panelRoot.SetActive(!panelRoot.activeSelf);
+            RefreshTestButton();   // başka bir yerden açılmış olabilir — etiket açılışta doğru olsun
         }
 
         public void Hide()
@@ -158,5 +161,83 @@ namespace Game.UI
         }
 
         private LanguageMenuUI _languages;
+
+        // ---------------- test modu ----------------
+
+        // Her yerde bedava satın alma + oturum boyunca kayıt askıda, böylece her ada ve her yükseltme
+        // gerçek kayda dokunmadan denenebilir. Eskiden istasyon ekranının sol üst köşesindeydi ve
+        // #if UNITY_EDITOR || DEVELOPMENT_BUILD ile kapatılıyordu; telefondan çekilen videoda oyun
+        // ekranının üstünde göründüğü için buraya taşındı ve derleme kapısı kaldırıldı. Ayarlar
+        // penceresi kapalıyken bu düğme de kapalı, dolayısıyla kayda hiç girmiyor.
+        //
+        // Figma panelinin (976x1520) son satırı -1448'de bitiyor ve altında yalnızca 72 piksel var,
+        // yani yedinci bir satır paneli taşırırdı. Bunun yerine pencerenin altına, panelin dışına
+        // ayrı bir şerit olarak kuruluyor: sanatçının paneline hiç dokunulmuyor ve yayına çıkmadan
+        // önce tek parça hâlinde sökülebiliyor.
+        private const string TestOffLabel = "TEST MODU: KAPALI";
+        private const string TestOnLabel = "TEST AÇIK — KAYIT YOK";
+        private static readonly Color TestOffColor = new Color(0.24f, 0.27f, 0.32f, 0.92f);
+        private static readonly Color TestOnColor = new Color(0.75f, 0.20f, 0.20f, 0.92f);
+
+        private Image _testImage;
+        private TMPro.TextMeshProUGUI _testLabel;
+
+        private void BuildTestButton()
+        {
+            if (panelRoot == null) return;
+
+            var go = new GameObject("TestModu", typeof(RectTransform));
+            go.transform.SetParent(panelRoot.transform, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0.5f, 0f);
+            rt.anchorMax = new Vector2(0.5f, 0f);
+            rt.pivot = new Vector2(0.5f, 0f);
+            rt.anchoredPosition = new Vector2(0f, 40f);
+            rt.sizeDelta = new Vector2(560f, 92f);
+
+            _testImage = go.AddComponent<Image>();
+            _testImage.color = TestOffColor;
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = _testImage;
+            btn.onClick.AddListener(OnTestMode);
+
+            var tgo = new GameObject("Etiket", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var trt = (RectTransform)tgo.transform;
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+            _testLabel = tgo.AddComponent<TMPro.TextMeshProUGUI>();
+            _testLabel.fontSize = 34;
+            _testLabel.alignment = TMPro.TextAlignmentOptions.Center;
+            _testLabel.raycastTarget = false;
+
+            RefreshTestButton();
+        }
+
+        private void OnTestMode()
+        {
+            var wallet = ServiceLocator.Get<WalletService>();
+            if (wallet == null) return;
+            bool on = !wallet.FreePurchases;
+            wallet.FreePurchases = on;
+            if (on)
+            {
+                var save = ServiceLocator.Get<SaveService>();
+                if (save != null) save.Suspended = true;   // yapışkan: bir kez çalıştıysa bu oturum kayıt yazmaz
+            }
+            if (_haptic != null) _haptic.Light();
+            RefreshTestButton();
+            // İstasyon ekranı zaten kendi Update'inde refreshInterval'de bir yenileniyor,
+            // fiyatların bedavaya dönmesi için buradan onu dürtmeye gerek yok.
+        }
+
+        private void RefreshTestButton()
+        {
+            if (_testLabel == null) return;
+            var wallet = ServiceLocator.Get<WalletService>();
+            bool on = wallet != null && wallet.FreePurchases;
+            _testLabel.text = on ? TestOnLabel : TestOffLabel;
+            if (_testImage != null) _testImage.color = on ? TestOnColor : TestOffColor;
+        }
     }
 }

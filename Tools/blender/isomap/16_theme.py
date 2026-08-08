@@ -238,7 +238,7 @@ def iron_theme():
     b.use("clad")                                      # cast house
     b.boxz((13.0, 8.0, PK(6.0, 7.5, 9.0)), (wx - 11.0, wy - 5.0, wz + 0.3))
     b.use("rust")
-    b.roof((12.2, 14.4, 2.2), (wx - 11.0, wy - 5.0, wz + 0.3 + PK(6.0, 7.5, 9.0)),
+    b.roof((9.2, 14.4, 2.2), (wx - 11.0, wy - 5.0, wz + 0.3 + PK(6.0, 7.5, 9.0)),
            (0, 0, radians(90)))
     b.make("Theme.BlastFurnace", collection=C)
 

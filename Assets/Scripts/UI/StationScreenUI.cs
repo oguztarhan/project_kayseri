@@ -168,7 +168,6 @@ namespace Game.UI
             }
             BuildStrip();
             if (panelRoot != null) panelRoot.SetActive(false);
-            BuildDevButton();
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
         }
 
@@ -1044,55 +1043,5 @@ namespace Game.UI
         private const float BannerOutSeconds = 0.30f;
         private const float SheetInSeconds = 0.28f;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        // TEST MODU (yalnız geliştirici): her yerde bedava satın alma + oturum boyunca kayıt askıda,
-        // böylece her ada ve her yükseltme gerçek kaydına dokunmadan denenebilir. Koddan kuruluyor —
-        // hiçbir zaman yayına çıkmayacağı için prefabda yeri yok. Yükseltme paneliyle birlikte buraya
-        // taşındı: satın almanın yaşadığı ekran artık burası.
-        private Button _testBtn;
-        private TMP_Text _testLabel;
-
-        private void BuildDevButton()
-        {
-            var canvas = GetComponentInChildren<Canvas>(true);
-            if (canvas == null) return;
-            var go = new GameObject("TestModu", typeof(RectTransform));
-            go.transform.SetParent(canvas.transform, false);
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(0f, 1f); rt.pivot = new Vector2(0f, 1f);
-            rt.anchoredPosition = new Vector2(12f, -12f); rt.sizeDelta = new Vector2(340f, 58f);
-            var img = go.AddComponent<Image>();
-            img.color = new Color(0.24f, 0.27f, 0.32f, 0.92f);
-            var btn = go.AddComponent<Button>();
-            btn.targetGraphic = img;
-            var tgo = new GameObject("Etiket", typeof(RectTransform));
-            tgo.transform.SetParent(go.transform, false);
-            var trt = (RectTransform)tgo.transform;
-            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
-            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
-            _testLabel = tgo.AddComponent<TextMeshProUGUI>();
-            _testLabel.fontSize = 26; _testLabel.alignment = TextAlignmentOptions.Center;
-            _testLabel.text = "TEST MODU: KAPALI"; _testLabel.raycastTarget = false;
-            _testBtn = btn;
-            btn.onClick.AddListener(ToggleTestMode);
-        }
-
-        private void ToggleTestMode()
-        {
-            if (_wallet == null) return;
-            bool on = !_wallet.FreePurchases;
-            _wallet.FreePurchases = on;
-            if (on)
-            {
-                var save = ServiceLocator.Get<SaveService>();
-                if (save != null) save.Suspended = true;   // yapışkan: test modu bir kez çalıştıysa bu oturum kayıt yazmaz
-            }
-            _testLabel.text = on ? "TEST AÇIK — KAYIT YOK" : "TEST MODU: KAPALI";
-            _testBtn.GetComponent<Image>().color = on ? new Color(0.75f, 0.20f, 0.20f, 0.92f) : new Color(0.24f, 0.27f, 0.32f, 0.92f);
-            Refresh();
-        }
-#else
-        private void BuildDevButton() { }
-#endif
     }
 }

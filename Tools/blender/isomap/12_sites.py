@@ -15,6 +15,8 @@ importlib.reload(layout)
 importlib.reload(parts)
 import grade
 importlib.reload(grade)
+import yard
+importlib.reload(yard)
 L = layout
 P = parts
 
@@ -182,7 +184,13 @@ for nm, (dx, dy) in (("Mine", L.MINE), ("Depot", L.DEPOT),
 
 # active construction site while the island is still growing
 if PHASE == 2:
-    cx, cy = L.DEPOT[0] - 26, L.DEPOT[1] - 26
+    # Placed in the DEPOT's own frame and just outside its pad, not at a fixed
+    # world-axis offset from its centre. The old (-26, -26) landed in a free
+    # corner on coal and squarely inside the works on copper, whose depot faces
+    # the opposite way - the same fixed-offset bug the mine adits had. A works
+    # under construction belongs beside the yard, not in it.
+    _DF = yard.Frame("depot", L.DEPOT)
+    cx, cy = _DF.xy(48, 6)
     b = B().use("concrete_dk")
     b.box((24, 18, 0.35), (cx, cy, 0.45))
     b.use("steel")
@@ -201,8 +209,8 @@ if PHASE == 2:
         b.box((26, 0.26, 0.26), (cx, cy + 8.0, 0.6 + z))
     b.make("Site.Construction", collection=C)
     cr = P.tower_crane("Site.Crane", 34.0, 26.0, C)
-    cr.location = (cx + 16, cy - 4, 0.3)
-    cr.rotation_euler = (0, 0, radians(150))
+    cr.location = _DF.at(62, 2)
+    cr.rotation_euler = (0, 0, _DF.yaw(150))
 
 
 # The three sites sit on three different pads, so each object is raised by

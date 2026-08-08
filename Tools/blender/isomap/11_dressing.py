@@ -124,6 +124,14 @@ while placed < TARGET and tries < 90000:
     dq, _ = L.dist_to_path(x, y, L.RAIL)
     if dq < 9.0:
         continue
+    # Out of every works yard, site, town and the quay. L.GATES is exactly that
+    # list of (x, y, radius) - it is what the roads are already trimmed against,
+    # so a pine can no longer sprout inside a shed. The `rel` height test above
+    # used to serve as this rule back when every pad was flat at z=0; once the
+    # districts sat up on graded pads it stopped rejecting anything, and nothing
+    # replaced it.
+    if any(hypot(x - gx, y - gy) < gr for gx, gy, gr in L.GATES):
+        continue
     dens = 0.10 + 0.44 * min(1.0, max(0.0, rel / 16.0)) + \
         0.36 * min(1.0, max(0.0, (hypot(x, y) - 125.0) / 110.0))
     if RNG.random() > dens:
@@ -150,6 +158,14 @@ while bplaced < 300 and tries < 24000:
     z, nz_ = g
     rel = z - grade.road_z(x, y)
     if nz_ < 0.72 or rel < 0.8 or rel > 30.0:
+        continue
+    # Out of every works yard, site, town and the quay. L.GATES is exactly that
+    # list of (x, y, radius) - it is what the roads are already trimmed against,
+    # so a pine can no longer sprout inside a shed. The `rel` height test above
+    # used to serve as this rule back when every pad was flat at z=0; once the
+    # districts sat up on graded pads it stopped rejecting anything, and nothing
+    # replaced it.
+    if any(hypot(x - gx, y - gy) < gr for gx, gy, gr in L.GATES):
         continue
     if not bush_clear(x, y, 4.0):
         continue

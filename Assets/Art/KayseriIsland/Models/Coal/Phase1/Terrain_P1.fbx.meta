@@ -42,6 +42,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: bullion
+    second: {fileID: 2100000, guid: 5d46f492c7d3c42f8a820888387534bf, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: bush
     second: {fileID: 2100000, guid: 32d8848c17e3940edb57ffe565000374, type: 2}
   - first:
@@ -197,6 +202,16 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: ore_au
+    second: {fileID: 2100000, guid: 11a8d1e4bd91d44cdb56dad0b2af5e57, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: ore_au_shiny
+    second: {fileID: 2100000, guid: 140cec987dbc7454abbcb930a8d728c7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: ore_cu
     second: {fileID: 2100000, guid: ceaa31e34f80d416c92cb50c94dd4782, type: 2}
   - first:
@@ -204,6 +219,16 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: ore_cu_shiny
     second: {fileID: 2100000, guid: 6dcfe35e886604c4c9ef280ef82c9a6e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: ore_fe
+    second: {fileID: 2100000, guid: 31440dbe68f1e4ae8b6186641dfd4bc8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: ore_fe_shiny
+    second: {fileID: 2100000, guid: 8e8ca8785c6044e609f455e5c6d81a35, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -287,6 +312,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: sluice_wood
+    second: {fileID: 2100000, guid: 7a09c41b2fb4b4d1e8305365d8c027cf, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: smoke
     second: {fileID: 2100000, guid: 44beb4e79358b4de186ddf672140aabf, type: 2}
   - first:
@@ -329,6 +359,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: trunk
     second: {fileID: 2100000, guid: 301c594b91d0b4125ba437536bab5345, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: tunnel_void
+    second: {fileID: 2100000, guid: aaf8cfbdfe7684c5ea2e14cac512692e, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule

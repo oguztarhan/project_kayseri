@@ -50,7 +50,7 @@ def run(step, phase=None, **extra):
 
 STEPS = ("01_setup", "02_terrain", "03_roads", "04_rail", "05_mine",
          "06_depot", "07_refinery", "08_market", "09_port", "10_traffic",
-         "11_dressing", "12_sites", "15_town", "16_theme")
+         "11_dressing", "12_sites", "15_town", "16_theme", "21_settle", "19_clip", "18_detail")
 
 
 def build(phase=1, verbose=False, isle=None):

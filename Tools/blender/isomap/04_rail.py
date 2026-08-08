@@ -72,6 +72,133 @@ for k, (pos, yaw) in enumerate(SAMP_ALL):
         break
 i1 = int(i0 + (len(SAMP_ALL) - i0) * TRACK_END)
 SAMP = SAMP_ALL[i0:i1]
+
+# --------------------------------------------------- stop the line at the yard
+# The layout's RAIL polyline runs on into the middle of the depot, so the laid
+# track crossed the entire yard diagonally - under the heaps, through the
+# working slab - and dead-ended against whatever furniture stood at the old
+# railhead. That crossing is what read as "the train drives into a wall".
+#
+# The line now stops just outside the yard slab (a 72x74 axis-aligned square on
+# every island), and the engine shed sits at its end: the train arrives, enters
+# the shed, gone. Trimmed HERE, before the track meshes, the exported
+# centreline and the parked rake are built, so all of them agree.
+_YHX, _YHY = 41.0, 41.0            # yard half-extents plus a margin
+
+
+def _trim_at_yard(samp):
+    """Cut the line a couple of metres inside the yard's edge.
+
+    At the ENTRY into the yard, not by walking back from the end: the copper
+    line overshoots the yard and comes out the far side, so an end-anchored
+    walk saw an endpoint already outside and trimmed nothing - leaving the
+    track crossing the entire yard with the shed stranded on the overshoot,
+    fifty metres past the depot. The last contiguous stretch inside the yard
+    square is the final approach on every island, however the line gets there.
+    """
+    dxc, dyc = L.DEPOT[0], L.DEPOT[1]
+
+    def inside(k):
+        return (abs(samp[k][0].x - dxc) < _YHX
+                and abs(samp[k][0].y - dyc) < _YHY)
+
+    entry = None
+    k = len(samp) - 1
+    while k > 8:
+        if inside(k):
+            while k > 8 and inside(k - 1):
+                k -= 1
+            entry = k
+            break
+        k -= 1
+    if entry is None:
+        return samp                    # the line never reaches the yard
+    # a couple of metres past the edge, so the shed straddles the boundary
+    run, k = 0.0, entry
+    while k < len(samp) - 1 and run < 3.0:
+        run += hypot(samp[k + 1][0].x - samp[k][0].x,
+                     samp[k + 1][0].y - samp[k][0].y)
+        k += 1
+    return samp[:k + 1]
+
+
+# (trim runs below, before the straighten)
+
+# ------------------------------------------------- straighten the last stretch
+# An engine shed is a straight box, and the line was arriving at it mid-curve -
+# so the doorway could never line up with the rails no matter where it was
+# centred, and the train ran past the door post instead of through the opening.
+# Real sheds are always on straight track for exactly this reason.
+#
+# The final run is re-laid along the tangent at the point SHED_RUN metres back,
+# which fixes the RAILS and the shed together because both are built from SAMP.
+SHED_RUN = 40.0
+
+
+def _straighten_tail(samp, run):
+    """Replace the last `run` metres with the straight CHORD to the endpoint.
+
+    The chord, never the tangent: the tangent version re-aimed the tail along
+    whatever direction the curve happened to have `run` metres out, which on the
+    copper island pointed away from the depot and carried the railhead fifty
+    metres off the yard the trim had just put it on. The chord pivots the
+    straightened run around the END, so the railhead stays exactly where the
+    trim left it and only the approach unbends.
+    """
+    if len(samp) < 6:
+        return samp
+    total, cut = 0.0, len(samp) - 1
+    while cut > 2 and total < run:
+        total += hypot(samp[cut][0].x - samp[cut - 1][0].x,
+                       samp[cut][0].y - samp[cut - 1][0].y)
+        cut -= 1
+    ax, ay = samp[cut][0].x, samp[cut][0].y
+    ex, ey = samp[-1][0].x, samp[-1][0].y
+    dx, dy = ex - ax, ey - ay
+    d = hypot(dx, dy)
+    if d < 1e-6:
+        return samp
+    yaw_ = atan2(dy, dx)
+    out = list(samp[:cut + 1])
+    n = len(samp) - 1 - cut
+    for k in range(1, n + 1):
+        t = k / n
+        out.append((Vector((ax + dx * t, ay + dy * t, 0.0)), yaw_))
+    return out
+
+
+def _reach_yard(samp):
+    """Extend a line that stops short, straight on to the depot yard.
+
+    Only coal's authored RAIL polyline actually lands on its depot: copper's
+    stops 50 metres short and iron's 61, so their trains unloaded into open
+    grass and the shed stood in a field. Anything already at the yard is left
+    alone - the trim below is what normalises those.
+    """
+    dxc, dyc = L.DEPOT[0], L.DEPOT[1]
+    ex, ey = samp[-1][0].x, samp[-1][0].y
+    if abs(ex - dxc) < _YHX and abs(ey - dyc) < _YHY:
+        return samp
+    vx, vy = dxc - ex, dyc - ey
+    d = hypot(vx, vy)
+    if d < 1e-6:
+        return samp
+    ux_, uy_ = vx / d, vy / d
+    yaw_ = atan2(uy_, ux_)
+    out = list(samp)
+    t = 0.0
+    while t < d:
+        t += 1.2
+        px, py = ex + ux_ * t, ey + uy_ * t
+        out.append((Vector((px, py, 0.0)), yaw_))
+        if abs(px - dxc) < _YHX - 4.0 and abs(py - dyc) < _YHY - 4.0:
+            break
+    return out
+
+
+SAMP = _reach_yard(SAMP)
+SAMP = _trim_at_yard(SAMP)
+SAMP = _straighten_tail(SAMP, SHED_RUN)
 PATH = [(p.x, p.y, 0.0) for p, _ in SAMP[::18]]
 if len(PATH) < 3:
     PATH = [(p.x, p.y, 0.0) for p, _ in SAMP]
@@ -150,7 +277,7 @@ def viaduct(samples, name, w=PK(9.0, 11.5, 14.0)):
         strip([(p.x, p.y, 0.0) for p, _ in run], w * 0.86, z=-1.5,
               name="%s.Deck%d" % (name, r), material=mat("concrete"),
               collection=CRail, thickness=1.4, zfun=GZ)
-        step = max(1, int(len(run) / max(1, int(_run_len(run) / 24.0))))
+        step = max(1, int(len(run) / max(1, int(_run_len(run) / 14.0))))
         for k in range(step // 2, len(run), step):
             pos, yaw = run[k]
             g = ground_z(pos.x, pos.y)
@@ -197,16 +324,36 @@ def bore(t, into, name, idx):
     bt.box((3.4, PK(16.0, 22.0, 26.0), PK(11.0, 16.0, 19.0)),
            (p0.x, p0.y, PK(4.6, 6.5, 8.0)), (0, 0, yaw0))
     bt.use("concrete_dk")
-    for i in range(13):
-        a = radians(180) * i / 12.0
+    # Two jambs and an arch ring that RIM the opening. The old ring traced a
+    # semicircle centred at rail level - the bottom of the doorway - so its
+    # blocks crossed the middle of the black void like a row of teeth, which is
+    # the broken mouth every screenshot of the portal showed. The void is a slab
+    # up to z 9.1 with a 4.3-radius arch on top; the masonry now follows exactly
+    # that outline, half a metre outside it.
+    for s_ in (1, -1):
+        bt.box((1.1, 1.4, 8.6),
+               (p0.x + fx * 1.6 - sin(yaw0) * s_ * 5.0,
+                p0.y + fy * 1.6 + cos(yaw0) * s_ * 5.0, 4.9), (0, 0, yaw0))
+    for i in range(9):
+        a = radians(180) * i / 8.0
         bt.box((1.1, 1.5, 1.5),
                (p0.x + fx * 1.6 - sin(yaw0) * cos(a) * 5.0,
                 p0.y + fy * 1.6 + cos(yaw0) * cos(a) * 5.0,
-                1.2 + sin(a) * 5.6), (0, 0, yaw0))
+                9.1 + sin(a) * 5.0), (0, 0, yaw0))
     bt.use("rock_dark")
-    bt.box((5.0, 8.4, 8.0), (p0.x - fx * 2.6, p0.y - fy * 2.6, 5.0), (0, 0, yaw0))
-    bt.cyl(4.2, 5.0, (p0.x - fx * 2.6, p0.y - fy * 2.6, 9.0),
-           (0, radians(90), yaw0), 16)
+    # The plug the mouth is cut into. It used to be 5 deep and 8.4 wide, which is
+    # narrower and shallower than the arch in front of it - so from any camera
+    # above the track you looked over the top of the arch and straight past the
+    # plug into open sky, which is what read as a hollow entrance. Sized to
+    # swallow the whole surround from every angle the island is seen at.
+    # Taller and WIDER than the face wall in front of it. The face is up to 26
+    # across and 19 high; a 15-wide, 14-high plug left the face's top corners
+    # standing proud with open sea showing behind them - the portal read as a
+    # flat billboard propped against the sky.
+    bt.box((18.0, PK(20.0, 26.0, 30.0), 22.0),
+           (p0.x - fx * 9.2, p0.y - fy * 9.2, 9.0), (0, 0, yaw0))
+    bt.cyl(PK(9.0, 11.5, 13.5), 18.0, (p0.x - fx * 9.2, p0.y - fy * 9.2, 16.0),
+           (0, radians(90), yaw0), 18)
     # THE HOLE. Everything above is the surround; without this the mouth is a
     # concrete arch laid flat against a hillside, which is what it looked like -
     # an entrance that is not open. A near-black slab set just inside the arch
@@ -214,14 +361,30 @@ def bore(t, into, name, idx):
     # opening as a tunnel going in, and no amount of arch detail does that on
     # its own. Unlit rather than pure black so it still catches a little bounce.
     bt.use("tunnel_void")
+    # The unlit opening, and behind it a bore that actually goes somewhere: a
+    # capped tube running back into the plug, so a train nosing in disappears
+    # into darkness instead of into the back face of a slab.
     bt.box((1.2, 8.6, 8.2), (p0.x + fx * 1.15, p0.y + fy * 1.15, 5.0), (0, 0, yaw0))
     bt.cyl(4.3, 1.2, (p0.x + fx * 1.15, p0.y + fy * 1.15, 9.1),
+           (0, radians(90), yaw0), 16)
+    bt.box((13.0, 7.6, 7.4), (p0.x - fx * 5.9, p0.y - fy * 5.9, 4.6), (0, 0, yaw0))
+    bt.cyl(3.8, 13.0, (p0.x - fx * 5.9, p0.y - fy * 5.9, 8.3),
            (0, radians(90), yaw0), 16)
     bt.use("concrete_dk")
     for s in (1, -1):
         bt.box((2.4, 7.0, 11.0),
                (p0.x + fx * 1.0 - sin(yaw0) * s * 8.0,
                 p0.y + fy * 1.0 + cos(yaw0) * s * 8.0, 5.0), (0, 0, yaw0))
+    # Foundation. Out of the mouth the ground falls away to the gorge, so the
+    # face wall's bottom edge hung over a visible void and the first metres of
+    # track floated - "hollow under the portal". A rock mass from the apron
+    # down to below the gorge floor reads as the outcrop the tunnel was bored
+    # through, and the deck piers take over past it.
+    bt.use("rock")
+    bt.box((16.0, PK(15.0, 19.0, 22.0), 24.0),
+           (p0.x + fx * 2.0, p0.y + fy * 2.0, -12.6), (0, 0, yaw0))
+    bt.box((10.0, PK(11.0, 13.0, 15.0), 20.0),
+           (p0.x + fx * 8.0, p0.y + fy * 8.0, -11.2), (0, 0, yaw0))
     ob = bt.make(name, collection=CRail)
     # A single offset is right here, unlike the track: the portal is one compact
     # structure at the tunnel mouth rather than something spanning the whole fall.
@@ -263,6 +426,12 @@ SHED_W = PK(11.0, 12.0, 15.0)      # phase 3 is double track: both roads covered
 SHED_H = PK(7.5, 8.5, 10.0)
 
 
+def _path_len(samp):
+    return sum(hypot(samp[k][0].x - samp[k - 1][0].x,
+                     samp[k][0].y - samp[k - 1][0].y)
+               for k in range(1, len(samp))) or 1.0
+
+
 def back_along(dist):
     """Index of the sample `dist` metres back from the end of the laid track."""
     t, i = 0.0, len(SAMP) - 1
@@ -273,6 +442,9 @@ def back_along(dist):
     return i
 
 
+# At the end of the line, which _trim_at_yard has already put at the yard edge:
+# the shed no longer needs to hunt for a clear spot, because the line no longer
+# runs anywhere a shed cannot stand.
 door_i = back_along(SHED_L)
 run_ = SAMP[door_i:]
 pd, yd = SAMP[door_i]
@@ -283,9 +455,19 @@ pe, ye = SAMP[-1]
 alen = hypot(pe.x - pd.x, pe.y - pd.y)
 ux, uy = (pe.x - pd.x) / alen, (pe.y - pd.y) / alen
 sx, sy = -uy, ux
-_off = [(p.x - pd.x) * sx + (p.y - pd.y) * sy for p, _ in run_]
-mid = (max(_off) + min(_off)) * 0.5
-W = SHED_W + (max(_off) - min(_off))
+# Centred on the road the TRAIN occupies, not on the path centreline. With
+# double track the engine runs TRAIN_OFF to one side, so a shed centred on the
+# path stood three metres off the rails the locomotive is actually on - the
+# doorway missed the train and the train drove into the door pillar instead.
+mid = TRAIN_OFF * 0.5
+# Wide enough for the curve the last few metres sit on, but capped. The raw
+# spread of a tight final curve made the shed wider than it was long, which is
+# what pushed its far corner into the storage buildings behind it.
+W = SHED_W + abs(TRAIN_OFF)
+# The doorway follows the body. It used to be built on pd while the body was
+# built on cx, so on any curve the two were offset from each other.
+dcx = pd.x + sx * mid
+dcy = pd.y + sy * mid
 yaw = atan2(uy, ux)
 cx = (pd.x + pe.x) * 0.5 + sx * mid
 cy = (pd.y + pe.y) * 0.5 + sy * mid
@@ -298,16 +480,20 @@ bh.use("clad")
 for s in (1, -1):                                          # side walls
     bh.boxz((alen, 0.8, SHED_H), (cx + sx * s * W * 0.5, cy + sy * s * W * 0.5,
                                   gz + 0.5), (0, 0, yaw))
-bh.boxz((0.9, W, SHED_H), (pe.x + ux * 1.0, pe.y + uy * 1.0, gz + 0.5),
-        (0, 0, yaw))                                       # back wall
+# NO end wall. The shed is a running shed now - the line goes in one end and
+# out the other - so a wall across either end is a wall the train drives into.
+# It used to close the far end because the shed sat at the buffer stop.
 bh.use("roof_blue")
 bh.roof((W + 1.4, alen + 1.4, RISE), (cx, cy, gz + SHED_H + 0.5),
         (0, 0, yaw - pi * 0.5))
-# The island is seen from the south-east, so the back wall - not the doorway -
-# is the face the player reads the building by. Give it a shutter to match.
-bh.use("orange")
-bh.box((0.5, W * 0.6, SHED_H * 0.62),
-       (pe.x + ux * 1.7, pe.y + uy * 1.7, gz + 0.5 + SHED_H * 0.31), (0, 0, yaw))
+# A portal frame at the far end to match the near one, so both openings read as
+# doorways rather than as a box with its ends missing.
+bh.use("concrete_dk")
+bh.box((1.6, W + 2.8, 1.8), (pe.x, pe.y, gz + SHED_H + 1.2), (0, 0, yaw))
+for _s in (1, -1):
+    bh.boxz((1.6, 1.6, SHED_H + 2.1),
+            (pe.x + sx * _s * (W * 0.5 + 0.8), pe.y + sy * _s * (W * 0.5 + 0.8), gz),
+            (0, 0, yaw))
 bh.use("winlight")
 for i in range(int(alen / 4.5)):
     for s in (1, -1):
@@ -316,17 +502,19 @@ for i in range(int(alen / 4.5)):
                 cy + uy * (-alen * 0.5 + 3.0 + i * 4.5) + sy * s * (W * 0.5 + 0.3),
                 gz + 0.5 + SHED_H * 0.74), (0, 0, yaw))
 bh.use("concrete_dk")                                      # doorway frame
-bh.box((1.6, W + 2.8, 1.8), (pd.x, pd.y, gz + SHED_H + 1.2), (0, 0, yaw))
+bh.box((1.6, W + 2.8, 1.8), (dcx, dcy, gz + SHED_H + 1.2), (0, 0, yaw))
 for s in (1, -1):
     bh.boxz((1.6, 1.6, SHED_H + 2.1),
-            (pd.x + sx * s * (W * 0.5 + 0.8), pd.y + sy * s * (W * 0.5 + 0.8), gz),
+            (dcx + sx * s * (W * 0.5 + 0.8), dcy + sy * s * (W * 0.5 + 0.8), gz),
             (0, 0, yaw))
-bh.use(PK("wood", "steel_dk", "steel_dk"))                 # buffer stop
-bh.box((1.0, 4.4, 1.6), (pe.x - ux * 0.6, pe.y - uy * 0.6, gz + 1.4), (0, 0, yaw))
+bh.use(PK("wood", "steel_dk", "steel_dk"))                 # buffer stop, at the railhead
+_bp, _by = SAMP[-1]
+bh.box((1.0, 4.4, 1.6), (_bp.x + sx * TRAIN_OFF, _bp.y + sy * TRAIN_OFF,
+                         GZ(_bp.x, _bp.y) + 1.4), (0, 0, _by))
 bh.make("Rail.Shed", collection=CRail)
 if PHASE >= 2:
     P.streetlight("Rail.ShedLamp", 9.0, 3.0, CRail).location = (
-        pd.x + sx * (W * 0.5 + 3.2), pd.y + sy * (W * 0.5 + 3.2), gz)
+        dcx + sx * (W * 0.5 + 3.2), dcy + sy * (W * 0.5 + 3.2), gz)
 
 # The doorway, on the road the train runs on - 14_routes exports it as an
 # anchor so Unity can turn it into a distance along the rail.

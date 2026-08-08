@@ -42,6 +42,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: bullion
+    second: {fileID: 2100000, guid: 5d46f492c7d3c42f8a820888387534bf, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: bush
     second: {fileID: 2100000, guid: 32d8848c17e3940edb57ffe565000374, type: 2}
   - first:
@@ -197,6 +202,16 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: ore_au
+    second: {fileID: 2100000, guid: 11a8d1e4bd91d44cdb56dad0b2af5e57, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: ore_au_shiny
+    second: {fileID: 2100000, guid: 140cec987dbc7454abbcb930a8d728c7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: ore_cu
     second: {fileID: 2100000, guid: ceaa31e34f80d416c92cb50c94dd4782, type: 2}
   - first:
@@ -294,6 +309,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: seabed
     second: {fileID: 2100000, guid: b32fa2a1739c74ec9b3018a7b9361df4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: sluice_wood
+    second: {fileID: 2100000, guid: 7a09c41b2fb4b4d1e8305365d8c027cf, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
