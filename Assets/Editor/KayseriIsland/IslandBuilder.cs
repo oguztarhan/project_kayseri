@@ -405,6 +405,19 @@ namespace Kayseri.IslandTools
                     continue;
                 }
 
+                // Swapped-in art is re-applied here, before the prefab is written. This step is what
+                // makes the model overrides survive a re-export: everything above rebuilt the phase
+                // from the FBX and threw the old prefab away, so a swap living inside that prefab
+                // would be gone. It lives in IslandModelOverrides instead and is stamped back on.
+                var overrides = AssetDatabase.LoadAssetAtPath<IslandModelOverrides>(
+                    "Assets/Art/KayseriIsland/IslandModelOverrides.asset");
+                if (overrides != null)
+                {
+                    int swapped = IslandModelSwapper.Apply(root, island, phase, overrides);
+                    if (swapped > 0)
+                        Debug.Log($"[Island] {island} phase {phase}: {swapped} models replaced from overrides.");
+                }
+
                 string prefabPath = $"{prefabRoot}/Island_Phase{phase}.prefab";
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
                 Object.DestroyImmediate(root);
