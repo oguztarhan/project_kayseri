@@ -179,7 +179,7 @@ MonoBehaviour:
     Model: Loader
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 03a4e8e284047480b9e16c5fa0599c57, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -206,7 +206,7 @@ MonoBehaviour:
     Model: Shed
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 66a4f2d636fd04faeb2c66ea68492828, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -764,7 +764,7 @@ MonoBehaviour:
     Model: Boat
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 81f82078f6656467cac1584d47100257, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -782,7 +782,7 @@ MonoBehaviour:
     Model: Containers
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: dd58366f99c99481abc28a454b864917, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -836,7 +836,7 @@ MonoBehaviour:
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 05e64eda5dbe649778f40efe1c50f451, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -881,7 +881,7 @@ MonoBehaviour:
     Model: Ship
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: cdf03780b576940fe98e53bc1287dc59, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -971,7 +971,7 @@ MonoBehaviour:
     Model: Stack
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 4261af6bbfc8d4ee29c83b38d19e2138, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1007,7 +1007,7 @@ MonoBehaviour:
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: b05629d189d6549d185d866695385916, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1178,7 +1178,7 @@ MonoBehaviour:
     Model: Col
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 171abd63282cf41f9ac58c8be83ad232, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1214,7 +1214,7 @@ MonoBehaviour:
     Model: Hall
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 02ce0ea94b9874159adb8a70eca965aa, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1295,7 +1295,7 @@ MonoBehaviour:
     Model: Stack
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: b89d1c60de3f44052bfda88de87ffc38, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1304,7 +1304,7 @@ MonoBehaviour:
     Model: Tank
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 67d6e0ba830ff4d5aa69f11a7426fd14, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1322,7 +1322,7 @@ MonoBehaviour:
     Model: Utils
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 46384ac42bf6e4dab88185fb5456b1a2, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1889,7 +1889,7 @@ MonoBehaviour:
     Model: Site.Plant.Stack
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: e53b7e94da7a04371a423d36db81c9f5, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2159,7 +2159,7 @@ MonoBehaviour:
     Model: Rock
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 2cf47953e338c423f9c2f653fe5ce113, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2429,16 +2429,16 @@ MonoBehaviour:
     Model: train
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 91827776131c148a69d46c37e8f39618, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 90, y: 0, z: 0}
+    Rotation: {x: 90, y: 45, z: 45}
   - Group: Vehicles
     Model: truck_road_cargo
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: 711d5abefcef04abe8d269ca785b8a1d, type: 3}
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2456,7 +2456,16 @@ MonoBehaviour:
     Model: wagon
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: c37a9a2c696c14798932ed6b4c730a93, type: 3}
+    Replacement: {fileID: 0}
+    FitToOriginal: 1
+    Scale: 1
+    Offset: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
+  - Group: Refinery
+    Model: Stack
+    Island: 1
+    Phase: 0
+    Replacement: {fileID: 0}
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
