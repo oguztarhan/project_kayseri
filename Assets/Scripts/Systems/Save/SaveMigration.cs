@@ -25,12 +25,16 @@ namespace Game.Systems
     public static class SaveMigration
     {
         /// <summary>
-        /// Version 5: the ad-economy pass. Offline efficiency dropped from 50% to 35%, the
-        /// welcome-back ad stopped paying a second full grant without limit, and the ladder was
-        /// re-solved against the daily budget that left — so every unlock price and every island's
-        /// cost multiplier moved. A version-4 save's levels were bought at prices that are gone.
+        /// Version 6: the market yard. Cash no longer enters the game when a cargo truck reaches the
+        /// market building — the truck delivers, and the yard sells. Every island's income now runs
+        /// through a yard that starts unstaffed and therefore starts SLOW, so a version-5 save's
+        /// levels were bought against a curve where the same island paid several times as much. The
+        /// rates persisted in that save describe an economy this build no longer has.
+        ///
+        /// Version 5 was the ad-economy pass: offline efficiency 50% → 35%, the welcome-back ad
+        /// stopped paying a second unlimited grant, and the unlock ladder was re-solved.
         /// </summary>
-        public const int CurrentVersion = 5;
+        public const int CurrentVersion = 6;
 
         /// <summary>True when <paramref name="data"/> came from a build whose progress cannot carry over.</summary>
         public static bool NeedsReset(SaveData data) => data == null || data.version != CurrentVersion;

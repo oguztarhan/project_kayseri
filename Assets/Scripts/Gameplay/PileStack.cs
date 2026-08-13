@@ -27,6 +27,7 @@ namespace Game.Gameplay
 
         private Vector3[] _slots = new Vector3[0];   // pyramid positions, ordered so the heap grows as a cone
         private int _grid = -1, _shown = -1;
+        private readonly int _maxGrid;
 
         // Real ore/product geometry, extracted once. Null falls back to plain boxes, which is what the
         // piles looked like before: readable, but unmistakably placeholder cubes.
@@ -34,9 +35,16 @@ namespace Game.Gameplay
         private readonly int[] _srcTris;
         private readonly float _srcFit;   // scale that makes one source mesh fill one grid cell
 
+        /// <param name="maxGrid">
+        /// Widest base the pyramid may reach. The island's yards keep the original 5 (a 55-chunk heap of
+        /// big lumps); the market's pads pass more, because a market heap wants to read as a lot of
+        /// small bars rather than a few boulders. Raising it costs nothing until a pile is actually
+        /// that full — the mesh is still rebuilt only when the count changes.
+        /// </param>
         public PileStack(Transform pad, Material mat, float unitsPerChunk, string name, Mesh chunkMesh = null,
-                         float cellScale = 1f)
+                         float cellScale = 1f, int maxGrid = MaxGrid)
         {
+            _maxGrid = Math.Max(MinGrid, maxGrid);
             var pr = pad.GetComponentInChildren<Renderer>();
             Vector3 size = pr != null ? pr.bounds.size : new Vector3(8f, 1f, 8f);
             _baseY = pr != null ? pr.bounds.max.y : pad.position.y;
@@ -71,7 +79,7 @@ namespace Game.Gameplay
         {
             int want = (int)Math.Round(capacity / _unitsPerChunk);
             int grid = MinGrid;
-            while (grid < MaxGrid && Pyramid(grid) < want) grid++;
+            while (grid < _maxGrid && Pyramid(grid) < want) grid++;
 
             int shown = Mathf.Clamp((int)Math.Round(amount / _unitsPerChunk), 0, Pyramid(grid));
             if (grid == _grid && shown == _shown) return;

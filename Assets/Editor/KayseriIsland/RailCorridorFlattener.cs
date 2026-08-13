@@ -162,6 +162,10 @@ namespace Kayseri.IslandTools
             baked.vertices = verts;
             baked.RecalculateNormals();
             baked.RecalculateBounds();
+            // Build-time quantization. These 260k-vertex grounds ship ~17MB each with compression
+            // off — the single biggest slice of the APK. Applied here so a Blender re-export
+            // doesn't silently regenerate them uncompressed.
+            MeshUtility.SetMeshCompression(baked, ModelImporterMeshCompression.Medium);
 
             EnsureFolder(OutputFolder);
             string path = OutputFolder + "/" + island + "_Ground_P" + phase + ".asset";

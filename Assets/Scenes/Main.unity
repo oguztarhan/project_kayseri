@@ -1346,6 +1346,7 @@ GameObject:
   - component: {fileID: 1064096649}
   - component: {fileID: 1064096651}
   - component: {fileID: 1064096650}
+  - component: {fileID: 1064096652}
   m_Layer: 0
   m_Name: DayNight
   m_TagString: Untagged
@@ -1372,13 +1373,21 @@ MonoBehaviour:
   _sky: {fileID: 150744238}
   _nightSunColor: {r: 0.34, g: 0.44, b: 0.84, a: 1}
   _nightSunIntensity: 0.28
+  _nightSunAngles: {x: 38, y: 205, z: 0}
   _nightSkyColor: {r: 0.03, g: 0.042, b: 0.1, a: 1}
   _nightAmbient: 0.15
+  _nightAmbientTint: {r: 0.75, g: 0.85, b: 1.3, a: 1}
   _nightTint: {r: 0.24, g: 0.29, b: 0.52, a: 1}
   _nightExposure: -1.4
+  _duskSunColor: {r: 1, g: 0.55, b: 0.24, a: 1}
+  _duskSunIntensity: 0.95
+  _duskSkyColor: {r: 0.95, g: 0.56, b: 0.36, a: 1}
+  _duskTint: {r: 1, g: 0.74, b: 0.55, a: 1}
+  _duskSunDip: 24
   _nightEmissionBoost: 4
   _nightBloomIntensity: 1.9
   _nightBloomThreshold: 0.7
+  _lampSwitchOn: {x: 0.12, y: 0.55}
   _unlitWaterShader: WaterUnlit
   _nightWater: 0.11
   _timeOverride: 0
@@ -1501,6 +1510,31 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Gameplay::Game.Gameplay.BuildingLights
   _height: 16
+  _rebindSeconds: 0.5
+--- !u!114 &1064096652
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1064096645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d6518b415eb64673bf44c014335bd02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.IslandBillboard
+  _font: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
+  _fromCenter: 265
+  _baseY: 2.5
+  _width: 132
+  _height: 34
+  _clearance: 20
+  _tilt: 24
+  _dayPlate: {r: 0.97, g: 0.95, b: 0.9, a: 1}
+  _dayText: {r: 0.16, g: 0.15, b: 0.19, a: 1}
+  _nightPlate: {r: 0.09, g: 0.08, b: 0.12, a: 1}
+  _nightText: {r: 1, g: 0.83, b: 0.5, a: 1}
+  _postColor: {r: 0.32, g: 0.33, b: 0.37, a: 1}
   _rebindSeconds: 0.5
 --- !u!1001 &1066543458
 PrefabInstance:
@@ -4742,6 +4776,7 @@ GameObject:
   - component: {fileID: 2135659116}
   - component: {fileID: 2135659117}
   - component: {fileID: 2135659118}
+  - component: {fileID: 2135659119}
   m_Layer: 0
   m_Name: CoalController
   m_TagString: Untagged
@@ -4826,12 +4861,18 @@ MonoBehaviour:
   shipSpeed: 5
   shipYawOffset: 0
   shipHorizonDistance: 200
+  berthClearance: 6
+  shipHornClip: {fileID: 0}
+  shipHornVolume: 0.7
   vehicleYawOffset: 0
   vehicleTurnRate: 170
   vehicleTurnSmooth: 5
   oreTruckColor: {r: 0.93, g: 0.55, b: 0.13, a: 1}
   cargoTruckColor: {r: 0.22, g: 0.45, b: 0.72, a: 1}
   vehicleLookAhead: 7
+  cornerRadius: 3.5
+  cornerSlowdown: 0.45
+  driftSlip: 24
   scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   ridgeRocks: 26
@@ -5005,12 +5046,18 @@ MonoBehaviour:
   shipSpeed: 5
   shipYawOffset: 0
   shipHorizonDistance: 200
+  berthClearance: 6
+  shipHornClip: {fileID: 0}
+  shipHornVolume: 0.7
   vehicleYawOffset: 0
   vehicleTurnRate: 170
   vehicleTurnSmooth: 5
   oreTruckColor: {r: 0.93, g: 0.55, b: 0.13, a: 1}
   cargoTruckColor: {r: 0.22, g: 0.45, b: 0.72, a: 1}
   vehicleLookAhead: 7
+  cornerRadius: 3.5
+  cornerSlowdown: 0.45
+  driftSlip: 24
   scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   ridgeRocks: 26
@@ -5133,12 +5180,18 @@ MonoBehaviour:
   shipSpeed: 5
   shipYawOffset: 0
   shipHorizonDistance: 200
+  berthClearance: 6
+  shipHornClip: {fileID: 0}
+  shipHornVolume: 0.7
   vehicleYawOffset: 0
   vehicleTurnRate: 170
   vehicleTurnSmooth: 5
   oreTruckColor: {r: 0.93, g: 0.55, b: 0.13, a: 1}
   cargoTruckColor: {r: 0.22, g: 0.45, b: 0.72, a: 1}
   vehicleLookAhead: 7
+  cornerRadius: 3.5
+  cornerSlowdown: 0.45
+  driftSlip: 24
   scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   ridgeRocks: 26
@@ -5261,12 +5314,18 @@ MonoBehaviour:
   shipSpeed: 5
   shipYawOffset: 0
   shipHorizonDistance: 200
+  berthClearance: 6
+  shipHornClip: {fileID: 0}
+  shipHornVolume: 0.7
   vehicleYawOffset: 0
   vehicleTurnRate: 170
   vehicleTurnSmooth: 5
   oreTruckColor: {r: 0.93, g: 0.55, b: 0.13, a: 1}
   cargoTruckColor: {r: 0.22, g: 0.45, b: 0.72, a: 1}
   vehicleLookAhead: 7
+  cornerRadius: 3.5
+  cornerSlowdown: 0.45
+  driftSlip: 24
   scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   ridgeRocks: 26
@@ -5389,12 +5448,18 @@ MonoBehaviour:
   shipSpeed: 5
   shipYawOffset: 0
   shipHorizonDistance: 200
+  berthClearance: 6
+  shipHornClip: {fileID: 0}
+  shipHornVolume: 0.7
   vehicleYawOffset: 0
   vehicleTurnRate: 170
   vehicleTurnSmooth: 5
   oreTruckColor: {r: 0.93, g: 0.55, b: 0.13, a: 1}
   cargoTruckColor: {r: 0.22, g: 0.45, b: 0.72, a: 1}
   vehicleLookAhead: 7
+  cornerRadius: 3.5
+  cornerSlowdown: 0.45
+  driftSlip: 24
   scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   ridgeRocks: 26
@@ -5517,12 +5582,18 @@ MonoBehaviour:
   shipSpeed: 5
   shipYawOffset: 0
   shipHorizonDistance: 200
+  berthClearance: 6
+  shipHornClip: {fileID: 0}
+  shipHornVolume: 0.7
   vehicleYawOffset: 0
   vehicleTurnRate: 170
   vehicleTurnSmooth: 5
   oreTruckColor: {r: 0.93, g: 0.55, b: 0.13, a: 1}
   cargoTruckColor: {r: 0.22, g: 0.45, b: 0.72, a: 1}
   vehicleLookAhead: 7
+  cornerRadius: 3.5
+  cornerSlowdown: 0.45
+  driftSlip: 24
   scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   ridgeRocks: 26
@@ -5645,12 +5716,18 @@ MonoBehaviour:
   shipSpeed: 5
   shipYawOffset: 0
   shipHorizonDistance: 200
+  berthClearance: 6
+  shipHornClip: {fileID: 0}
+  shipHornVolume: 0.7
   vehicleYawOffset: 0
   vehicleTurnRate: 170
   vehicleTurnSmooth: 5
   oreTruckColor: {r: 0.93, g: 0.55, b: 0.13, a: 1}
   cargoTruckColor: {r: 0.22, g: 0.45, b: 0.72, a: 1}
   vehicleLookAhead: 7
+  cornerRadius: 3.5
+  cornerSlowdown: 0.45
+  driftSlip: 24
   scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   ridgeRocks: 26
@@ -5773,12 +5850,18 @@ MonoBehaviour:
   shipSpeed: 5
   shipYawOffset: 0
   shipHorizonDistance: 200
+  berthClearance: 6
+  shipHornClip: {fileID: 0}
+  shipHornVolume: 0.7
   vehicleYawOffset: 0
   vehicleTurnRate: 170
   vehicleTurnSmooth: 5
   oreTruckColor: {r: 0.93, g: 0.55, b: 0.13, a: 1}
   cargoTruckColor: {r: 0.22, g: 0.45, b: 0.72, a: 1}
   vehicleLookAhead: 7
+  cornerRadius: 3.5
+  cornerSlowdown: 0.45
+  driftSlip: 24
   scatterProps: 62
   portalPrefab: {fileID: 919132149155446097, guid: 2ce2d2ed2791c8742a05a61bc3f4cabe, type: 3}
   ridgeRocks: 26
@@ -5922,6 +6005,28 @@ MonoBehaviour:
   bobSeconds: 2.2
   pulseAmount: 0.05
   popSeconds: 0.32
+--- !u!114 &2135659119
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2135659099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e56bbe06cbfc24c1cb907bbbf2e9f1f9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.MarketDoorMarker
+  marketSceneName: Market
+  size: {x: 330, y: 112}
+  fontSize: 40
+  pulseAmount: 0.045
+  worldLift: 4
+  screenOffset: {x: 0, y: -150}
+  sortingOrder: 92
+  tint: {r: 0.16, g: 0.18, b: 0.24, a: 0.94}
+  bobPixels: 6
+  bobSeconds: 2.6
 --- !u!33 &1358364995091767
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -35811,11 +35916,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1372742230752112193, guid: 7c36babc9b4b96c4c8e1f300a2c12c52, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.480163
+      value: 0.46153846
       objectReference: {fileID: 0}
     - target: {fileID: 1372742230752112193, guid: 7c36babc9b4b96c4c8e1f300a2c12c52, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.480163
+      value: 0.46153846
       objectReference: {fileID: 0}
     - target: {fileID: 1803542258768451241, guid: 7c36babc9b4b96c4c8e1f300a2c12c52, type: 3}
       propertyPath: m_fontSize

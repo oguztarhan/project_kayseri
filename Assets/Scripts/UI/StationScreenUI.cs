@@ -91,6 +91,9 @@ namespace Game.UI
         [Tooltip("Şeridin sonundaki genişletmeler yuvasının ikonu. Boş bırakılırsa o yuva hiç kurulmaz " +
                  "ve tek seferlik satın alımlara ulaşacak bir kapı kalmaz.")]
         [SerializeField] private Sprite expansionIcon;
+        [Tooltip("Şeridin en sonundaki ZİNCİR sayfasının ikonu — adanın dakikada ne ürettiğini gösteren " +
+                 "rapor. Boş bırakılırsa yuva kurulmaz; HUD'daki $/dk hapı yine de bu sayfayı açar.")]
+        [SerializeField] private Sprite reportIcon;
 
         [Header("Genişletmeler")]
         [Tooltip("Tek seferlik satın alımların ikonları, kilit sırasıyla. Eksik bırakılan yuva ikonsuz kalır.")]
@@ -123,7 +126,7 @@ namespace Game.UI
         {
             public int axis;
             public int unlock = -1;       // unlock row when >= 0, axis row otherwise
-            public TMP_Text name, level, price, badgeText;
+            public TMP_Text name, level, detail, price, badgeText;
             public Button buyBtn;
             public Image buyImg, badge;
             public GameObject buyGO, badgeGO, lockGO;
@@ -132,8 +135,9 @@ namespace Game.UI
         private readonly List<Row> _rows = new List<Row>();
         private Image[] _slots;
         private Image[] _slotIcons;
+        private int[] _slotPage;      // which page each tile opens — a station index, or one of the two virtual pages
         private ScrollRect _scroll;
-        private float _cardHeight = 236f;
+        private float _cardHeight = 300f;   // fallback only — Awake reads the template's own LayoutElement
         private WalletService _wallet;
         private CoalOperation _op;
         private Transform _model;
@@ -236,10 +240,16 @@ namespace Game.UI
             Open(_station != -1 ? _station : (stations.Count > 0 ? stations[0].station : 0));
         }
 
+        /// <summary>
+        /// Opens straight onto the chain report — what the HUD's $/min pill does. The pill states a
+        /// number and used to be the end of the conversation; this is the rest of the sentence.
+        /// </summary>
+        public void OpenReport() => Open(ReportPage);
+
         /// <summary>Opens the screen on one upgrade.</summary>
         public void Open(int station)
         {
-            if (station != ExpansionPage && !Handles(station)) return;
+            if (station >= 0 && !Handles(station)) return;
             if (_op == null) BindEnabledOp();
             if (_op == null || panelRoot == null) return;
 
@@ -263,7 +273,7 @@ namespace Game.UI
         private void Select(int station)
         {
             if (_busy || station == _station) return;
-            if (station != ExpansionPage && !Handles(station)) return;
+            if (station >= 0 && !Handles(station)) return;
             _station = station;
             ApplyPage();
             BuildCards();
@@ -286,13 +296,15 @@ namespace Game.UI
         /// </summary>
         private void ApplyPage()
         {
-            bool expansions = _station == ExpansionPage || Phases == null;
-            if (stageGroup != null) stageGroup.SetActive(!expansions);
-            if (phaseGroup != null) phaseGroup.SetActive(!expansions);
+            // The chain report takes the same shape as the expansions for the same reason: it is a
+            // list about the whole island, so there is no one building to photograph above it.
+            bool listPage = _station < 0 || Phases == null;
+            if (stageGroup != null) stageGroup.SetActive(!listPage);
+            if (phaseGroup != null) phaseGroup.SetActive(!listPage);
             if (sheet == null) return;
 
             float height = SheetStationHeight;
-            if (expansions)
+            if (listPage)
             {
                 var area = sheet.parent as RectTransform;
                 if (area != null)
@@ -425,7 +437,7 @@ namespace Game.UI
             if (stage == null) return;
             stage.Clear();
             _model = null;
-            if (_station == ExpansionPage || Phases == null) { stage.Live = false; return; }
+            if (_station < 0 || Phases == null) { stage.Live = false; return; }
             stage.Zoom = 1f;
             stage.Live = true;
             if (modelView != null) modelView.texture = stage.Texture;
@@ -447,6 +459,7 @@ namespace Game.UI
             _rows.Clear();
 
             if (_station == ExpansionPage) BuildUnlockCards();
+            else if (_station == ReportPage) BuildReportCards();
             else BuildAxisCards();
             CentreCards();
         }
@@ -490,6 +503,163 @@ namespace Game.UI
             }
         }
 
+        /// <summary>
+        /// The chain, as seven cards. Ore is followed from the mountain to the counter, one row per
+        /// stage, each saying what it is MANAGING rather than what it is capable of — the two are
+        /// only the same number on an island with no bottleneck, and finding the bottleneck is the
+        /// entire reason a player opens this page.
+        ///
+        /// It buys no levels, so every row is a card with its price button switched off. That is not
+        /// a compromise: the strip is two taps from every station on it, so a report that named the
+        /// wall AND sold the fix would be a second, worse copy of the screen it is already inside.
+        /// </summary>
+        private void BuildReportCards()
+        {
+            for (int i = 0; i < ReportStations.Length; i++)
+            {
+                int st = ReportStations[i];
+                Row row = AddCard("Kart_Zincir" + i, st >= 0 ? IconFor(st) : reportIcon);
+                if (row.name != null)
+                    row.name.text = st >= 0 ? Loc.Id("istasyon", _op.StationName(st)) : Loc.T("rapor.toplam");
+            }
+        }
+
+        /// <summary>Which station each report row is about; -1 is the total at the foot of the list.</summary>
+        private static readonly int[] ReportStations =
+        {
+            IslandEconomy.Mine, IslandEconomy.Storage, IslandEconomy.OreTrucks,
+            IslandEconomy.Smelter, IslandEconomy.CargoTrucks, IslandEconomy.Market, -1,
+        };
+
+        private void RefreshReport()
+        {
+            IslandEconomy e = _op.Economy;
+            if (e == null) return;
+            int wall = Bottleneck();
+            string ore = Loc.T("rapor.cevher_dk");
+            string bars = Loc.T("rapor.kulce_dk");
+
+            for (int i = 0; i < _rows.Count && i < ReportStations.Length; i++)
+            {
+                Row r = _rows[i];
+                SetRow(r, false, false, false);
+                string rate, note;
+
+                switch (i)
+                {
+                    case 0:   // MINE — ore out of the mountains
+                        rate = string.Format(ore, Whole(_op.OreMinedPerMinute));
+                        note = string.Format(Loc.T("rapor.maden_not"), Tenth(e.TrainOre), e.ActiveWagons);
+                        break;
+                    case 1:   // STORAGE — the buffer that stops the trains when it fills
+                        rate = string.Format(Loc.T("rapor.depo_dolu"),
+                                             Whole(_op.StorageOre), Whole(e.StorageFull));
+                        note = Loc.T("rapor.depo_not");
+                        break;
+                    case 2:   // ORE TRUCKS — yard to furnace
+                        rate = string.Format(ore, Whole(_op.OreHauledPerMinute));
+                        note = string.Format(Loc.T("rapor.filo_not"), e.OreTruckCount, Tenth(e.OreTruckLoad));
+                        break;
+                    case 3:   // SMELTER — ore becomes bars, one for one
+                        rate = string.Format(bars, Whole(_op.BarsRefinedPerMinute));
+                        note = string.Format(Loc.T("rapor.izabe_not"),
+                                             Whole(e.SmeltRate * 60f), Whole(_op.RefineQueue));
+                        break;
+                    case 4:   // CARGO TRUCKS — furnace to the market's pads
+                        rate = string.Format(bars, Whole(_op.BarsDeliveredPerMinute));
+                        note = string.Format(Loc.T("rapor.filo_not"), e.CargoTruckCount, Tenth(e.CargoTruckLoad));
+                        break;
+                    case 5:   // MARKET — the only place cash enters the game
+                        rate = string.Format(Loc.T("ortak.dakika_basina"),
+                                             "$" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)));
+                        note = string.Format(Loc.T("rapor.pazar_not"),
+                                             "$" + NumberFormatter.Format(new BigDouble(e.BarPrice)),
+                                             Whole(MarketStock()));
+                        break;
+                    default:  // the line under the sum
+                        rate = string.Format(Loc.T("ortak.dakika_basina"),
+                                             "$" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)));
+                        note = Multipliers();
+                        break;
+                }
+
+                if (r.level != null) r.level.text = rate;
+                if (r.detail != null)
+                    r.detail.text = i == wall
+                        ? "<color=#" + WarnHex + ">" + Loc.T("rapor.darbogaz") + "</color>  " + note
+                        : note;
+            }
+        }
+
+        /// <summary>
+        /// Which stage everything else is waiting on.
+        ///
+        /// Not the slowest measured rate — in a chain at rest every stage measures the SAME rate,
+        /// because the wall sets the pace for everything behind it. What gives the wall away is the
+        /// buffer in front of it: ore piling up in the yard means the trucks cannot clear it, bars
+        /// at the furnace's ceiling means the cargo fleet cannot. So this reads the chain from the
+        /// market backwards and stops at the first full pile, which is the real one — a yard is
+        /// only full because the leg after it is the bottleneck, never because of anything upstream.
+        ///
+        /// Nothing backed up anywhere means the island is supply-limited, and the mine is the wall.
+        /// </summary>
+        private int Bottleneck()
+        {
+            IslandEconomy e = _op.Economy;
+            if (e == null || !_op.FlowReady) return -1;
+
+            if (_market == null) _market = ServiceLocator.Get<MarketService>();
+            // The pads spilling is the one signal that outranks the island: bars are being thrown
+            // away at the counter, and no amount of extra production upstream survives that.
+            if (_market != null && _market.OverflowSeconds(_op.IslandKey) > 3d) return 5;
+
+            if (_op.Bars >= e.BarCap * 0.9f) return 4;
+            if (_op.RefineQueue >= e.SmeltRate * 6f) return 3;
+            if (_op.StorageOre >= e.StorageFull * 0.9f) return 2;
+            return 0;
+        }
+
+        /// <summary>Bars waiting on the market's pads to be sold, or 0 before the yard has a reading.</summary>
+        private double MarketStock()
+        {
+            if (_market == null) _market = ServiceLocator.Get<MarketService>();
+            return _market != null ? _market.Stock(_op.IslandKey) : 0d;
+        }
+
+        /// <summary>
+        /// What is multiplying the total, in the order it is applied. Investors survive a prestige
+        /// and the ad boost does not, so a player looking at a doubled counter deserves to be told
+        /// which half of it is temporary.
+        /// </summary>
+        private string Multipliers()
+        {
+            if (_prestige == null) _prestige = ServiceLocator.Get<PrestigeService>();
+            if (_boost == null) _boost = ServiceLocator.Get<BoostService>();
+
+            double investors = _prestige != null ? _prestige.IncomeMultiplier : 1d;
+            double boost = _boost != null && _boost.IsActive ? _boost.ActiveMultiplier : 1d;
+            if (investors <= 1.0001d && boost <= 1.0001d) return Loc.T("rapor.carpan_yok");
+
+            string line = "";
+            if (investors > 1.0001d)
+                line = string.Format(Loc.T("rapor.yatirimci"), investors.ToString("0.00", Culture));
+            if (boost > 1.0001d)
+            {
+                if (line.Length > 0) line += "  ·  ";
+                line += "<color=#" + BrightHex + ">"
+                      + string.Format(Loc.T("rapor.hizlandirma"), boost.ToString("0.#", Culture))
+                      + "</color>";
+            }
+            return line;
+        }
+
+        private static string Whole(double v) => Mathf.RoundToInt((float)v).ToString(Culture);
+        private static string Tenth(double v) => ((float)v).ToString("0.0", Culture);
+
+        private MarketService _market;
+        private PrestigeService _prestige;
+        private BoostService _boost;
+
         private Row AddCard(string name, Sprite icon)
         {
             GameObject go = Instantiate(cardTemplate, sheetContent);
@@ -505,6 +675,7 @@ namespace Game.UI
             }
             t = go.transform.Find("Ad");     if (t != null) row.name = t.GetComponent<TMP_Text>();
             t = go.transform.Find("Seviye"); if (t != null) row.level = t.GetComponent<TMP_Text>();
+            t = go.transform.Find("Detay");  if (t != null) row.detail = t.GetComponent<TMP_Text>();
             t = go.transform.Find("BtnFiyat");
             if (t != null)
             {
@@ -555,14 +726,22 @@ namespace Game.UI
             if (stripContent == null || stripTemplate == null) return;
             stripTemplate.SetActive(false);
 
-            int n = stations.Count + (expansionIcon != null ? 1 : 0);
+            // The stations, then the two pages that are not stations: the one-time expansions, and the
+            // chain report. Both are optional and both drop out silently when their icon is missing,
+            // which is what keeps this list a page order rather than a set of special cases.
+            int n = stations.Count + (expansionIcon != null ? 1 : 0) + (reportIcon != null ? 1 : 0);
             _slots = new Image[n];
             _slotIcons = new Image[n];
+            _slotPage = new int[n];
             for (int i = 0; i < n; i++)
             {
-                bool expansion = i >= stations.Count;
+                bool station = i < stations.Count;
+                bool expansion = !station && expansionIcon != null && i == stations.Count;
+                _slotPage[i] = station ? stations[i].station : expansion ? ExpansionPage : ReportPage;
+
                 GameObject go = Instantiate(stripTemplate, stripContent);
-                go.name = expansion ? "Yuva_Genisletmeler" : "Yuva_" + stations[i].station;
+                go.name = station ? "Yuva_" + stations[i].station
+                                  : expansion ? "Yuva_Genisletmeler" : "Yuva_Zincir";
                 go.SetActive(true);
 
                 _slots[i] = go.GetComponent<Image>();
@@ -570,12 +749,14 @@ namespace Game.UI
                 if (t != null)
                 {
                     _slotIcons[i] = t.GetComponent<Image>();
-                    if (_slotIcons[i] != null) _slotIcons[i].sprite = expansion ? expansionIcon : stations[i].icon;
+                    if (_slotIcons[i] != null)
+                        _slotIcons[i].sprite = station ? stations[i].icon
+                                             : expansion ? expansionIcon : reportIcon;
                 }
 
                 var btn = go.GetComponent<Button>();
                 if (btn == null) continue;
-                int captured = expansion ? ExpansionPage : stations[i].station;
+                int captured = _slotPage[i];
                 btn.onClick.AddListener(() => Select(captured));
             }
         }
@@ -587,9 +768,7 @@ namespace Game.UI
             if (_slots == null) return;
             for (int i = 0; i < _slots.Length; i++)
             {
-                bool live = i < stations.Count
-                    ? stations[i].station == _station
-                    : _station == ExpansionPage;
+                bool live = _slotPage[i] == _station;
                 if (_slots[i] != null)
                 {
                     _slots[i].color = live ? Color.white : slotIdleTint;
@@ -602,6 +781,7 @@ namespace Game.UI
         private Sprite IconFor(int station)
         {
             if (station == ExpansionPage) return expansionIcon;
+            if (station == ReportPage) return reportIcon;
             for (int i = 0; i < stations.Count; i++)
                 if (stations[i] != null && stations[i].station == station) return stations[i].icon;
             return null;
@@ -610,6 +790,7 @@ namespace Game.UI
         private string TitleFor(int station)
         {
             if (station == ExpansionPage) return Loc.T("yukseltme.genisletmeler");
+            if (station == ReportPage) return Loc.T("rapor.baslik");
             for (int i = 0; i < stations.Count; i++)
                 if (stations[i] != null && stations[i].station == station && !string.IsNullOrEmpty(stations[i].title))
                     return stations[i].title;
@@ -638,6 +819,8 @@ namespace Game.UI
                 for (int i = 0; i < _rows.Count; i++) RefreshUnlock(_rows[i]);
                 return;
             }
+
+            if (_station == ReportPage) { RefreshReport(); return; }
 
             int phase = CurrentPhase();
             int cap = _op.StationLevelCap(_station);
@@ -681,11 +864,15 @@ namespace Game.UI
                     r.level.text = string.Format(Loc.T("yukseltme.kilitli_ile"),
                                                  string.Format(Loc.T("kilit." + CoalOperation.UnlockPowerPlant),
                                                                Loc.Id("cevher", _op.IslandKey)));
+                // A locked axis has a perfectly computable readout and showing it would be a lie by
+                // arithmetic: the multiplier is real, it is just not applied to anything yet.
+                if (r.detail != null) r.detail.text = "";
                 return;
             }
 
             int lv = _op.AxisLevel(_station, r.axis);
             if (r.level != null) r.level.text = string.Format(Loc.T("yukseltme.seviye"), lv);
+            if (r.detail != null) r.detail.text = AxisDetail(r.axis);
 
             if (_op.AxisMaxed(_station, r.axis))
             {
@@ -712,13 +899,17 @@ namespace Game.UI
                 // Yeşil tik zaten "bitti" diyor; üstüne MAX yazmak ikinci bir söz olurdu.
                 if (r.badgeText != null) r.badgeText.text = "";
                 if (r.level != null) r.level.text = Loc.T("yukseltme.insa_edildi");
+                if (r.detail != null) r.detail.text = UnlockDetail(r.unlock);
                 return;
             }
 
             SetRow(r, true, false, false);
-            string note = "kilit." + r.unlock + ".not";
-            string line = Loc.T(note);
-            if (r.level != null) r.level.text = line != note ? line : Loc.T("yukseltme.tek_seferlik");
+            // The effect moved down to the detail line, where it is read off the live tuning. This
+            // line cannot also carry it: the shipping note said "2× smelt" where the tuning says
+            // 1.25, so a card that showed both showed the player two different prices for the same
+            // thing. What is left here is the one fact about an expansion that never goes stale.
+            if (r.level != null) r.level.text = Loc.T("yukseltme.tek_seferlik");
+            if (r.detail != null) r.detail.text = UnlockDetail(r.unlock);
 
             BigDouble cost = _op.UnlockCost(r.unlock);
             bool afford = _wallet != null && _wallet.CanAfford(cost);
@@ -726,6 +917,99 @@ namespace Game.UI
             if (r.buyImg != null) r.buyImg.sprite = afford ? priceGreen : priceGrey;
             if (r.buyBtn != null) r.buyBtn.interactable = afford && !_busy;
         }
+
+        // ---------- what a level is worth ----------
+        //
+        // A card used to say RICHNESS · Lv 12 · $1,847 and stop there, which meant the only way to
+        // find out what a level of Richness bought was to buy one and watch the trains. The numbers
+        // were never missing — they are the same ones the simulation runs on — they were simply
+        // never asked for. Everything below asks IslandEconomy and writes down the answer; none of
+        // it does arithmetic of its own, because a card that computes its own preview is a card that
+        // will quietly disagree with the game the first time a coefficient moves.
+
+        /// <summary>"Ore per trip  12.4 → 13.1" — what this axis moves, now and one level from now.</summary>
+        private string AxisDetail(int axis)
+        {
+            IslandEconomy econ = _op.Economy;
+            if (econ == null) return "";
+            IslandEconomy.AxisReadout g = econ.Readout(_station, axis);
+            string label = Loc.T("etki." + g.Key);
+            string now = Stat(g.Now, g.Shape);
+            // A maxed axis has no next level to promise, so it states what it is and stops. The
+            // arrow is a sales pitch; there is nothing left to sell.
+            if (_op.AxisMaxed(_station, axis)) return label + "  " + Bright(now);
+            return label + "  " + Dim(now) + " " + Arrow + " " + Bright(Stat(g.Next, g.Shape));
+        }
+
+        /// <summary>
+        /// What an expansion actually multiplies, read off the live tuning.
+        ///
+        /// This replaces nothing — it corrects something. The hand-written notes beside these cards
+        /// still promised "2× smelt" and "+50% price" long after the tuning had settled on 1.25 and
+        /// 1.20, so a player comparing two expansions was comparing two numbers that were not true.
+        ///
+        /// The ones that buy a building rather than a multiplier fall back to that note, because
+        /// there is no figure to quote for them and "new upgrades" was never a claim about a rate.
+        /// </summary>
+        private string UnlockDetail(int unlock)
+        {
+            float bonus = _op.UnlockBonus(unlock);
+            if (bonus > 1f)
+                return string.Format(Loc.T("yukseltme.carpan"),
+                                     bonus.ToString("0.00", Culture),
+                                     Loc.T("etki." + UnlockEffect(unlock)));
+
+            string key = "kilit." + unlock + ".not";
+            string note = Loc.T(key);
+            return note != key ? note : "";
+        }
+
+        /// <summary>Which figure an expansion's multiplier lands on — the same labels the axis cards use.</summary>
+        private static string UnlockEffect(int unlock)
+        {
+            switch (unlock)
+            {
+                case CoalOperation.UnlockSecondSmelter: return "eritme_hiz";
+                case CoalOperation.UnlockTradePost:     return "kulce_fiyat";
+                case CoalOperation.UnlockWarehouse:     return "depo_kapasite";
+                case CoalOperation.UnlockDepot:         return "tren_hiz";
+                case CoalOperation.UnlockExportDock:    return "ihracat_yuk";
+                default:                                return "tren_cevher";   // deep shaft
+            }
+        }
+
+        /// <summary>One economy figure, written the way its own units want to be read.</summary>
+        private static string Stat(float v, IslandEconomy.NumberShape shape)
+        {
+            switch (shape)
+            {
+                case IslandEconomy.NumberShape.Whole:
+                    return Mathf.RoundToInt(v).ToString(Culture);
+                case IslandEconomy.NumberShape.Money:
+                    return "$" + NumberFormatter.Format(new BigDouble(v));
+                case IslandEconomy.NumberShape.Times:
+                    return "×" + v.ToString("0.00", Culture);
+                case IslandEconomy.NumberShape.Seconds:
+                    return v.ToString("0.00", Culture) + Loc.T("birim.saniye");
+                case IslandEconomy.NumberShape.Speed:
+                    // 0.0 rather than 0.#, or a level reads "20 → 20.3" and the pair looks like
+                    // two different kinds of number instead of a before and an after.
+                    return v.ToString("0.0", Culture) + Loc.T("birim.hiz");
+                default:
+                    return v.ToString("0.0", Culture);
+            }
+        }
+
+        private static string Dim(string s) => "<color=#" + DimHex + ">" + s + "</color>";
+        private static string Bright(string s) => "<color=#" + BrightHex + ">" + s + "</color>";
+
+        private static readonly System.Globalization.CultureInfo Culture =
+            System.Globalization.CultureInfo.InvariantCulture;
+
+        private const string Arrow = "→";
+        private const string DimHex = "8C96AC";      // what you already own
+        private const string BrightHex = "7FE39B";   // what the price button buys
+        private const string WarnHex = "FFC24D";     // the stage everything else is waiting on
 
         private static void SetRow(Row r, bool buy, bool badge, bool locked)
         {
@@ -1021,8 +1305,10 @@ namespace Game.UI
             g.color = c;
         }
 
-        /// <summary>The strip's last tile is not a station — it is the one-time expansions.</summary>
+        /// <summary>The two tiles at the end of the strip that are not stations. Both are negative, which
+        /// is what every "is this a building?" test on this screen actually asks.</summary>
         private const int ExpansionPage = -2;
+        private const int ReportPage = -3;
         private const float ExpansionTop = 530f;      // altın hapının altı: tepsi genişletmelerde buraya kadar büyür
         private const float SheetBottom = 26f;
         private const float SheetStationHeight = 810f;

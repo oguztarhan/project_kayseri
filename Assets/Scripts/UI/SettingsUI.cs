@@ -76,7 +76,9 @@ namespace Game.UI
             if (languageButton != null) languageButton.onClick.AddListener(OnLanguage);
             RefreshSwitch();
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             BuildTestButtons();
+#endif
 
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
@@ -85,9 +87,11 @@ namespace Game.UI
         public void Toggle()
         {
             if (panelRoot != null) panelRoot.SetActive(!panelRoot.activeSelf);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             // başka bir yerden açılmış olabilir — etiketler açılışta doğru olsun
             RefreshTestButton();
             RefreshTimeButton();
+#endif
         }
 
         public void Hide()
@@ -165,13 +169,14 @@ namespace Game.UI
 
         private LanguageMenuUI _languages;
 
-        // ---------------- test modu ----------------
+        // ---------------- test şeritleri (yalnızca Editor / Development Build) ----------------
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         // Her yerde bedava satın alma + oturum boyunca kayıt askıda, böylece her ada ve her yükseltme
-        // gerçek kayda dokunmadan denenebilir. Eskiden istasyon ekranının sol üst köşesindeydi ve
-        // #if UNITY_EDITOR || DEVELOPMENT_BUILD ile kapatılıyordu; telefondan çekilen videoda oyun
-        // ekranının üstünde göründüğü için buraya taşındı ve derleme kapısı kaldırıldı. Ayarlar
-        // penceresi kapalıyken bu düğme de kapalı, dolayısıyla kayda hiç girmiyor.
+        // gerçek kayda dokunmadan denenebilir. Eskiden istasyon ekranının sol üst köşesindeydi;
+        // telefondan çekilen videoda oyun ekranının üstünde göründüğü için buraya taşındı. Aşağıdaki
+        // iki şerit de derleme kapısının arkasında: Play'e giden release build'de hiç derlenmiyor,
+        // Development Build işaretli test derlemelerinde görünüyor.
         //
         // Figma panelinin (976x1520) son satırı -1448'de bitiyor ve altında yalnızca 72 piksel var,
         // yani yedinci bir satır paneli taşırırdı. Bunun yerine pencerenin altına, panelin dışına
@@ -319,5 +324,6 @@ namespace Game.UI
                     break;
             }
         }
+#endif
     }
 }

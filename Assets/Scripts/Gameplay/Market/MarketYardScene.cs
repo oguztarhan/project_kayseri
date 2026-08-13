@@ -1,0 +1,271 @@
+using Game.Core;
+using Game.Systems;
+using UnityEngine;
+
+namespace Game.Gameplay
+{
+    /// <summary>
+    /// One island's yard, standing in the row: its floor, its walls, its pads, its counter and its
+    /// queue. Everything a yard is made of hangs off this, so the hall is a list of these rather than
+    /// one enormous builder that knows about eight of everything.
+    ///
+    /// THE POINT OF THE SPLIT is <see cref="SetLive"/>. Eight yards of customers walking waypoints and
+    /// six pads apiece polling the wallet is eight times the work for seven rooms nobody is standing
+    /// in — the same trap the island archipelago avoided by simulating one island at a time. So the
+    /// yard the player is in runs, and the rest are geometry you can see through the doorway while
+    /// their ledger row keeps earning. That row does not care whether anything is enabled: it was
+    /// always a number, and it goes on being one.
+    /// </summary>
+    public sealed class MarketYardScene : MonoBehaviour
+    {
+        private MarketService _market;
+        private StockPad _pad;
+        private SellCounter _counter;
+        private CustomerQueue _queue;
+        private CashFloor _cash;
+        private UpgradePad[] _pads;
+        private Material _ore;
+        private MarketPrefabs _prefabs;
+        private readonly YardWorker[] _staff = new YardWorker[3];   // indexed by YardWorker.Job
+        private Vector3 _padSpot, _counterSpot, _cashSpot;
+        private bool _live = true;
+
+        /// <summary>Which island's market this is.</summary>
+        public string IslandKey { get; private set; }
+
+        /// <summary>Where the player stands if they arrive in this yard.</summary>
+        public Vector3 PlayerStart { get; private set; }
+
+        /// <summary>The pads on this yard's floor, for the HUD to name whichever is underfoot.</summary>
+        public UpgradePad[] Pads => _pads;
+
+        /// <summary>
+        /// Whether a world point is inside this yard. Only the x axis is asked: the yards are a row,
+        /// and the walls stop anyone leaving on the other two.
+        /// </summary>
+        public bool Contains(Vector3 worldPoint)
+            => Mathf.Abs(worldPoint.x - transform.position.x) <= MarketYardBuild.Width * 0.5f;
+
+        /// <summary>
+        /// Puts the yard up. <paramref name="westWall"/> is false for every yard but the first, because
+        /// its neighbour's east wall is already standing there.
+        /// </summary>
+        public void Build(MarketService market, string islandKey, Color tint, Material ore,
+                          bool westWall, bool eastDoorway, Transform player, CarryStack carry,
+                          MarketPrefabs prefabs)
+        {
+            _market = market;
+            _ore = ore;
+            _prefabs = prefabs;
+            IslandKey = islandKey;
+
+            Vector3[] spots = MarketYardBuild.Build(transform, tint, westWall, eastDoorway);
+            PlayerStart = transform.TransformPoint(spots[(int)MarketYardBuild.Anchor.PlayerStart]);
+            _padSpot = spots[(int)MarketYardBuild.Anchor.StockPad];
+            _counterSpot = spots[(int)MarketYardBuild.Anchor.Counter];
+            _cashSpot = spots[(int)MarketYardBuild.Anchor.CashFloor];
+
+            BuildLoop(spots, ore, player);
+            BuildPads(carry);
+            SpawnExistingStaff();
+        }
+
+        /// <summary>
+        /// Runs or parks the yard. Parked, its geometry stays exactly where it is — the point of one
+        /// hall is that you can see the next yard — but nothing in it ticks.
+        /// </summary>
+        public void SetLive(bool live)
+        {
+            if (_live == live) return;
+            _live = live;
+            if (_pad != null) _pad.enabled = live;
+            if (_counter != null) _counter.enabled = live;
+            if (_queue != null) _queue.enabled = live;
+            if (_cash != null) _cash.enabled = live;
+            for (int i = 0; i < _staff.Length; i++)
+                if (_staff[i] != null) _staff[i].enabled = live;
+            if (_pads == null) return;
+            for (int i = 0; i < _pads.Length; i++)
+                if (_pads[i] != null) _pads[i].enabled = live;
+        }
+
+        /// <summary>
+        /// Chains the four stations of the loop: pad → counter → queue → floor. Each one only knows the
+        /// next, so a yard is a pipeline rather than a controller holding a list of everything in it.
+        /// </summary>
+        private void BuildLoop(Vector3[] spots, Material ore, Transform player)
+        {
+            Vector3 padAt = spots[(int)MarketYardBuild.Anchor.StockPad];
+            Vector3 counterAt = spots[(int)MarketYardBuild.Anchor.Counter];
+            Vector3 cashAt = spots[(int)MarketYardBuild.Anchor.CashFloor];
+
+            // Narrowed from 18 so it stops short of the two pads now standing against the east wall —
+            // a player buying an upgrade should not also be loading bars onto their back.
+            Transform padZone = Zone("StokPediAlani", padAt, new Vector3(0f, 1.6f, 0f),
+                                     new Vector3(15f, 3.2f, 16f));
+            _pad = padZone.gameObject.AddComponent<StockPad>();
+            _pad.Configure(_market, IslandKey, transform.Find("StokPedi"), ore);
+
+            // The counter's trigger sits on the PLAYER's side of it — the customers come at it from the
+            // other, and a volume covering both would have the queue unloading the player's back.
+            Transform counterZone = Zone("TezgahAlani", counterAt, new Vector3(0f, 1.5f, 3.2f),
+                                         new Vector3(13f, 3f, 4.4f));
+            _counter = counterZone.gameObject.AddComponent<SellCounter>();
+            _counter.Configure(_market, IslandKey, ore, _prefabs);
+
+            var floor = new GameObject("ParaZemin").transform;
+            floor.SetParent(transform, false);
+            floor.localPosition = cashAt;
+            _cash = floor.gameObject.AddComponent<CashFloor>();
+            _cash.Configure(_market, IslandKey, player, _prefabs);
+
+            var lane = new GameObject("Sira").transform;
+            lane.SetParent(transform, false);
+            _queue = lane.gameObject.AddComponent<CustomerQueue>();
+            _queue.SetPrefabs(_prefabs);
+            // World space, not local: the queue moves bodies by world position, and this yard is
+            // somewhere along a row rather than at the origin.
+            Vector3 doorAt = spots[(int)MarketYardBuild.Anchor.QueueDoor];
+            _queue.Configure(_market, IslandKey, _counter, _cash,
+                             transform.TransformPoint(counterAt + new Vector3(0f, CustomerHeight, -4.4f)),
+                             Vector3.right,
+                             transform.TransformPoint(doorAt + new Vector3(0f, CustomerHeight, 1.2f)),
+                             transform.TransformPoint(doorAt + new Vector3(0f, CustomerHeight, -5.5f)));
+        }
+
+        private const float CustomerHeight = 0.95f;
+
+        /// <summary>
+        /// The floor pads, along the west wall and the south-east corner — clear of the stock pad, the
+        /// counter and the queue, so nothing the player is walking past is also trying to take money.
+        /// </summary>
+        private void BuildPads(CarryStack carry)
+        {
+            // Kept clear of the south and west walls. The camera looks down over those two, so a wall
+            // tall enough to hide a person also casts roughly its own height in hidden floor in front
+            // of itself — and a pad you cannot see is a pad with an unreadable price on it. These sit
+            // far enough in to stay lit, and the last two moved to the east wall, which the camera
+            // looks AT rather than over.
+            _pads = new UpgradePad[6];
+            _pads[0] = Pad(YardUpgrade.DepositSlot, new Vector3(-17.5f, 0f, 8f));
+            _pads[1] = Pad(YardUpgrade.QueueSlot, new Vector3(-17.5f, 0f, 2f));
+            _pads[2] = Pad(YardUpgrade.HireCarry, new Vector3(-17.5f, 0f, -4f));
+            _pads[3] = Pad(YardUpgrade.HireServe, new Vector3(-17.5f, 0f, -9.5f));
+            _pads[4] = Pad(YardUpgrade.HireCollect, new Vector3(21f, 0f, -4f));
+            _pads[5] = Pad(YardUpgrade.CarryCapacity, new Vector3(21f, 0f, 3f));
+
+            // The back is the one upgrade that has to land mid-purchase: the player is standing on the
+            // pad with a stack on their shoulders, and a taller stack they only got on the next scene
+            // load would read as the pad having done nothing.
+            if (carry != null)
+                _pads[5].Bought += kind => carry.SetUpgradeLevel(
+                    _market != null ? _market.Level(IslandKey, YardUpgrade.CarryCapacity) : 0);
+
+            // A hire has to show up. Paying for a carrier and seeing nothing change is the fastest way
+            // to make the most expensive thing in the yard feel like it did nothing.
+            for (int i = 2; i <= 4; i++) _pads[i].Bought += OnHired;
+        }
+
+        private void OnHired(YardUpgrade kind)
+        {
+            YardWorker.Job job = kind == YardUpgrade.HireCarry ? YardWorker.Job.Carry
+                               : kind == YardUpgrade.HireServe ? YardWorker.Job.Serve
+                               : YardWorker.Job.Collect;
+            int level = _market.Level(IslandKey, kind);
+            int slot = (int)job;
+
+            // Levels two and up are a raise, not a second body.
+            if (_staff[slot] != null) { _staff[slot].SetLevel(level); return; }
+            _staff[slot] = SpawnWorker(job, level);
+        }
+
+        /// <summary>Puts the bodies back for hires that were already paid for in an earlier session.</summary>
+        private void SpawnExistingStaff()
+        {
+            TryRestore(YardUpgrade.HireCarry, YardWorker.Job.Carry);
+            TryRestore(YardUpgrade.HireServe, YardWorker.Job.Serve);
+            TryRestore(YardUpgrade.HireCollect, YardWorker.Job.Collect);
+        }
+
+        private void TryRestore(YardUpgrade kind, YardWorker.Job job)
+        {
+            int level = _market.Level(IslandKey, kind);
+            if (level <= 0) return;
+            _staff[(int)job] = SpawnWorker(job, level);
+        }
+
+        private YardWorker SpawnWorker(YardWorker.Job job, int level)
+        {
+            var go = new GameObject("Eleman_" + job);
+            go.transform.SetParent(transform, false);
+            var worker = go.AddComponent<YardWorker>();
+
+            // The two ends of the leg each job actually works. The carrier's are the real pad and the
+            // real counter, because it really does move bars between them.
+            Vector3 pickup, drop;
+            switch (job)
+            {
+                case YardWorker.Job.Carry:
+                    pickup = transform.TransformPoint(_padSpot + new Vector3(-5f, WorkerHeight, -3f));
+                    drop = transform.TransformPoint(_counterSpot + new Vector3(4f, WorkerHeight, 3.4f));
+                    break;
+                case YardWorker.Job.Serve:
+                    // Behind the counter, on the customers' side — that is where a cashier stands, and
+                    // it keeps them out of the lane the player unloads from.
+                    pickup = drop = transform.TransformPoint(_counterSpot + new Vector3(0f, WorkerHeight, -2.6f));
+                    break;
+                default:
+                    pickup = drop = transform.TransformPoint(_cashSpot + new Vector3(0f, WorkerHeight, 0f));
+                    break;
+            }
+
+            Material tint = MarketYardBuild.Mat(
+                job == YardWorker.Job.Carry ? new Color(0.20f, 0.55f, 0.36f) :
+                job == YardWorker.Job.Serve ? new Color(0.17f, 0.45f, 0.48f)
+                                            : new Color(0.32f, 0.52f, 0.24f));
+
+            worker.Configure(job, _market, IslandKey, _counter, _cash, pickup, drop, level,
+                             _prefabs, _ore, tint);
+            if (job == YardWorker.Job.Serve && _counter != null) _counter.SetCashier(worker);
+            return worker;
+        }
+
+        private const float WorkerHeight = 0.95f;
+
+        private UpgradePad Pad(YardUpgrade kind, Vector3 at)
+        {
+            var go = new GameObject("Ped_" + kind);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = at;
+
+            GameObject face = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            face.name = "Yuzey";
+            Destroy(face.GetComponent<Collider>());     // the trigger below is the whole interaction
+            face.transform.SetParent(go.transform, false);
+            face.transform.localPosition = new Vector3(0f, 0.09f, 0f);
+            face.transform.localScale = new Vector3(4f, 0.18f, 4f);
+
+            var box = go.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.center = new Vector3(0f, 1.5f, 0f);
+            box.size = new Vector3(4.4f, 3f, 4.4f);
+
+            var pad = go.AddComponent<UpgradePad>();
+            pad.Configure(_market, IslandKey, kind, face.GetComponent<MeshRenderer>());
+            return pad;
+        }
+
+        /// <summary>An empty holder carrying a trigger volume — the shape of every "stand here" in a yard.</summary>
+        private Transform Zone(string name, Vector3 at, Vector3 centre, Vector3 size)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = at;
+            var box = go.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.center = centre;
+            box.size = size;
+            return go.transform;
+        }
+    }
+}

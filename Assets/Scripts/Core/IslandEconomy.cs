@@ -277,5 +277,135 @@ namespace Game.Core
         public float BarPrice => _t.BarPrice * _t.ValueMultiplier * Ax(Market, 0, MarketPrice)
             * (_un[UnlockTradePost] ? _t.TradePostBonus : 1f) * PowerIncome;
         public float MarketDwell => _t.DwellSeconds / Ax(Market, 1, MarketDwellC);
+
+        // -------------------------------------------------------------- readouts
+        //
+        //  Everything above is what the SIMULATION reads. What follows is the same numbers
+        //  aimed at the player: an upgrade card used to say "RICHNESS · Lv 12 · $1,847" and
+        //  nothing else, so the only way to learn what a level of Richness was worth was to
+        //  buy one and watch the trains. Every figure needed to answer that already existed
+        //  here - it was just never shown.
+        //
+        //  There is exactly one rule about this section: it must never restate a formula
+        //  from above. A card that computes its own preview is a card that will drift from
+        //  the economy the first time a coefficient moves, and it would drift silently,
+        //  because a wrong number on a card still looks like a number.
+
+        /// <summary>
+        /// How a readout's numbers are written on the card. Most units live in the label instead
+        /// ("ore per trip", "bars held"), because a noun translates and an abbreviation does not;
+        /// the two here are the ones no phrasing gets rid of, and the screen appends a localised
+        /// suffix to them.
+        /// </summary>
+        public enum NumberShape { Whole, Tenth, Money, Times, Seconds, Speed }
+
+        /// <summary>
+        /// What one axis is actually worth, in the units the player watches on the island.
+        /// <see cref="Now"/> is what they own; <see cref="Next"/> is what the level in the
+        /// price button buys.
+        /// </summary>
+        public readonly struct AxisReadout
+        {
+            /// <summary>Localisation id for the words in front of the numbers ("Ore per trip").</summary>
+            public readonly string Key;
+            public readonly float Now, Next;
+            public readonly NumberShape Shape;
+            /// <summary>True on the three dwell axes, where the number the player wants is SMALLER.</summary>
+            public readonly bool LowerIsBetter;
+
+            public AxisReadout(string key, float now, float next, NumberShape shape, bool lowerIsBetter)
+            {
+                Key = key; Now = now; Next = next; Shape = shape; LowerIsBetter = lowerIsBetter;
+            }
+        }
+
+        private readonly struct Meaning
+        {
+            public readonly string Key;
+            public readonly NumberShape Shape;
+            public readonly bool Lower;
+            public Meaning(string key, NumberShape shape, bool lower = false)
+            {
+                Key = key; Shape = shape; Lower = lower;
+            }
+        }
+
+        /// <summary>
+        /// What each axis moves, laid out exactly like <see cref="Axes"/>. Two axes deliberately
+        /// name the same figure: MINE → Richness and TRAIN → Capacity both end up as ore on a
+        /// train, and pretending otherwise would have the player buy one expecting the other.
+        /// </summary>
+        private static readonly Meaning[][] Meanings =
+        {
+            new[] { new Meaning("tren_cevher", NumberShape.Tenth), new Meaning("maden_bekleme", NumberShape.Seconds, true) },
+            new[] { new Meaning("tren_hiz", NumberShape.Speed), new Meaning("tren_cevher", NumberShape.Tenth) },
+            new[] { new Meaning("depo_kapasite", NumberShape.Whole), new Meaning("depo_bekleme", NumberShape.Seconds, true) },
+            new[] { new Meaning("kamyon_sayi", NumberShape.Whole), new Meaning("kamyon_hiz", NumberShape.Speed), new Meaning("kamyon_cevher", NumberShape.Tenth) },
+            new[] { new Meaning("eritme_hiz", NumberShape.Tenth), new Meaning("kulce_kapasite", NumberShape.Whole) },
+            new[] { new Meaning("kamyon_sayi", NumberShape.Whole), new Meaning("kamyon_hiz", NumberShape.Speed), new Meaning("kamyon_kulce", NumberShape.Tenth) },
+            new[] { new Meaning("kulce_fiyat", NumberShape.Money), new Meaning("pazar_bekleme", NumberShape.Seconds, true) },
+            new[] { new Meaning("guc_gelir", NumberShape.Times), new Meaning("guc_hiz", NumberShape.Times) },
+        };
+
+        /// <summary>
+        /// The figure one axis moves, at the level the player owns and at the next one.
+        ///
+        /// The next-level number comes from bumping the level, reading the SAME property the
+        /// simulation reads, and putting it back - not from a second copy of the formula. It
+        /// costs one increment and one decrement on an int the caller already owns, which is
+        /// why a preview can be honest about the terms that multiply across stations: a level
+        /// of TRAIN → Capacity that happens to cross a phase boundary really does add two
+        /// wagons, and the card really does show the jump.
+        /// </summary>
+        public AxisReadout Readout(int s, int a)
+        {
+            Meaning m = Meanings[s][a];
+            float now = Stat(s, a);
+            float next;
+            // try/finally, not because Stat can throw today, but because of what happens if it ever
+            // does: this array is the player's save. A level that went up and did not come back down
+            // is a free upgrade written to disk by the screen that was only supposed to describe one.
+            _lv[s][a]++;
+            try { next = Stat(s, a); }
+            finally { _lv[s][a]--; }
+            return new AxisReadout(m.Key, now, next, m.Shape, m.Lower);
+        }
+
+        private float Stat(int s, int a)
+        {
+            switch (s)
+            {
+                case Mine:        return a == 0 ? TrainOre : MineDwell;
+                case Train:       return a == 0 ? TrainSpeed : TrainOre;
+                case Storage:     return a == 0 ? StorageFull : StorageDwell;
+                case OreTrucks:   return a == 0 ? OreTruckCount : a == 1 ? OreTruckSpeed : OreTruckLoad;
+                case Smelter:     return a == 0 ? SmeltRate : BarCap;
+                case CargoTrucks: return a == 0 ? CargoTruckCount : a == 1 ? CargoTruckSpeed : CargoTruckLoad;
+                case Market:      return a == 0 ? BarPrice : MarketDwell;
+                default:          return a == 0 ? PowerIncome : PowerSpeed;
+            }
+        }
+
+        /// <summary>
+        /// The multiplier a one-time expansion applies, or 0 for the ones that buy a body
+        /// rather than a number - a mine, a rail line, the power plant's upgrade track.
+        ///
+        /// This exists because the expansion cards used to carry a hand-written note, and the
+        /// notes had gone stale: the shipping table still promised "2x smelt" and "+50% price"
+        /// for what the tuning had long since settled at 1.25 and 1.20. A card that quotes the
+        /// live tuning cannot lie to the player about what their money buys.
+        /// </summary>
+        public float UnlockBonus(int u)
+        {
+            switch (u)
+            {
+                case UnlockSecondSmelter: return _t.SecondSmelterBonus;
+                case UnlockTradePost:     return _t.TradePostBonus;
+                case UnlockWarehouse:     return _t.WarehouseBonus;
+                case UnlockDepot:         return _t.DepotBonus;
+                case UnlockDeepShaft:     return _t.DeepShaftBonus;
+                default:                  return 0f;
+            }
+        }
     }
 }

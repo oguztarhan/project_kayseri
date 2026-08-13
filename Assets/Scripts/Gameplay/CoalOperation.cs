@@ -54,7 +54,7 @@ namespace Game.Gameplay
     /// <c>incomeCapPerMin</c> ends what it can earn. They are set to meet — a fully upgraded island sits at
     /// its ceiling — so buying the <i>next</i> one (via <see cref="WorldIslands"/>) is the only way to grow.</para>
     /// </summary>
-    public sealed class CoalOperation : MonoBehaviour
+    public sealed class CoalOperation : MonoBehaviour, IIslandSaleTerms
     {
         [Header("Tuning (level-0 base rates)")]
         [SerializeField] private float trainSpeed = 18f;
@@ -217,6 +217,25 @@ namespace Game.Gameplay
         [SerializeField] private Color oreTruckColor = new Color(0.93f, 0.55f, 0.13f);    // works amber
         [SerializeField] private Color cargoTruckColor = new Color(0.22f, 0.45f, 0.72f);  // haulage blue
         [SerializeField] private float vehicleLookAhead = 7f;     // metres down the route
+        // However gently the body eases onto a new heading, a route that corners on a point still
+        // pivots the truck's POSITION through every junction — the tail swings over the verge and
+        // the whole move reads as a toy on a wire. The loops are filleted with this radius at build
+        // time instead, so the position itself arcs through a bend. Kept small enough that the cut
+        // corner stays on the 9-metre carriageway.
+        [SerializeField] private float cornerRadius = 3.5f;
+        // Fraction of road speed a truck keeps through a right-angle bend; gentler bends keep
+        // proportionally more. A maxed-speed fleet skips the brake entirely — see driftSlip.
+        [SerializeField] private float cornerSlowdown = 0.45f;
+        // Oversteer a maxed-speed fleet hangs past the road's own direction through a bend, in
+        // degrees. This is the drift: the nose points inside the corner while the loop carries the
+        // body round it, and the slip runs off again on the straight.
+        [SerializeField] private float driftSlip = 24f;
+        // The corner brake eases at these rates — harder on than off, which is how a driven truck
+        // behaves. The slip kicks in faster than it recovers, so turn-in snaps and the exit is a
+        // controlled straighten-out; the deadzone keeps the generated islands' lane-change wiggles
+        // from registering as bends worth sliding for.
+        private const float CornerBrake = 5f, CornerAccel = 2.5f;
+        private const float DriftKick = 10f, DriftRecover = 4f, DriftDeadzone = 8f;
         // The model's upright pose. Identity on the generated islands, whose vehicles are authored
         // in Unity space already; the -90 pitch of the FBX conversion on the authored ones.
         private Quaternion _vehicleBaseRot = Quaternion.identity;
@@ -497,44 +516,73 @@ namespace Game.Gameplay
         // ---- economy ----
         private double _storeOre, _refOre, _bars;
         private WalletService _wallet;
-        private PrestigeService _prestige;
-        private BoostService _boost;
+        private MarketService _marketService;   // where the bars go, and the only thing that pays for them
         private AudioService _audio;
-        private double _boostMult = 1d;    // rewarded-ad multiplier, refreshed once a second
-        private double _prestigeMult = 1d; // investors: multiplies the sale, and lifts the ceiling with it
         private float _deckY;              // ground height every vehicle drives at
         private SaveData _data;
         private Material _oreMat, _barMat, _ghostMat, _srcMat;
         private Material _oreTruckMat, _cargoTruckMat;   // one livery per route, shared by its fleet
         private readonly VehicleWheels _wheels = new VehicleWheels();
 
-        // ---- income meter ($ earned per trailing minute) ----
-        private readonly double[] _minuteBuckets = new double[60];
-        private int _minIdx, _minFilled; private float _minAccum; private double _earnedThisSecond;
-        private double _trailing;          // running sum of the buckets — also what the income cap is measured against
-        private int _rateSaveCountdown;
-        /// <summary>
-        /// What this island sustains per minute, boost excluded. That exclusion is the point: this is the
-        /// figure persisted for offline earnings and shown on the world map, and a rewarded ad running at
-        /// the moment you close the game should not bank a doubled rate for the next eight hours.
-        /// </summary>
-        public double CashPerMinute { get; private set; }
+        // ---- income ----
+        // The meter used to live here, because this is where cash used to be made. It is not any more:
+        // trucks deliver to a yard and the yard sells, so the measurement moved with the money. What is
+        // left are the two numbers the yard needs to price a bar, and pass-throughs so the HUD, the map
+        // and the daily-reward screen keep asking the island the same questions they always have.
 
         /// <summary>
-        /// The ceiling this island earns against. Investors raise it: a prestige multiplier the cap clamped
-        /// straight back off would make prestige a pure loss — you wipe the run and the island still pays
-        /// its old maximum. Rewarded-ad boosts are deliberately outside it, applied to whatever gets through
-        /// (see the sale path), so a ×2 ad pays ×2 instead of the ×1.73 the old clamp let through.
+        /// What this island sustains per minute, boost excluded. That exclusion is the point: it is the
+        /// figure offline earnings are granted from, and a rewarded ad running at the moment you close
+        /// the game should not bank a doubled rate for the next eight hours.
         /// </summary>
-        public double IncomeCapPerMinute => incomeCapPerMin * _prestigeMult;
+        public double CashPerMinute => _marketService != null ? _marketService.RatePerMin(islandKey) : 0d;
+
+        // ---- what each stage of the chain is managing ----
+        // Four trailing minutes, measured where the ore actually moves. The upgrade screen reads them
+        // to tell the player which stage is the wall — and that question genuinely cannot be answered
+        // from the tuning, because every rate here is gated on how long a vehicle takes to drive a
+        // route drawn in Blender. See FlowMeter.
+        private readonly FlowMeter _minedFlow = new FlowMeter();
+        private readonly FlowMeter _hauledFlow = new FlowMeter();
+        private readonly FlowMeter _refinedFlow = new FlowMeter();
+        private readonly FlowMeter _deliveredFlow = new FlowMeter();
+
+        /// <summary>Ore a minute the trains tip into the yard.</summary>
+        public double OreMinedPerMinute => _minedFlow.PerMinute;
+        /// <summary>Ore a minute the ore trucks carry from the yard to the furnace.</summary>
+        public double OreHauledPerMinute => _hauledFlow.PerMinute;
+        /// <summary>Bars a minute the furnace turns that ore into, one for one.</summary>
+        public double BarsRefinedPerMinute => _refinedFlow.PerMinute;
+        /// <summary>Bars a minute the cargo trucks put on the market's pads.</summary>
+        public double BarsDeliveredPerMinute => _deliveredFlow.PerMinute;
+        /// <summary>Whether the four meters have run long enough to be worth reading.</summary>
+        public bool FlowReady => _minedFlow.Ready;
+
+        private void TickFlowMeters(float dt)
+        {
+            _minedFlow.Tick(dt);
+            _hauledFlow.Tick(dt);
+            _refinedFlow.Tick(dt);
+            _deliveredFlow.Tick(dt);
+        }
 
         /// <summary>
         /// Whether <see cref="CashPerMinute"/> is worth believing yet. For the first seconds after a
-        /// scene load the mine → storage → truck → sale pipeline has delivered nothing, so the meter
-        /// honestly reads zero — and a zero here is indistinguishable from an island that earns nothing.
-        /// Anything that persists or reports this rate has to wait for it.
+        /// scene load nothing has been sold, so the rate honestly reads zero — and a zero here is
+        /// indistinguishable from an island that earns nothing. The yard only publishes a rate once its
+        /// window has filled enough to mean something, so a non-zero reading is already a trusted one.
         /// </summary>
-        public bool MeterTrustworthy => _minFilled >= RateSaveMinSeconds && CashPerMinute > 0d;
+        public bool MeterTrustworthy => CashPerMinute > 0d;
+
+        /// <summary>What one bar fetches at this island's current levels, before investors. <see cref="IIslandSaleTerms"/>.</summary>
+        public double BarPriceRaw => EffBarPrice;
+
+        /// <summary>
+        /// The ceiling this island earns against, before investors. Investors raise it on the yard's
+        /// side: a prestige multiplier the cap clamped straight back off would make prestige a pure loss
+        /// — you wipe the run and the island still pays its old maximum.
+        /// </summary>
+        public double IncomeCapPerMinuteRaw => incomeCapPerMin;
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
         //  TRAINS — the mine → storage leg
@@ -635,6 +683,11 @@ namespace Game.Gameplay
             public bool active;
             public Renderer[] rends; public Material[][] origMats;   // for the ghost look while locked
             public Vector3 bayPos; public Quaternion bayRot;         // parking-lot spot while locked
+            public Vector3 heading;        // flat unit direction being driven; body.forward means nothing on the authored rigs
+            public Quaternion baseRot;     // the eased facing before the drift slip is layered on top
+            public float cornerSlow = 1f;  // smoothed corner-brake factor applied to this frame's speed
+            public float driftYaw;         // current slip angle, degrees, signed toward the bend
+            public float turnSharp;        // how hard the road bends inside look-ahead, 0..1, last frame's read
         }
         private const int OreBaseTrucks = Econ.OreBaseTrucks, CargoBaseTrucks = Econ.CargoBaseTrucks;
         // What the exporter stamps on each truck body — "truck_road_ore3", "truck_road_cargo1".
@@ -818,6 +871,26 @@ namespace Game.Gameplay
         public event System.Action<Vector3, double> Sold;
 
         public BigDouble AxisCost(int s, int a) => new BigDouble(Ec.AxisCost(s, a));
+
+        /// <summary>
+        /// The maths behind this island, for a screen that wants to SHOW a number rather than run on
+        /// it — what a level of Richness is worth, what the yard holds, what a truck carries. Read-only
+        /// in practice: the economy owns no state of its own beyond the level arrays this component
+        /// already handed it.
+        /// </summary>
+        public Econ Economy => Ec;
+
+        /// <summary>Ore delivered to the furnace and waiting its turn in the fire.</summary>
+        public double RefineQueue => _refOre;
+
+        /// <summary>
+        /// What an expansion multiplies, or 0 for the ones that buy a building rather than a number.
+        /// The dock is the odd one out — its premium is paid in extra goods on this side rather than
+        /// in the shared tuning, so it is answered here and everything else is answered by the maths.
+        /// </summary>
+        public float UnlockBonus(int u)
+            => u == UnlockExportDock ? exportPriceBonus : Ec.UnlockBonus(u);
+
         public int UnlockCount => UnlockList.Length;
         public string UnlockName(int u) => UnlockList[u].Replace("COAL", OreWord);
         public bool IsUnlocked(int u) => _unlocked[u];
@@ -940,7 +1013,43 @@ namespace Game.Gameplay
         };
 
         /// <summary>
-        /// One-time setup, and the order matters a lot. Roughly: get services → load saved levels → find
+        /// Everything that has to be true for an island that is NOT being played.
+        ///
+        /// Seven of the eight islands never reach <see cref="Start"/> — <see cref="WorldIslands"/>
+        /// disables them before their first frame, and Unity does not call Start on a disabled
+        /// component. Their yards still have to sell, and to sell they need a price, and the price
+        /// comes from the saved upgrade levels. So the levels load here, where every island runs,
+        /// rather than in Start, where only the live one does.
+        /// </summary>
+        private void Awake()
+        {
+            _data = ServiceLocator.Get<SaveData>();
+            LoadLevels();
+
+            _marketService = ServiceLocator.Get<MarketService>();
+            if (_marketService == null) return;
+            _marketService.Register(islandKey, this);
+            _marketService.Sold += OnYardSold;
+        }
+
+        private void OnDestroy()
+        {
+            if (_marketService != null) _marketService.Sold -= OnYardSold;
+        }
+
+        /// <summary>
+        /// The yard sold something belonging to this island. Re-raised as a world-space event over the
+        /// market building, because that is where the floating cash label has always appeared and the
+        /// UI has no business knowing a yard exists.
+        /// </summary>
+        private void OnYardSold(string key, double paid)
+        {
+            if (key != islandKey || Sold == null || _market == null) return;
+            Sold(_market.position, paid);
+        }
+
+        /// <summary>
+        /// One-time setup, and the order matters a lot. Roughly: get services → find
         /// every landmark by name → move the yards → build the vehicles → build the visible track →
         /// re-apply everything the player already owns.
         ///
@@ -957,12 +1066,8 @@ namespace Game.Gameplay
         private void Start()
         {
             _wallet = ServiceLocator.Get<WalletService>();
-            _prestige = ServiceLocator.Get<PrestigeService>();
-            _boost = ServiceLocator.Get<BoostService>();
             _contract = ServiceLocator.Get<ContractService>();
             _audio = ServiceLocator.Get<AudioService>();
-            _data = ServiceLocator.Get<SaveData>();
-            LoadLevels();
             WarmStart();
             GameObject root = null;   // scene-root scan (not Find) so an island activated this very frame still resolves
             var sceneRoots = gameObject.scene.GetRootGameObjects();
@@ -1133,6 +1238,7 @@ namespace Game.Gameplay
             MeasureTruckArcs();
             for (int i = 0; i < _agents.Length; i++) if (_agents[i].active) TruckTick(_agents[i], dt);
             Smelt(dt);
+            TickFlowMeters(dt);
             UpdateHeaps();
             // After everything that moves a vehicle this frame, so the wheels roll by the distance
             // actually covered rather than last frame's.
@@ -1144,7 +1250,6 @@ namespace Game.Gameplay
             // made visible, and it has to sail on every island that has a hull for it.
             PlaceContractShip(_snapShip);
             _snapShip = false;
-            TickIncome(dt);
         }
 
         // ---------------- trains ----------------
@@ -1594,6 +1699,7 @@ namespace Game.Gameplay
                     {
                         double dep = System.Math.Min(space, a.carry);   // only as much as the yard can still take
                         _storeOre += dep; a.carry -= dep;
+                        _minedFlow.Add(dep);
                     }
                     // Still holding ore means the yard filled up. Staying in this state keeps the train
                     // parked in the shed and stops the whole mine — the intended "upgrade Storage" signal.
@@ -2040,7 +2146,10 @@ namespace Game.Gameplay
             var agents = new List<TruckAgent>();
             for (int li = 0; li < loops.Count; li++)
             {
-                List<Vector3> loop = loops[li];
+                // Rounded before anything indexes into it, so the stops, the queue stagger and the
+                // cumulative arcs all live on the same polyline the trucks actually drive.
+                List<Vector3> loop = RoundLoopCorners(loops[li], cornerRadius);
+                loops[li] = loop;   // NearestLoop below judges proximity against the driven line
                 if (loop.Count < 2) continue;
                 Route route = (Route)li;   // BuildRoadLoops emits exactly one loop per route, in Route order
                 Vector3 srcPos = route == Route.Ore ? _orePile.position : _refinedPile.position;
@@ -2146,6 +2255,10 @@ namespace Game.Gameplay
                     }
                     a.loopLen = run + Flat(a.loop[0] - a.loop[a.loop.Length - 1]).magnitude;
 
+                    Vector3 firstLeg = Flat(a.loop[(a.idleIdx + 1) % n] - a.loop[a.idleIdx]);
+                    a.heading = firstLeg.sqrMagnitude > 1e-4f ? firstLeg.normalized : Vector3.forward;
+                    a.baseRot = body.rotation;
+
                     PaintFleet(body, a.route);
                     _wheels.Add(body, VehicleModelChild);
 
@@ -2199,6 +2312,13 @@ namespace Game.Gameplay
                     // there sunk for as long as it idled. The loop carries the road's own profile,
                     // which is what DriveLoop reads across a segment anyway.
                     a.body.position = a.loop[a.idleIdx];
+                    // Facing its own road from the first frame, rather than easing round from
+                    // however the map happened to park it.
+                    Vector3 leg = Flat(a.loop[(a.idleIdx + 1) % a.loop.Length] - a.loop[a.idleIdx]);
+                    if (leg.sqrMagnitude > 1e-4f) a.heading = leg.normalized;
+                    a.baseRot = VehicleFacing(a.heading);
+                    a.body.rotation = a.baseRot;
+                    a.cornerSlow = 1f; a.driftYaw = 0f; a.turnSharp = 0f;
                     a.wp = a.idleIdx; a.state = TK.ToIdle; a.carry = 0d;
                     Show(a.load, false);
                 }
@@ -2592,6 +2712,70 @@ namespace Game.Gameplay
             for (int i = 0; i <= n; i++) back.Add(Vector3.Lerp(a, b, i / (float)n) - side);
         }
 
+        /// <summary>
+        /// Rounds every corner of a closed driving loop with a circular fillet, so the trucks' very
+        /// position arcs through a junction instead of pivoting on its vertex — the eased body
+        /// rotation alone cannot hide a path that turns on a point.
+        ///
+        /// Near-straight corners keep their vertex, the bend is not worth the points; so does
+        /// anything past 135°, where the fillet's tangent length diverges — and the port's retraced
+        /// quay road is exactly that, a dead end driven in and backed out of on the spot.
+        /// </summary>
+        private static List<Vector3> RoundLoopCorners(List<Vector3> loop, float radius)
+        {
+            int n = loop.Count;
+            if (n < 3 || radius < 0.1f) return loop;
+            var pts = new List<Vector3>(n * 2);
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 prev = loop[(i - 1 + n) % n], here = loop[i], next = loop[(i + 1) % n];
+                Vector3 inDir = Flat(here - prev), outDir = Flat(next - here);
+                float inLen = inDir.magnitude, outLen = outDir.magnitude;
+                if (inLen < 1e-3f || outLen < 1e-3f) { AddPt(pts, here); continue; }
+                inDir /= inLen; outDir /= outLen;
+                float turn = Vector3.SignedAngle(inDir, outDir, Vector3.up);
+                float absTurn = Mathf.Abs(turn);
+                if (absTurn < 12f || absTurn > 135f) { AddPt(pts, here); continue; }
+
+                // Tangent length for the wanted radius, clamped to half of either leg so two
+                // fillets can never claim the same stretch of road; the radius gives way instead.
+                float half = Mathf.Tan(absTurn * Mathf.Deg2Rad * 0.5f);
+                float t = Mathf.Min(radius * half, 0.5f * Mathf.Min(inLen, outLen));
+                if (t < 0.2f) { AddPt(pts, here); continue; }
+                float r = t / half;
+
+                Vector3 p1 = here - inDir * t, p2 = here + outDir * t;
+                p1.y = Mathf.Lerp(prev.y, here.y, (inLen - t) / inLen);
+                p2.y = Mathf.Lerp(here.y, next.y, t / outLen);
+
+                // The arc's centre sits a radius inside the bend, square off the entry tangent;
+                // sweeping the entry point round it by the turn angle lands exactly on the exit.
+                Vector3 centre = p1 + Vector3.Cross(Vector3.up, inDir) * (r * Mathf.Sign(turn));
+                Vector3 v0 = p1 - centre; v0.y = 0f;
+                int steps = Mathf.Clamp(Mathf.CeilToInt(absTurn / 15f), 2, 10);
+                AddPt(pts, p1);
+                for (int k = 1; k < steps; k++)
+                {
+                    Vector3 p = centre + Quaternion.AngleAxis(turn * k / steps, Vector3.up) * v0;
+                    p.y = Mathf.Lerp(p1.y, p2.y, k / (float)steps);
+                    AddPt(pts, p);
+                }
+                AddPt(pts, p2);
+            }
+            // The wrap seam can double a point the same way two touching fillets can.
+            if (pts.Count > 1 && Flat(pts[pts.Count - 1] - pts[0]).sqrMagnitude < 1e-4f)
+                pts.RemoveAt(pts.Count - 1);
+            return pts;
+        }
+
+        /// <summary>Appends a loop point unless it lands on the previous one — a fillet that spends
+        /// exactly half its segment meets its neighbour's tangent point head on.</summary>
+        private static void AddPt(List<Vector3> pts, Vector3 p)
+        {
+            if (pts.Count > 0 && Flat(pts[pts.Count - 1] - p).sqrMagnitude < 1e-4f) return;
+            pts.Add(p);
+        }
+
         private static int NearestLoop(List<List<Vector3>> loops, Vector3 p)
         {
             int best = -1; float bd = float.MaxValue;
@@ -2629,6 +2813,7 @@ namespace Game.Gameplay
 
                 // Paused at the pile being filled.
                 case TK.Loading:
+                    RelaxDrift(a, dt);
                     a.timer -= dt;
                     if (a.timer <= 0f) a.state = TK.ToDrop;
                     break;
@@ -2647,32 +2832,23 @@ namespace Game.Gameplay
                     }
                     break;
 
-                // Handing the cargo over. For ore that is just a transfer; for bars this is the moment
-                // the player actually gets paid, and the only place cash enters the game.
+                // Handing the cargo over. For ore that is just a transfer; for bars it is a DELIVERY —
+                // the truck drops its load on the market's pads and drives away unpaid. Nothing here
+                // touches the wallet any more: MarketService sells what is on those pads, at a speed
+                // that depends on who is working the yard, and that is the whole point of the yard.
                 case TK.Dropping:
+                    RelaxDrift(a, dt);
                     a.timer -= dt;
                     if (a.timer > 0f) break;
-                    if (ore) _refOre += a.carry;
-                    else if (a.carry > 0.001d && _wallet != null)
+                    if (ore) { _refOre += a.carry; _hauledFlow.Add(a.carry); }
+                    else if (a.carry > 0.001d && _marketService != null)
                     {
-                        // The island's ceiling applies to what it EARNS — prestige included, because
-                        // IncomeCapPerMinute scales with investors too, so the ratio never moves.
-                        double sale = a.carry * EffBarPrice * (a.route == Route.Export ? exportPriceBonus : 1f) * _prestigeMult;
-                        double headroom = IncomeCapPerMinute - (_trailing + _earnedThisSecond);
-                        if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
-                        if (sale > 0d)
-                        {
-                            // Meter first, un-boosted: it is the sustained rate, and it is what the cap
-                            // above measures itself against. The ad boost then multiplies whatever got
-                            // through, so it is never the thing the ceiling eats.
-                            _earnedThisSecond += sale;
-                            double paid = sale * _boostMult;
-                            _wallet.AddCash(new BigDouble(paid));
-                            // The UI hangs its floating cash labels off this. Raised rather than called,
-                            // because Game.Gameplay is deliberately below Game.UI in the assembly order —
-                            // the simulation does not get to know what a label is.
-                            if (Sold != null) Sold(a.body != null ? a.body.position : _market.position, paid);
-                        }
+                        // The export dock used to pay a price premium. It buys the same premium as extra
+                        // GOODS instead, because the yard prices every bar the same and a per-truck price
+                        // would have to survive being stockpiled for an hour before anyone sold it.
+                        double delivered = a.carry * (a.route == Route.Export ? exportPriceBonus : 1f);
+                        _marketService.Deliver(islandKey, delivered);
+                        _deliveredFlow.Add(delivered);
                     }
                     a.carry = 0d; Show(a.load, false);
                     a.state = avail > 0.01d ? TK.ToLoad : TK.ToIdle;
@@ -2682,6 +2858,7 @@ namespace Game.Gameplay
                     if (DriveLoop(a, a.idleIdx, dt)) a.state = TK.Idle;
                     break;
                 case TK.Idle:
+                    RelaxDrift(a, dt);
                     if (avail > 0.01d) a.state = TK.ToLoad;              // parked until there is something to haul
                     break;
             }
@@ -2741,10 +2918,21 @@ namespace Game.Gameplay
         private bool DriveLoop(TruckAgent a, int stopIdx, float dt)
         {
             Vector3 pos = a.body.position;
-            Vector3 dir = a.body.forward;
-            float budget = (a.route == Route.Ore ? EffOreSpeed : EffCargoSpeed) * dt;
+            Vector3 dir = a.heading;
+            float speed = a.route == Route.Ore ? EffOreSpeed : EffCargoSpeed;
+            bool drift = DriftFleet(a.route);
+
+            // Brake for the bend read on the previous frame — eased, so the speed never steps. A
+            // maxed fleet keeps its foot down and plays the corner sideways instead; that trade is
+            // the speed axis's last reward.
+            float slowTo = drift ? 1f : Mathf.Lerp(1f, cornerSlowdown, a.turnSharp);
+            a.cornerSlow += (slowTo - a.cornerSlow)
+                          * (1f - Mathf.Exp(-(slowTo < a.cornerSlow ? CornerBrake : CornerAccel) * dt));
+
+            float budget = speed * a.cornerSlow * dt;
             float room = GapAhead(a) - truckFollowGap;
             if (room < budget) budget = room > 0f ? room : 0f;
+            float given = budget;
             bool arrived = false;
             int guard = a.loop.Length + 2;
             while (budget > 0f && guard-- > 0)
@@ -2777,20 +2965,67 @@ namespace Game.Gameplay
             // frame at every junction.
             // Look further down the road the faster it is going, the way a driver does. A fixed
             // look-ahead makes a fast truck cut late and hard into a bend and a slow one wander.
-            float speed = (a.route == Route.Ore ? EffOreSpeed : EffCargoSpeed);
+            Vector3 segDir = dir;   // the tarmac under the truck right now
             Vector3 aim = LoopLookAhead(a, pos, vehicleLookAhead * Mathf.Clamp(speed / 20f, 0.6f, 2f));
             if (aim.sqrMagnitude > 1e-4f) dir = aim.normalized;
+
+            // How hard the road bends inside look-ahead: next frame's brake, this frame's slip. The
+            // signed angle keeps which WAY it bends, so the slip hangs the tail out of the corner
+            // rather than into whatever happened to be alongside.
+            float bend = Vector3.SignedAngle(segDir, dir, Vector3.up);
+            a.turnSharp = Mathf.Clamp01(Mathf.Abs(bend) / 90f);
+
+            // The slip only holds while the truck is actually covering ground — a queued truck may
+            // steer, but it cannot slide. Measured against the full road-speed step, so a crawl in
+            // traffic releases the pose instead of freezing it.
+            float slipTo = 0f;
+            if (drift)
+            {
+                float moving = Mathf.Clamp01((given - budget) / Mathf.Max(speed * dt, 1e-5f));
+                float over = Mathf.Abs(bend) - DriftDeadzone;
+                if (over > 0f && moving > 0f)
+                    slipTo = Mathf.Min(over * 1.4f, driftSlip) * Mathf.Sign(bend) * moving;
+            }
+            a.driftYaw += (slipTo - a.driftYaw)
+                        * (1f - Mathf.Exp(-(Mathf.Abs(slipTo) > Mathf.Abs(a.driftYaw) ? DriftKick : DriftRecover) * dt));
 
             // Eased toward the heading rather than driven at it flat out. RotateTowards alone turns at
             // one rate and then stops dead on arrival, which reads as a turret rather than a lorry:
             // the wheel goes over instantly, holds, and centres instantly. The exponential approach
             // gives the turn-in and the straightening-out, and RotateTowards then survives as what it
             // is actually good for — a ceiling on how fast the thing may ever swing.
+            //
+            // The smoothing integrates baseRot, not body.rotation: the slip is layered on afterwards
+            // and must never feed back into what it is being measured against, or it compounds.
             Quaternion want = VehicleFacing(dir);
-            Quaternion eased = Quaternion.Slerp(a.body.rotation, want,
+            Quaternion eased = Quaternion.Slerp(a.baseRot, want,
                                                 1f - Mathf.Exp(-vehicleTurnSmooth * dt));
-            a.body.rotation = Quaternion.RotateTowards(a.body.rotation, eased, vehicleTurnRate * dt);
+            a.baseRot = Quaternion.RotateTowards(a.baseRot, eased, vehicleTurnRate * dt);
+            a.body.rotation = a.driftYaw * a.driftYaw > 0.01f
+                ? Quaternion.AngleAxis(a.driftYaw, Vector3.up) * a.baseRot
+                : a.baseRot;
+            a.heading = dir;
             return arrived;
+        }
+
+        /// <summary>
+        /// Whether this route's fleet drives like it is maxed: its speed axis bought out. Speed
+        /// rather than the whole station, because the drift is the speed upgrade made visible —
+        /// fleet size and capacity say nothing about how a body corners.
+        /// </summary>
+        private bool DriftFleet(Route r) => Ec.AxisMaxed(r == Route.Ore ? StOreTrucks : StCargoTrucks, 1);
+
+        /// <summary>
+        /// Runs the slip off while a truck dwells. DriveLoop is not called while it stands, so a
+        /// truck that slid into its stop would otherwise hold the pose frozen for the whole dwell —
+        /// this way it straightens against the kerb while it loads, which is the handbrake stop the
+        /// slide was promising.
+        /// </summary>
+        private void RelaxDrift(TruckAgent a, float dt)
+        {
+            if (a.driftYaw * a.driftYaw < 0.01f) { a.driftYaw = 0f; return; }
+            a.driftYaw *= Mathf.Exp(-DriftRecover * dt);
+            a.body.rotation = Quaternion.AngleAxis(a.driftYaw, Vector3.up) * a.baseRot;
         }
 
         /// <summary>Flat vector from <paramref name="pos"/> to the point <paramref name="ahead"/>
@@ -2822,6 +3057,7 @@ namespace Game.Gameplay
             if (room <= 0d) return;
             double amt = System.Math.Min(System.Math.Min(_refOre, EffSmelt * dt), room);
             _refOre -= amt; _bars += amt;
+            _refinedFlow.Add(amt);
 
             // What the port contract counts. The furnace is the one number the player's upgrades visibly
             // move, and every island reports into the same job, so a contract signed here keeps filling
@@ -2997,64 +3233,6 @@ namespace Game.Gameplay
                 var rs = roots[i].GetComponentsInChildren<Renderer>();
                 for (int r = 0; r < rs.Length; r++) rs[r].sharedMaterials = railMats;
             }
-        }
-
-        // ═══════════════════════════════════════════════════════════════════════════════════════════
-        //  INCOME METER — the "$ / min" figure in the top bar
-        //
-        //  Money arrives in irregular lumps (one truck selling one load), so a naive rate would jump
-        //  around wildly. Instead this keeps a 60-slot ring buffer, one slot per second, and reports the
-        //  trailing sum. _trailing is maintained incrementally — add the new second, subtract the second
-        //  falling out of the window — so it costs the same no matter how long you play.
-        //
-        //  It is also the value SAVED for offline earnings: an island you are not standing on keeps
-        //  paying out at its last measured rate. That is why it is only persisted once the window is at
-        //  least RateSaveMinSeconds full — saving during the warm-up would bank a misleading spike.
-        // ═══════════════════════════════════════════════════════════════════════════════════════════
-
-        private void TickIncome(float dt)
-        {
-            _minAccum += dt;
-            if (_minAccum < 1f) return;
-            _minAccum -= 1f;
-            // once a second is often enough for a boost timer, and keeps service lookups out of the sale path
-            _prestigeMult = _prestige != null ? _prestige.IncomeMultiplier : 1d;
-            _boostMult = _boost != null ? _boost.ActiveMultiplier : 1d;
-            _trailing += _earnedThisSecond - _minuteBuckets[_minIdx];
-            _minuteBuckets[_minIdx] = _earnedThisSecond;
-            _earnedThisSecond = 0d;
-            _minIdx = (_minIdx + 1) % _minuteBuckets.Length;
-            if (_minFilled < _minuteBuckets.Length) _minFilled++;
-            // Clamp the extrapolation rather than the buckets: while the window is still filling, one
-            // lucky second scaled up by 60/_minFilled reads far above anything the island can sustain.
-            CashPerMinute = System.Math.Min(_trailing * (60.0 / _minFilled), IncomeCapPerMinute);
-            // persist the measured rate so this island keeps earning while another one is active (and
-            // offline) — only once the window is half-full, so a warm-up spike can't inflate it
-            if (--_rateSaveCountdown <= 0 && _minFilled >= RateSaveMinSeconds)
-            {
-                _rateSaveCountdown = 5;
-                PersistRate();
-            }
-        }
-
-        private const int RateSaveMinSeconds = 15;   // enough to be past the warm-up, short enough for a quick visit
-
-        private void PersistRate()
-        {
-            SaveRate(islandKey, CashPerMinute);
-        }
-
-        // Travelling away freezes this island (visuals off, component disabled); the meter must restart
-        // from zero on return or the queued-up truck dumps read as a fake income spike.
-        // Persist first: without this, leaving before the periodic save fires left the island earning
-        // nothing in the background, which quietly broke the whole passive-empire premise.
-        private void OnDisable()
-        {
-            if (MeterTrustworthy) PersistRate();
-            for (int i = 0; i < _minuteBuckets.Length; i++) _minuteBuckets[i] = 0d;
-            _minIdx = 0; _minFilled = 0; _minAccum = 0f;
-            _trailing = 0d; _earnedThisSecond = 0d;
-            CashPerMinute = 0d;
         }
 
         // ---------------- pile visuals ----------------
@@ -3947,19 +4125,6 @@ namespace Game.Gameplay
             StationLevel e = FindLevel(id);
             if (e == null) { e = new StationLevel { id = id }; _data.islandLevels.Add(e); }
             e.level = level;
-        }
-
-        /// <summary>
-        /// What this island pays while the player is standing somewhere else. Kept in its own double-backed
-        /// list rather than alongside the integer levels: prestige scales the cap, and the top islands run
-        /// past what an int holds.
-        /// </summary>
-        private void SaveRate(string id, double perMin)
-        {
-            if (_data == null || _data.islandRates == null) return;
-            for (int i = 0; i < _data.islandRates.Count; i++)
-                if (_data.islandRates[i].id == id) { _data.islandRates[i].perMin = perMin; return; }
-            _data.islandRates.Add(new IslandRate { id = id, perMin = perMin });
         }
 
         // ---------------- geometry helpers ----------------

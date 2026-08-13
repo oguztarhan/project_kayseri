@@ -37,6 +37,7 @@ namespace Game.Systems
         public WalletService Wallet { get; private set; }
         public EconomyService Economy { get; private set; }
         public OfflineReport Offline { get; private set; }
+        public MarketService Market { get; private set; }
 
         private TimeService _time;
         private NotificationService _notifications;
@@ -49,6 +50,16 @@ namespace Game.Systems
             // device builds keep the OS default so the idle/battery rules in GDD §14.5 still apply
             Application.runInBackground = true;
 #endif
+
+            // Landscape, both grips, never portrait. Player Settings already say the same thing, but an
+            // SDK that merges its own <activity> into the manifest can quietly widen it back; this is the
+            // one that holds at runtime. Flags before the mode — the OS refuses to drop the last allowed
+            // orientation, so clearing portrait first just re-enables it.
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = true;
+            Screen.autorotateToPortrait = false;
+            Screen.autorotateToPortraitUpsideDown = false;
+            Screen.orientation = ScreenOrientation.AutoRotation;
 
             // Quality / device tier + frame-rate cap (GDD §14.5)
             ServiceLocator.Register(new QualityService(
@@ -135,7 +146,15 @@ namespace Game.Systems
             _time = new TimeService();
             ServiceLocator.Register(_time);
 
-            ServiceLocator.Register(new BoostService(Data, _time));
+            var boost = new BoostService(Data, _time);
+            ServiceLocator.Register(boost);
+
+            // The yards, and with them the only path cash takes into the wallet. Registered before the
+            // offline grant so the pads can be advanced for the absence in the same breath as paying
+            // for it, and driven from Update below so it keeps settling across a scene load.
+            Market = new MarketService(Data, Wallet, prestige, boost);
+            ServiceLocator.Register(Market);
+
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
             var contract = new ContractService(Wallet, contractConfig);
@@ -189,6 +208,11 @@ namespace Game.Systems
                 Offline.Efficiency = efficiency;
                 Offline.Pending = true;
             }
+
+            // The grant above paid for the absence off the rate the yards persisted. This moves the
+            // yards themselves forward through the same absence — no cash, just stock — so an
+            // unstaffed market is found buried on the next launch and a maxed one is found clear.
+            Market?.SettleOffline(elapsed);
         }
 
         private void Start()
@@ -200,7 +224,14 @@ namespace Game.Systems
             else SceneManager.LoadScene(mainSceneName, LoadSceneMode.Single);
         }
 
-        private void Update() => Clock?.Advance(Time.deltaTime);
+        private void Update()
+        {
+            float dt = Time.deltaTime;
+            Clock?.Advance(dt);
+            // Here rather than on any scene object: the yards have to keep settling while the player is
+            // on an island, in the market, or watching a loading screen between the two.
+            Market?.Tick(dt);
+        }
 
         /// <summary>
         /// Android's reliable "the player is leaving" signal, and where the absence is written down.

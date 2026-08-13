@@ -30,6 +30,9 @@ namespace Game.UI
         [SerializeField] private Button goldButton;
         [Tooltip("Elmas hapının kendisi — altın hapı gibi mağazayı açar.")]
         [SerializeField] private Button gemsButton;
+        [Tooltip("$/dk hapı. Bir rakam söyleyip susmak yerine, o rakamın nereden geldiğini gösteren " +
+                 "ZİNCİR sayfasını açar — hangi aşamanın adayı beklettiği orada yazıyor.")]
+        [SerializeField] private Button rateButton;
 
         [Header("Sağ ray")]
         [SerializeField] private Button storeButton;
@@ -117,6 +120,7 @@ namespace Game.UI
             if (adButton != null) adButton.onClick.AddListener(OnAds);
             if (offerButton != null) offerButton.onClick.AddListener(OnOffer);
             if (upgradeButton != null) upgradeButton.onClick.AddListener(OnUpgrades);
+            if (rateButton != null) rateButton.onClick.AddListener(OnRate);
             if (boostButton != null) boostButton.onClick.AddListener(OnBoost);
             if (prestigeButton != null) prestigeButton.onClick.AddListener(OnPrestige);
             if (settingsButton != null) settingsButton.onClick.AddListener(OnSettings);
@@ -387,6 +391,12 @@ namespace Game.UI
         private void OnUpgrades()
         {
             if (stationScreen != null) stationScreen.Open();
+        }
+
+        /// <summary>The $/min pill answers for itself: where that money is coming from, stage by stage.</summary>
+        private void OnRate()
+        {
+            if (stationScreen != null) stationScreen.OpenReport();
         }
 
         private void OnSettings()

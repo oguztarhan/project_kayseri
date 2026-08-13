@@ -62,6 +62,33 @@ namespace Game.Systems
         public string offerPoppedKey = "";           // the offer already shown as a pop-up. Separate from
                                                      // offerLiveKey so the button can stay lit for an offer
                                                      // the player has already been asked about once
+
+        // ---- market yards (MarketService) ------------------------------------------------------
+        public List<MarketYard> marketYards = new List<MarketYard>();  // one row per island, made on demand
+        public int marketCarryLevel;                 // the stack the player carries on his back. One body,
+                                                     // one upgrade — deliberately outside MarketYard, which
+                                                     // is per island
+    }
+
+    /// <summary>
+    /// One island's market yard: what has been bought in it, and what is sitting in it right now.
+    ///
+    /// Hires are stored as a LEVEL rather than a flag plus a level — 0 means nobody does that job, 1..5
+    /// is a worker. One number can't drift out of step with itself, and it is the same number
+    /// <see cref="Game.Core.MarketFlow.JobRate"/> takes.
+    /// </summary>
+    [Serializable]
+    public class MarketYard
+    {
+        public string id;                 // island key: "coal", "copper", …
+        public int depositSlots = 1;      // pads on the floor — how much the yard can hold
+        public int queueSlots = 1;        // places in the line — how fast it can sell
+        public int hireCarry;             // 0 = the job is yours. 1..MarketFlow.MaxHireLevel = a hire
+        public int hireServe;
+        public int hireCollect;
+        public double stock;              // bars on the pads, waiting to be sold
+        public double deliveredPerMin;    // measured delivery rate, kept so the yard keeps filling while
+                                          // nobody is simulating the island that feeds it
     }
 
     /// <summary>

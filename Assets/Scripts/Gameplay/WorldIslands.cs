@@ -33,9 +33,9 @@ namespace Game.Gameplay
 
         private CoalOperation[] _ops;
         private WalletService _wallet;
+        private MarketService _market;
         private SaveData _data;
         private int _active;
-        private float _bgAccum;
 
         public int Count => islands.Length;
         public int ActiveIndex => _active;
@@ -49,22 +49,25 @@ namespace Game.Gameplay
         public bool IsOwned(int i) => i == 0 || (_data != null && _data.unlockedIslands.Contains(islands[i].key));
         public bool IsMaxed(int i) => _ops[i] != null && _ops[i].enabled && _ops[i].FullyMaxed;
 
-        /// <summary>The island's earning rate: live meter when active, last persisted rate otherwise.</summary>
+        /// <summary>
+        /// The island's earning rate. Every island — the one you are standing on included — is paid by
+        /// its market yard now, so there is one meter to ask and it lives in <see cref="MarketService"/>.
+        /// A zero from a yard that has not sold anything yet falls back to the last persisted rate:
+        /// handing the zero on would let a launch-and-quit inside half a minute save an empire that
+        /// earns nothing, and the next launch would grant no offline income at all.
+        /// </summary>
         public double RatePerMin(int i)
         {
-            if (i != _active || _ops[i] == null || !_ops[i].enabled) return SavedRate(i);
-            if (_ops[i].MeterTrustworthy) return _ops[i].CashPerMinute;
-            // The meter is still warming up and reads zero. Handing that zero back would push it into
-            // incomeRatePerSec below, so closing the game inside the first half minute would save an
-            // empire that earns nothing and the next launch would grant no offline income at all.
-            // The island's last measured rate is the honest stand-in until a real sale lands.
-            return SavedRate(i);
+            if (_market == null) return SavedRate(i);
+            double live = _market.RatePerMin(islands[i].key);
+            return live > 0d ? live : SavedRate(i);
         }
 
         private void Awake()
         {
             if (islands == null || islands.Length == 0) islands = DefaultLadder();
             _data = ServiceLocator.Get<SaveData>();
+            _market = ServiceLocator.Get<MarketService>();
 
             // match each entry to its operation component (they all live on this controller object)
             _ops = new CoalOperation[islands.Length];
@@ -79,6 +82,7 @@ namespace Game.Gameplay
 
             // exactly one island alive: Awake runs before every Start, so inactive operations never boot
             for (int i = 0; i < islands.Length; i++) SetIslandLive(i, i == _active);
+            if (_market != null) _market.SetActiveIsland(islands[_active].key);
         }
 
         /// <summary>Buy an island (world-map purchase). Does not travel — the map UI does that next.</summary>
@@ -99,6 +103,10 @@ namespace Game.Gameplay
             _active = i;
             SetIslandLive(i, true);
             SaveLevel("worldactive", i);
+            // Which island's trucks are really driving. Every other yard is fed by the rate its own
+            // trucks last managed, so telling the ledger this is what stops it double-counting the one
+            // island that is delivering for real.
+            if (_market != null) _market.SetActiveIsland(islands[i].key);
             return _ops[i];
         }
 
@@ -114,43 +122,10 @@ namespace Game.Gameplay
             if (_ops[i] != null) _ops[i].enabled = on;
         }
 
-        /// <summary>
-        /// Pays out every island you are NOT currently standing on, once a second.
-        ///
-        /// Only one island simulates at a time — running eight full operations would cost eight times the
-        /// CPU for seven islands nobody is looking at. So each operation measures its own $/min while
-        /// active and saves it (<see cref="SaveData.islandRates"/>); the moment you sail away, that becomes
-        /// the island's payout rate. The result is an empire that keeps earning without simulating.
-        ///
-        /// This is why the whole "buy the next island" loop works: previous islands never go quiet.
-        /// </summary>
-        private void Update()
-        {
-            // Once per second, not per frame — this is bookkeeping, not animation.
-            _bgAccum += Time.deltaTime;
-            if (_bgAccum < 1f) return;
-            _bgAccum -= 1f;
-            // Services can be unavailable for the first frame or two after a scene load; retry rather
-            // than caching in Start, which would silently leave this dead if it ran too early.
-            if (_data == null) { _data = ServiceLocator.Get<SaveData>(); if (_data == null) return; }
-            if (_wallet == null) { _wallet = ServiceLocator.Get<WalletService>(); if (_wallet == null) return; }
-
-            double totalPerMin = 0d, background = 0d;
-            for (int i = 0; i < islands.Length; i++)
-            {
-                if (!IsOwned(i)) continue;
-                double rate = RatePerMin(i);       // live meter if active, last saved rate otherwise
-                totalPerMin += rate;
-                // The active island is excluded: its trucks are already paying the wallet directly as
-                // they sell. Counting it here too would pay for the same ore twice.
-                if (i != _active) background += rate;
-            }
-            if (background > 0d) _wallet.AddCash(new BigDouble(background / 60d));   // one second's worth
-
-            // Offline earnings (granted in GameBootstrap on next launch) use the WHOLE empire's rate,
-            // active island included — while the app is closed, nothing is simulating either.
-            _data.incomeRatePerSec = totalPerMin / 60d;
-        }
+        // Paying the background islands used to happen here, once a second, off each island's own meter.
+        // It does not any more: every island — active or not — is paid by its market yard, and
+        // MarketService settles all eight in one pass. Two payers reading the same rate would have paid
+        // for the same ore twice, so this one had to go rather than be guarded.
 
         // ---- persistence helpers (same islandLevels store the operations use) ----
         private double SavedRate(int i)
@@ -238,6 +213,32 @@ namespace Game.Gameplay
                 authored[n].capPerMin = CapPerMinFor(n);
             }
             return authored;
+        }
+
+        /// <summary>
+        /// The ore ladder's keys in order, with no instance and no scene to look in. The market hall
+        /// builds one yard per island the player owns and has to lay them out in this order, and by the
+        /// time that scene loads this component and its island are both gone.
+        /// </summary>
+        public static string[] LadderKeys()
+        {
+            Entry[] ladder = DefaultLadder();
+            var keys = new string[ladder.Length];
+            for (int i = 0; i < ladder.Length; i++) keys[i] = ladder[i].key;
+            return keys;
+        }
+
+        /// <summary>
+        /// An island's ore colour with no instance and no scene to look in. The market scene needs it —
+        /// a yard is tinted by whose island it serves — and by the time that scene loads this component
+        /// and the island it belonged to are both gone.
+        /// </summary>
+        public static Color OreColorFor(string key)
+        {
+            Entry[] ladder = DefaultLadder();
+            for (int i = 0; i < ladder.Length; i++)
+                if (ladder[i].key == key) return ladder[i].oreColor;
+            return new Color(0.30f, 0.30f, 0.34f);
         }
 
         private static Entry E(string key, string name, string root, string tiles, Color c) =>

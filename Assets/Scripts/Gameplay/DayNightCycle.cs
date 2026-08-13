@@ -11,10 +11,12 @@ namespace Game.Gameplay
     /// There are no extra lights in this. <c>Kayseri/IslandVertexLit</c> is a main-light-only toon
     /// shader — it ignores additional lights on purpose, so the street lamps on a map cannot be
     /// point lights; they would cost a fortune and illuminate nothing. Night is instead a handful of
-    /// numbers moved together: the sun goes dim and cool, ambient and reflections fade down, and the
-    /// emission already authored into <c>lamp_glow</c>, <c>winlight</c>, <c>headlight</c> and
-    /// <c>taillight</c> is switched on through a shader global. The bloom in the scene's volume does
-    /// the rest.
+    /// numbers moved together: the sun swings low and orange through a real sunset, then settles
+    /// dim, cool and higher as moonlight; ambient and reflections fade down tinted toward the
+    /// moon's blue; and the emission already authored into <c>lamp_glow</c>, <c>winlight</c>,
+    /// <c>headlight</c> and <c>taillight</c> switches on across the middle of dusk through a shader
+    /// global, the way a town's lights actually come on. The bloom in the scene's volume does the
+    /// rest.
     ///
     /// Everything daytime is read off the scene in <see cref="Awake"/> rather than typed in here, so
     /// dropping this on any island — or on Main, which lights itself differently — costs nothing to
@@ -46,13 +48,31 @@ namespace Game.Gameplay
         [Header("Gece")]
         [SerializeField] private Color _nightSunColor = new Color(0.34f, 0.44f, 0.84f);
         [SerializeField] private float _nightSunIntensity = 0.28f;
+        [Tooltip("Ayın geldiği yön (Euler). Güneşin gündüz yönü sahneden okunur, geçişte buraya süzülür.")]
+        [SerializeField] private Vector3 _nightSunAngles = new Vector3(38f, 205f, 0f);
         [SerializeField] private Color _nightSkyColor = new Color(0.03f, 0.042f, 0.10f);
         [Tooltip("Gece ortam ışığı ve yansımalarının gündüze oranı.")]
         [Range(0f, 1f)][SerializeField] private float _nightAmbient = 0.15f;
+        [Tooltip("Gece ortam ışığına karışan ay mavisi; kanal başına çarpan. Beyaz = eski davranış.")]
+        [SerializeField] private Color _nightAmbientTint = new Color(0.75f, 0.85f, 1.3f);
         [Tooltip("Materyallerdeki sabit gölge ve rim renklerinin gecede düştüğü ton.")]
         [SerializeField] private Color _nightTint = new Color(0.24f, 0.29f, 0.52f);
         [Tooltip("Gece pozlaması, EV cinsinden. Gündüz değeri sahnedeki Volume'dan okunur.")]
         [SerializeField] private float _nightExposure = -1.4f;
+
+        // Dusk is not the midpoint between day and night: the real sky detours through orange
+        // before it gets anywhere near blue. These are that detour, blended on a weight that peaks
+        // halfway through the crossfade and is zero at both ends, so full day and full night stay
+        // exactly the authored values and a scene without this block renders as before.
+        [Header("Gün batımı / şafak")]
+        [SerializeField] private Color _duskSunColor = new Color(1f, 0.55f, 0.24f);
+        [Tooltip("Alacakaranlığın ortasında güneşin mutlak parlaklığı.")]
+        [SerializeField] private float _duskSunIntensity = 0.95f;
+        [SerializeField] private Color _duskSkyColor = new Color(0.95f, 0.56f, 0.36f);
+        [Tooltip("Materyallerdeki sabit gölge ve rim renklerinin alacakaranlıkta aldığı sıcak ton.")]
+        [SerializeField] private Color _duskTint = new Color(1f, 0.74f, 0.55f);
+        [Tooltip("Geçişin ortasında güneşin ufka doğru ekstra düşüşü (derece). Gölgeleri uzatır.")]
+        [SerializeField] private float _duskSunDip = 24f;
 
         // Lamba yüzeyleri oyun kamerasında çok küçük: sokak lambasının başı ~4x9 piksel, far ~7x6,
         // stop lambası ~1x2. O boyutta bir yüzey, ne kadar parlak olursa olsun kenar yumuşatmada
@@ -67,6 +87,10 @@ namespace Game.Gameplay
         // dark scene blooms the ground as well as the lamps and puts the haze straight back.
         [Tooltip("Gece bloom eşiği. Düşürmek küçük ışıkların hâle yapmasını sağlar.")]
         [SerializeField] private float _nightBloomThreshold = 0.7f;
+        // Lamps do not fade up with the sky. A town's lights come on across a band in the middle
+        // of dusk — none while the sun is still setting, all of them well before full dark.
+        [Tooltip("Lambaların yandığı gece aralığı: x'te sönük, y'de tam yanık.")]
+        [SerializeField] private Vector2 _lampSwitchOn = new Vector2(0.12f, 0.55f);
 
         [Header("Işıksız su")]
         [Tooltip("Suyun shader adı. Bu shader güneşi hiç okumadığı için renkleri elle karartılır.")]
@@ -101,6 +125,7 @@ namespace Game.Gameplay
         // Daytime, read off the scene once so nothing here has to be kept in step by hand.
         private Color _daySunColor;
         private float _daySunIntensity;
+        private float _daySunPitch, _daySunYaw;
         private Color _daySkyColor;
         private AmbientMode _ambientMode;
         private float _dayAmbientIntensity;
@@ -144,6 +169,9 @@ namespace Game.Gameplay
             {
                 _daySunColor = _sun.color;
                 _daySunIntensity = _sun.intensity;
+                Vector3 angles = _sun.transform.eulerAngles;
+                _daySunPitch = angles.x;
+                _daySunYaw = angles.y;
             }
             if (_sky != null) _daySkyColor = _sky.backgroundColor;
 
@@ -286,16 +314,35 @@ namespace Game.Gameplay
             _applied = night;
             Night01 = night;
 
+            // Two shapes drive everything below. Dusk peaks halfway through the crossfade and is
+            // zero at both ends, so the sunset only exists while the light is actually turning.
+            // Dark lags night on purpose: a sunset is bright, so exposure and the water hold their
+            // daylight through the orange phase and only drop once the sky has gone blue.
+            float dusk = Mathf.Sin(night * Mathf.PI);
+            dusk *= dusk;
+            float dark = night * night;
+
             if (_sun != null)
             {
-                _sun.color = Color.Lerp(_daySunColor, _nightSunColor, night);
-                _sun.intensity = Mathf.Lerp(_daySunIntensity, _nightSunIntensity, night);
+                _sun.color = Color.Lerp(Color.Lerp(_daySunColor, _nightSunColor, night),
+                                        _duskSunColor, dusk);
+                _sun.intensity = Mathf.Lerp(Mathf.Lerp(_daySunIntensity, _nightSunIntensity, night),
+                                            _duskSunIntensity, dusk);
+
+                // The sun genuinely sets: it swings from its daytime place toward the moon's, and
+                // in the middle of the crossfade dips toward the horizon so the shadows stretch the
+                // way an evening's do. The floor keeps it above the horizon, where the whole island
+                // would fall into its own shadow for the rest of the fade.
+                float pitch = Mathf.LerpAngle(_daySunPitch, _nightSunAngles.x, night) - _duskSunDip * dusk;
+                float yaw = Mathf.LerpAngle(_daySunYaw, _nightSunAngles.y, night);
+                _sun.transform.rotation = Quaternion.Euler(Mathf.Max(pitch, 8f), yaw, _nightSunAngles.z);
             }
 
             // Main clears to a skybox and barely shows any of it; the island scenes clear to a flat
             // colour, which is the whole sky there and has to follow.
             if (_sky != null && _sky.clearFlags == CameraClearFlags.SolidColor)
-                _sky.backgroundColor = Color.Lerp(_daySkyColor, _nightSkyColor, night);
+                _sky.backgroundColor = Color.Lerp(Color.Lerp(_daySkyColor, _nightSkyColor, night),
+                                                  _duskSkyColor, dusk);
 
             switch (_ambientMode)
             {
@@ -318,7 +365,7 @@ namespace Game.Gameplay
                 Mathf.Lerp(_dayReflection, _dayReflection * _nightAmbient, night);
 
             if (_grade != null)
-                _grade.postExposure.value = Mathf.Lerp(_dayExposure, _nightExposure, night);
+                _grade.postExposure.value = Mathf.Lerp(_dayExposure, _nightExposure, dark);
 
             if (_bloom != null)
             {
@@ -328,7 +375,8 @@ namespace Game.Gameplay
 
             if (_waterInstance != null)
             {
-                float water = Mathf.Lerp(1f, _nightWater, night);
+                // The sea keeps its evening light as long as the sky does, then follows it down.
+                float water = Mathf.Lerp(1f, _nightWater, dark);
                 for (int i = 0; i < _waterProps.Length; i++)
                 {
                     Color day = _waterDay[i];
@@ -339,15 +387,22 @@ namespace Game.Gameplay
             }
 
             Shader.SetGlobalFloat(NightId, night);
-            Shader.SetGlobalColor(NightTintId, _nightTint);
+            // The constant shading terms warm up with the sunset before they cool into the night
+            // blue — the same detour the sun itself takes.
+            Shader.SetGlobalColor(NightTintId, Color.Lerp(_nightTint, _duskTint, dusk));
             // Deliberately allowed above 1: the shader multiplies the authored emission by this, so
             // it doubles as the night brightness of every lamp without editing a single material.
-            Shader.SetGlobalFloat(LightsOnId, night * _nightEmissionBoost);
+            float lampsOn = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(_lampSwitchOn.x, _lampSwitchOn.y, night));
+            Shader.SetGlobalFloat(LightsOnId, lampsOn * _nightEmissionBoost);
         }
 
+        /// <summary>Ambient at night is not just dimmer, it is bluer — moonlight — so the dim end
+        /// is tinted per channel as well as scaled. White tint is exactly the old behaviour.</summary>
         private Color Dim(Color day, float night)
         {
-            var dark = new Color(day.r * _nightAmbient, day.g * _nightAmbient, day.b * _nightAmbient, day.a);
+            var dark = new Color(day.r * _nightAmbient * _nightAmbientTint.r,
+                                 day.g * _nightAmbient * _nightAmbientTint.g,
+                                 day.b * _nightAmbient * _nightAmbientTint.b, day.a);
             return Color.Lerp(day, dark, night);
         }
     }

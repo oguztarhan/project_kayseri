@@ -75,6 +75,7 @@ namespace Kayseri.Island
         private int[] _shown;        // phase currently displayed per district, 0 = not resolved yet
         private int _topPhase = 1;
         private bool _started;       // suppresses the pop on the first resolve at load
+        private Material _burstMat;  // one shared burst material; see Burst for why it is cached
 
         /// <summary>Highest phase any district has reached.</summary>
         public int CurrentPhase => _topPhase;
@@ -228,10 +229,16 @@ namespace Kayseri.Island
 
             var rend = go.GetComponent<ParticleSystemRenderer>();
             rend.renderMode = ParticleSystemRenderMode.Billboard;
-            // Built-in sprite shader so this works without an authored particle material.
-            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                         ?? Shader.Find("Sprites/Default");
-            if (shader != null) rend.material = new Material(shader) { color = _burstColor };
+            if (_burstMat == null)
+            {
+                // Built-in sprite shader so this works without an authored particle material. Built
+                // once and reused: a Shader.Find plus a fresh Material on every rebuild was a hitch
+                // inside the upgrade tap, and nothing ever destroyed the previous copy.
+                var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                             ?? Shader.Find("Sprites/Default");
+                if (shader != null) _burstMat = new Material(shader) { color = _burstColor };
+            }
+            if (_burstMat != null) rend.sharedMaterial = _burstMat;
 
             ps.Play();
             Destroy(go, _burstLife + 1.2f);
