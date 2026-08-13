@@ -11,6 +11,11 @@ Shader "Kayseri/IslandVertexLitTransparent"
         _Metallic("Metallic", Range(0,1)) = 0.0
         _Smoothness("Smoothness", Range(0,1)) = 0.85
         [HDR]_EmissionColor("Emission Color", Color) = (0,0,0,0)
+
+        // Matches IslandVertexLit — see there for why per-vertex detail needs help.
+        [Header(Detail)]
+        _DetailStrength("Grain Strength", Range(0,0.4)) = 0.05
+        _DetailScale("Grain Scale", Range(0.02,2)) = 0.35
     }
 
     SubShader
@@ -54,13 +59,52 @@ Shader "Kayseri/IslandVertexLitTransparent"
                 half _Smoothness;
                 half _Saturation;
                 half _Vibrance;
+                half _DetailStrength;
+                half _DetailScale;
             CBUFFER_END
+
+            // No day-night work in this pass. It goes through UniversalFragmentPBR, so water, sea,
+            // foam, glass and smoke already darken with the sun and the ambient probe; and the one
+            // emissive material on this shader is 'ghost', the locked-plot preview, which is a
+            // marker rather than a lamp and stays lit around the clock.
 
             // Matches IslandVertexLit so glass and smoke are graded with everything else.
             half3 IslandGrade(half3 c)
             {
                 half l = dot(c, half3(0.2126h, 0.7152h, 0.0722h));
                 return saturate(lerp(l.xxx, c, _Saturation) * _Vibrance);
+            }
+
+            // Same value noise as IslandVertexLit. Duplicated rather than shared through an
+            // include for two functions - the two shaders have no common header today.
+            half Hash21(float2 p)
+            {
+                p = frac(p * float2(123.34, 456.21));
+                p += dot(p, p + 45.32);
+                return frac(p.x * p.y);
+            }
+
+            half ValueNoise(float2 p)
+            {
+                float2 cell = floor(p);
+                float2 f = frac(p);
+                f = f * f * (3.0 - 2.0 * f);
+                half a = Hash21(cell);
+                half b = Hash21(cell + float2(1, 0));
+                half c = Hash21(cell + float2(0, 1));
+                half d = Hash21(cell + float2(1, 1));
+                return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+            }
+
+            half IslandGrain(float3 positionWS, half3 normalWS)
+            {
+                float2 top = positionWS.xz * _DetailScale;
+                float2 side = float2(positionWS.x + positionWS.z, positionWS.y) * _DetailScale;
+                float2 uv = lerp(side, top, saturate(abs(normalWS.y)));
+                half n = ValueNoise(uv * 0.18h) * 0.45h
+                       + ValueNoise(uv) * 0.35h
+                       + ValueNoise(uv * 3.1h) * 0.20h;
+                return n * 2.0h - 1.0h;
             }
 
             struct Attributes
@@ -116,6 +160,8 @@ Shader "Kayseri/IslandVertexLitTransparent"
                 inputData.bakedGI = SampleSH(inputData.normalWS);
                 inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(IN.positionCS);
                 inputData.shadowMask = half4(1, 1, 1, 1);
+
+                albedo *= 1.0h + IslandGrain(IN.positionWS, inputData.normalWS) * _DetailStrength;
 
                 SurfaceData surfaceData = (SurfaceData)0;
                 surfaceData.albedo = albedo;

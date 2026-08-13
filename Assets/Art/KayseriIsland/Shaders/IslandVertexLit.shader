@@ -31,6 +31,27 @@ Shader "Kayseri/IslandVertexLit"
         _RimColor("Rim Colour", Color) = (1,1,1,1)
         _RimPower("Rim Falloff", Range(0.5,8)) = 3.0
         _RimStrength("Rim Strength", Range(0,2)) = 0.35
+
+        // The surface detail is baked per VERTEX, so on the coarse parts of the terrain you are
+        // looking straight at the vertices: flat blotches with stair-stepped edges. This adds
+        // grain back in world space, at a frequency the mesh could never carry, which is what
+        // makes the ground read as material instead of as polygons.
+        [Header(Detail)]
+        _DetailStrength("Grain Strength", Range(0,0.4)) = 0.13
+        _DetailScale("Grain Scale", Range(0.02,2)) = 0.35
+
+        // Driven by the per-material _Smoothness above, which is the one value the 78 island
+        // materials genuinely differ on (0 on soot, 0.92 on chrome) - so this costs nothing to
+        // author and immediately separates metal from rock.
+        [Header(Specular)]
+        _SpecularStrength("Specular Strength", Range(0,2)) = 0.45
+        _SpecularTint("Specular Tint", Color) = (1,1,1,1)
+
+        // The unlit side used to take one flat ambient value. Splitting it by world normal into
+        // a sky and a ground term is what stops upward and downward faces reading identically.
+        [Header(Ambient)]
+        _AmbientGround("Ambient Ground Tint", Color) = (0.55,0.48,0.40,1)
+        _AmbientHemi("Hemisphere Amount", Range(0,1)) = 0.65
     }
 
     SubShader
@@ -61,7 +82,22 @@ Shader "Kayseri/IslandVertexLit"
             half4 _RimColor;
             half _RimPower;
             half _RimStrength;
+            half _DetailStrength;
+            half _DetailScale;
+            half _SpecularStrength;
+            half4 _SpecularTint;
+            half4 _AmbientGround;
+            half _AmbientHemi;
         CBUFFER_END
+
+        // Time of day, written once per frame by DayNightCycle through Shader.SetGlobal*.
+        // Declared OUTSIDE UnityPerMaterial and left out of Properties on purpose: globals are
+        // not material data, so the SRP Batcher keeps batching the island. All three read zero
+        // until something sets them, and zero is the day state - a scene with no DayNightCycle
+        // in it renders exactly as it did before, minus the lamp glow.
+        half  _KayseriNight;        // 0 day .. 1 night
+        half4 _KayseriNightTint;    // what the constant shading terms fall to at night
+        half  _KayseriLightsOn;     // 0 lamps dark .. 1 lamps lit
 
         // Pull the colour away from its own grey, then lift it. Luminance-preserving so a
         // saturation push brightens the hue rather than washing the whole island out.
@@ -69,6 +105,44 @@ Shader "Kayseri/IslandVertexLit"
         {
             half l = dot(c, half3(0.2126h, 0.7152h, 0.0722h));
             return saturate(lerp(l.xxx, c, _Saturation) * _Vibrance);
+        }
+
+        // Value noise off a hashed integer lattice. No texture fetch and no gradients - this runs
+        // on the arithmetic units, which are the ones sitting idle on a scene this vertex-heavy.
+        half Hash21(float2 p)
+        {
+            p = frac(p * float2(123.34, 456.21));
+            p += dot(p, p + 45.32);
+            return frac(p.x * p.y);
+        }
+
+        half ValueNoise(float2 p)
+        {
+            float2 cell = floor(p);
+            float2 f = frac(p);
+            f = f * f * (3.0 - 2.0 * f);
+            half a = Hash21(cell);
+            half b = Hash21(cell + float2(1, 0));
+            half c = Hash21(cell + float2(0, 1));
+            half d = Hash21(cell + float2(1, 1));
+            return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+        }
+
+        /// Three octaves of grain in world space, projected top-down on flat ground and from the
+        /// side on walls so cliffs are not smeared into streaks. Returns -1..1.
+        ///
+        /// The coarse octave carries most of the weight on purpose: the baked vertex blotches are
+        /// 10-20 units across, so grain finer than that only decorates them - it takes a wavelength
+        /// on their own scale to actually break their stair-stepped edges up.
+        half IslandGrain(float3 positionWS, half3 normalWS)
+        {
+            float2 top = positionWS.xz * _DetailScale;
+            float2 side = float2(positionWS.x + positionWS.z, positionWS.y) * _DetailScale;
+            float2 uv = lerp(side, top, saturate(abs(normalWS.y)));
+            half n = ValueNoise(uv * 0.18h) * 0.45h
+                   + ValueNoise(uv) * 0.35h
+                   + ValueNoise(uv * 3.1h) * 0.20h;
+            return n * 2.0h - 1.0h;
         }
         ENDHLSL
 
@@ -86,6 +160,11 @@ Shader "Kayseri/IslandVertexLit"
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
+            // Forward+ clusters its lights instead of handing each object a short list, which is the
+            // only way the island's one 640x640 ground renderer can be lit by more than four lamps.
+            // URP 17 spells the keyword _CLUSTER_LIGHT_LOOP; without this pragma LIGHT_LOOP_BEGIN
+            // silently falls back to the per-object loop.
+            #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
@@ -161,21 +240,72 @@ Shader "Kayseri/IslandVertexLit"
                 // into a few bands, the unlit side goes to a tinted colour instead of black,
                 // and a fresnel rim picks out silhouettes. Main light only - additional
                 // lights would cost per-light bands on a 1600-renderer mobile scene.
+                // The bake is per vertex, so on the coarse parts of the terrain the eye is reading
+                // the mesh itself - flat patches with stair-stepped edges. This puts detail back
+                // at a frequency no vertex count here could carry.
+                albedo *= 1.0h + IslandGrain(IN.positionWS, inputData.normalWS) * _DetailStrength;
+
                 Light mainLight = GetMainLight(inputData.shadowCoord);
                 half ndl = saturate(dot(inputData.normalWS, mainLight.direction));
                 half lit = ndl * mainLight.shadowAttenuation;
 
+                // Anti-aliased banding. A bare floor() steps in screen space, which is a large
+                // part of what reads as low resolution; widening each band edge by the screen-space
+                // derivative of the light term makes the steps resolution-correct instead. With the
+                // derivative at zero this collapses back to exactly the old floor().
                 half steps = max(1.0h, _ToonSteps);
-                half banded = floor(lit * steps) / steps;
+                half scaled = lit * steps;
+                half width = clamp(fwidth(scaled), 1e-3h, 1.0h);
+                half banded = (floor(scaled) + smoothstep(1.0h - width, 1.0h, frac(scaled))) / steps;
                 half toon = lerp(banded, lit, saturate(_ToonSmoothness));
 
-                half3 ramp = lerp(_ShadowTint.rgb, mainLight.color, toon);
+                // Night only has to reach the terms that are constants in the material. The lit
+                // side already follows the sun - mainLight.color carries its intensity - and
+                // bakedGI follows RenderSettings.ambientLight, both of which DayNightCycle moves.
+                // Left alone, the shadow tint and the rim would keep the island bright at midnight.
+                half3 dusk = lerp(half3(1, 1, 1), _KayseriNightTint.rgb, _KayseriNight);
+                half3 ramp = lerp(_ShadowTint.rgb * dusk, mainLight.color, toon);
+
+                // Street lamps, headlights and the rest. Guarded by the keyword URP already sets, so
+                // with no additional lights in range this compiles away and the daytime island is
+                // byte for byte what it was. Banded through the same _ToonSteps as the sun, because
+                // a smooth realistic hotspot on a hard-banded island reads as a bug.
+                // URP's own Lit guards this with _ADDITIONAL_LIGHTS alone, but that keyword is not
+                // what carries Forward+ — the cluster does, and it is driven by USE_CLUSTER_LIGHT_LOOP.
+                // Guarding on the keyword alone left this loop compiled out of every Forward+ variant,
+                // which is why a 90 unit, intensity 40 test light lit a URP/Lit cube in the town and
+                // left the ground under it black.
+                #if defined(_ADDITIONAL_LIGHTS) || USE_CLUSTER_LIGHT_LOOP
+                uint lightCount = GetAdditionalLightsCount();
+                LIGHT_LOOP_BEGIN(lightCount)
+                    Light extra = GetAdditionalLight(lightIndex, inputData.positionWS, half4(1, 1, 1, 1));
+                    half reach = saturate(dot(inputData.normalWS, extra.direction)) * extra.distanceAttenuation;
+                    half pooled = floor(reach * steps) / steps;
+                    ramp += extra.color * lerp(pooled, reach, saturate(_ToonSmoothness));
+                LIGHT_LOOP_END
+                #endif
 
                 half fres = 1.0h - saturate(dot(inputData.normalWS, inputData.viewDirectionWS));
-                half3 rim = _RimColor.rgb * pow(fres, _RimPower) * _RimStrength * toon;
+                half3 rim = _RimColor.rgb * pow(fres, _RimPower) * _RimStrength * toon * dusk;
 
-                half3 lit3 = albedo * (ramp + inputData.bakedGI * _AmbientAmount)
-                           + rim + _EmissionColor.rgb;
+                // Blinn-Phong off the authored _Smoothness, which is the one value the island
+                // materials actually differ on. Gated by the toon term so a face in shadow cannot
+                // catch a highlight, and by dusk so it fades out with the sun.
+                half3 halfDir = SafeNormalize(mainLight.direction + inputData.viewDirectionWS);
+                half gloss = _Smoothness * _Smoothness * 256.0h + 1.0h;
+                half spec = pow(saturate(dot(inputData.normalWS, halfDir)), gloss);
+                half3 specular = _SpecularTint.rgb * mainLight.color * spec
+                               * (_SpecularStrength * _Smoothness * toon) * dusk;
+
+                // Sky above, warm ground bounce below, instead of one flat value on every face.
+                // Both ends come from bakedGI, so DayNightCycle dimming the probe still dims this.
+                half up = inputData.normalWS.y * 0.5h + 0.5h;
+                half3 ambient = lerp(inputData.bakedGI,
+                                     lerp(inputData.bakedGI * _AmbientGround.rgb, inputData.bakedGI, up),
+                                     _AmbientHemi);
+
+                half3 lit3 = albedo * (ramp + ambient * _AmbientAmount)
+                           + specular + rim + _EmissionColor.rgb * _KayseriLightsOn;
 
                 half4 color = half4(lit3, _BaseColor.a);
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);

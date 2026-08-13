@@ -237,8 +237,7 @@ namespace Game.UI
             if (rateValue != null && _op != null)
                 rateValue.text = string.Format(Loc.T("ortak.dakika_basina"),
                                                "$" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)));
-            if (contractTimerValue != null && _contract != null)
-                contractTimerValue.text = _contract.Claimable ? Loc.T("ortak.hazir") : ContractUI.ClockText(_contract.SecondsLeft);
+            if (contractTimerValue != null && _contract != null) contractTimerValue.text = ContractChip();
 
             RefreshOfferButton();
 
@@ -306,6 +305,28 @@ namespace Game.UI
             offerTimerValue.text = left >= 3600L
                 ? (left / 3600L) + ":" + (left / 60L % 60L).ToString("00")
                 : ContractUI.ClockText(left);
+        }
+
+        /// <summary>
+        /// The line under the contract button. It has to answer "is there anything at the port right
+        /// now?" in one glance, so the states that want the player are words — READY to claim, READY to
+        /// pick — and the states that do not are just a clock: the running job's, or the countdown to the
+        /// next ship.
+        /// </summary>
+        private string ContractChip()
+        {
+            switch (_contract.State)
+            {
+                case ContractService.PortState.Reward:
+                case ContractService.PortState.Offering:
+                    return Loc.T("ortak.hazir");
+                case ContractService.PortState.Active:
+                    return ContractUI.ClockText(_contract.SecondsLeft);
+                case ContractService.PortState.Away:
+                    return ContractUI.ClockText(_contract.SecondsToShip);
+                default:
+                    return Loc.T("kontrat.gemi_kisa");
+            }
         }
 
         private static readonly Color DimBoost = new Color(0.55f, 0.58f, 0.66f, 1f);

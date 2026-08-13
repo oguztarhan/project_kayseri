@@ -1,5 +1,6 @@
 using Game.Core;
 using Game.Data;
+using Game.Gameplay;
 using Game.Systems;
 using UnityEngine;
 using UnityEngine.UI;
@@ -75,7 +76,7 @@ namespace Game.UI
             if (languageButton != null) languageButton.onClick.AddListener(OnLanguage);
             RefreshSwitch();
 
-            BuildTestButton();
+            BuildTestButtons();
 
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
@@ -84,7 +85,9 @@ namespace Game.UI
         public void Toggle()
         {
             if (panelRoot != null) panelRoot.SetActive(!panelRoot.activeSelf);
-            RefreshTestButton();   // başka bir yerden açılmış olabilir — etiket açılışta doğru olsun
+            // başka bir yerden açılmış olabilir — etiketler açılışta doğru olsun
+            RefreshTestButton();
+            RefreshTimeButton();
         }
 
         public void Hide()
@@ -182,36 +185,49 @@ namespace Game.UI
         private Image _testImage;
         private TMPro.TextMeshProUGUI _testLabel;
 
-        private void BuildTestButton()
+        private void BuildTestButtons()
         {
             if (panelRoot == null) return;
 
-            var go = new GameObject("TestModu", typeof(RectTransform));
+            var test = BuildStrip("TestModu", 40f, out _testImage, out _testLabel);
+            test.onClick.AddListener(OnTestMode);
+            RefreshTestButton();
+
+            // Gün/gece anahtarı test şeridinin hemen üstünde — ikisi de panelin dışında, ikisi de
+            // yayına çıkmadan önce birlikte sökülüyor.
+            var time = BuildStrip("TestZaman", 140f, out _timeImage, out _timeLabel);
+            time.onClick.AddListener(OnTimeMode);
+            RefreshTimeButton();
+        }
+
+        /// <summary>One full-width strip under the artist's panel. Two of these now, and each is
+        /// twenty-odd lines of the same RectTransform setup, so they share one builder.</summary>
+        private Button BuildStrip(string name, float y, out Image background, out TMPro.TextMeshProUGUI label)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(panelRoot.transform, false);
             var rt = (RectTransform)go.transform;
             rt.anchorMin = new Vector2(0.5f, 0f);
             rt.anchorMax = new Vector2(0.5f, 0f);
             rt.pivot = new Vector2(0.5f, 0f);
-            rt.anchoredPosition = new Vector2(0f, 40f);
+            rt.anchoredPosition = new Vector2(0f, y);
             rt.sizeDelta = new Vector2(560f, 92f);
 
-            _testImage = go.AddComponent<Image>();
-            _testImage.color = TestOffColor;
+            background = go.AddComponent<Image>();
             var btn = go.AddComponent<Button>();
-            btn.targetGraphic = _testImage;
-            btn.onClick.AddListener(OnTestMode);
+            btn.targetGraphic = background;
 
             var tgo = new GameObject("Etiket", typeof(RectTransform));
             tgo.transform.SetParent(go.transform, false);
             var trt = (RectTransform)tgo.transform;
             trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
             trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
-            _testLabel = tgo.AddComponent<TMPro.TextMeshProUGUI>();
-            _testLabel.fontSize = 34;
-            _testLabel.alignment = TMPro.TextAlignmentOptions.Center;
-            _testLabel.raycastTarget = false;
+            label = tgo.AddComponent<TMPro.TextMeshProUGUI>();
+            label.fontSize = 34;
+            label.alignment = TMPro.TextAlignmentOptions.Center;
+            label.raycastTarget = false;
 
-            RefreshTestButton();
+            return btn;
         }
 
         private void OnTestMode()
@@ -238,6 +254,70 @@ namespace Game.UI
             bool on = wallet != null && wallet.FreePurchases;
             _testLabel.text = on ? TestOnLabel : TestOffLabel;
             if (_testImage != null) _testImage.color = on ? TestOnColor : TestOffColor;
+        }
+
+        // ---------------- gün / gece anahtarı ----------------
+
+        // Gece 45. dakikada geliyor, yani ışıkları görmek için yarım saat beklemek gerekebiliyordu.
+        // Bu düğme sırayla OTOMATİK -> GÜNDÜZ -> GECE dolaşıyor ve anında geçiyor: geçiş animasyonunu
+        // beklemek, gece görünümünü kontrol etmek isteyen birinin işine yaramaz.
+        private const string TimeAutoLabel = "ZAMAN: OTOMATİK";
+        private const string TimeDayLabel = "ZAMAN: GÜNDÜZ";
+        private const string TimeNightLabel = "ZAMAN: GECE";
+        private static readonly Color TimeAutoColor = new Color(0.24f, 0.27f, 0.32f, 0.92f);
+        private static readonly Color TimeDayColor = new Color(0.85f, 0.62f, 0.16f, 0.92f);
+        private static readonly Color TimeNightColor = new Color(0.15f, 0.20f, 0.44f, 0.92f);
+
+        private Image _timeImage;
+        private TMPro.TextMeshProUGUI _timeLabel;
+        private DayNightCycle _cycle;
+
+        /// <summary>The cycle lives on the island scene and this panel in a UI prefab, so there is
+        /// nothing for the Inspector to wire the two together with. Looked up once and kept.</summary>
+        private DayNightCycle Cycle()
+        {
+            if (_cycle == null) _cycle = FindAnyObjectByType<DayNightCycle>();
+            return _cycle;
+        }
+
+        private void OnTimeMode()
+        {
+            var cycle = Cycle();
+            if (cycle == null) return;
+
+            switch (cycle.Override)
+            {
+                case DayNightCycle.TimeOverride.Auto: cycle.Override = DayNightCycle.TimeOverride.Day; break;
+                case DayNightCycle.TimeOverride.Day: cycle.Override = DayNightCycle.TimeOverride.Night; break;
+                default: cycle.Override = DayNightCycle.TimeOverride.Auto; break;
+            }
+
+            if (_haptic != null) _haptic.Light();
+            RefreshTimeButton();
+        }
+
+        private void RefreshTimeButton()
+        {
+            if (_timeLabel == null) return;
+
+            var cycle = Cycle();
+            var mode = cycle != null ? cycle.Override : DayNightCycle.TimeOverride.Auto;
+
+            switch (mode)
+            {
+                case DayNightCycle.TimeOverride.Day:
+                    _timeLabel.text = TimeDayLabel;
+                    if (_timeImage != null) _timeImage.color = TimeDayColor;
+                    break;
+                case DayNightCycle.TimeOverride.Night:
+                    _timeLabel.text = TimeNightLabel;
+                    if (_timeImage != null) _timeImage.color = TimeNightColor;
+                    break;
+                default:
+                    _timeLabel.text = TimeAutoLabel;
+                    if (_timeImage != null) _timeImage.color = TimeAutoColor;
+                    break;
+            }
         }
     }
 }

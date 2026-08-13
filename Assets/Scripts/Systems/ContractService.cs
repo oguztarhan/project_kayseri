@@ -1,174 +1,373 @@
 using Game.Core;
+using Game.Data;
 
 namespace Game.Systems
 {
     /// <summary>
-    /// The rolling delivery contract (GDD §9): earn a target amount of cash before the clock runs out,
-    /// claim a bonus, and a slightly harder one starts immediately. This is the "there is always
-    /// something to do" loop — an idle game with nothing on screen asking to be finished is just a
-    /// number going up.
+    /// The port contract loop (GDD §9). A cargo ship sails in, tables three jobs at three difficulties,
+    /// waits while one of them runs, and leaves once it is settled — delivered or missed, the ship goes.
     ///
-    /// Progress is measured as growth in <see cref="WalletService.LifetimeCash"/>, which the wallet
-    /// already tracks for prestige. That deliberately avoids a hook in the selling code: any income
-    /// counts, from any island, so travelling mid-contract does not silently void it.
+    /// A job is "process N units inside T minutes", measured on smelter output rather than on cash. That
+    /// is the difference from the old rolling cash goal: cash arrives from anywhere and made the contract
+    /// a passive number-watch, while processing is the thing the player's upgrades actually move. Every
+    /// island's smelters count toward the same job (<see cref="ReportProcessed"/> is called by all of
+    /// them), so travelling mid-contract never voids progress — the same forgiveness the cash version got
+    /// for free by reading lifetime cash.
     ///
-    /// The target is derived from what the player currently earns per minute rather than from a fixed
-    /// number, so one contract is roughly one focused minute whether the empire makes $500 or $500T.
-    /// The configured target only acts as a floor for the opening minutes.
+    /// Targets are sized off the empire's own measured throughput, not authored numbers: one contract is
+    /// roughly one focused window whether the islands smelt 200 units a minute or 200 trillion. The
+    /// config's floor only covers the opening minutes, before the meter has anything in it.
+    ///
+    /// Nothing here expires on its own except the running clock. The ship waits indefinitely on the
+    /// offers and indefinitely on an unclaimed reward — an idle game must never punish a player for
+    /// looking away, and the port is the one place in this game where the answer to "what now?" lives.
     /// </summary>
     public sealed class ContractService
     {
+        /// <summary>Where the ship is in its visit. Drives both the screen and the hull in the water.</summary>
+        public enum PortState
+        {
+            Away,       // over the horizon; a countdown is running toward the next visit
+            Arriving,   // sailing in from the sea lane
+            Offering,   // docked, three jobs on the table, waiting on the player
+            Active,     // a job is running; the clock is ticking
+            Reward,     // target met, clock stopped, waiting for the player to claim
+            Departing,  // sailing back out, settled either way
+        }
+
+        public enum Result { None, Success, Failed }
+
+        /// <summary>One card on the table. Everything is locked in when the offers are rolled.</summary>
+        public struct Offer
+        {
+            public double Units;
+            public float Seconds;
+            public double Cash;
+            public long Gems;
+        }
+
+        public const int EasyTier = 0, NormalTier = 1, HardTier = 2;
+        public const int TierCount = 3;
+
+        // Each claim makes the next set of offers this much heavier, each miss walks it back. It was 1.12
+        // on the cash contract against a 90-second window; the windows here are 7-15 minutes, so a streak
+        // compounds far more slowly in wall-clock terms and the step has to be gentler to match.
+        private const double StreakStep = 1.08d;
+        private const double StreakCap = 3d;
+
+        // The processing meter folds in a sample this often. Short enough that a fresh session has a real
+        // number before the first ship docks (the opening Away period is a minute), long enough that one
+        // truck arriving does not spike it.
+        private const float SampleSeconds = 10f;
+        private const double SampleBlend = 0.5d;
+
         private readonly WalletService _wallet;
-        private readonly double _floorTarget;
-        private readonly float _seconds;
-        private readonly double _floorReward;
+
+        private readonly double _floorUnits, _rewardFloor, _rewardFraction;
         private readonly long _rewardGems;
+        private readonly float _normalMinutes;
+        private readonly float[] _tierRate = new float[TierCount];
+        private readonly float[] _tierMinutes = new float[TierCount];
+        private readonly float[] _tierPay = new float[TierCount];
+        private readonly long[] _tierGems = new long[TierCount];
+        private readonly float _arriveSeconds, _departSeconds, _cooldownSeconds;
 
-        // How much of a minute's income one contract asks for, against a window the config sets (90 s).
-        // So passive play delivers 1.5 minutes of income into a 1.2-minute ask: a 25% margin at
-        // difficulty 1, which the streak eats in two claims (x1.12 each) before the player has to find
-        // the rest somewhere — a boost, a burst of upgrades — or drop a notch and start climbing again.
-        //
-        // It was 1.35 against a 60-second window, which asked for 35% MORE than the window could
-        // passively produce. The comment here used to say the player should "buy an upgrade, unlock a
-        // truck" to cover that, and on the first island's opening levels they could: at level 1 one axis
-        // purchase is worth 6.8% and five of them clear it. By level 5 an axis is worth 0.34% and it
-        // takes 89 purchases in sixty seconds. So from a few minutes in, the contract could only be won
-        // inside a rewarded-ad boost window, which is not what a "there is always something to do" loop
-        // is for. Measured off EconomyCurve's samples, 2026-08-07.
-        private const double MinutesOfIncome = 1.2d;
-        private const double RewardFraction = 0.45d;   // bonus paid, as a share of the target
-        private const double StreakStep = 1.12d;       // each claim makes the next one this much harder
-        private const double StreakCap = 4d;
+        private readonly Offer[] _offers = new Offer[TierCount];
 
-        private BigDouble _startCash;
-        private BigDouble _target;
+        private PortState _state;
+        private float _stateLeft;      // seconds left in Away / Arriving / Departing
+        private float _stateSpan;      // how long that state runs, for the 0..1 the ship rides
+
+        private double _procAccum;     // units reported since the last meter sample
+        private float _procSpan;
+        private double _procPerMinute;
+        private double _cashPerMinute;
+
         private double _difficulty = 1d;
-        private double _lastIncomePerMinute;
-        private float _left;
-        private bool _claimable;
-        private bool _seeded;
 
-        public ContractService(WalletService wallet, double floorTarget, float seconds,
-                               double floorReward, long rewardGems)
+        private double _target, _done;
+        private double _activeCash;
+        private long _activeGems;
+        private float _left;
+
+        public ContractService(WalletService wallet, ContractConfig config)
         {
             _wallet = wallet;
-            _floorTarget = floorTarget > 0d ? floorTarget : 100d;
-            _seconds = seconds > 5f ? seconds : 60f;
-            _floorReward = floorReward;
-            _rewardGems = rewardGems;
-            Roll(0d);
+
+            _floorUnits = config != null && config.FloorUnits > 0d ? config.FloorUnits : 50d;
+            _normalMinutes = config != null && config.NormalMinutes > 0.1f ? config.NormalMinutes : 10f;
+            _rewardFloor = config != null ? config.RewardCash : 500d;
+            _rewardGems = config != null ? config.RewardGems : 2L;
+            _rewardFraction = config != null && config.RewardFraction > 0d ? config.RewardFraction : 0.45d;
+
+            _tierRate[EasyTier] = config != null ? config.EasyRate : 0.6f;
+            _tierMinutes[EasyTier] = config != null ? config.EasyMinutes : 15f;
+            _tierPay[EasyTier] = config != null ? config.EasyPay : 0.5f;
+            _tierGems[EasyTier] = config != null ? config.EasyGems : 1L;
+
+            _tierRate[NormalTier] = 1f;
+            _tierMinutes[NormalTier] = _normalMinutes;
+            _tierPay[NormalTier] = 1f;
+            _tierGems[NormalTier] = _rewardGems;
+
+            _tierRate[HardTier] = config != null ? config.HardRate : 1.6f;
+            _tierMinutes[HardTier] = config != null ? config.HardMinutes : 7f;
+            _tierPay[HardTier] = config != null ? config.HardPay : 2.2f;
+            _tierGems[HardTier] = config != null ? config.HardGems : 4L;
+
+            _arriveSeconds = config != null && config.ShipArriveSeconds > 0.5f ? config.ShipArriveSeconds : 14f;
+            _departSeconds = config != null && config.ShipDepartSeconds > 0.5f ? config.ShipDepartSeconds : 16f;
+            _cooldownSeconds = config != null && config.ShipCooldownSeconds > 1f ? config.ShipCooldownSeconds : 60f;
+
+            // The session opens with the horizon empty and a ship on its way in. That minute is also what
+            // fills the processing meter, so the first three offers are sized off a real number instead
+            // of the floor.
+            Enter(PortState.Away, _cooldownSeconds);
         }
 
-        public BigDouble Target => _target;
-        public BigDouble Earned
-        {
-            get
-            {
-                BigDouble e = _wallet.LifetimeCash - _startCash;
-                return e.Mantissa > 0d ? e : BigDouble.Zero;
-            }
-        }
-        public bool Claimable => _claimable;
-        public float SecondsLeft => _left;
+        public PortState State => _state;
+        public Result LastResult { get; private set; }
         public int Streak { get; private set; }
-        public BigDouble Reward => RewardFor(_target);
-        public long RewardGems => _rewardGems;
+
+        /// <summary>Three jobs are on the table. The only state where <see cref="Accept"/> does anything.</summary>
+        public bool HasOffers => _state == PortState.Offering;
+        public bool IsRunning => _state == PortState.Active;
+        public bool Claimable => _state == PortState.Reward;
+
+        /// <summary>The running job's clock. Stops the moment the target is met.</summary>
+        public float SecondsLeft => _left;
+        /// <summary>Seconds until the next ship appears on the horizon. 0 unless it is away.</summary>
+        public float SecondsToShip => _state == PortState.Away ? _stateLeft : 0f;
+
+        public double TargetUnits => _target;
+        public double DoneUnits => _done;
+        public BigDouble Reward => new BigDouble(_activeCash);
+        public long RewardGems => _activeGems;
+        public double ProcessedPerMinute => _procPerMinute;
+
+        /// <summary>What the running job's units are called — the ore word of the island that took it.</summary>
+        public string UnitWord { get; private set; } = "COAL";
 
         public double Progress01
         {
             get
             {
-                if (_claimable) return 1d;
-                double t = _target.ToDouble();
-                if (t <= 0d) return 0d;
-                double p = Earned.ToDouble() / t;
+                if (_state == PortState.Reward) return 1d;
+                if (_target <= 0d) return 0d;
+                double p = _done / _target;
                 return p < 0d ? 0d : p > 1d ? 1d : p;
             }
         }
 
         /// <summary>
-        /// Sizes the opening contract from the rate the previous session persisted (the same number the
-        /// offline grant trusts). Without it the first contract of a session is sized from the live
-        /// income meter, which is a trailing 60-second average starting at zero: a grown empire got the
-        /// $100 floor and cleared it before the player had looked at the screen. Call once, after the
-        /// offline earnings are paid, or the money the player made while away counts as progress.
+        /// Where the contract ship sits on its run, 0 = out past the sea lane and off screen, 1 = moored
+        /// at the pier. Eased at both ends so a hull the size of a building does not start and stop dead.
+        /// Every island reads this to place its own ship, which is what makes the port on whichever
+        /// island you are standing on show the same visit.
+        /// </summary>
+        public float ShipDock01
+        {
+            get
+            {
+                switch (_state)
+                {
+                    case PortState.Away: return 0f;
+                    case PortState.Arriving: return Ease(_stateSpan <= 0f ? 1f : 1f - _stateLeft / _stateSpan);
+                    case PortState.Departing: return Ease(_stateSpan <= 0f ? 0f : _stateLeft / _stateSpan);
+                    default: return 1f;
+                }
+            }
+        }
+
+        public Offer GetOffer(int tier)
+        {
+            if (tier < 0 || tier >= TierCount) return default(Offer);
+            return _offers[tier];
+        }
+
+        /// <summary>
+        /// Primes the reward maths from the rate the previous session persisted, so a returning player's
+        /// first offers are not priced off a live income meter that is still reading zero. Call after the
+        /// offline earnings are paid.
         /// </summary>
         public void Seed(double incomePerMinute)
         {
-            if (_seeded || incomePerMinute <= 0d) return;
-            _seeded = true;
-            Roll(incomePerMinute);
+            if (incomePerMinute > _cashPerMinute) _cashPerMinute = incomePerMinute;
         }
 
         /// <summary>
-        /// Advances the clock. <paramref name="incomePerMinute"/> sizes the NEXT contract, so it is only
-        /// read when one is rolled — a target that moved while the player was working toward it would be
-        /// a treadmill they could never catch.
+        /// Units the smelters converted this frame, from any island. Feeds both the running job and the
+        /// throughput meter that sizes the next set of offers.
         /// </summary>
-        public void Tick(float dt, double incomePerMinute)
+        public void ReportProcessed(double units)
         {
-            _lastIncomePerMinute = incomePerMinute;
+            if (units <= 0d) return;
+            _procAccum += units;
+            if (_state == PortState.Active) _done += units;
+        }
 
-            // The first real target has to wait for the islands to report an income — the service is
-            // built during bootstrap, before any of them exist. Without this, a returning player's
-            // opening contract is the $100 floor, which their empire clears before they see it.
-            // Keep waiting while the income reads zero: the first few ticks after a scene load run
-            // before the operations have reported, and spending the seed on one of those leaves the
-            // target stuck on the floor for the whole first contract.
-            if (!_seeded && incomePerMinute > 0d)
+        /// <summary>
+        /// Advances the visit. <paramref name="cashPerMinute"/> prices the offers and is only read when
+        /// they are rolled — a reward that moved while the player worked toward it would be a cheat.
+        /// </summary>
+        public void Tick(float dt, double cashPerMinute)
+        {
+            if (cashPerMinute > 0d) _cashPerMinute = cashPerMinute;
+            SampleRate(dt);
+
+            switch (_state)
             {
-                _seeded = true;
-                Roll(incomePerMinute);
+                case PortState.Away:
+                    _stateLeft -= dt;
+                    if (_stateLeft <= 0f) Enter(PortState.Arriving, _arriveSeconds);
+                    break;
+
+                case PortState.Arriving:
+                    _stateLeft -= dt;
+                    if (_stateLeft <= 0f)
+                    {
+                        RollOffers();
+                        Enter(PortState.Offering, 0f);
+                    }
+                    break;
+
+                case PortState.Offering:
+                    break;    // the ship waits. An offer the player did not see is not an offer.
+
+                case PortState.Active:
+                    if (_done >= _target)
+                    {
+                        LastResult = Result.Success;
+                        Enter(PortState.Reward, 0f);
+                        break;
+                    }
+                    _left -= dt;
+                    if (_left <= 0f)
+                    {
+                        // Missed. Ease the next set off rather than punish — a wall the player cannot
+                        // clear stops being a goal, and the ship leaving is punishment enough.
+                        _left = 0f;
+                        LastResult = Result.Failed;
+                        Streak = 0;
+                        _difficulty = _difficulty > 1d ? _difficulty / StreakStep : 1d;
+                        Enter(PortState.Departing, _departSeconds);
+                    }
+                    break;
+
+                case PortState.Reward:
+                    break;    // clock stopped, hull moored, waiting on a tap
+
+                case PortState.Departing:
+                    _stateLeft -= dt;
+                    if (_stateLeft <= 0f) Enter(PortState.Away, _cooldownSeconds);
+                    break;
             }
-
-            if (_claimable) return;                       // the clock stops once it is won; claim at leisure
-
-            if (Earned >= _target) { _claimable = true; return; }
-
-            _left -= dt;
-            if (_left > 0f) return;
-
-            // Ran out. Ease off rather than punish — a wall the player cannot clear stops being a goal.
-            _difficulty = _difficulty > 1d ? _difficulty / StreakStep : 1d;
-            Streak = 0;
-            Roll(incomePerMinute);
         }
 
         /// <summary>
-        /// Pays the bonus and starts the next contract, sized from the income the ticker last reported.
-        /// The contract screen has no view of the empire's income, and re-deriving it there would be a
-        /// second, drifting copy of <see cref="HudUI"/>'s sum.
+        /// Takes one of the three jobs. <paramref name="unitWord"/> is the ore word of the island whose
+        /// port it was signed at, kept so the card still reads right after the player travels.
         /// </summary>
-        public bool Claim() => Claim(_lastIncomePerMinute);
-
-        /// <summary>Pays the bonus and starts the next contract. No-op unless the goal is met.</summary>
-        public bool Claim(double incomePerMinute)
+        public bool Accept(int tier, string unitWord)
         {
-            if (!_claimable) return false;
-            _wallet.AddCash(RewardFor(_target));
-            _wallet.AddGems(_rewardGems);
-            Streak++;
-            _difficulty *= StreakStep;
-            if (_difficulty > StreakCap) _difficulty = StreakCap;
-            Roll(incomePerMinute);
+            if (_state != PortState.Offering || tier < 0 || tier >= TierCount) return false;
+
+            Offer o = _offers[tier];
+            if (o.Units <= 0d) return false;
+
+            _target = o.Units;
+            _done = 0d;
+            _left = o.Seconds;
+            _activeCash = o.Cash;
+            _activeGems = o.Gems;
+            if (!string.IsNullOrEmpty(unitWord)) UnitWord = unitWord;
+            LastResult = Result.None;
+            Enter(PortState.Active, 0f);
             return true;
         }
 
-        private BigDouble RewardFor(BigDouble target)
+        /// <summary>Pays the delivered job and sends the ship out. No-op unless the target was met.</summary>
+        public bool Claim()
         {
-            BigDouble scaled = target * RewardFraction;
-            return scaled.ToDouble() > _floorReward ? scaled : new BigDouble(_floorReward);
+            if (_state != PortState.Reward) return false;
+
+            _wallet.AddCash(new BigDouble(_activeCash));
+            _wallet.AddGems(_activeGems);
+            Streak++;
+            _difficulty *= StreakStep;
+            if (_difficulty > StreakCap) _difficulty = StreakCap;
+            Enter(PortState.Departing, _departSeconds);
+            return true;
         }
 
-        private void Roll(double incomePerMinute)
+        private void Enter(PortState state, float seconds)
         {
-            double want = incomePerMinute * MinutesOfIncome * _difficulty;
-            if (want < _floorTarget) want = _floorTarget;
-            _target = new BigDouble(want);
-            _startCash = _wallet.LifetimeCash;
-            _left = _seconds;
-            _claimable = false;
+            _state = state;
+            _stateSpan = seconds;
+            _stateLeft = seconds;
+        }
+
+        /// <summary>
+        /// Folds the units reported since the last sample into a per-minute figure. Blended rather than
+        /// replaced: the smelters run in bursts as trucks arrive, and a target sized off a single ten
+        /// second window that happened to catch a lull would be trivial.
+        /// </summary>
+        private void SampleRate(float dt)
+        {
+            _procSpan += dt;
+            if (_procSpan < SampleSeconds) return;
+
+            double sample = _procAccum / _procSpan * 60d;
+            _procPerMinute = _procPerMinute <= 0d
+                ? sample
+                : _procPerMinute * (1d - SampleBlend) + sample * SampleBlend;
+            _procAccum = 0d;
+            _procSpan = 0f;
+        }
+
+        private void RollOffers()
+        {
+            for (int i = 0; i < TierCount; i++)
+            {
+                double units = _procPerMinute * _tierMinutes[i] * _tierRate[i] * _difficulty;
+
+                // The floor keeps the opening minutes sane, scaled by the tier so the three cards do not
+                // collapse into the same number before the meter has anything in it.
+                double floor = _floorUnits * _tierRate[i] * (_tierMinutes[i] / _normalMinutes);
+                if (units < floor) units = floor;
+
+                double cash = _cashPerMinute * _tierMinutes[i] * _rewardFraction * _tierPay[i];
+                double cashFloor = _rewardFloor * _tierPay[i];
+                if (cash < cashFloor) cash = cashFloor;
+
+                _offers[i] = new Offer
+                {
+                    Units = RoundNice(units),
+                    Seconds = _tierMinutes[i] * 60f,
+                    Cash = cash,
+                    Gems = _tierGems[i],
+                };
+            }
+        }
+
+        /// <summary>
+        /// Two significant digits — "50K", not "50,432". A contract is a headline the player reads in a
+        /// second; the precision the meter produces would be noise on the card and noise in the bar.
+        /// </summary>
+        private static double RoundNice(double v)
+        {
+            if (v <= 0d) return 0d;
+            if (v < 10d) return System.Math.Ceiling(v);
+            double mag = System.Math.Pow(10d, System.Math.Floor(System.Math.Log10(v)) - 1d);
+            return System.Math.Round(v / mag) * mag;
+        }
+
+        /// <summary>Smoothstep, so the hull eases off the horizon and settles onto the pier.</summary>
+        private static float Ease(float t)
+        {
+            if (t <= 0f) return 0f;
+            if (t >= 1f) return 1f;
+            return t * t * (3f - 2f * t);
         }
     }
 }

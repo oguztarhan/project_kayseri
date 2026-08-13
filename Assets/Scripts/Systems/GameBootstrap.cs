@@ -138,18 +138,15 @@ namespace Game.Systems
             ServiceLocator.Register(new BoostService(Data, _time));
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
-            var contract = contractConfig != null
-                ? new ContractService(Wallet, contractConfig.TargetUnits, contractConfig.TimeLimitSeconds,
-                                      contractConfig.RewardCash, contractConfig.RewardGems)
-                : new ContractService(Wallet, 100d, 60f, 500d, 2L);
+            var contract = new ContractService(Wallet, contractConfig);
             ServiceLocator.Register(contract);
 
             Offline = new OfflineReport();
             ServiceLocator.Register(Offline);
             GrantOffline();
 
-            // After the offline grant, so the money earned while away is not also counted as progress
-            // toward the opening contract.
+            // Prices the first ship's offers off the rate the last session persisted, so a returning
+            // empire is not offered a $500 job while the live income meter is still reading zero.
             contract.Seed(Data.incomeRatePerSec * 60d);
 
             // Nothing is queued here — a notification only makes sense once the player has left, so the

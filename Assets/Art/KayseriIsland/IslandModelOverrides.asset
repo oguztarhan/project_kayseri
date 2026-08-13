@@ -18,6 +18,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -26,25 +28,31 @@ MonoBehaviour:
     Model: Hall
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e8fdb6c4ccf68409e849551caadb09e1, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Civic
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Civic
     Model: Paving
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -54,6 +62,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -62,43 +72,53 @@ MonoBehaviour:
     Model: Shop
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 66a4f2d636fd04faeb2c66ea68492828, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Civic
     Model: Tower
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: b89d1c60de3f44052bfda88de87ffc38, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Civic
     Model: Tree
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: b20a95b7ae43647e5b6f2e8476753c95, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Civic
     Model: WaterTower
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 4261af6bbfc8d4ee29c83b38d19e2138, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Depot
     Model: Containers
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 8ebc57eb063154087978fc3e22cd3e3c, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -108,6 +128,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -117,6 +139,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -126,6 +150,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -134,16 +160,20 @@ MonoBehaviour:
     Model: Excav
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 03a4e8e284047480b9e16c5fa0599c57, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Depot
     Model: Fence
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -153,6 +183,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -161,25 +193,31 @@ MonoBehaviour:
     Model: Hopper
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e8fdb6c4ccf68409e849551caadb09e1, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Depot
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Depot
     Model: Loader
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 0c7375c9e2fc842d3998c479ee555739, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -188,25 +226,31 @@ MonoBehaviour:
     Model: Office
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 66a4f2d636fd04faeb2c66ea68492828, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Depot
     Model: Pile
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 4ab073bcb93b74311baf8b57b61ef5e5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 1
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Depot
     Model: Shed
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 457c0b4e8da8c4863b576bc40e17ae21, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -215,25 +259,31 @@ MonoBehaviour:
     Model: Silo
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 4261af6bbfc8d4ee29c83b38d19e2138, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Depot
     Model: Tower
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: b89d1c60de3f44052bfda88de87ffc38, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Depot
     Model: Yard
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -243,6 +293,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -251,16 +303,20 @@ MonoBehaviour:
     Model: Crates
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 72f4083b382fe419f9fe1aeb3c988be4, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Fleet
     Model: Doors
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -270,6 +326,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -278,52 +336,64 @@ MonoBehaviour:
     Model: FuelIsland
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 9b727cf4a2c1e44ceb81f460db3e28e1, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Fleet
     Model: FuelTank
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 67d6e0ba830ff4d5aa69f11a7426fd14, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Fleet
     Model: Garage
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 26217a87744bc4f00a00a30d15e2577f, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Fleet
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Fleet
     Model: Parked
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 1
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Fleet
     Model: WashGantry
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -333,6 +403,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -341,7 +413,9 @@ MonoBehaviour:
     Model: Bush
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: e587741eaf6db4f56ab99d4a7a19218e, type: 3}
+    Replacement: {fileID: 919132149155446097, guid: 38f0e138849bf4449b7a68ec9b193b2a, type: 3}
+    Hide: 0
+    SkipOverBuildings: 1
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -351,6 +425,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -360,6 +436,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -369,6 +447,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -378,6 +458,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 919132149155446097, guid: b20a95b7ae43647e5b6f2e8476753c95, type: 3}
+    Hide: 0
+    SkipOverBuildings: 1
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -387,6 +469,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -396,6 +480,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -404,43 +490,53 @@ MonoBehaviour:
     Model: Hopper
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e8fdb6c4ccf68409e849551caadb09e1, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Haul
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Haul
     Model: Loader
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 0c7375c9e2fc842d3998c479ee555739, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Haul
     Model: Parked
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 1
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Haul
     Model: Weighbridge
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -449,16 +545,20 @@ MonoBehaviour:
     Model: Workshop
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 26217a87744bc4f00a00a30d15e2577f, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Haul
     Model: Yard
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -468,6 +568,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -477,6 +579,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -486,6 +590,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -494,34 +600,42 @@ MonoBehaviour:
     Model: Fork
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 0c7375c9e2fc842d3998c479ee555739, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Market
     Model: Fuel
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 9b727cf4a2c1e44ceb81f460db3e28e1, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Market
     Model: FuelShop
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 02ce0ea94b9874159adb8a70eca965aa, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Market
     Model: Goods
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -530,25 +644,31 @@ MonoBehaviour:
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Market
     Model: Office
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 66a4f2d636fd04faeb2c66ea68492828, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Market
     Model: Pad
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -557,16 +677,20 @@ MonoBehaviour:
     Model: Shop
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 37e27b128f85047e8a276d4622666595, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Market
     Model: Stalls
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -575,16 +699,20 @@ MonoBehaviour:
     Model: WH
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: d4663d546c7804c4e9513e5bf6a30a66, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Mine
     Model: Adit
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -594,6 +722,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -603,6 +733,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -612,6 +744,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -621,6 +755,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -630,6 +766,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -639,6 +777,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -647,25 +787,31 @@ MonoBehaviour:
     Model: Crusher
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: d4663d546c7804c4e9513e5bf6a30a66, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Mine
     Model: Excav
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 03a4e8e284047480b9e16c5fa0599c57, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Mine
     Model: Fence
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -675,6 +821,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -683,52 +831,64 @@ MonoBehaviour:
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Mine
     Model: LoadGantry
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 65162802581a74a3fb079f06919281e5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Mine
     Model: Loader
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 0c7375c9e2fc842d3998c479ee555739, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Mine
     Model: Plant
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 1676e7910ba3846ec9b4b5ef7a1a254d, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Mine
     Model: Spoil
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 4ab073bcb93b74311baf8b57b61ef5e5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 1
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Mine
     Model: Track
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -737,16 +897,20 @@ MonoBehaviour:
     Model: Winder
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 46384ac42bf6e4dab88185fb5456b1a2, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: Apron
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -755,16 +919,20 @@ MonoBehaviour:
     Model: Beacon
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 4c1f8dee9b90f4db1bd2c18065bdc48a, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: Boat
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -773,16 +941,20 @@ MonoBehaviour:
     Model: Bollard
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 784107ec4b8564b5a8554ecacf9d9d21, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: Containers
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -791,16 +963,20 @@ MonoBehaviour:
     Model: Control
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 66a4f2d636fd04faeb2c66ea68492828, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: Crane
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -809,16 +985,20 @@ MonoBehaviour:
     Model: Crates
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 957b72e053a724296a76093d24f8ffa2, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: Derrick
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -827,16 +1007,20 @@ MonoBehaviour:
     Model: Fork
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 0c7375c9e2fc842d3998c479ee555739, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -846,6 +1030,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -855,6 +1041,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -864,6 +1052,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -872,34 +1062,42 @@ MonoBehaviour:
     Model: Shed
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 457c0b4e8da8c4863b576bc40e17ae21, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: Ship
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 81f82078f6656467cac1584d47100257, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: ShipOut
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: bad504d467a2b4abb850a293081b2a21, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: ShipSmoke
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -908,16 +1106,20 @@ MonoBehaviour:
     Model: Tug
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 40c3d2d3f80f44c168365e92b37c3613, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Port
     Model: Wake
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -926,16 +1128,20 @@ MonoBehaviour:
     Model: CoolingTowers
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 4261af6bbfc8d4ee29c83b38d19e2138, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Power
     Model: Fence
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -944,25 +1150,31 @@ MonoBehaviour:
     Model: Hall
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 26217a87744bc4f00a00a30d15e2577f, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Power
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Power
     Model: Pipes
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -971,7 +1183,9 @@ MonoBehaviour:
     Model: Stack
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e53b7e94da7a04371a423d36db81c9f5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -981,6 +1195,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -989,16 +1205,20 @@ MonoBehaviour:
     Model: Tank
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 37e27b128f85047e8a276d4622666595, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Power
     Model: Yard
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1007,7 +1227,9 @@ MonoBehaviour:
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: b05629d189d6549d185d866695385916, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1017,6 +1239,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1026,6 +1250,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1035,6 +1261,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1044,6 +1272,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1053,6 +1283,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1062,6 +1294,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1071,6 +1305,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1080,6 +1316,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1089,6 +1327,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1098,6 +1338,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1107,6 +1349,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1116,6 +1360,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1125,6 +1371,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1133,25 +1381,31 @@ MonoBehaviour:
     Model: Shed
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 457c0b4e8da8c4863b576bc40e17ae21, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Rail
     Model: ShedLamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Rail
     Model: Sleepers
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1161,6 +1415,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1170,6 +1426,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1178,7 +1436,9 @@ MonoBehaviour:
     Model: Col
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: b89d1c60de3f44052bfda88de87ffc38, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1188,6 +1448,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1197,6 +1459,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1205,16 +1469,20 @@ MonoBehaviour:
     Model: Flare
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e53b7e94da7a04371a423d36db81c9f5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Refinery
     Model: Hall
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 74ceec3f712d344378762febae2a12a4, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1223,34 +1491,42 @@ MonoBehaviour:
     Model: Intake
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e8fdb6c4ccf68409e849551caadb09e1, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Refinery
     Model: Lamp
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e39c043244ce948f2a6f07a14e97802e, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Refinery
     Model: Office
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 66a4f2d636fd04faeb2c66ea68492828, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Refinery
     Model: Pad
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1260,6 +1536,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1268,16 +1546,20 @@ MonoBehaviour:
     Model: Shed
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 46384ac42bf6e4dab88185fb5456b1a2, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Refinery
     Model: Smoke
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1287,6 +1569,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1295,7 +1579,9 @@ MonoBehaviour:
     Model: Stack
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e53b7e94da7a04371a423d36db81c9f5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1304,7 +1590,9 @@ MonoBehaviour:
     Model: Tank
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 37e27b128f85047e8a276d4622666595, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1314,15 +1602,19 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 1
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Refinery
     Model: Utils
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1332,6 +1624,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1341,6 +1635,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1350,6 +1646,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1359,6 +1657,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1368,6 +1668,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1377,6 +1679,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1386,6 +1690,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1395,6 +1701,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1404,6 +1712,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1413,6 +1723,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1422,6 +1734,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1431,6 +1745,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1440,6 +1756,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1449,6 +1767,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1458,6 +1778,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1467,6 +1789,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1476,6 +1800,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1485,6 +1811,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1494,6 +1822,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1503,6 +1833,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1512,6 +1844,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1521,6 +1855,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1530,6 +1866,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1539,6 +1877,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1548,6 +1888,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1557,6 +1899,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1566,6 +1910,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1575,6 +1921,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1584,6 +1932,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1593,6 +1943,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1602,6 +1954,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1611,6 +1965,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1620,6 +1976,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1629,6 +1987,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1638,6 +1998,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1647,6 +2009,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1656,6 +2020,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1665,6 +2031,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1674,6 +2042,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1683,6 +2053,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1692,6 +2064,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1701,6 +2075,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1710,6 +2086,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1719,6 +2097,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1728,6 +2108,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1737,6 +2119,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1746,6 +2130,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1755,6 +2141,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1764,6 +2152,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1773,6 +2163,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1782,6 +2174,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1791,6 +2185,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1800,6 +2196,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1809,6 +2207,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1818,6 +2218,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1827,6 +2229,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1836,6 +2240,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1844,25 +2250,31 @@ MonoBehaviour:
     Model: Site.Plant.Col
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: b89d1c60de3f44052bfda88de87ffc38, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Plant.Hall
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 74ceec3f712d344378762febae2a12a4, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Plant.Pad
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1872,6 +2284,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1881,6 +2295,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1889,7 +2305,9 @@ MonoBehaviour:
     Model: Site.Plant.Stack
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e53b7e94da7a04371a423d36db81c9f5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1898,16 +2316,20 @@ MonoBehaviour:
     Model: Site.Plant.Tank
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 37e27b128f85047e8a276d4622666595, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Quarry.Benches
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1917,6 +2339,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1925,43 +2349,53 @@ MonoBehaviour:
     Model: Site.Quarry.Excav
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 03a4e8e284047480b9e16c5fa0599c57, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Quarry.Heap
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 4ab073bcb93b74311baf8b57b61ef5e5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Quarry.Hopper
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e8fdb6c4ccf68409e849551caadb09e1, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Quarry.Shed
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 46384ac42bf6e4dab88185fb5456b1a2, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Store.Gantry
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -1970,43 +2404,53 @@ MonoBehaviour:
     Model: Site.Store.Loader
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 0c7375c9e2fc842d3998c479ee555739, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Store.Pile
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 4ab073bcb93b74311baf8b57b61ef5e5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Store.Shed
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 46384ac42bf6e4dab88185fb5456b1a2, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Store.Silo
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 4261af6bbfc8d4ee29c83b38d19e2138, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: 90, y: 0, z: 0}
   - Group: Sites
     Model: Site.Store.Yard
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2016,6 +2460,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2025,6 +2471,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2034,6 +2482,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2043,6 +2493,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2052,6 +2504,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2061,6 +2515,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2070,6 +2526,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2079,6 +2537,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2088,6 +2548,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2097,6 +2559,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2106,6 +2570,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2115,6 +2581,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2124,6 +2592,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2133,6 +2603,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2142,6 +2614,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2151,6 +2625,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2159,7 +2635,9 @@ MonoBehaviour:
     Model: Rock
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 45087a1f5738a495d9e42b977c7b6275, type: 3}
+    Hide: 0
+    SkipOverBuildings: 1
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2169,6 +2647,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2178,6 +2658,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2187,6 +2669,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2196,6 +2680,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2205,6 +2691,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2214,6 +2702,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2223,6 +2713,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2232,6 +2724,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2241,6 +2735,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2250,6 +2746,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2259,6 +2757,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2268,6 +2768,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2277,6 +2779,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2286,6 +2790,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2295,6 +2801,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2304,6 +2812,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2313,6 +2823,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2322,6 +2834,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2331,6 +2845,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2340,6 +2856,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2349,6 +2867,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2358,6 +2878,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2367,6 +2889,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2376,6 +2900,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2385,6 +2911,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2394,6 +2922,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2403,6 +2933,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2412,6 +2944,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2421,6 +2955,8 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
@@ -2429,43 +2965,53 @@ MonoBehaviour:
     Model: train
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 2e63db15a273a43d8a4fafe25b2436f0, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 90, y: 45, z: 45}
+    Rotation: {x: -0, y: 270, z: 270}
   - Group: Vehicles
     Model: truck_road_cargo
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 711d5abefcef04abe8d269ca785b8a1d, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 90, y: 0, z: 0}
+    Rotation: {x: -0, y: 270, z: 270}
   - Group: Vehicles
     Model: truck_road_ore
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: 48d476d30eede4764914087862270fe2, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0}
+    Rotation: {x: -0, y: 270, z: 270}
   - Group: Vehicles
     Model: wagon
     Island: 0
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: d3ae9092e60994d0c8f2fa26c09cb7ca, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}
-    Rotation: {x: 90, y: 0, z: 0}
+    Rotation: {x: -0, y: 270, z: 270}
   - Group: Refinery
     Model: Stack
     Island: 1
     Phase: 0
-    Replacement: {fileID: 0}
+    Replacement: {fileID: 919132149155446097, guid: e53b7e94da7a04371a423d36db81c9f5, type: 3}
+    Hide: 0
+    SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
     Offset: {x: 0, y: 0, z: 0}

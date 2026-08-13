@@ -395,6 +395,18 @@ namespace Kayseri.IslandTools
                                     GameObjectUtility.GetStaticEditorFlags(tr.gameObject)
                                     & ~StaticEditorFlags.BatchingStatic);
                         }
+                    // And the sea, for the same reason: the exported quad is 736 units across
+                    // against the ~975 the camera reaches at full zoom-out, so CoalOperation.GrowSea
+                    // widens it at boot. Batched, it keeps drawing the 736 the transform no longer
+                    // describes and the player watches the water end in mid-screen.
+                    if (group == "Terrain")
+                        foreach (Transform piece in instance.transform)
+                        {
+                            if (piece.name != "Sea") continue;
+                            GameObjectUtility.SetStaticEditorFlags(piece.gameObject,
+                                GameObjectUtility.GetStaticEditorFlags(piece.gameObject)
+                                & ~StaticEditorFlags.BatchingStatic);
+                        }
                     added++;
                 }
 
@@ -409,6 +421,12 @@ namespace Kayseri.IslandTools
                 // makes the model overrides survive a re-export: everything above rebuilt the phase
                 // from the FBX and threw the old prefab away, so a swap living inside that prefab
                 // would be gone. It lives in IslandModelOverrides instead and is stamped back on.
+                // Before the art swap, because it edits the heightfield the swap then measures
+                // against: the map lays ground over its own railway in places, and the train drives
+                // the exported centreline, so the mounds come off here rather than the rake driving
+                // through them.
+                RailCorridorFlattener.Apply(root, island, phase);
+
                 var overrides = AssetDatabase.LoadAssetAtPath<IslandModelOverrides>(
                     "Assets/Art/KayseriIsland/IslandModelOverrides.asset");
                 if (overrides != null)
@@ -459,6 +477,19 @@ namespace Kayseri.IslandTools
             sun.intensity = 1.6f;
             sun.shadows = LightShadows.Soft;
             sunGo.transform.rotation = Quaternion.Euler(SunEuler);
+
+            // Drives the 45/15 day-night cycle off those two. Looked up by name for the same
+            // reason IslandPhaseController is below: this editor assembly does not reference the
+            // gameplay one.
+            var dayNightType = System.Type.GetType("Game.Gameplay.DayNightCycle, Game.Gameplay");
+            if (dayNightType != null)
+            {
+                var dayNightGo = new GameObject("DayNight");
+                var so = new SerializedObject(dayNightGo.AddComponent(dayNightType));
+                so.FindProperty("_sun").objectReferenceValue = sun;
+                so.FindProperty("_sky").objectReferenceValue = cam;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
 
             var islandRoot = new GameObject("Island");
             var controllerType = System.Type.GetType(

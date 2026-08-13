@@ -25,6 +25,8 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
+    - _DetailScale: 0.35
+    - _DetailStrength: 0.05
     - _Metallic: 0
     - _Saturation: 1.7
     - _Smoothness: 0.92

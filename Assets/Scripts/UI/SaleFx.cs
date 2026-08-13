@@ -42,6 +42,7 @@ namespace Game.UI
 
         private Pop[] _pops;
         private Camera _cam;
+        private Canvas _canvas;
         private int _next;
 
         private void Awake()
@@ -50,9 +51,9 @@ namespace Game.UI
 
             var go = new GameObject("SaleFxCanvas", typeof(Canvas), typeof(CanvasScaler));
             go.transform.SetParent(transform, false);
-            var canvas = go.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 95;   // over the station chips (90), under the HUD (100)
+            _canvas = go.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 95;   // over the station chips (90), under the HUD (100)
             var sc = go.GetComponent<CanvasScaler>();
             sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             sc.referenceResolution = new Vector2(1080f, 1920f);
@@ -186,15 +187,10 @@ namespace Game.UI
             }
         }
 
-        // Screen pixels to canvas units. The scaler matches on 0.5, so this is the geometric mean of the
-        // two axis ratios — the same figure CanvasScaler itself arrives at.
-        private float _canvasScale
-        {
-            get
-            {
-                float x = Screen.width / 1080f, y = Screen.height / 1920f;
-                return Mathf.Sqrt(Mathf.Max(0.0001f, x * y));
-            }
-        }
+        // Screen pixels to canvas units. Read off the scaler rather than recomputed from a reference
+        // resolution written out here: the old copy assumed 1080×1920 portrait, so it was wrong on
+        // every device that is not that, and wrong by more than a factor of two in landscape.
+        private float _canvasScale =>
+            _canvas != null && _canvas.scaleFactor > 0.0001f ? _canvas.scaleFactor : 1f;
     }
 }

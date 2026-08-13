@@ -71,6 +71,14 @@ namespace Game.Gameplay
         // mesh and added. As a centre-to-centre value this was 2.2 against a wagon nearly 8 long,
         // so every car sat three-quarters inside the one in front.
         [SerializeField] private float wagonClearance = 0.6f;
+        [SerializeField] private float tunnelMouthGap = 70f;   // mouths closer than this are one tunnel
+        [SerializeField] private float maxRailLift = 8f;       // a bigger rise is a hillside, not a bump — leave it
+
+        // What the island build names the art stand-in it drops under a vehicle, and what a Kenney
+        // hopper calls the load modelled into it. Spelled out here because IslandModelSwapper, which
+        // writes the first of them, lives in an editor assembly this one cannot reference.
+        private const string VehicleModelChild = "_Model";
+        private const string WagonCargoChild = "cargo";
         // Was 1.13, which stacked 71% of an island's whole upgrade bill into its last ten levels: the
         // fastest way to play was to stop buying around level 36 and just hoard for the next island, so
         // the top of the track was dead. Income only grows ~8% a level, so the price curve has to sit
@@ -186,6 +194,16 @@ namespace Game.Gameplay
         [SerializeField] private float seaScale = 3.4f;
         [SerializeField] private float shipSpeed = 5f;
         [SerializeField] private float shipYawOffset = 0f;     // authored ship meshes may not face +Z
+        // How far out the contract ship waits between visits. It is clamped to the water either way, so
+        // this is the distance it WANTS rather than the one it gets on a cramped island.
+        [SerializeField] private float shipHorizonDistance = 200f;
+        // Open water between the quay and the moored hull. The berth is pushed out past the harbour's own
+        // footprint by this much again, so the ship lies alongside the port instead of through it.
+        [SerializeField] private float berthClearance = 6f;
+        [Tooltip("Gemi limana yanaşınca çalan korna. Boş bırakılırsa kod bir korna üretir — gerçek bir " +
+                 "kayıt buraya sürüklenince onun yerine o çalar.")]
+        [SerializeField] private AudioClip shipHornClip;
+        [SerializeField, Range(0f, 2f)] private float shipHornVolume = 0.7f;
         // Extra correction for a vehicle mesh that faces somewhere unusual. The standard export is
         // handled without it - see _vehicleNoseYaw - so this is 0 on every island we ship and only
         // exists for an asset that does not come out of the generator.
@@ -194,7 +212,10 @@ namespace Game.Gameplay
         // whole body round in one frame at every junction. It turns at a rate now, and aims at a point
         // further down the road rather than at the next vertex, so it starts leaning into a corner
         // before it reaches it.
-        [SerializeField] private float vehicleTurnRate = 170f;    // degrees per second
+        [SerializeField] private float vehicleTurnRate = 170f;    // degrees per second — the ceiling
+        [SerializeField] private float vehicleTurnSmooth = 5f;    // how briskly it eases onto a heading
+        [SerializeField] private Color oreTruckColor = new Color(0.93f, 0.55f, 0.13f);    // works amber
+        [SerializeField] private Color cargoTruckColor = new Color(0.22f, 0.45f, 0.72f);  // haulage blue
         [SerializeField] private float vehicleLookAhead = 7f;     // metres down the route
         // The model's upright pose. Identity on the generated islands, whose vehicles are authored
         // in Unity space already; the -90 pitch of the FBX conversion on the authored ones.
@@ -432,6 +453,37 @@ namespace Game.Gameplay
         private struct Ship { public Transform t; public Vector3 pier, sea; public float prog, dwell, phase; public bool toSea; }
         private readonly List<Ship> _ships = new List<Ship>();
         private float _waterY;
+
+        // ---- the contract ship: the first authored hull, pulled out of the shuttle and driven by the
+        //      port contract instead. It sails in from beyond the sea lane, moors while the job runs, and
+        //      leaves once it is settled. Every island reads the same service, so the visit shows at
+        //      whichever port the player is standing at.
+        private const string ContractShipName = "Port.ShipOut";
+        private Transform _contractShip;
+        private Vector3 _contractMoor, _contractHorizon;
+        private Vector3 _contractHeading;   // last heading it actually moved along, so a moored hull holds its bearing
+        private Vector3 _portBadgeAt;       // where the port badge floats — over the harbour itself
+        private bool _contractAuthoredRig;  // the hull came from the Port district, so it wears the -X-nose rig
+        private bool _snapShip = true;      // the island was just travelled to: put the hull where it belongs, don't sail it there
+        private ContractService _contract;
+        // The Port district is authored once per phase, in a DIFFERENT place each time — phase 1's quay is
+        // not phase 2's. So the berth is measured off whichever one is currently on show, and re-measured
+        // when the port rebuilds; these are the three candidates, cached so the check is an activeSelf
+        // read per frame rather than a name lookup.
+        private Transform[] _portGroups;
+        private Transform _portDistrict;    // the one the berth currently belongs to
+        private float _contractHullHalf;    // half the hull's LENGTH — the margin it needs at sea
+        private float _contractBeamHalf;    // half its WIDTH — the margin it needs alongside a quay
+        private Vector3 _contractAlong;     // the bearing it holds while berthed: broadside to the quay
+        private bool _contractShipShown = true;
+        private ContractService.PortState _lastPortState;
+        private AudioSource _hornSource;
+        private Bounds _seaBounds;          // the water the ship may not sail off the edge of
+        private bool _haveSea;
+
+        // Built once and shared by every island, because eight copies of the same two seconds of sine is
+        // 1.5 MB of nothing. Unity's null check also catches it having been destroyed by a domain reload.
+        private static AudioClip _hornClip;
         private Vector3 _landCentre;     // island footprint, inset — the area a shoved building may use
         private float _landHalfX, _landHalfZ;
         private Vector3 _mineRow;        // direction the back row of mines extends in (zero until arranged)
@@ -447,11 +499,14 @@ namespace Game.Gameplay
         private WalletService _wallet;
         private PrestigeService _prestige;
         private BoostService _boost;
+        private AudioService _audio;
         private double _boostMult = 1d;    // rewarded-ad multiplier, refreshed once a second
         private double _prestigeMult = 1d; // investors: multiplies the sale, and lifts the ceiling with it
         private float _deckY;              // ground height every vehicle drives at
         private SaveData _data;
         private Material _oreMat, _barMat, _ghostMat, _srcMat;
+        private Material _oreTruckMat, _cargoTruckMat;   // one livery per route, shared by its fleet
+        private readonly VehicleWheels _wheels = new VehicleWheels();
 
         // ---- income meter ($ earned per trailing minute) ----
         private readonly double[] _minuteBuckets = new double[60];
@@ -516,6 +571,7 @@ namespace Game.Gameplay
             public float engineY;           // the imported rig's own height — the generated island's rail bed
             public Vector3[] path;          // [0]=mountain gate … [n-1]=storage gate
             public float[] cum;             // cumulative arc length along path, so the rake can be spaced by distance
+            public float[] coverFrom, coverTo;   // stretches where the line runs under a hill; a car in one is not drawn
             public float dist;              // the engine's distance along the path
             public float headGap, carGap;   // engine→first wagon, then wagon→wagon, centre to centre
             public float locoLen, carLen;   // measured off the meshes — also how far a car reaches past its centre
@@ -564,7 +620,6 @@ namespace Game.Gameplay
         {
             public Transform body;
             public GameObject load;
-            public float y;
             public Vector3[] loop;
             public int wp;
             public int loadIdx, dropIdx, idleIdx;
@@ -609,6 +664,8 @@ namespace Game.Gameplay
         /// its districts on a turntable and reads how far a building is from its next rebuild.</summary>
         public Kayseri.Island.IslandPhaseController Phases => _phases;
         public string PowerPlantName => OreWord + " POWER PLANT";
+        /// <summary>"COAL", "IRON" … what this island's units are called on a contract card.</summary>
+        public string OreName => OreWord;
         private string OreWord => islandKey.ToUpperInvariant();
         public int StationCount => StationList.Length;
         public string StationName(int s) => StationList[s];
@@ -640,6 +697,17 @@ namespace Game.Gameplay
         /// no phase controller at all. The controller's by-name overload calls straight through.
         /// </summary>
         public int PhaseForStation(int s) => Ec.PhaseForStation(s);
+
+        /// <summary>
+        /// World point the port badge floats over: the berth the contract ship moors at. False on an
+        /// island whose harbour never built — one with no authored hulls — so no badge is ever drawn
+        /// over open grass.
+        /// </summary>
+        public bool PortAnchor(out Vector3 world)
+        {
+            world = _portBadgeAt;
+            return _contractShip != null;
+        }
 
         /// <summary>
         /// World point a floating station badge should hover over — the top of the station's silhouette.
@@ -891,6 +959,8 @@ namespace Game.Gameplay
             _wallet = ServiceLocator.Get<WalletService>();
             _prestige = ServiceLocator.Get<PrestigeService>();
             _boost = ServiceLocator.Get<BoostService>();
+            _contract = ServiceLocator.Get<ContractService>();
+            _audio = ServiceLocator.Get<AudioService>();
             _data = ServiceLocator.Get<SaveData>();
             LoadLevels();
             WarmStart();
@@ -963,6 +1033,12 @@ namespace Game.Gameplay
                 PlanRails();
                 PlanRoads();       // yards were placed on the spine by ArrangeChain, so the plan is final
             }
+            else
+            {
+                // None of the layout passes touch a modelled map — but its sea is a quad barely wider
+                // than the island itself, and the camera can see well past the edge of it.
+                GrowSea();
+            }
 
             // After the yards move (so expansions never land on one) and before the dock / fourth-mine
             // lookups, which resolve buildings this may have just created.
@@ -1011,6 +1087,10 @@ namespace Game.Gameplay
             BuildTruckAgents();
             if (Authored) PruneUnusedVehicles();
             BuildSiteDressing();     // needs the rail paths the trains just resolved
+            // After the dressing, which is where a GENERATED island's harbour is built and claims its
+            // hull. An authored island's dressing pass returns early — it models its own harbour — so
+            // this is the call that finds the ship there, and it has to sit outside that pass.
+            BuildContractShip();
             if (Authored)
             {
                 AuthoredTunnel(_train1, "1"); AuthoredTunnel(_train2, "2");
@@ -1032,6 +1112,12 @@ namespace Game.Gameplay
         private void Update() { if (_ready) Tick(Time.deltaTime); }
 
         /// <summary>
+        /// Travelling here re-enables this island after however long. The contract ship may have sailed a
+        /// whole visit in the meantime, so it is put where the port says it is rather than sailed there.
+        /// </summary>
+        private void OnEnable() { _snapShip = true; }
+
+        /// <summary>
         /// One frame of the whole island. The order follows the ore's own journey — trains deliver into
         /// storage, trucks move it on, the smelter converts what arrived, then the visuals and the income
         /// meter catch up on the result. Running it in this order means ore delivered this frame can be
@@ -1048,8 +1134,16 @@ namespace Game.Gameplay
             for (int i = 0; i < _agents.Length; i++) if (_agents[i].active) TruckTick(_agents[i], dt);
             Smelt(dt);
             UpdateHeaps();
+            // After everything that moves a vehicle this frame, so the wheels roll by the distance
+            // actually covered rather than last frame's.
+            _wheels.Tick();
             TickPunch(dt);
             TickLife(dt);
+            // Outside TickLife's harbour pass on purpose: that one is gated on the island having site
+            // life at all, and the contract ship is not decoration — it is the port contract's state
+            // made visible, and it has to sail on every island that has a hull for it.
+            PlaceContractShip(_snapShip);
+            _snapShip = false;
             TickIncome(dt);
         }
 
@@ -1093,12 +1187,7 @@ namespace Game.Gameplay
                         if (a.wagonFull[k] == a.wagonFull[i]) { a.wagonEmpty[i] = a.wagonEmpty[k]; break; }
                     if (a.wagonEmpty[i] == null) a.wagonEmpty[i] = EmptyHopper(a.wagonFull[i]);
                 }
-                Bounds wb = BodyBox(a.wagons[i]);
-                // Centred, unlike a hauler: a wagon is a box on bogies with no cab to work round.
-                a.wagonOre[i] = MakeLoad(a.wagons[i], _oreMat, true,
-                                         new Vector3(wb.center.x, wb.min.z + 0.74f * wb.size.z, 0f),
-                                         new Vector3(0.74f * wb.size.x, 0.34f * wb.size.z,
-                                                     0.66f * wb.size.y));
+                a.wagonOre[i] = WagonLoad(a.wagons[i]);
             }
 
             // Couplings from the models' own lengths. A constant cannot serve both the authored
@@ -1126,6 +1215,12 @@ namespace Game.Gameplay
                 // other way down the same rails, and its shed is not this one.
                 if (d > a.doorDist * 0.6f) a.doorDist = d;
             }
+
+            BuildTunnelCover(a);
+            ExtendCoverThroughHillsides(a);
+
+            _wheels.Add(engine, VehicleModelChild);
+            for (int i = 0; i < a.wagons.Length; i++) _wheels.Add(a.wagons[i], VehicleModelChild);
 
             SetTrainVisible(a, false);
             a.state = TR.LoadMountain; a.timer = dwellSeconds;
@@ -1276,7 +1371,14 @@ namespace Game.Gameplay
                 _vehicleBaseRot = Quaternion.Euler(-90f, 0f, 0f);
                 _vehicleNoseYaw = 90f;
 
-                for (int i = 0; i < move.Count; i++) move[i].SetParent(_islandRoot, true);
+                // Before anything measures a vehicle: couplings, cargo placement and the rail path all
+                // read a body's box, and a stand-in cut for the prefab rather than for this scene puts
+                // the wrong number into every one of them.
+                for (int i = 0; i < move.Count; i++)
+                {
+                    FitVehicleModel(move[i]);
+                    move[i].SetParent(_islandRoot, true);
+                }
                 vehicles.gameObject.SetActive(false);
             }
             else
@@ -1600,10 +1702,195 @@ namespace Game.Gameplay
         /// the tunnel it is under cover, and drawing it there is what used to run the train out
         /// beyond the end of the rails.
         /// </summary>
+        /// <summary>Whether this point on the line is inside a hill, and so not to be drawn.</summary>
+        private static bool UnderCover(TrainAgent a, float d)
+        {
+            if (a.coverFrom == null) return false;
+            for (int i = 0; i < a.coverFrom.Length; i++)
+                if (d > a.coverFrom[i] && d < a.coverTo[i]) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Finds the stretches of line that run under a hill, from the tunnel mouths the map authored.
+        ///
+        /// The rails are not laid on the surface the whole way: on Gold the line dives under a ridge for
+        /// 52 metres with up to 35 metres of hillside over it, and the train drove straight through the
+        /// rock in plain sight, because the only two places a car stopped being drawn were the ends.
+        ///
+        /// The map already marks these — Rail.PortalIn/PortalOut, a 50-metre arch at each mouth. They
+        /// are not reliably paired by their numbering (the ridge on Gold is bracketed by Out0 and In1),
+        /// so mouths are clustered by distance along the line instead: mouths closer together than
+        /// <see cref="tunnelMouthGap"/> belong to one tunnel, and a lone mouth is a decoration rather
+        /// than a bore. The two end doors are left out — doorDist already covers those.
+        /// </summary>
+        private void BuildTunnelCover(TrainAgent a)
+        {
+            var mouths = new List<float>();
+            float total = a.cum[a.cum.Length - 1];
+
+            // One entry per portal, taken by NAME rather than by what is switched on.
+            //
+            // All three phase roots stay active — the controller swaps districts inside them — so
+            // walking them yields the same mouth three times, and pairing those triples against each
+            // other invents tunnels a few metres long where there is only one arch. Each phase names
+            // its copy identically, and the copies stand within a few metres of one another, so the
+            // first of each name is the mouth. This also does not care whether the phase controller
+            // has run yet, which at Start is not guaranteed.
+            var seen = new List<Transform>();
+            var named = new HashSet<string>();
+            for (int p = 0; p < _islandRoot.childCount; p++)
+            {
+                Transform rail = _islandRoot.GetChild(p).Find("Rail");
+                if (rail == null) continue;
+                foreach (Transform o in rail)
+                {
+                    if (o.name.IndexOf("Portal", System.StringComparison.Ordinal) < 0) continue;
+                    if (!named.Add(o.name)) continue;
+                    seen.Add(o);
+                }
+            }
+            var names = new List<string>();
+            for (int i = 0; i < seen.Count; i++)
+            {
+                Bounds? b = MouthBox(seen[i]);
+                if (b == null) continue;
+                float d = NearestDist(a, b.Value.center);
+                // The doors at either end are the train's own shed and terminal portal, and doorDist
+                // already covers those. The margin is deliberately small: on Gold the ridge's far
+                // mouth stands only 42 m short of the terminal, and a generous end margin swallowed
+                // the tunnel along with the door.
+                const float endDoor = 25f;
+                if (d < endDoor || d > total - endDoor) continue;
+                mouths.Add(d);
+                names.Add(seen[i].name);
+            }
+
+            // Sorted together — the name has to follow its distance into the clustering below.
+            for (int i = 1; i < mouths.Count; i++)
+                for (int k = i; k > 0 && mouths[k] < mouths[k - 1]; k--)
+                {
+                    float fd = mouths[k]; mouths[k] = mouths[k - 1]; mouths[k - 1] = fd;
+                    string sn = names[k]; names[k] = names[k - 1]; names[k - 1] = sn;
+                }
+
+            var from = new List<float>();
+            var to = new List<float>();
+            var lone = new HashSet<string>();
+            int start = 0;
+            for (int i = 1; i <= mouths.Count; i++)
+            {
+                bool split = i == mouths.Count || mouths[i] - mouths[i - 1] > tunnelMouthGap;
+                if (!split) continue;
+                if (i - start >= 2) { from.Add(mouths[start]); to.Add(mouths[i - 1]); }
+                else lone.Add(names[start]);   // one mouth on its own is an arch with no hill behind it
+                start = i;
+            }
+            a.coverFrom = from.ToArray();
+            a.coverTo = to.ToArray();
+            for (int i = 0; i < from.Count; i++)
+                Debug.Log("[Island] " + islandKey + ": rail runs under cover from "
+                          + from[i].ToString("F0") + "m to " + to[i].ToString("F0") + "m.");
+
+            // A tunnel needs two ends. A mouth standing by itself has no bore behind it, so the train
+            // ran out through a free-standing arch into open ground — the map dresses the line with
+            // portals it never digs. Those come down, and every phase's copy of them, or the island
+            // would grow the arch back on the next upgrade.
+            if (lone.Count == 0) return;
+            for (int p = 0; p < _islandRoot.childCount; p++)
+            {
+                Transform rail = _islandRoot.GetChild(p).Find("Rail");
+                if (rail == null) continue;
+                foreach (Transform o in rail)
+                {
+                    if (!lone.Contains(o.name)) continue;
+                    var rends = o.GetComponentsInChildren<Renderer>(true);
+                    for (int r = 0; r < rends.Length; r++) rends[r].enabled = false;
+                }
+            }
+            foreach (string n in lone)
+                Debug.Log("[Island] " + islandKey + ": removed free-standing rail portal '" + n + "'.");
+        }
+
+        /// <summary>
+        /// Stretches a tunnel's cover to the end of the hillside it runs under.
+        ///
+        /// A hill does not stop dead at its arch: past the mouth the ground still stands over the rails
+        /// for a few metres while the bore carries on. Cover cut to the mouths alone let the rake pop
+        /// out of the portal still buried to the axles.
+        ///
+        /// Only genuine hillside counts — a rise over <see cref="maxRailLift"/>. Anything shallower is
+        /// a mound sitting on the line, which is the map's mistake and is taken off the terrain itself
+        /// by RailCorridorFlattener rather than being driven over or hidden behind.
+        ///
+        /// The collider is built for this and dropped again: a load-time question asked once per
+        /// island, and nothing else here wants physics.
+        /// </summary>
+        private void ExtendCoverThroughHillsides(TrainAgent a)
+        {
+            if (a.coverFrom == null || a.coverFrom.Length == 0) return;
+            Transform ground = null;
+            for (int p = 0; p < _islandRoot.childCount; p++)
+            {
+                Transform terrain = _islandRoot.GetChild(p).Find("Terrain");
+                if (terrain == null) continue;
+                Transform g = terrain.Find("Ground");
+                if (g == null || g.GetComponent<MeshFilter>() == null) continue;
+                ground = g;
+                if (g.gameObject.activeInHierarchy) break;   // prefer the phase actually on show
+            }
+            if (ground == null) return;
+
+            var mc = ground.GetComponent<MeshCollider>();
+            bool borrowed = mc == null;
+            if (borrowed) mc = ground.gameObject.AddComponent<MeshCollider>();
+
+            var deep = new List<float>();
+            for (int i = 0; i < a.path.Length; i++)
+            {
+                if (UnderCover(a, a.cum[i])) continue;
+                RaycastHit hit;
+                if (!mc.Raycast(new Ray(a.path[i] + Vector3.up * 200f, Vector3.down), out hit, 400f)) continue;
+                if (hit.point.y - a.path[i].y > maxRailLift) deep.Add(a.cum[i]);
+            }
+
+            if (borrowed) Destroy(mc);
+
+            for (int k = 0; k < deep.Count; k++)
+            {
+                float d = deep[k];
+                int best = -1;
+                float bestGap = float.MaxValue;
+                for (int s = 0; s < a.coverFrom.Length; s++)
+                {
+                    float gap = d < a.coverFrom[s] ? a.coverFrom[s] - d
+                              : d > a.coverTo[s] ? d - a.coverTo[s] : 0f;
+                    if (gap < bestGap) { bestGap = gap; best = s; }
+                }
+                if (best < 0 || bestGap > 40f) continue;   // too far from any bore to be its slope
+                if (d < a.coverFrom[best]) a.coverFrom[best] = d - 2f;
+                else if (d > a.coverTo[best]) a.coverTo[best] = d + 2f;
+            }
+        }
+
+        private static Bounds? MouthBox(Transform t)
+        {
+            var rends = t.GetComponentsInChildren<Renderer>(true);
+            Bounds b = default;
+            bool any = false;
+            for (int i = 0; i < rends.Length; i++)
+            {
+                if (rends[i] is ParticleSystemRenderer) continue;
+                if (!any) { b = rends[i].bounds; any = true; }
+                else b.Encapsulate(rends[i].bounds);
+            }
+            return any ? b : (Bounds?)null;
+        }
+
         private void PlaceCar(TrainAgent a, Transform car, float d, float len, float sign)
         {
             float half = len * 0.5f;
-            bool show = a.visible && d > -half && d < a.doorDist + half;
+            bool show = a.visible && d > -half && d < a.doorDist + half && !UnderCover(a, d);
             if (car.gameObject.activeSelf != show) car.gameObject.SetActive(show);
             if (!show) return;
             Vector3 front = PathAt(a, d + half), rear = PathAt(a, d - half);
@@ -1657,6 +1944,38 @@ namespace Game.Gameplay
                 Mesh want = on ? a.wagonFull[i] : a.wagonEmpty[i];
                 if (a.wagonSkin[i].sharedMesh != want) a.wagonSkin[i].sharedMesh = want;
             }
+        }
+
+        /// <summary>
+        /// The heap a loaded wagon shows, switched off — <see cref="SetWagonOre"/> turns it on per leg.
+        ///
+        /// A Kenney hopper brings its own load mesh, modelled to sit in that exact wagon. Using it
+        /// beats building a block out of the wagon's box: it already fits and it is already in the
+        /// right place, so the wagon reads as an empty hopper that fills rather than a slab hovering
+        /// over a flat bed. All it needs is recolouring, because the one mesh has to read as coal on
+        /// one island and gold on the next — which is what _oreMat is for.
+        ///
+        /// A wagon without one — a generated island's, or a flat-bedded stand-in — still gets the
+        /// built block.
+        /// </summary>
+        private GameObject WagonLoad(Transform wagon)
+        {
+            var all = wagon.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i].name != WagonCargoChild) continue;
+                var rend = all[i].GetComponent<Renderer>();
+                // Assigns a different material to this renderer; it does not touch the Kenney one.
+                if (rend != null) rend.sharedMaterial = _oreMat;
+                all[i].gameObject.SetActive(false);
+                return all[i].gameObject;
+            }
+
+            Bounds wb = BodyBox(wagon);
+            // Centred, unlike a hauler: a wagon is a box on bogies with no cab to work round.
+            return MakeLoad(wagon, _oreMat, true,
+                            new Vector3(wb.center.x, wb.min.z + 0.74f * wb.size.z, 0f),
+                            new Vector3(0.74f * wb.size.x, 0.34f * wb.size.z, 0.66f * wb.size.y));
         }
 
         /// <summary>
@@ -1803,7 +2122,6 @@ namespace Game.Gameplay
                     var a = new TruckAgent
                     {
                         body = body,
-                        y = truckTemplate.position.y,
                         loop = loop.ToArray(),
                         wp = NearestIndex(loop, body.position),
                         loadIdx = (load - shift % n + n) % n,
@@ -1828,6 +2146,11 @@ namespace Game.Gameplay
                     }
                     a.loopLen = run + Flat(a.loop[0] - a.loop[a.loop.Length - 1]).magnitude;
 
+                    PaintFleet(body, a.route);
+                    _wheels.Add(body, VehicleModelChild);
+
+                    // After the paint, so origMats holds the livery. SetTruckGhost restores from here
+                    // when a truck is unlocked, and restoring the factory white would undo it.
                     var rends = body.GetComponentsInChildren<Renderer>(true);
                     a.rends = rends;
                     a.origMats = new Material[rends.Length][];
@@ -1869,25 +2192,66 @@ namespace Game.Gameplay
                     a.active = true;
                     SetTruckGhost(a, false);
                     a.body.gameObject.SetActive(true);
-                    Vector3 p = a.loop[a.idleIdx]; p.y = a.y;
-                    a.body.position = p;
+                    // Straight onto the waypoint, its own height included. This used to force a
+                    // single height on every truck of the route — the one the map happened to park
+                    // first — so a truck coming out of the depot onto a climbing arterial was set
+                    // down up to three metres into the tarmac, and a truck with nothing to haul sat
+                    // there sunk for as long as it idled. The loop carries the road's own profile,
+                    // which is what DriveLoop reads across a segment anyway.
+                    a.body.position = a.loop[a.idleIdx];
                     a.wp = a.idleIdx; a.state = TK.ToIdle; a.carry = 0d;
-                    Show(a.load, false);
-                }
-                else if (a.slot == count)   // next truck to buy: ghosted in the depot bay
-                {
-                    a.active = false;
-                    SetTruckGhost(a, true);
-                    a.body.gameObject.SetActive(true);
-                    a.body.position = new Vector3(a.bayPos.x, a.y, a.bayPos.z);
-                    a.body.rotation = a.bayRot;
                     Show(a.load, false);
                 }
                 else
                 {
+                    // Every truck the player has not bought yet is off the map.
+                    //
+                    // The one next in line used to be stood in a depot bay as a ghost, to advertise
+                    // itself. It never read that way: an agent that is not active is never ticked, so
+                    // it sat motionless on the tarmac looking exactly like a truck that had broken
+                    // down, and on Gold its bay is on the haul road itself.
                     a.active = false;
                     a.body.gameObject.SetActive(false);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Puts the fleet's colours on a truck's bodywork.
+        ///
+        /// The Kenney haulers arrive factory white — a white flatbed on a sand island reads as a toy,
+        /// and an ore truck is indistinguishable from a cargo one at a glance. Tinting rather than
+        /// swapping the model keeps the flat bed, which the load on the deck needs to sit on, and keeps
+        /// the colormap texture: the tint multiplies it, so the panels take the livery while the tyres,
+        /// glass and lamps stay dark.
+        ///
+        /// One material per route, made once and shared by every truck on it, so this costs no extra
+        /// draw calls. The wheels are left alone — a coloured tyre reads as a bug.
+        /// </summary>
+        private void PaintFleet(Transform body, Route route)
+        {
+            bool ore = route == Route.Ore;
+            Material livery = ore ? _oreTruckMat : _cargoTruckMat;
+            if (livery == null)
+            {
+                var rends = body.GetComponentsInChildren<Renderer>(true);
+                Material baseMat = null;
+                for (int i = 0; i < rends.Length; i++)
+                    if (rends[i].enabled && rends[i].sharedMaterial != null) { baseMat = rends[i].sharedMaterial; break; }
+                if (baseMat == null) return;
+
+                livery = new Material(baseMat) { name = (ore ? "TruckLivery_Ore" : "TruckLivery_Cargo") };
+                if (livery.HasProperty("_BaseColor")) livery.SetColor("_BaseColor", ore ? oreTruckColor : cargoTruckColor);
+                else if (livery.HasProperty("_Color")) livery.SetColor("_Color", ore ? oreTruckColor : cargoTruckColor);
+                if (ore) _oreTruckMat = livery; else _cargoTruckMat = livery;
+            }
+
+            foreach (var r in body.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!r.enabled) continue;                                   // the hidden authored body
+                if (r.gameObject.name.StartsWith("wheel", System.StringComparison.Ordinal)) continue;
+                if (r.gameObject.name == "OpLoad") continue;                // the cargo has its own
+                r.sharedMaterial = livery;
             }
         }
 
@@ -2411,10 +2775,21 @@ namespace Game.Gameplay
             // Aim down the road rather than at the vertex being driven to, then turn toward it at a
             // fixed rate. Snapping straight to the segment direction spun the body 90 degrees in one
             // frame at every junction.
-            Vector3 aim = LoopLookAhead(a, pos, vehicleLookAhead);
+            // Look further down the road the faster it is going, the way a driver does. A fixed
+            // look-ahead makes a fast truck cut late and hard into a bend and a slow one wander.
+            float speed = (a.route == Route.Ore ? EffOreSpeed : EffCargoSpeed);
+            Vector3 aim = LoopLookAhead(a, pos, vehicleLookAhead * Mathf.Clamp(speed / 20f, 0.6f, 2f));
             if (aim.sqrMagnitude > 1e-4f) dir = aim.normalized;
-            a.body.rotation = Quaternion.RotateTowards(a.body.rotation, VehicleFacing(dir),
-                                                       vehicleTurnRate * dt);
+
+            // Eased toward the heading rather than driven at it flat out. RotateTowards alone turns at
+            // one rate and then stops dead on arrival, which reads as a turret rather than a lorry:
+            // the wheel goes over instantly, holds, and centres instantly. The exponential approach
+            // gives the turn-in and the straightening-out, and RotateTowards then survives as what it
+            // is actually good for — a ceiling on how fast the thing may ever swing.
+            Quaternion want = VehicleFacing(dir);
+            Quaternion eased = Quaternion.Slerp(a.body.rotation, want,
+                                                1f - Mathf.Exp(-vehicleTurnSmooth * dt));
+            a.body.rotation = Quaternion.RotateTowards(a.body.rotation, eased, vehicleTurnRate * dt);
             return arrived;
         }
 
@@ -2447,6 +2822,12 @@ namespace Game.Gameplay
             if (room <= 0d) return;
             double amt = System.Math.Min(System.Math.Min(_refOre, EffSmelt * dt), room);
             _refOre -= amt; _bars += amt;
+
+            // What the port contract counts. The furnace is the one number the player's upgrades visibly
+            // move, and every island reports into the same job, so a contract signed here keeps filling
+            // while they are away working another island.
+            if (_contract != null) _contract.ReportProcessed(amt);
+
             // Remember that the furnace ran. _refOre is an input buffer that trucks fill and Smelt drains
             // in the same frame, so testing it directly made the smoke stack cough once per delivery
             // instead of running continuously. This keeps it lit for a moment after each conversion.
@@ -2968,12 +3349,16 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// Widens the lagoon so the sea runs past the edge of the frame.
+        /// Widens the water so the sea runs past the edge of the frame.
         ///
         /// The authored water disc is barely bigger than the island it surrounds, so at any zoom that
         /// showed the whole site the sea ran out and the rest of the screen was flat background — the
         /// island read as a model on a table rather than as somewhere. Only the water is touched: the land
         /// ellipse has already been measured, so nothing downstream thinks it has more room to build on.
+        ///
+        /// The two island shapes carry their water differently. A generated island has a lagoon disc at
+        /// the root; a modelled one has a flat Sea quad per phase, 736 units across against the 974 the
+        /// camera reaches at full zoom-out and full pan — which is the void the player used to see.
         /// </summary>
         private void GrowSea()
         {
@@ -2987,6 +3372,20 @@ namespace Game.Gameplay
                 Vector3 p = t.position;
                 t.position = new Vector3(_landCentre.x + (p.x - _landCentre.x) * seaScale, p.y,
                                          _landCentre.z + (p.z - _landCentre.z) * seaScale);
+            }
+
+            // Inactive phases included: the player builds through them, and each phase brings its own
+            // water. The quad is pivoted on the island centre, so it widens in place.
+            var filters = _islandRoot.GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < filters.Length; i++)
+            {
+                if (filters[i].name != "Sea" || filters[i].sharedMesh == null) continue;
+                Transform t = filters[i].transform;
+                Vector3 s = t.localScale, e = filters[i].sharedMesh.bounds.size;
+                // Flat along one local axis: widen the other two, so the water level itself is untouched.
+                if (e.x <= e.y && e.x <= e.z) t.localScale = new Vector3(s.x, s.y * seaScale, s.z * seaScale);
+                else if (e.y <= e.z) t.localScale = new Vector3(s.x * seaScale, s.y, s.z * seaScale);
+                else t.localScale = new Vector3(s.x * seaScale, s.y * seaScale, s.z);
             }
         }
 
@@ -3663,24 +4062,107 @@ namespace Game.Gameplay
         private static float DeckAlong(Bounds bb) => bb.max.x - 0.36f * bb.size.x;
 
         /// <summary>
-        /// How long a vehicle is along the track: the longest of its own mesh's extents, since a
-        /// loco or a wagon is always longer than it is wide or tall. Taken from the mesh rather
-        /// than the world bounds because the world box is an AABB — on a curve it reports the
-        /// diagonal, not the length.
+        /// The box some of a vehicle's meshes fill, in the body's own local units.
+        ///
+        /// The same corner walk as <see cref="BodyBox"/> and the same OpLoad exclusion, but it stops
+        /// short of multiplying by the body's scale — the caller is writing localPosition and
+        /// localScale, which are already in these units. <paramref name="inside"/> picks which side of
+        /// <paramref name="subtree"/> to measure, so one pass can weigh the art stand-in and the next
+        /// the body it has to fit.
+        /// </summary>
+        private static bool LocalBox(Transform body, Transform subtree, bool inside, out Bounds box)
+        {
+            var lo = Vector3.one * float.MaxValue;
+            var hi = -lo;
+            bool any = false;
+            var filters = body.GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < filters.Length; i++)
+            {
+                Mesh m = filters[i].sharedMesh;
+                if (m == null || filters[i].gameObject.name == "OpLoad") continue;
+                if (filters[i].transform.IsChildOf(subtree) != inside) continue;
+                Bounds mb = m.bounds;
+                for (int k = 0; k < 8; k++)
+                {
+                    var corner = new Vector3(
+                        (k & 1) == 0 ? mb.min.x : mb.max.x,
+                        (k & 2) == 0 ? mb.min.y : mb.max.y,
+                        (k & 4) == 0 ? mb.min.z : mb.max.z);
+                    Vector3 p = body.InverseTransformPoint(filters[i].transform.TransformPoint(corner));
+                    lo = Vector3.Min(lo, p);
+                    hi = Vector3.Max(hi, p);
+                }
+                any = true;
+            }
+            box = new Bounds();
+            if (any) box.SetMinMax(lo, hi);
+            return any;
+        }
+
+        /// <summary>
+        /// Sizes a vehicle's art stand-in to the vehicle as the SCENE has it.
+        ///
+        /// The phase prefabs carry a Kenney model under each vehicle, scaled when the map was built to
+        /// the body the prefab had. Main.unity then overrides some of that rolling stock by hand — the
+        /// README says as much, the rig was stripped on export and put back by hand — and Gold's engine
+        /// is a different mesh at a scale of 3 where the prefab has 100. A stand-in carrying a scale
+        /// cut for the prefab then draws at a fortieth of the body it stands for: a 38-centimetre
+        /// locomotive. Nothing at build time can see that override, so the fit is taken again here,
+        /// off the body's own mesh, once, before anything measures a vehicle.
+        ///
+        /// Matched on the diagonal for the same reason the map builder matches on it — the stand-in and
+        /// the body rarely agree about which axis is the long one.
+        /// </summary>
+        private static void FitVehicleModel(Transform body)
+        {
+            Transform model = body != null ? body.Find(VehicleModelChild) : null;
+            if (model == null) return;
+
+            model.localScale = Vector3.one;
+            model.localPosition = Vector3.zero;
+
+            Bounds own, art;
+            if (!LocalBox(body, model, false, out own)) return;   // nothing of its own to stand in for
+            if (!LocalBox(body, model, true, out art)) return;
+            if (art.size.magnitude < 1e-5f || own.size.magnitude < 1e-5f) return;
+
+            model.localScale = Vector3.one * (own.size.magnitude / art.size.magnitude);
+            if (!LocalBox(body, model, true, out art)) return;
+
+            // Stood on the body's PIVOT, not on the body's own mesh box.
+            //
+            // The pivot is what the rig drives: PlaceCar sets it on the rail centreline and TruckTick
+            // on the road's, and every authored vehicle is modelled around it — box centred across and
+            // along, floor at zero. Only the SIZE can be read off the body's mesh, and only because a
+            // diagonal does not care which axis is which.
+            //
+            // Placement cannot. It would have to assume the mesh keeps Blender's Z-up axes, and the
+            // rolling stock put back into Main.unity by hand does not: Gold's engine is a Y-up model
+            // whose box reads 1.9 "tall" across the track and 3.4 "long" straight down. Believing it
+            // parked the locomotive 2.8 m to one side of the rails and 5.1 m beneath them.
+            model.localPosition -= new Vector3(art.center.x, art.center.y, art.min.z);
+        }
+
+        /// <summary>
+        /// How long a vehicle is along the track: the longest extent of the body's own box, since a
+        /// loco or a wagon is always longer than it is wide or tall. Measured in the body's frame
+        /// rather than from world bounds because the world box is an AABB — on a curve it reports
+        /// the diagonal, not the length.
+        ///
+        /// This used to walk the mesh bounds itself and scale the biggest by the BODY's scale. That
+        /// silently assumed every mesh under a vehicle is drawn at the body's own scale, which stopped
+        /// being true the moment the map started carrying an art stand-in: the Kenney wagon's mesh is
+        /// 2.7 units long and rides at a localScale of 0.045, so the old sum came out as 2.7 × 76 and
+        /// declared a 9-metre wagon 205 metres long. Couplings are cut from that number, so the rake
+        /// spread itself down the whole line and PlaceCar sat each car on the midpoint of two path
+        /// points 205 metres apart — which is off the rails entirely. BodyBox already walks each
+        /// mesh through its own transform, so it gets the same answer for either kind of vehicle.
         /// </summary>
         private static float VehicleLength(Transform body)
         {
             if (body == null) return 0f;
-            float longest = 0f;
-            var filters = body.GetComponentsInChildren<MeshFilter>(true);
-            for (int i = 0; i < filters.Length; i++)
-            {
-                if (filters[i].sharedMesh == null || filters[i].gameObject.name == "OpLoad") continue;
-                Vector3 s = filters[i].sharedMesh.bounds.size;
-                longest = Mathf.Max(longest, Mathf.Max(s.x, Mathf.Max(s.y, s.z)));
-            }
-            Vector3 ls = body.lossyScale;
-            return longest * Mathf.Max(Mathf.Abs(ls.x), Mathf.Max(Mathf.Abs(ls.y), Mathf.Abs(ls.z)));
+            Bounds b = BodyBox(body);
+            return Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
         }
 
         // One mesh each, shared by every truck and wagon on the island: a load is a dozen pieces
@@ -3928,7 +4410,32 @@ namespace Game.Gameplay
             Vector3 pier = Flat(coast) + seaward * 9f;
             pier.y = _waterY;
             Vector3 lat = new Vector3(-seaward.z, 0f, seaward.x);
-            for (int i = 0; i < found.Count && i < 3; i++)
+
+            // The first hull is the contract ship. It is taken out of the shuttle entirely: the port
+            // contract owns where it is, so a ship at the pier means there is business at the pier, and
+            // an empty berth means the horizon countdown is running. Anything still shuttling behind it
+            // is ambience.
+            _contractShip = found[0];
+            _contractMoor = pier + lat * -9f;
+            _contractHeading = -seaward;                                    // moored bow-to-land
+            _contractAlong = lat;                                           // broadside to the quay once berthed
+            MeasureSea();
+            _contractHullHalf = 6f;                                         // the small authored hulls these islands use
+            _contractBeamHalf = 2f;
+            _contractHorizon = HorizonFrom(_contractMoor, seaward);
+            _contractHorizon.y = _waterY;
+            BuildHorn(_contractShip);
+            if (_contract != null) _lastPortState = _contract.State;
+
+            // Over the harbour building, not out on the jetty and not on the ship — the badge marks the
+            // place that has business, and the ship is away half the time.
+            Bounds pb;
+            _portBadgeAt = port != null && GroupBounds(port, out pb)
+                ? new Vector3(pb.center.x, pb.max.y, pb.center.z)
+                : new Vector3(coast.x, _waterY + 6f, coast.z);
+            PlaceContractShip(true);
+
+            for (int i = 1; i < found.Count && i < 3; i++)
             {
                 Vector3 off = lat * ((i - 1) * 9f);
                 var sh = new Ship
@@ -3944,6 +4451,428 @@ namespace Game.Gameplay
                 sh.t.position = Vector3.Lerp(sh.toSea ? sh.pier : sh.sea, sh.toSea ? sh.sea : sh.pier, sh.prog);
                 _ships.Add(sh);
             }
+        }
+
+        /// <summary>
+        /// Binds the hull the port contract sails, on an island that builds its harbour from phase art
+        /// rather than from loose <c>ship*</c> transforms.
+        ///
+        /// Those islands already author the right ship: "Port.ShipOut", a cargo ship standing off the
+        /// quay with its bow to the open sea, in every phase of the Port district from the second on. It
+        /// is lifted onto the island root the same way the train and the trucks are — the district it
+        /// came from is switched out whenever the port rebuilds, and a contract ship that vanished
+        /// mid-voyage would be a bug the player watches happen. Every other phase's copy is switched off,
+        /// so the sea never shows two of them, and the quay's own moored ships are left exactly as
+        /// authored: they are the harbour, this one is the visit.
+        /// </summary>
+        private void BuildContractShip()
+        {
+            if (_contractShip != null) return;    // a ship* island already claimed one in BuildHarbor
+
+            var groups = new List<Transform>(3);
+            Transform pick = null;
+            foreach (Transform phase in _islandRoot)
+            {
+                Transform port = phase.Find("Port");
+                if (port == null) continue;
+                groups.Add(port);
+                Transform hull = port.Find(ContractShipName);
+                if (hull == null) continue;
+                if (pick == null) pick = hull;
+                else hull.gameObject.SetActive(false);
+            }
+            if (pick == null) return;             // an island with no harbour art
+
+            _portGroups = groups.ToArray();
+            pick.gameObject.SetActive(true);
+            _contractAuthoredRig = true;
+            _waterY = pick.position.y;
+
+            // Every authored port hull ships with its renderer switched OFF — Ship0, Ship1, the tug, this
+            // one, on every island and in every phase. They were laid out on top of the quay they moor at,
+            // so leaving them drawn put a cargo ship through a warehouse; switching them off was the fix.
+            // This one is drawn, because its whole job is to be seen arriving, and the berth below is
+            // measured to keep it in open water instead of through the harbour. The rest stay off.
+            var rends = pick.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < rends.Length; i++) rends[i].enabled = true;
+
+            // Length and beam, off the MESH rather than the world box. A hull parked at an angle has a
+            // world AABB bigger than the ship in both axes — read that way a 9-metre beam measures 22, and
+            // the berth below stands the ship a third of a pier further out than it needs to.
+            var rend = rends.Length > 0 ? rends[0] : null;
+            if (rend != null)
+            {
+                Vector3 hull = Vector3.Scale(rend.localBounds.size, rend.transform.lossyScale);
+                _contractHullHalf = hull.x * 0.5f;   // the rig runs the hull down local X …
+                _contractBeamHalf = hull.y * 0.5f;   // … and across local Y, because its up is +Z
+            }
+            else { _contractHullHalf = 20f; _contractBeamHalf = 5f; }
+
+            // Lifted BEFORE the berth is measured: the hull is still a child of the phase-2 port group at
+            // this point, and its own renderer would otherwise be counted as part of the harbour it is
+            // supposed to be keeping clear of.
+            pick.SetParent(_islandRoot, true);
+            _contractShip = pick;
+            BuildHorn(pick);
+            if (_contract != null) _lastPortState = _contract.State;   // no horn for a visit already in progress
+
+            MeasureSea();
+            ResolvePortBerth();
+            PlaceContractShip(true);
+        }
+
+        /// <summary>
+        /// Measures the berth off the Port district that is currently on show, and does nothing if that is
+        /// still the same one.
+        ///
+        /// This has to be re-run rather than solved once: each phase authors the harbour somewhere
+        /// slightly different, so a berth measured off phase 2's quay leaves the ship mooring in open
+        /// water a hundred metres from the phase-1 port the player is actually looking at. The berth sits
+        /// past the district's whole footprint — moored decoration included — plus half the hull, so the
+        /// visiting ship lies alongside the harbour and never through it.
+        /// </summary>
+        private void ResolvePortBerth()
+        {
+            Transform port = null;
+            if (_portGroups != null)
+                for (int i = 0; i < _portGroups.Length; i++)
+                    if (_portGroups[i] != null && _portGroups[i].gameObject.activeSelf) { port = _portGroups[i]; break; }
+
+            if (port == null || port == _portDistrict) return;
+            Bounds b;
+            if (!GroupBounds(port, out b)) return;
+            _portDistrict = port;
+
+            // Where a ship ties up is not something to infer — the harbour states it. Bollards are the
+            // mooring posts along the quay's water edge, and they are authored as their own small objects
+            // with real positions, which the quay itself is not: the pier, apron and quay wall are all
+            // static-batched into one scene-wide mesh, so their individual bounds are a diagonal object's
+            // AABB and reading a standoff off that stood the ship two beams out with open water between
+            // it and the port. The bollard line gives both the berth and the bearing to lie on directly.
+            Vector3 seaward, quay, along;
+            if (BollardLine(port, out quay, out along))
+            {
+                Vector3 water = new Vector3(-along.z, 0f, along.x);
+                if (Vector3.Dot(water, Flat(quay - b.center)) < 0f) water = -water;   // the wet side
+                seaward = water;
+
+                // Half the BEAM, not half the length: lying along the quay, what has to fit between hull
+                // and stone is the ship's width, not its 43 metres of hull.
+                float out0 = _contractBeamHalf + berthClearance;
+
+                // Except that the jetty crosses the quay face on its way into the water, so a hull sitting
+                // one beam off the stone has a pier running through it amidships. Clear the pier head
+                // instead. Sliding along the quay to get past the jetty was the other way to solve it, and
+                // it is wrong here: the coast curves away within a hull length and the ship ends up on the
+                // rocks. Straight out along the quay's own normal is the one direction that is water by
+                // construction, because the pier it is clearing is already standing in it.
+                Bounds pier;
+                if (JettyBounds(port, out pier))
+                {
+                    float head = Vector3.Dot(Flat(pier.center - quay), water)
+                               + Mathf.Abs(pier.extents.x * water.x) + Mathf.Abs(pier.extents.z * water.z);
+                    out0 = Mathf.Max(out0, head + _contractBeamHalf + berthClearance);
+                }
+
+                _contractAlong = along;
+                _contractMoor = Flat(quay) + water * out0;
+            }
+            else
+            {
+                // No bollards. Fall back to the jetty, which at least points at the water the ships use —
+                // a harbour is built on a corner of the coast, so "away from the middle of the island"
+                // on its own can run straight back into the next stretch of shore.
+                Bounds reachBox;
+                bool haveJetty = JettyBounds(port, out reachBox);
+                if (!haveJetty) reachBox = b;
+
+                seaward = Flat(b.center - _islandRoot.position);
+                if (haveJetty)
+                {
+                    Vector3 alongPier = Flat(reachBox.center - b.center);
+                    if (alongPier.sqrMagnitude > 9f) seaward = alongPier;
+                }
+                seaward = seaward.sqrMagnitude < 0.01f ? Vector3.forward : seaward.normalized;
+
+                float reach = Mathf.Abs(reachBox.extents.x * seaward.x)
+                            + Mathf.Abs(reachBox.extents.z * seaward.z);
+                _contractMoor = Flat(reachBox.center) + seaward * (reach + _contractBeamHalf + berthClearance);
+                _contractAlong = new Vector3(-seaward.z, 0f, seaward.x);
+            }
+
+            _contractMoor.y = _waterY;
+            _contractHorizon = HorizonFrom(_contractMoor, seaward);
+            _contractHorizon.y = _waterY;
+            _contractHeading = seaward;
+
+            // The badge belongs over the HARBOUR, not over the ship: the ship is away half the time, and a
+            // marker that moved with it would be pointing at open water whenever it mattered least.
+            _portBadgeAt = new Vector3(b.center.x, b.max.y, b.center.z);
+        }
+
+        /// <summary>
+        /// Hangs a 3D source on the contract ship for its horn. On the hull rather than through
+        /// <see cref="AudioService"/> on purpose: that pool is 2D and exists for interface and economy
+        /// sounds, and a horn belongs to a place — it should get quieter as the player pans away from the
+        /// harbour, the same way the furnace and the surf do.
+        /// </summary>
+        private void BuildHorn(Transform ship)
+        {
+            _hornSource = ship.gameObject.AddComponent<AudioSource>();
+            _hornSource.clip = shipHornClip != null ? shipHornClip : HornClip();
+            _hornSource.playOnAwake = false;
+            _hornSource.loop = false;
+            _hornSource.spatialBlend = 1f;
+            _hornSource.rolloffMode = AudioRolloffMode.Linear;
+            _hornSource.minDistance = 60f;
+            _hornSource.maxDistance = 420f;   // audible across the island, not across the archipelago
+        }
+
+        private void SoundHorn()
+        {
+            if (_hornSource == null || _hornSource.clip == null) return;
+            float mix = _audio != null ? _audio.SfxVolume : 1f;
+            if (mix <= 0f) return;
+            _hornSource.volume = mix * shipHornVolume;
+            _hornSource.Play();
+        }
+
+        /// <summary>
+        /// A ship's horn, synthesised: two tones a fifth apart with a couple of harmonics each, a slow
+        /// swell on and a long fall away. It is here because the project has no horn recording and this
+        /// needs no key, no download and no import settings — drop a real clip on
+        /// <c>shipHornClip</c> and it is used instead of this.
+        /// </summary>
+        private static AudioClip HornClip()
+        {
+            if (_hornClip != null) return _hornClip;
+
+            const int rate = 11025;          // nothing here reaches 500 Hz; 11 kHz is four times enough
+            const float seconds = 2.1f;
+            int n = (int)(rate * seconds);
+            var data = new float[n];
+            float[] tones = { 110f, 165f };
+
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)rate;
+                float swell = Mathf.Min(1f, t / 0.20f);
+                float fall = Mathf.Min(1f, (seconds - t) / 0.75f);
+                float v = 0f;
+                for (int k = 0; k < tones.Length; k++)
+                {
+                    float f = tones[k];
+                    v += Mathf.Sin(2f * Mathf.PI * f * t) * 0.60f
+                       + Mathf.Sin(2f * Mathf.PI * f * 2f * t) * 0.22f
+                       + Mathf.Sin(2f * Mathf.PI * f * 3f * t) * 0.10f;
+                }
+                data[i] = v * swell * fall * 0.24f;
+            }
+
+            _hornClip = AudioClip.Create("OpShipHorn", n, 1, rate, false);
+            _hornClip.SetData(data, 0);
+            return _hornClip;
+        }
+
+        /// <summary>
+        /// The quay's mooring line, read off its bollards: <paramref name="centre"/> is the middle of the
+        /// run of posts, <paramref name="along"/> the direction they lie in. Taken from the two furthest
+        /// apart rather than the first and last, because child order is whatever the exporter wrote.
+        /// </summary>
+        private static bool BollardLine(Transform port, out Vector3 centre, out Vector3 along)
+        {
+            centre = Vector3.zero;
+            along = Vector3.zero;
+
+            var posts = new List<Vector3>(8);
+            Vector3 sum = Vector3.zero;
+            foreach (Transform t in port)
+            {
+                if (t.name.IndexOf("Bollard", System.StringComparison.Ordinal) < 0) continue;
+                var r = t.GetComponentInChildren<Renderer>();
+                if (r == null) continue;
+                posts.Add(r.bounds.center);
+                sum += r.bounds.center;
+            }
+            if (posts.Count < 2) return false;
+
+            float best = 0f;
+            Vector3 line = Vector3.zero;
+            for (int i = 0; i < posts.Count; i++)
+                for (int j = i + 1; j < posts.Count; j++)
+                {
+                    Vector3 d = Flat(posts[j] - posts[i]);
+                    float sq = d.sqrMagnitude;
+                    if (sq > best) { best = sq; line = d; }
+                }
+            if (best < 4f) return false;    // posts all bunched on one corner: no line to read
+
+            centre = sum / posts.Count;
+            along = line.normalized;
+            return true;
+        }
+
+        /// <summary>
+        /// The jetty inside a Port district — every piece with "Pier" in its name, taken together. It is
+        /// the one part of a harbour that is guaranteed to point at navigable water.
+        /// </summary>
+        private static bool JettyBounds(Transform port, out Bounds bounds)
+        {
+            bounds = new Bounds();
+            bool any = false;
+            foreach (Transform t in port)
+            {
+                if (t.name.IndexOf("Pier", System.StringComparison.Ordinal) < 0) continue;
+                Bounds b;
+                if (!GroupBounds(t, out b)) continue;
+                if (!any) { bounds = b; any = true; }
+                else bounds.Encapsulate(b);
+            }
+            return any;
+        }
+
+        /// <summary>The water this island sits in, so the ship never sails off the edge of its own sea.</summary>
+        private void MeasureSea()
+        {
+            var rends = _islandRoot.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < rends.Length; i++)
+            {
+                string n = rends[i].name;
+                if (!n.StartsWith("Sea") && !n.StartsWith("lagoon")) continue;
+                if (!_haveSea) { _seaBounds = rends[i].bounds; _haveSea = true; }
+                else _seaBounds.Encapsulate(rends[i].bounds);
+            }
+        }
+
+        /// <summary>
+        /// Where the ship waits between visits: the point with the longest run of open water behind it.
+        ///
+        /// Straight out from the quay is rarely the best course. Each island's sea is a square centred on
+        /// the island, and a harbour sits near one edge of it — so sailing along the harbour's own normal
+        /// can run out of water in a couple of hull lengths while a course twenty degrees off it has three
+        /// times the room. Fanning the candidates and taking the longest is the difference between a ship
+        /// that leaves and a ship that shuffles.
+        /// </summary>
+        private Vector3 HorizonFrom(Vector3 moor, Vector3 seaward)
+        {
+            Vector3 best = moor + seaward * shipHorizonDistance;
+            float bestRun = -1f;
+            for (int i = -3; i <= 3; i++)
+            {
+                Vector3 dir = Quaternion.Euler(0f, i * 23f, 0f) * seaward;
+                float run = SeaRun(moor, dir);
+                if (run <= bestRun) continue;
+                bestRun = run;
+                best = moor + dir * run;
+            }
+            return best;
+        }
+
+        /// <summary>How far a hull may sail from <paramref name="from"/> along <paramref name="dir"/>
+        /// before it runs off the edge of the island's own water.</summary>
+        private float SeaRun(Vector3 from, Vector3 dir)
+        {
+            if (!_haveSea) return shipHorizonDistance;
+            float m = _contractHullHalf + 4f;
+            float run = shipHorizonDistance;
+            if (Mathf.Abs(dir.x) > 0.001f)
+                run = Mathf.Min(run, ((dir.x > 0f ? _seaBounds.max.x - m : _seaBounds.min.x + m) - from.x) / dir.x);
+            if (Mathf.Abs(dir.z) > 0.001f)
+                run = Mathf.Min(run, ((dir.z > 0f ? _seaBounds.max.z - m : _seaBounds.min.z + m) - from.z) / dir.z);
+            return run < 0f ? 0f : run;
+        }
+
+        /// <summary>World bounds of everything drawn under <paramref name="root"/>.</summary>
+        private static bool GroupBounds(Transform root, out Bounds bounds)
+        {
+            bounds = new Bounds();
+            var rends = root.GetComponentsInChildren<Renderer>(false);
+            bool any = false;
+            for (int i = 0; i < rends.Length; i++)
+            {
+                if (!any) { bounds = rends[i].bounds; any = true; }
+                else bounds.Encapsulate(rends[i].bounds);
+            }
+            return any;
+        }
+
+        /// <summary>
+        /// Puts the contract ship where the port contract says it is. <paramref name="snap"/> jumps it
+        /// there and is what a re-enabled island uses: travelling freezes this component, so a ship that
+        /// docked while the player was on another island would otherwise crawl across the bay in front of
+        /// them on the way back.
+        /// </summary>
+        private void PlaceContractShip(bool snap)
+        {
+            if (_contractShip == null) return;
+            ResolvePortBerth();   // the port may have rebuilt into a different phase since last frame
+
+            ContractService.PortState state = _contract != null
+                ? _contract.State
+                : ContractService.PortState.Offering;
+
+            // Gone means gone. Between visits the hull is switched off rather than parked out of frame:
+            // the sea is only so wide, and a container ship sitting on the horizon for the whole cooldown
+            // is a ship that never left.
+            bool here = state != ContractService.PortState.Away;
+            if (_contractShipShown != here)
+            {
+                _contractShipShown = here;
+                _contractShip.gameObject.SetActive(here);
+            }
+
+            if (state != _lastPortState)
+            {
+                if (state == ContractService.PortState.Offering
+                    && _lastPortState == ContractService.PortState.Arriving) SoundHorn();
+                _lastPortState = state;
+            }
+
+            float dock = _contract != null ? _contract.ShipDock01 : 1f;
+            Vector3 want = Vector3.Lerp(_contractHorizon, _contractMoor, dock);
+            want.y = _waterY + Mathf.Sin(Time.time * 0.9f) * 0.15f;
+
+            // Heading is taken from the distance actually covered, so the hull points where it is going.
+            // Never on a snap: the jump is from wherever the ship was left, which is not a course.
+            Vector3 moved = Flat(want - _contractShip.position);
+            if (!snap && moved.sqrMagnitude > 0.04f) _contractHeading = moved.normalized;
+
+            // Berthed, it swings broadside to the quay — which is what makes it read as being worked
+            // rather than as having stopped. The Slerp below does the turn over the first second or so of
+            // the visit, so the ship arrives bow-first and comes about alongside.
+            Vector3 bearing = dock > 0.98f && _contractAlong.sqrMagnitude > 0.01f
+                ? _contractAlong
+                : _contractHeading;
+
+            Quaternion look = _contractAuthoredRig
+                ? AuthoredShipRotation(bearing)
+                : Quaternion.LookRotation(bearing, Vector3.up)
+                  * Quaternion.Euler(0f, shipYawOffset, 0f);
+            _contractShip.position = want;
+            _contractShip.rotation = snap
+                ? look
+                : Quaternion.Slerp(_contractShip.rotation, look, Time.deltaTime * 1.2f);
+        }
+
+        /// <summary>
+        /// Which way an authored port hull's bow points, given the yaw it was parked at. These share the
+        /// island vehicle rig: the mesh's nose runs down -X and its up is +Z, parked as Euler(-90, yaw, 0).
+        /// </summary>
+        private static Vector3 AuthoredShipNose(float yawDegrees)
+        {
+            float a = yawDegrees * Mathf.Deg2Rad;
+            return new Vector3(-Mathf.Cos(a), 0f, Mathf.Sin(a));
+        }
+
+        /// <summary>
+        /// Bearing for an authored port hull: one yaw solved off the nose axis, inverting
+        /// <see cref="AuthoredShipNose"/>. A LookRotation would lay a fifty-metre cargo ship on its side,
+        /// because on this rig the mesh's own up is +Z and its forward is nothing in particular.
+        /// </summary>
+        private static Quaternion AuthoredShipRotation(Vector3 heading)
+        {
+            float yaw = Mathf.Atan2(heading.z, -heading.x) * Mathf.Rad2Deg;
+            return Quaternion.Euler(-90f, yaw, 0f);
         }
 
         /// <summary>
@@ -4356,14 +5285,63 @@ namespace Game.Gameplay
                     patrol[i] = p;
                 }
             }
-            // Smoke leaves from the top of the refinery's silhouette, wherever the artist put the stack.
-            Bounds rb = WorldBounds(_refinery);
-            Vector3 chimney = new Vector3(rb.center.x, rb.max.y * 0.96f, rb.center.z);
+            Vector3[] chimneys = IslandChimneys();
             Material smoke = MakeMat(_srcMat, smokeColor);
 
             _life = new SiteLife(_islandRoot, workerPrefab, smokePuffPrefab, smoke,
-                                 patrol, chimney, _deckY, workerScale,
+                                 patrol, chimneys, _deckY, workerScale,
                                  maxWorkers, maxSmokePuffs, smokePuffLife, smokePuffRise, smokePuffSpread);
+        }
+
+        /// <summary>
+        /// Every chimney top on the island, as points for smoke to leave from.
+        ///
+        /// The map is full of stacks now — the refinery's columns and flare, the power plant's pair, the
+        /// coke ovens, the depot silos — and only the smelter smoked. A dozen cold chimneys around one
+        /// working one does not read as detail, it reads as a plant that has been shut down.
+        ///
+        /// Collected by name off the DRAWN objects, so a stack the swapper stood a Kenney part in for is
+        /// found by the part's own silhouette rather than the hidden mesh it replaced. Only the phase on
+        /// show is walked: the other two roots are live but their districts are switched off, and
+        /// smoking those would put plumes over buildings that are not there.
+        /// </summary>
+        private Vector3[] IslandChimneys()
+        {
+            var tops = new List<Vector3>();
+            for (int p = 0; p < _islandRoot.childCount; p++)
+            {
+                Transform phase = _islandRoot.GetChild(p);
+                foreach (Transform group in phase)
+                {
+                    if (!group.gameObject.activeInHierarchy) continue;
+                    foreach (Transform obj in group)
+                    {
+                        string n = obj.name;
+                        // The things that burn. Smoke, Steam and Flare are the map's own effect markers;
+                        // Stack, CoolingTowers and CokeOvens are the structures themselves.
+                        if (n.IndexOf("Stack", System.StringComparison.Ordinal) < 0 &&
+                            n.IndexOf("Smoke", System.StringComparison.Ordinal) < 0 &&
+                            n.IndexOf("Steam", System.StringComparison.Ordinal) < 0 &&
+                            n.IndexOf("Flare", System.StringComparison.Ordinal) < 0 &&
+                            n.IndexOf("CoolingTowers", System.StringComparison.Ordinal) < 0 &&
+                            n.IndexOf("CokeOvens", System.StringComparison.Ordinal) < 0) continue;
+
+                        Bounds b = WorldBounds(obj);
+                        if (b.size.y < 2f) continue;          // a marker or a decal, not a chimney
+                        tops.Add(new Vector3(b.center.x, b.max.y * 0.98f, b.center.z));
+                    }
+                }
+            }
+
+            // The smelter always smokes, even on a map that authored no stacks at all.
+            if (tops.Count == 0 && _refinery != null)
+            {
+                Bounds rb = WorldBounds(_refinery);
+                tops.Add(new Vector3(rb.center.x, rb.max.y * 0.96f, rb.center.z));
+            }
+
+            Debug.Log("[Island] " + islandKey + ": " + tops.Count + " chimneys smoking.");
+            return tops.ToArray();
         }
 
         /// <summary>

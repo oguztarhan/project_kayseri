@@ -4,7 +4,9 @@
     "references": [
         "Game.Core",
         "Game.Data",
-        "Game.Systems"
+        "Game.Systems",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

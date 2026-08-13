@@ -47,21 +47,29 @@ namespace Game.Gameplay
         /// </summary>
         private const float MaxHold = 6f;
 
+        /// <summary>The pool is this many puffs per stack, however many stacks there turn out to be.</summary>
+        private const int MaxPuffPool = 72;
+
         private readonly Walker[] _walkers;
         private readonly Transform[] _puffs;
         private readonly float[] _puffAge;
-        private readonly Vector3 _chimney;
+        private readonly Vector3[] _chimneys;
         private readonly float _deckY;
         private readonly float _puffLife, _puffRise, _puffSpread;
 
         private int _crew;
         private float _spawnTimer;
+        private int _nextStack;
 
+        /// <param name="chimneys">
+        /// Every stack on the island, not just the smelter's. One smoking chimney on a map of a dozen
+        /// reads as a fault rather than a detail — the cold ones look shut down.
+        /// </param>
         public SiteLife(Transform parent, GameObject workerPrefab, GameObject puffPrefab, Material puffMat,
-                        Vector3[] patrol, Vector3 chimney, float deckY, float workerScale,
+                        Vector3[] patrol, Vector3[] chimneys, float deckY, float workerScale,
                         int maxWorkers, int maxPuffs, float puffLife, float puffRise, float puffSpread)
         {
-            _chimney = chimney;
+            _chimneys = chimneys != null && chimneys.Length > 0 ? chimneys : null;
             _deckY = deckY;
             _puffLife = Mathf.Max(0.2f, puffLife);
             _puffRise = puffRise;
@@ -99,7 +107,13 @@ namespace Game.Gameplay
             }
 
             // ---- smoke ----
-            _puffs = new Transform[puffPrefab != null ? maxPuffs : 0];
+            // Budgeted per stack rather than per island, or a dozen chimneys would share the handful of
+            // puffs meant for one and each would cough about twice a minute. Capped so a map that
+            // happens to be all chimneys cannot run away with it.
+            int pool = puffPrefab != null && _chimneys != null
+                     ? Mathf.Min(maxPuffs * _chimneys.Length, MaxPuffPool)
+                     : 0;
+            _puffs = new Transform[pool];
             _puffAge = new float[_puffs.Length];
             for (int i = 0; i < _puffs.Length; i++)
             {
@@ -199,7 +213,13 @@ namespace Game.Gameplay
             if (puffsPerSecond <= 0.01f) return;
             _spawnTimer -= dt;
             if (_spawnTimer > 0f) return;
-            _spawnTimer = 1f / puffsPerSecond;
+            // The rate is what ONE stack should smoke at, so the interval divides by how many are
+            // taking turns — otherwise adding chimneys would thin the smoke on all of them.
+            _spawnTimer = 1f / (puffsPerSecond * _chimneys.Length);
+
+            // Round robin, so no stack is starved when the pool is busy.
+            Vector3 stack = _chimneys[_nextStack];
+            _nextStack = (_nextStack + 1) % _chimneys.Length;
 
             for (int i = 0; i < _puffs.Length; i++)
             {
@@ -210,7 +230,7 @@ namespace Game.Gameplay
                 // that the eye reads it as turbulence rather than a pattern.
                 float ang = i * 2.39996f;
                 Vector3 off = new Vector3(Mathf.Cos(ang), 0f, Mathf.Sin(ang)) * (_puffSpread * ((i % 3) * 0.4f + 0.3f));
-                t.position = _chimney + off;
+                t.position = stack + off;
                 t.localScale = Vector3.one * 0.35f;
                 t.gameObject.SetActive(true);
                 return;                                     // one puff per interval

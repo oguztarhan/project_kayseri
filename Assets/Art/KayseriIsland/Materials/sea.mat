@@ -8,16 +8,16 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: sea
-  m_Shader: {fileID: -6465566751694194690, guid: d17a14960bf347545ad50aa79b9012e6, type: 3}
+  m_Shader: {fileID: 4800000, guid: 640ab1bd58419435492cf018375e855b, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
+  m_ValidKeywords: []
+  m_InvalidKeywords:
   - _WORLD_SPACE_UV
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 2000
   stringTagMap: {}
   disabledShaderPasses:
   - MOTIONVECTORS
@@ -73,9 +73,12 @@ Material:
     m_Floats:
     - _A_SHORT_HIKE_MODE: 0
     - _AmbientAmount: 0.4
+    - _AmbientHemi: 0.65
     - _BorderWidth: 0
     - _CaveDistortion: 0
     - _DepthFadeDistance: 146
+    - _DetailScale: 0.35
+    - _DetailStrength: 0.13
     - _GradientRefractionScale: 10
     - _HorizonDistance: 149
     - _Hue: 1
@@ -105,6 +108,7 @@ Material:
     - _Saturation: 1.7
     - _Show: 0
     - _Smoothness: 0.5
+    - _SpecularStrength: 0.45
     - _Steps: 119
     - _SurfaceFoamDirection: 0
     - _SurfaceFoamDistorsion: 0
@@ -132,6 +136,7 @@ Material:
     - _WaveTileSize: 0
     - _XRMotionVectorsPass: 1
     m_Colors:
+    - _AmbientGround: {r: 0.55, g: 0.48, b: 0.4, a: 1}
     - _BaseColor: {r: 0.036771838, g: 0.1670663, b: 0.23305121, a: 1}
     - _BorderColor: {r: 1, g: 1, b: 1, a: 1}
     - _CaveColor: {r: 0.0005352272, g: 0, b: 0.2830189, a: 0}
@@ -151,6 +156,7 @@ Material:
     - _ShadowTint: {r: 0.41999996, g: 0.47999996, b: 0.68, a: 1}
     - _ShallowColor: {r: 0.1509434, g: 0.004983983, b: 0.14254269, a: 0}
     - _SpecularColor: {r: 0.31234965, g: 0.35884297, b: 0.47638938, a: 0.5333334}
+    - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}
     - _SurfaceFoamColor: {r: 0.9528302, g: 0.9528302, b: 0.9528302, a: 0}
     - _Tiling: {r: 1, g: 1, b: 1, a: 1}
     - _WaterColor: {r: 0.26713246, g: 0.5913292, b: 0.6509434, a: 1}

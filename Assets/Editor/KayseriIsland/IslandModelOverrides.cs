@@ -42,6 +42,15 @@ namespace Kayseri.IslandTools
             [Tooltip("Boş bırakılırsa üretilen model olduğu gibi kalır.")]
             public GameObject Replacement;
 
+            [Tooltip("Model tamamen gizlenir, yerine bir şey konmaz. Yolda park etmiş süs araçları " +
+                     "gibi oyuncunun filosuyla karışan parçaları kaldırmak için. Replacement boş " +
+                     "olabilir; doluysa yok sayılır.")]
+            public bool Hide;
+
+            [Tooltip("Bir bina alanının (Pad / Yard / Apron / Plaza) üstüne düşen kopyaları atlar ve " +
+                     "gizler. Kayaların inşaat alanını doldurmasını engellemek için.")]
+            public bool SkipOverBuildings;
+
             [Tooltip("Yeni modeli eskisinin kapladığı hacme göre ölçekler. Kenney parçaları " +
                      "üretilen modellerle aynı boyda değil, bu yüzden varsayılan açık.")]
             public bool FitToOriginal = true;
@@ -88,7 +97,8 @@ namespace Kayseri.IslandTools
             for (int i = 0; i < entries.Count; i++)
             {
                 Entry e = entries[i];
-                if (e == null || e.Replacement == null) continue;
+                // A Hide row does its work without a replacement — that IS the work.
+                if (e == null || (e.Replacement == null && !e.Hide)) continue;
                 if (!string.Equals(e.Group, group, StringComparison.Ordinal)) continue;
                 if (!string.Equals(e.Model, model, StringComparison.Ordinal)) continue;
                 if (e.Island != IslandFilter.Any && e.Island != island) continue;
