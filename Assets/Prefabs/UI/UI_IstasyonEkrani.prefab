@@ -2498,6 +2498,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.LetterboxRoot
   designSize: {x: 1080, y: 2340}
+  landscapeFit: 3
+  content: {fileID: 819633802393544094}
+  card: {fileID: 0}
+  edgePadding: 24
+  maxScale: 1
+  columnGap: 72
 --- !u!1 &5374594291293531912
 GameObject:
   m_ObjectHideFlags: 0

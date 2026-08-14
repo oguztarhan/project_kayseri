@@ -2322,6 +2322,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.LetterboxRoot
   designSize: {x: 1080, y: 2340}
+  landscapeFit: 3
+  content: {fileID: 0}
+  card: {fileID: 0}
+  edgePadding: 24
+  maxScale: 1
+  columnGap: 72
 --- !u!1 &5681798334180859902
 GameObject:
   m_ObjectHideFlags: 0
@@ -3169,6 +3175,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.UI::Game.UI.ContractUI
   panelRoot: {fileID: 4126450845257058193}
   closeButton: {fileID: 3762062594142652297}
+  cardRoot: {fileID: 0}
   cardImage: {fileID: 8843038536753483705}
   cardRunning: {fileID: 21300000, guid: d6d6cdffe7696144ba7675203c68121d, type: 3}
   cardDone: {fileID: 21300000, guid: c14a1d05374f0d646a95702b44e11b63, type: 3}
@@ -3183,6 +3190,9 @@ MonoBehaviour:
   claimButton: {fileID: 7258534341869647276}
   claimLabel: {fileID: 864997019014141323}
   streakText: {fileID: 2216863010640700177}
+  easyTint: {r: 0.13, g: 0.6, b: 0.29, a: 1}
+  normalTint: {r: 0.83, g: 0.52, b: 0.05, a: 1}
+  hardTint: {r: 0.78, g: 0.2, b: 0.16, a: 1}
   refreshInterval: 0.1
 --- !u!1 &7563305358075803735
 GameObject:

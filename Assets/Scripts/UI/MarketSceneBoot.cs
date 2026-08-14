@@ -1,8 +1,8 @@
 using Game.Core;
 using Game.Gameplay;
 using Game.Systems;
+using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Game.UI
 {
@@ -35,6 +35,17 @@ namespace Game.UI
         [Tooltip("Gövdenin yarıçapı ve boyu, dünya birimi. Duvarlara bunlarla çarpar.")]
         [SerializeField, Min(0.1f)] private float bodyRadius = 0.65f;
         [SerializeField, Min(0.2f)] private float bodyHeight = 2.1f;
+
+        [Header("Yön Levhaları")]
+        [Tooltip("Yerdeki yön yazısının punto büyüklüğü. Telefonda, kameranın normal uzaklığından " +
+                 "okunabilmesi gerek.")]
+        [SerializeField, Min(0.5f)] private float signFontSize = 7.5f;
+
+        [Tooltip("Yazının kapladığı alan, dünya birimi. Adı sığmayan bir dilde büyüt.")]
+        [SerializeField] private Vector2 signArea = new Vector2(14f, 4f);
+
+        [Tooltip("Boş bırakılırsa TMP'nin öntanımlı yazı tipi kullanılır.")]
+        [SerializeField] private TMP_FontAsset signFont;
 
         [Header("Işık")]
         [Tooltip("Güneşin açısı. Avlu tek yönlü ışıkla aydınlanıyor, adadaki gibi.")]
@@ -90,13 +101,83 @@ namespace Game.UI
             _hud.transform.SetParent(transform, false);
             _hud.Build(player, _market, _yardKey, arrival != null ? arrival.Pads : null, Leave);
 
-            // Price tags over every pad in the hall, not just this yard's — you should be able to read
-            // what the copper cashier costs through the doorway before deciding to walk over.
+            // Price tags on every pad in the hall, not just this yard's. They used to be readable
+            // through the doorway, which was the reason for doing all of them at once; now a shut yard's
+            // roof hides its own floor and its prices with it, and what tells you which shop is which
+            // from outside is the roof's ore tint instead. Still built in one pass: they are painted
+            // once, at load, and a label that only appeared when you walked in would be a label built
+            // on the frame the player is least able to afford one.
             var labels = new GameObject("PedEtiketleri").AddComponent<YardPadLabels>();
             labels.transform.SetParent(transform, false);
             labels.Build(_market, AllPads());
 
+            BuildWayfinding();
             EnterYard(arrival);
+        }
+
+        /// <summary>
+        /// Which way the other markets are, painted on the floor of every yard: an arrow at the opening in
+        /// the wall, and the name of the market on the other side of it.
+        ///
+        /// ON THE GROUND, because the camera is a fixed angle and never turns. Anything standing up in a
+        /// doorway faces one of the two rooms and shows the other its back, and anything standing up over
+        /// one fights the roofs that meet above it. The floor faces the camera from both sides and has
+        /// nothing above it to argue with — the same reason the pad prices are painted down there.
+        ///
+        /// Each yard's signs are only ever seen from inside that yard, and that falls out for free: a shut
+        /// yard's roof hides its own floor, so the signs light up when the player walks in and go away with
+        /// the rest of the room.
+        /// </summary>
+        private void BuildWayfinding()
+        {
+            for (int i = 0; i < _yards.Count; i++)
+            {
+                if (i + 1 < _yards.Count) Signpost(_yards[i], _yards[i + 1].IslandKey, true);
+                if (i > 0) Signpost(_yards[i], _yards[i - 1].IslandKey, false);
+            }
+        }
+
+        /// <summary>One yard's sign toward one neighbour: the arrow, and the name to read on the way to it.</summary>
+        private void Signpost(MarketYardScene yard, string towardKey, bool eastward)
+        {
+            // Lightened well off the raw ore — coal's is nearly black and would read as a stain rather
+            // than a sign — but still recognisably the colour of the market it points at, which is the
+            // same colour as that market's roof from outside.
+            Material paint = MarketYardBuild.Mat(Color.Lerp(OreTint(towardKey), Color.white, 0.45f));
+            // East one right up against the wall, in the clear floor between the stock pad and the
+            // opening. The west one has to sit further in, and not for a reason of taste: the yard to the
+            // west is shut, its roof stands where that wall is, and a roof at this camera angle hides the
+            // two and a half units of floor beyond its own edge. An arrow painted in that band would have
+            // its point cut off by the roof of the very market it is pointing at.
+            MarketYardBuild.FloorArrow(yard.transform, "Yon_Ok",
+                                       new Vector3(eastward ? 20.5f : -18f, 0f, 0f), eastward, paint);
+
+            // The name cannot stand with the arrow. The arrow sits in the four units of clear floor at the
+            // opening, which is not wide enough to write a word in, and floor text only reads the right way
+            // round running east-west — turned to fit that gap it would be sideways on screen. So it goes
+            // in the nearest clear ground on the way to the door instead, and the two spots are not mirror
+            // images because the room is not: the stock pad owns the middle of the east half and the rank
+            // of pads owns the west wall.
+            var go = new GameObject("Yon_Yazi");
+            go.transform.SetParent(yard.transform, false);
+            go.transform.localPosition = eastward ? new Vector3(15f, 0.22f, -8.5f)
+                                                  : new Vector3(-8f, 0.22f, 0f);
+            go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+            var text = go.AddComponent<TextMeshPro>();
+            if (signFont != null) text.font = signFont;
+            text.fontSize = signFontSize;
+            text.alignment = TextAlignmentOptions.Center;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.rectTransform.sizeDelta = signArea;
+            text.fontStyle = FontStyles.Bold;
+            text.outlineWidth = 0.2f;
+            text.outlineColor = new Color32(12, 14, 20, 235);
+            text.color = Color.Lerp(OreTint(towardKey), Color.white, 0.75f);
+            // Chevrons on the side the market is, doubling the arrow at reading distance. ASCII on
+            // purpose: this line is drawn in eleven languages and a glyph the font is missing is a box.
+            string name = Loc.Id("ada", towardKey);
+            text.text = eastward ? name + "  >>" : "<<  " + name;
         }
 
         /// <summary>
@@ -134,13 +215,17 @@ namespace Game.UI
         /// <summary>
         /// Which yard the player is standing in, checked as they walk rather than only on arrival —
         /// the doorway between two yards is a step, not a screen.
+        ///
+        /// The cadence used to be a quarter second, which was fine while crossing over only swapped
+        /// which components were ticking. It is now also what takes the roof off, and a roof that comes
+        /// off a fifth of a second after you are already inside reads as the game noticing late.
         /// </summary>
         private void Update()
         {
             if (_player == null || _yards.Count < 2) return;
             _checkIn -= Time.deltaTime;
             if (_checkIn > 0f) return;
-            _checkIn = 0.25f;
+            _checkIn = 0.06f;
 
             for (int i = 0; i < _yards.Count; i++)
                 if (_yards[i].Contains(_player.position) && _yards[i].IslandKey != _yardKey)
@@ -210,16 +295,27 @@ namespace Game.UI
         public void Leave()
         {
             if (_leaving) return;
+            // Behind a loading screen, and this is the button players reported as broken.
+            //
+            // Nothing was wrong with it. Main is the heavy scene — every island, all three phase roots —
+            // and the async read of it takes long enough on a mid-range phone that the tap had no visible
+            // answer: the yard just carried on. So it read as a dead button, and the guard above then
+            // made the second and third tap genuinely dead. The curtain answers on the first frame.
+            //
+            // Kept as a guard as well, because it is free and the curtain is not the only way in here.
+            string key = _yardKey;
+            if (!SceneCurtain.Cover(islandSceneName, WorldIslands.OreColorFor(key), Loc.Id("ada", key)))
+                return;
             _leaving = true;
             // Hand the yard back to the ledger. Leaving this set would freeze whichever yard the
             // player was last standing in: the scene that was selling for it is about to be unloaded,
             // and the ledger would still think somebody else had it.
+            //
+            // After the curtain has taken the job, not before: if it refused, this scene is staying and
+            // its yard must go on being the simulated one.
             if (_market != null) _market.SetSimulatedYard(null);
-            // The island's own WorldIslands sets the active island again as it wakes, off the saved
-            // 'worldactive' row — so which island we come back to is decided there, not here.
-            // Async: Main is the heavy scene (every island, all three phase roots), and loading it
-            // synchronously froze the market for the whole read. The yard stays animated instead.
-            SceneManager.LoadSceneAsync(islandSceneName, LoadSceneMode.Single);
+            // Which island we come back to is decided by the island scene's own WorldIslands as it wakes,
+            // off the saved 'worldactive' row — not here.
         }
 
         /// <summary>A last resort for any other way out — a hot reload, or a future path that swaps the
@@ -254,16 +350,31 @@ namespace Game.UI
             var feet = new GameObject("Govde").transform;
             feet.SetParent(go.transform, false);
             feet.localPosition = new Vector3(0f, -height * 0.5f, 0f);
+
+            // His own colour, not the island's ore. The ore was the obvious thing to tint him with and it
+            // was the wrong one: on the coal island the ore is very nearly black, so the one body in the
+            // room the player was driving came out as a dark capsule among a queue of lighter ones. The
+            // ore material still goes on his LOAD, which does have to look like the stuff he is carrying.
+            //
+            // Only ever seen on the greybox capsule — a wired model keeps its own materials, which is why
+            // PlayerMarker is doing the same job again in a way art cannot undo.
+            Material kit = MarketYardBuild.Mat(new Color(0.18f, 0.62f, 0.85f));
             Transform shape = prefabs != null
                 ? prefabs.SpawnPerson(prefabs.Player, feet, "Model",
-                                      new Vector3(bodyRadius * 2f, bodyHeight * 0.5f, bodyRadius * 2f), ore)
+                                      new Vector3(bodyRadius * 2f, bodyHeight * 0.5f, bodyRadius * 2f), kit)
                 : MarketPrefabs.Spawn(null, feet, "Model", PrimitiveType.Capsule,
-                                      new Vector3(bodyRadius * 2f, bodyHeight * 0.5f, bodyRadius * 2f), ore);
+                                      new Vector3(bodyRadius * 2f, bodyHeight * 0.5f, bodyRadius * 2f), kit);
             // The primitive fallback is a capsule centred on its middle, so it needs lifting onto its
             // feet. A wired prefab is expected to stand on its own origin and is left alone.
             if (prefabs == null || prefabs.Player == null)
                 shape.localPosition = new Vector3(0f, height * 0.5f, 0f);
             _playerBody = shape;
+
+            // The ring, the shadow and the marker overhead. On the feet pivot rather than the body, so it
+            // rides up onto a pad with him and stays clear of whatever the model's own scale is.
+            var markerGo = new GameObject("OyuncuIsareti");
+            markerGo.transform.SetParent(feet, false);
+            markerGo.AddComponent<PlayerMarker>().Build(height);
 
             // The load rides an unscaled mount, not the body — the capsule is squashed to fit the
             // controller and a stack parented to it would inherit the squash.

@@ -14,12 +14,18 @@ namespace Game.Gameplay
     ///
     /// How many stand in line is the queue-slot upgrade, and how fast they arrive scales with it, so
     /// buying a slot lengthens the line rather than leaving a longer line half empty.
+    ///
+    /// Nothing here pushes one body out of another. Bodies that avoid each other by shoving are bodies
+    /// that shove, and a queue of them visibly wrestles at the counter. They are kept apart by the
+    /// route instead — see <see cref="Step"/> — and where the routes do run close, under the porch
+    /// outside the wall, overlapping costs nothing because the camera cannot see it.
     /// </summary>
     public sealed class CustomerQueue : MonoBehaviour
     {
-        [Tooltip("İki sıradaki müşteri arasındaki mesafe. Gövdeler büyüdükçe bu da büyümeli, " +
-                 "yoksa sıradakiler birbirinin içine girer.")]
-        [SerializeField, Min(0.5f)] private float spacing = 4.2f;
+        [Tooltip("İki sıradaki müşteri arasındaki mesafe. Altı yer, tezgâhın önündeki sıra yolunu " +
+                 "tam dolduracak kadar: daha genişi kuyruğun sonunu kapının önüne taşır ve girenler " +
+                 "bekleyenlerin arasından geçmek zorunda kalır.")]
+        [SerializeField, Min(0.5f)] private float spacing = 2.4f;
 
         [Tooltip("Bir müşterinin alabileceği en az ve en çok külçe. Herkesin bir tane alması " +
                  "kuyruğu bir sayaca çevirir; değişken miktar onu alışverişe çevirir.")]
@@ -29,13 +35,22 @@ namespace Game.Gameplay
         [Tooltip("Müşterinin yürüme hızı.")]
         [SerializeField, Min(0.5f)] private float walkSpeed = 4.5f;
 
-        [Tooltip("İki gövdenin birbirine yaklaşabileceği en kısa mesafe. Çarpıştırıcı yok, " +
-                 "iç içe geçmelerini engelleyen tek şey bu.")]
-        [SerializeField, Min(0.1f)] private float personalSpace = 2.2f;
+        [Tooltip("Kapıdaki iki şeridin ortadan uzaklığı. Girenler bir yandan, çıkanlar öbür yandan " +
+                 "geçer. Kapı boşluğu altı birim, kasaları çıkınca beş buçuk: 1.8 iki şeridi de " +
+                 "çerçeveye sürtmeden içeride tutar.")]
+        [SerializeField, Min(0.5f)] private float doorLane = 1.8f;
 
-        [Tooltip("Ayırma turu kaç kez tekrarlansın. Bir tur iki gövdeyi ayırır ama üçüncüsünün " +
-                 "içine itebilir; birkaç tur kalabalık bir kuyruğu tamamen çözer.")]
-        [SerializeField, Range(1, 6)] private int separationPasses = 3;
+        [Tooltip("Geliş şeridinin kuyruk çizgisine uzaklığı, kapı tarafında. Yeni müşteri sıranın " +
+                 "arkasından geçip yerine oradan girer, bekleyenlerin içinden değil.")]
+        [SerializeField, Min(0.5f)] private float approachLane = 2.6f;
+
+        [Tooltip("Gidiş şeridinin kuyruk çizgisine uzaklığı. Geliş şeridinden uzakta, duvara yakın: " +
+                 "iki yön hiçbir yerde aynı zemini paylaşmasın diye.")]
+        [SerializeField, Min(0.5f)] private float returnLane = 5.6f;
+
+        [Tooltip("Alışverişi biten müşterinin dönüş şeridine inmeden önce sıranın önünden ne kadar " +
+                 "açıldığı. Sıfırda geliş şeridini tam sıranın başında keser.")]
+        [SerializeField, Min(0f)] private float stepAside = 2.4f;
 
         [Tooltip("Tezgâhın başındaki müşterinin külçeyi alması süresi.")]
         [SerializeField, Min(0.05f)] private float serveSeconds = 0.55f;
@@ -47,12 +62,20 @@ namespace Game.Gameplay
         [SerializeField, Min(0.3f)] private float arrivalSecondsAtOneSlot = 3.4f;
 
         /// <summary>
-        /// Arriving and leaving are two legs, not one: through the door, then to the slot. A customer
-        /// walking straight from outside to their place in the line would cut the corner and clip the
-        /// wall, and the whole reason the door exists is that the walk through it should be the thing
-        /// you see rather than a body switching on.
+        /// Arriving and leaving are routes, not straight lines, and they are two DIFFERENT routes.
+        ///
+        /// One shared path is what jams a queue. Two bodies walking the same corridor in opposite
+        /// directions meet head on, and with no colliders to sort it out they grind through each other
+        /// in full view of the camera. So the traffic is one way: arrivals come in the far half of the
+        /// doorway, up to a lane that runs BEHIND the waiting line, and step forward into their slot
+        /// from there; departures peel off the front of the line, out past the head onto a second lane
+        /// closer to the wall, and along that to the near half of the doorway. Stepping past the head
+        /// is what makes the two disjoint — the arrivals' lane stops at the head, so the one crossing
+        /// that would otherwise exist happens where no arrival ever walks. They never share floor, the
+        /// only place the lanes come near each other is under the porch — outside the wall, where the
+        /// camera cannot see and bodies may overlap as much as they like.
         /// </summary>
-        private enum Step { Entering, Walking, Waiting, Serving, Leaving, Departing }
+        private enum Step { Arriving, Waiting, Serving, Departing }
 
         private sealed class Customer
         {
@@ -61,8 +84,12 @@ namespace Game.Gameplay
             public int slot;          // -1 while leaving
             public Step step;
             public float timer;
-            public Vector3 target;
             public int wants;         // how many bars this one came in for
+            // The route being walked. Four is what the longer of the two needs, and the arrival uses
+            // three plus the slot itself, which is read live because the line shuffles forward while
+            // somebody is still walking in.
+            public readonly Vector3[] path = new Vector3[4];
+            public int legs, leg;
         }
 
         private readonly List<Customer> _live = new List<Customer>();
@@ -82,8 +109,10 @@ namespace Game.Gameplay
 
         private Vector3 _head;       // where the front of the line stands
         private Vector3 _along;      // unit vector from the head back down the line
-        private Vector3 _door;       // the opening in the wall, on the wall line
-        private Vector3 _outside;    // beyond it, where the wall hides them
+        private Vector3 _side;       // unit vector from the line toward the door wall
+        private Vector3 _inDoor, _inOutside;    // the arrivals' half of the doorway, and the spawn spot
+        private Vector3 _outDoor, _outOutside;  // the departures' half, and where they switch off
+        private float _inAlong, _outAlong;      // those two lanes, measured down the line from the head
         private float _arrivalIn;
 
         public void Configure(MarketService market, string yardKey, SellCounter counter, CashFloor cash,
@@ -96,8 +125,23 @@ namespace Game.Gameplay
             _audio = Game.Core.ServiceLocator.Get<AudioService>();
             _head = head;
             _along = along.normalized;
-            _door = door;
-            _outside = outside;
+
+            // Which way the door is off the line, worked out rather than passed in: whatever is left of
+            // the head-to-door vector once the along-the-line part is taken out of it. That keeps the
+            // two lanes on the door's side of the queue however the yard is turned.
+            Vector3 toDoor = door - _head;
+            toDoor.y = 0f;
+            Vector3 perp = toDoor - _along * Vector3.Dot(toDoor, _along);
+            _side = perp.sqrMagnitude > 1e-4f ? perp.normalized : Vector3.Cross(Vector3.up, _along);
+
+            // The doorway split in two. Arrivals take the half further down the line, which is the half
+            // they would walk toward anyway; departures take the near half and never cross over.
+            _inDoor = door + _along * doorLane;
+            _inOutside = outside + _along * doorLane;
+            _outDoor = door - _along * doorLane;
+            _outOutside = outside - _along * doorLane;
+            _inAlong = Vector3.Dot(_inDoor - _head, _along);
+            _outAlong = Vector3.Dot(_outDoor - _head, _along);
 
             _material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
             var colour = new Color(0.44f, 0.52f, 0.63f);
@@ -117,45 +161,14 @@ namespace Game.Gameplay
 
         private Vector3 SlotPosition(int slot) => _head + _along * (spacing * slot);
 
+        /// <summary>A point on one of the two lanes, measured down the line and out to the side.</summary>
+        private Vector3 LanePoint(float along, float side) => _head + _along * along + _side * side;
+
         private void Update()
         {
             float dt = Time.deltaTime;
             Arrivals(dt);
             for (int i = _live.Count - 1; i >= 0; i--) Step_(_live[i], i, dt);
-            for (int pass = 0; pass < separationPasses; pass++) Separate();
-        }
-
-        /// <summary>
-        /// Pushes bodies that have ended up inside each other apart.
-        ///
-        /// They carry no colliders — a queue of rigid bodies jams itself the first time two of them
-        /// want the same metre of floor — so nothing physical keeps them apart, and at a walking pace
-        /// two customers heading for neighbouring slots will happily occupy the same spot. This is the
-        /// cheapest honest fix: a nudge along the line joining them, strong enough to unstick an
-        /// overlap and far too weak to fight the walk itself.
-        /// </summary>
-        private void Separate()
-        {
-            float near = personalSpace * personalSpace;
-            for (int i = 0; i < _live.Count; i++)
-            {
-                for (int j = i + 1; j < _live.Count; j++)
-                {
-                    Vector3 apart = _live[i].body.position - _live[j].body.position;
-                    apart.y = 0f;
-                    float d2 = apart.sqrMagnitude;
-                    if (d2 >= near || d2 < 1e-6f) continue;
-
-                    // The overlap is resolved in full, this frame. A damped nudge loses: every body
-                    // is being driven back toward its own target by Walk on the very next frame, so a
-                    // fraction-of-the-correction push just settles into a permanent intersection —
-                    // measured at 1.01 apart against a 2.2 space before this was made absolute.
-                    float d = Mathf.Sqrt(d2);
-                    Vector3 push = apart / d * ((personalSpace - d) * 0.5f);
-                    _live[i].body.position += push;
-                    _live[j].body.position -= push;
-                }
-            }
         }
 
         private void Arrivals(float dt)
@@ -175,10 +188,17 @@ namespace Game.Gameplay
             Customer c = _spare.Count > 0 ? _spare.Pop() : NewCustomer();
             c.body.gameObject.SetActive(true);
             // Outside the wall, so the first thing they do on screen is come through the door.
-            c.body.position = _outside;
+            c.body.position = _inOutside;
             c.slot = free;
-            c.step = Step.Entering;
-            c.target = _door;
+            c.step = Step.Arriving;
+            // In through their half of the door, up to the lane behind the line, along it to their own
+            // slot's place in the row, and only then forward into the row itself. The third leg is what
+            // keeps them off the people already standing there — the lane is behind the line, not in it.
+            c.path[0] = _inDoor;
+            c.path[1] = LanePoint(_inAlong, approachLane);
+            c.path[2] = LanePoint(spacing * free, approachLane);
+            c.legs = 3;
+            c.leg = 0;
             // Random, unlike the looks: a shop where everyone buys exactly one is a counter, not a
             // shop, and the varying order size is what makes the shelf worth stocking deep.
             c.wants = Random.Range(minPurchase, Mathf.Max(minPurchase, maxPurchase) + 1);
@@ -201,15 +221,13 @@ namespace Game.Gameplay
         {
             switch (c.step)
             {
-                case Step.Entering:
-                    if (!Walk(c, _door, dt)) return;
-                    c.step = Step.Walking;
-                    c.target = SlotPosition(c.slot);
-                    return;
-
-                case Step.Walking:
-                    if (!Walk(c, c.target, dt)) return;
-                    c.step = Step.Waiting;
+                case Step.Arriving:
+                    // The last leg is the slot itself rather than a stored point: the line shuffles
+                    // forward while this one is still walking in, and a stale target would walk them to
+                    // where their place used to be.
+                    if (!Walk(c, c.leg < c.legs ? c.path[c.leg] : SlotPosition(c.slot), dt)) return;
+                    c.leg++;
+                    if (c.leg > c.legs) c.step = Step.Waiting;
                     return;
 
                 case Step.Waiting:
@@ -246,17 +264,23 @@ namespace Game.Gameplay
                         if (_counter.Cashier != null) _counter.Cashier.PlayServe();
                     }
                     c.slot = -1;                       // frees the head so the next one can move up
-                    c.step = Step.Leaving;
-                    return;
-
-                case Step.Leaving:
-                    // Back to the door first, then out through it.
-                    if (!Walk(c, _door, dt)) return;
                     c.step = Step.Departing;
+                    // Out around the front of the line rather than back down it: past the head, onto
+                    // the far lane along the wall, along that to their half of the door, and out.
+                    // Stepping aside first is what keeps this route clear of the arrivals' lane, which
+                    // stops at the head and never reaches back this far.
+                    c.path[0] = LanePoint(-stepAside, returnLane);
+                    c.path[1] = LanePoint(_outAlong, returnLane);
+                    c.path[2] = _outDoor;
+                    c.path[3] = _outOutside;
+                    c.legs = 4;
+                    c.leg = 0;
                     return;
 
                 case Step.Departing:
-                    if (!Walk(c, _outside, dt)) return;
+                    if (!Walk(c, c.path[c.leg], dt)) return;
+                    c.leg++;
+                    if (c.leg < c.legs) return;
                     // Switched off beyond the wall, where nobody can see it happen.
                     c.body.gameObject.SetActive(false);
                     _live.RemoveAt(index);

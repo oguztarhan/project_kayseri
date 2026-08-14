@@ -12,9 +12,10 @@ namespace Game.Gameplay
     /// THE POINT OF THE SPLIT is <see cref="SetLive"/>. Eight yards of customers walking waypoints and
     /// six pads apiece polling the wallet is eight times the work for seven rooms nobody is standing
     /// in — the same trap the island archipelago avoided by simulating one island at a time. So the
-    /// yard the player is in runs, and the rest are geometry you can see through the doorway while
-    /// their ledger row keeps earning. That row does not care whether anything is enabled: it was
-    /// always a number, and it goes on being one.
+    /// yard the player is in runs, and the rest sit under their roofs while their ledger row keeps
+    /// earning. That row does not care whether anything is enabled: it was always a number, and it
+    /// goes on being one. The roof is what keeps the two honest — you never see a stopped yard, so
+    /// there is nothing to contradict the money it is still making.
     /// </summary>
     public sealed class MarketYardScene : MonoBehaviour
     {
@@ -28,7 +29,9 @@ namespace Game.Gameplay
         private MarketPrefabs _prefabs;
         private readonly YardWorker[] _staff = new YardWorker[3];   // indexed by YardWorker.Job
         private Vector3 _padSpot, _counterSpot, _cashSpot;
-        private bool _live = true;
+        private Transform _roof;
+        /// <summary>False out of the gate: a yard is shut until the hall walks the player into it.</summary>
+        private bool _live;
 
         /// <summary>Which island's market this is.</summary>
         public string IslandKey { get; private set; }
@@ -60,6 +63,7 @@ namespace Game.Gameplay
             IslandKey = islandKey;
 
             Vector3[] spots = MarketYardBuild.Build(transform, tint, westWall, eastDoorway);
+            _roof = transform.Find(MarketYardBuild.RoofName);
             PlayerStart = transform.TransformPoint(spots[(int)MarketYardBuild.Anchor.PlayerStart]);
             _padSpot = spots[(int)MarketYardBuild.Anchor.StockPad];
             _counterSpot = spots[(int)MarketYardBuild.Anchor.Counter];
@@ -68,16 +72,36 @@ namespace Game.Gameplay
             BuildLoop(spots, ore, player);
             BuildPads(carry);
             SpawnExistingStaff();
+
+            // Built shut, and the hall opens exactly one of them straight afterwards. Built running was
+            // the old order and it only worked because the hall switched seven of them off again in the
+            // same frame — with a roof in the picture that is a frame of eight open rooms, and the yard
+            // the player never walks into would have had its counter live under a closed roof.
+            Apply(false);
         }
 
         /// <summary>
-        /// Runs or parks the yard. Parked, its geometry stays exactly where it is — the point of one
-        /// hall is that you can see the next yard — but nothing in it ticks.
+        /// Runs or parks the yard: the one the player is standing in, and the seven he is not.
+        ///
+        /// Parked, nothing in it ticks and the roof goes back on. Both halves matter and they are the
+        /// same decision — a stopped yard you can see into is a room full of people standing still,
+        /// which says the market is broken. Under its roof it says the shop is shut, while its ledger row
+        /// keeps selling and keeps paying. That row never cared whether anything here was enabled.
         /// </summary>
         public void SetLive(bool live)
         {
             if (_live == live) return;
             _live = live;
+            Apply(live);
+        }
+
+        /// <summary>Puts the state on the yard, without the guard — the one path Build can also use.</summary>
+        private void Apply(bool live)
+        {
+            // Off with the roof for the yard on screen, back on for the yard behind you. The whole slab
+            // goes rather than just its renderer: switched off it costs no draw call, casts no shadow
+            // into its own room, and cannot occlude anything.
+            if (_roof != null) _roof.gameObject.SetActive(!live);
             if (_pad != null) _pad.enabled = live;
             if (_counter != null) _counter.enabled = live;
             if (_queue != null) _queue.enabled = live;
@@ -136,23 +160,28 @@ namespace Game.Gameplay
         private const float CustomerHeight = 0.95f;
 
         /// <summary>
-        /// The floor pads, along the west wall and the south-east corner — clear of the stock pad, the
-        /// counter and the queue, so nothing the player is walking past is also trying to take money.
+        /// The floor pads: one rank of six down the west wall, three either side of the doorway in it,
+        /// and nothing else in the yard stands on that side at all.
         /// </summary>
         private void BuildPads(CarryStack carry)
         {
-            // Kept clear of the south and west walls. The camera looks down over those two, so a wall
-            // tall enough to hide a person also casts roughly its own height in hidden floor in front
-            // of itself — and a pad you cannot see is a pad with an unreadable price on it. These sit
-            // far enough in to stay lit, and the last two moved to the east wall, which the camera
-            // looks AT rather than over.
+            // ONE SIDE, and the side matters. Four of these used to stand here and two against the east
+            // wall, which is the wall the doorway to the next market is in — so the walk from one yard to
+            // the next went straight across a pad that charges you for standing on it. Everything the
+            // player does on purpose runs east: the stock pad is east, the counter is mid-floor, the door
+            // is east. The west wall is the one line in the room he never has to cross, so that is where
+            // the money goes. Buying is somewhere you GO now, not something that happens to you.
+            //
+            // Where each one stands, and why the rank is in two halves, is <see cref="PadSpot"/>. The
+            // order here is the order they stand in, north to south, and it is also what the wiring below
+            // indexes — the three hires have to be 2, 3, 4 and the back has to be last.
             _pads = new UpgradePad[6];
-            _pads[0] = Pad(YardUpgrade.DepositSlot, new Vector3(-17.5f, 0f, 8f));
-            _pads[1] = Pad(YardUpgrade.QueueSlot, new Vector3(-17.5f, 0f, 2f));
-            _pads[2] = Pad(YardUpgrade.HireCarry, new Vector3(-17.5f, 0f, -4f));
-            _pads[3] = Pad(YardUpgrade.HireServe, new Vector3(-17.5f, 0f, -9.5f));
-            _pads[4] = Pad(YardUpgrade.HireCollect, new Vector3(21f, 0f, -4f));
-            _pads[5] = Pad(YardUpgrade.CarryCapacity, new Vector3(21f, 0f, 3f));
+            _pads[0] = Pad(YardUpgrade.DepositSlot, PadSpot(0));
+            _pads[1] = Pad(YardUpgrade.QueueSlot, PadSpot(1));
+            _pads[2] = Pad(YardUpgrade.HireCarry, PadSpot(2));
+            _pads[3] = Pad(YardUpgrade.HireServe, PadSpot(3));
+            _pads[4] = Pad(YardUpgrade.HireCollect, PadSpot(4));
+            _pads[5] = Pad(YardUpgrade.CarryCapacity, PadSpot(5));
 
             // The back is the one upgrade that has to land mid-purchase: the player is standing on the
             // pad with a stack on their shoulders, and a taller stack they only got on the next scene
@@ -232,6 +261,40 @@ namespace Game.Gameplay
 
         private const float WorkerHeight = 0.95f;
 
+        /// <summary>
+        /// Where the nth pad in the rank stands: three north of the west doorway and three south of it,
+        /// mirrored, so the rank reads as one line down the wall with the way through in the middle.
+        ///
+        /// It has to be split, because that wall is a wall with a door in it — every yard but the first
+        /// has the previous market on the other side of it, through a gap ten wide at z = 0. A pad within
+        /// reach of that gap is a pad you buy from on your way in, which is the whole complaint. The
+        /// nearest one stands 5.6 out, better than two body widths clear of anyone walking the passage.
+        ///
+        /// The column is at x = -17.5: three units off the wall, because the camera looks down over it and
+        /// a wall hides about its own height of floor in front of itself — a pad in that band has a price
+        /// on it nobody can read. The outer pair stop short of the ramp at the north end and of the band
+        /// the south wall hides at the other.
+        /// </summary>
+        private static Vector3 PadSpot(int index)
+        {
+            int fromEnd = index < 3 ? index : 5 - index;
+            float z = PadRankEnd - PadSpacing * fromEnd;
+            return new Vector3(-17.5f, 0f, index < 3 ? z : -z);
+        }
+
+        /// <summary>How far from the middle of the wall the two ends of the rank sit.</summary>
+        private const float PadRankEnd = 14.8f;
+
+        /// <summary>
+        /// Gap between two pads in the rank, measured centre to centre.
+        ///
+        /// Paired with the trigger size in <see cref="Pad"/>; neither can be changed alone. A pad is
+        /// entered when the player's CAPSULE touches its trigger box — 1.14 of radius on top of half the
+        /// box — so a pad reaches about 2 units past its own centre, and two of them must stand more than
+        /// twice that apart or there is floor between them that quietly buys from both at once.
+        /// </summary>
+        private const float PadSpacing = 4.8f;
+
         private UpgradePad Pad(YardUpgrade kind, Vector3 at)
         {
             var go = new GameObject("Ped_" + kind);
@@ -243,12 +306,19 @@ namespace Game.Gameplay
             Destroy(face.GetComponent<Collider>());     // the trigger below is the whole interaction
             face.transform.SetParent(go.transform, false);
             face.transform.localPosition = new Vector3(0f, 0.09f, 0f);
-            face.transform.localScale = new Vector3(4f, 0.18f, 4f);
+            face.transform.localScale = new Vector3(3.4f, 0.18f, 3.4f);
 
+            // MUCH smaller than the slab it stands on, and that is the fix for buying by accident.
+            //
+            // The trigger is met by the player's CAPSULE, not his centre, so what a pad really reaches is
+            // half this box plus his 1.14 of radius: 2.04, which is a hair past the edge of the slab. He
+            // has to be standing on it. At the old 4.4 it reached 3.34 — a metre and a third of thin air
+            // around every pad — which is why walking along the wall bought whatever you walked past, and
+            // why the gaps in the rank were not wide enough to be between two pads rather than in both.
             var box = go.AddComponent<BoxCollider>();
             box.isTrigger = true;
             box.center = new Vector3(0f, 1.5f, 0f);
-            box.size = new Vector3(4.4f, 3f, 4.4f);
+            box.size = new Vector3(1.8f, 3f, 1.8f);
 
             var pad = go.AddComponent<UpgradePad>();
             pad.Configure(_market, IslandKey, kind, face.GetComponent<MeshRenderer>());

@@ -142,6 +142,8 @@ namespace Game.UI
         private CoalOperation _op;
         private Transform _model;
         private Vector2 _sheetHome;
+        private Vector2 _bannerHome;
+        private LetterboxRoot _letterbox;
         private float _dimAlpha = 0.8f;
         private float _timer;
         private int _station = -1;
@@ -150,7 +152,12 @@ namespace Game.UI
 
         private void Awake()
         {
+            // Down, not up: this script sits on the prefab root and the letterbox is inside Pencere.
+            _letterbox = GetComponentInChildren<LetterboxRoot>(true);
             if (sheet != null) { _sheetHome = sheet.anchoredPosition; _scroll = sheet.GetComponent<ScrollRect>(); }
+            // Read, not assumed to be zero: in landscape LetterboxRoot has already folded the sheet into
+            // two columns by now, so the banner's resting x is wherever its column put it.
+            if (phaseBanner != null) _bannerHome = phaseBanner.anchoredPosition;
             if (dim != null) _dimAlpha = dim.color.a;
             if (cardTemplate != null)
             {
@@ -306,9 +313,14 @@ namespace Game.UI
             float height = SheetStationHeight;
             if (listPage)
             {
-                var area = sheet.parent as RectTransform;
-                if (area != null)
-                    height = Mathf.Max(SheetStationHeight, area.rect.height - ExpansionTop - SheetBottom);
+                // Against what is on screen, not against the parent. The parent is the full 2340-tall
+                // design sheet however little of it the screen is actually showing, so in landscape —
+                // where the sheet is scaled down and folded into columns — sizing off it grows the tray
+                // to more than twice the height there is, and since the tray's pivot is its bottom edge
+                // the extra goes straight up off the top of the screen.
+                float room = _letterbox != null ? _letterbox.VisibleHeight
+                                                : (sheet.parent as RectTransform)?.rect.height ?? 0f;
+                if (room > 0f) height = Mathf.Max(SheetStationHeight, room - ExpansionTop - SheetBottom);
             }
             sheet.sizeDelta = new Vector2(sheet.sizeDelta.x, height);
             if (_scroll != null) _scroll.verticalNormalizedPosition = 1f;
@@ -1200,18 +1212,18 @@ namespace Game.UI
             {
                 if (phaseBannerText != null) phaseBannerText.text = string.Format(Loc.T("istasyon_ekrani.faz_bant"), phase);
                 phaseBanner.gameObject.SetActive(true);
-                float from = StageHalfWidth() * 2f + 400f;
+                float from = _bannerHome.x + StageHalfWidth() * 2f + 400f;
                 t = 0f;
                 while (t < BannerInSeconds)
                 {
                     t += Time.unscaledDeltaTime;
                     float k = Mathf.Clamp01(t / BannerInSeconds);
                     float ease = 1f - Mathf.Pow(1f - k, 4f);
-                    phaseBanner.anchoredPosition = new Vector2(Mathf.Lerp(from, 0f, ease), phaseBanner.anchoredPosition.y);
+                    phaseBanner.anchoredPosition = new Vector2(Mathf.Lerp(from, _bannerHome.x, ease), phaseBanner.anchoredPosition.y);
                     phaseBanner.localScale = Vector3.one * (1f + Mathf.Sin(k * Mathf.PI) * 0.10f);
                     yield return null;
                 }
-                phaseBanner.anchoredPosition = new Vector2(0f, phaseBanner.anchoredPosition.y);
+                phaseBanner.anchoredPosition = new Vector2(_bannerHome.x, phaseBanner.anchoredPosition.y);
                 phaseBanner.localScale = Vector3.one;
 
                 t = 0f;

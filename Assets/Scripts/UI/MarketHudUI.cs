@@ -1,6 +1,7 @@
 using Game.Core;
 using Game.Gameplay;
 using Game.Systems;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,6 +18,19 @@ namespace Game.UI
     /// It is also the bridge for input. <see cref="MarketPlayer"/> lives in <c>Game.Gameplay</c>, which
     /// sits below this assembly and is not allowed to know what a joystick is, so the push goes the
     /// only direction the dependency permits: down, from here, once a frame.
+    ///
+    /// IT WEARS THE GAME'S OWN INTERFACE, and getting there took three things rather than a restyle.
+    /// The cards and the button ask <see cref="UiSkin"/> for the kit's panel and button art, which they
+    /// always did — but the skin is authored in Main and this scene runs with Main unloaded, so until
+    /// UiSkin started holding its art statically every one of them fell back to a flat grey rectangle.
+    /// The text is TMP, because TMP's project default font is Baloo2, the font every authored screen is
+    /// set in; the legacy Text this used before could only ever be Arial. And the content sits inside a
+    /// <see cref="SafeArea"/>, like every authored screen's does.
+    ///
+    /// That last one was not cosmetic. The player settings render this game into the display cutout, and
+    /// in landscape a cutout is on the LEFT — exactly where the way out of the market was pinned. On a
+    /// phone with a notch, part of that button was under glass that does not exist and could not be
+    /// pressed. It worked on every phone without one, which is why it was reported as working sometimes.
     /// </summary>
     public sealed class MarketHudUI : MonoBehaviour
     {
@@ -36,12 +50,19 @@ namespace Game.UI
 
         private static readonly Color FillColour = new Color(0.85f, 0.72f, 0.25f, 0.95f);
         private static readonly Color SpillingColour = new Color(0.82f, 0.29f, 0.24f, 0.95f);
+
+        /// <summary>
+        /// What a card is painted when there is no skin to ask. Only ever used then: the kit art is
+        /// pre-coloured and tinting it just muddies it, which is why <see cref="UiBuild.Box"/> ignores this
+        /// the moment a real panel sprite exists.
+        /// </summary>
         private static readonly Color Chrome = new Color(0.07f, 0.08f, 0.11f, 0.86f);
 
-        private Text _stockText, _incomeText, _padText, _padSubText, _carryText, _yardText;
+        private TMP_Text _stockText, _incomeText, _padText, _padSubText, _carryText, _yardText, _cashText;
         private RectTransform _stockFill, _carryFill, _padPanel, _accent;
         private Image _stockFillImage;
         private CarryStack _carry;
+        private WalletService _wallet;
         private float _readoutIn;
 
         /// <summary>Builds the screen. <paramref name="onExit"/> is what the way-out button does.</summary>
@@ -53,10 +74,14 @@ namespace Game.UI
             _yardKey = yardKey;
             _pads = pads;
             _carry = player != null ? player.GetComponent<CarryStack>() : null;
+            _wallet = ServiceLocator.Get<WalletService>();
 
             RectTransform canvas = UiBuild.Canvas(transform, "MarketHudKanvas", sortingOrder);
 
-            // ---- the stick's zone, under everything else so the readouts stay tappable ----
+            // ---- the stick's zone, underneath everything, and everything above it is deaf to touch ----
+            // Full bleed, and the one thing here that stays OUTSIDE the safe area: this is a surface you
+            // drag on, not something you have to see or hit precisely, and a drag lane that stopped short
+            // of the cutout would just be a smaller lane. See Untappable for the other half of that deal.
             var zoneGo = new GameObject("KolAlani", typeof(RectTransform));
             var zone = (RectTransform)zoneGo.transform;
             zone.SetParent(canvas, false);
@@ -69,60 +94,171 @@ namespace Game.UI
             _stick = zoneGo.AddComponent<MarketJoystick>();
             _stick.Bind(ring, knob);
 
-            // ---- top bar: the way out, and what this yard is ----
-            Button exit = UiBuild.Btn(canvas, "CikisDugmesi", "‹  " + Loc.T("market.cik"), null,
-                                      Chrome, 44, onExit);
-            UiBuild.Anchor((RectTransform)exit.transform,
-                           new Vector2(0.035f, 0.925f), new Vector2(0.34f, 0.982f));
+            // ---- everything readable or tappable hangs off here ----
+            // The screen inside the notches and the gesture bar, which is what the authored screens all
+            // do and what this one was missing. See the class note: on a landscape phone with a cutout,
+            // the way out used to be partly underneath it.
+            var safeGo = new GameObject("GuvenliAlan", typeof(RectTransform));
+            var safe = (RectTransform)safeGo.transform;
+            safe.SetParent(canvas, false);
+            UiBuild.Anchor(safe, Vector2.zero, Vector2.one);
+            safeGo.AddComponent<SafeArea>();
 
-            RectTransform card = UiBuild.Flat(canvas, "AvluKarti", Chrome,
-                                              new Vector2(0.37f, 0.885f), new Vector2(0.965f, 0.982f));
+            // ---- the resting pad: what tells a first-time player there is anything to drive ----
+            // In the safe area because it has to be SEEN, unlike the drag lane it sits over, which is full
+            // bleed. Bottom right by choice: the left corner is the carry readout's, and this is the thumb
+            // that is not already holding the phone up.
+            //
+            // Deaf to touch, all of it, like every other piece of decoration on this screen. The drag
+            // surface underneath is what answers — so a thumb landing on the pad starts the real stick
+            // exactly where the pad is, and the hint behaves like the fixed control it looks like.
+            var padGo = new GameObject("YuruyusPedi", typeof(RectTransform));
+            var pad = (RectTransform)padGo.transform;
+            pad.SetParent(safe, false);
+            pad.anchorMin = pad.anchorMax = new Vector2(0.875f, 0.21f);
+            pad.pivot = new Vector2(0.5f, 0.5f);
+            pad.sizeDelta = new Vector2(320f, 320f);
+            // The ripple first, so the base and the head draw over it as it passes them.
+            RectTransform ripple = Ring(pad, "Dalga", 300f, new Color(1f, 1f, 1f, 0.22f));
+            Ring(pad, "Taban", 300f, new Color(1f, 1f, 1f, 0.10f));
+            Ring(pad, "Bas", 130f, new Color(1f, 1f, 1f, 0.30f));
+            _stick.BindRest(pad, ripple);
+
+            // ---- top bar: the way out, the wallet, and what this yard is ----
+            // Twice the height it was. It is the only way out of a scene with no other exit, it is the
+            // control a player reaches for while their other thumb is on the stick, and it was a strip
+            // less than six per cent of the screen tall. Kit yellow, the same art as MARKETE GİR — the
+            // door in and the door out wearing one colour is the cheapest wayfinding there is.
+            Button exit = Chip(safe, "CikisDugmesi", "‹  " + Loc.T("market.cik"), UiSkin.ButtonYellow,
+                               44f, onExit);
+            UiBuild.Anchor((RectTransform)exit.transform,
+                           new Vector2(0.022f, 0.855f), new Vector2(0.235f, 0.975f));
+
+            // What is in the wallet, in the kit's counter capsule. Every pad in the yard is priced in
+            // cash and this screen used to be the one place in the game that would not tell you how much
+            // you had — you bought upgrades by walking onto them and hoping.
+            RectTransform purse = UiBuild.Box(safe, "ParaKarti", Chrome,
+                                              new Vector2(0.255f, 0.855f), new Vector2(0.475f, 0.975f));
+            var purseImage = purse.GetComponent<Image>();
+            if (purseImage != null) purseImage.sprite = UiSkin.Pill;
+            Icon(purse, UiSkin.Coin);
+            _cashText = Line(purse, "ParaYazisi", 46f, TextAlignmentOptions.Left, 0.06f, 0.94f);
+            var cashRect = (RectTransform)_cashText.transform;
+            cashRect.anchorMin = new Vector2(0.30f, 0.06f);
+            cashRect.anchorMax = new Vector2(0.94f, 0.94f);
+
+            RectTransform card = UiBuild.Box(safe, "AvluKarti", Chrome,
+                                             new Vector2(0.495f, 0.80f), new Vector2(0.978f, 0.975f));
 
             // The ore's own colour down the leading edge, so which yard you are in is answerable
             // without reading anything — the same cue the world map uses for the same islands.
-            _accent = UiBuild.Flat(card, "Cizgi", FillColour, new Vector2(0f, 0f), new Vector2(0.016f, 1f));
+            _accent = UiBuild.Flat(card, "Cizgi", FillColour, new Vector2(0.02f, 0.12f),
+                                   new Vector2(0.036f, 0.88f));
 
-            _yardText = Line(card, "AvluAdi", 38, TextAnchor.UpperLeft, 0.60f, 0.98f);
-            _yardText.color = new Color(1f, 1f, 1f, 0.62f);
-            _incomeText = Line(card, "GelirYazisi", 54, TextAnchor.UpperLeft, 0.30f, 0.64f);
-            _stockText = Line(card, "StokYazisi", 36, TextAnchor.UpperLeft, 0.12f, 0.32f);
+            _yardText = Line(card, "AvluAdi", 34f, TextAlignmentOptions.TopLeft, 0.62f, 0.96f);
+            _yardText.color = new Color(1f, 1f, 1f, 0.66f);
+            _incomeText = Line(card, "GelirYazisi", 50f, TextAlignmentOptions.TopLeft, 0.33f, 0.66f);
+            _stockText = Line(card, "StokYazisi", 32f, TextAlignmentOptions.TopLeft, 0.16f, 0.35f);
 
             UiBuild.Bar(card, "StokCubugu", new Color(1f, 1f, 1f, 0.12f), FillColour,
-                        new Vector2(0.05f, 0.04f), new Vector2(0.97f, 0.115f), out _stockFill);
+                        new Vector2(0.06f, 0.07f), new Vector2(0.95f, 0.13f), out _stockFill);
             _stockFillImage = _stockFill.GetComponent<Image>();
 
             // ---- bottom left: what is on your back ----
-            RectTransform load = UiBuild.Flat(canvas, "SirtKarti", Chrome,
-                                              new Vector2(0.035f, 0.035f), new Vector2(0.30f, 0.115f));
-            _carryText = Line(load, "SirtYazisi", 52, TextAnchor.UpperLeft, 0.36f, 0.95f);
+            RectTransform load = UiBuild.Box(safe, "SirtKarti", Chrome,
+                                             new Vector2(0.022f, 0.035f), new Vector2(0.235f, 0.155f));
+            _carryText = Line(load, "SirtYazisi", 48f, TextAlignmentOptions.Left, 0.34f, 0.92f);
             UiBuild.Bar(load, "SirtCubugu", new Color(1f, 1f, 1f, 0.12f), new Color(0.44f, 0.72f, 0.95f, 0.95f),
-                        new Vector2(0.08f, 0.14f), new Vector2(0.94f, 0.3f), out _carryFill);
+                        new Vector2(0.09f, 0.16f), new Vector2(0.93f, 0.26f), out _carryFill);
 
             // ---- what the pad underfoot is selling. Hidden until they stand on one ----
-            _padPanel = UiBuild.Flat(canvas, "PedBilgisi", new Color(0.09f, 0.10f, 0.14f, 0.94f),
-                                     new Vector2(0.26f, 0.135f), new Vector2(0.74f, 0.225f));
-            _padText = Line(_padPanel, "PedYazisi", 46, TextAnchor.UpperCenter, 0.46f, 0.94f);
-            _padSubText = Line(_padPanel, "PedAltYazisi", 40, TextAnchor.UpperCenter, 0.08f, 0.46f);
+            _padPanel = UiBuild.Box(safe, "PedBilgisi", new Color(0.09f, 0.10f, 0.14f, 0.94f),
+                                    new Vector2(0.315f, 0.035f), new Vector2(0.685f, 0.175f));
+            _padText = Line(_padPanel, "PedYazisi", 42f, TextAlignmentOptions.Top, 0.48f, 0.92f);
+            _padSubText = Line(_padPanel, "PedAltYazisi", 36f, TextAlignmentOptions.Top, 0.10f, 0.48f);
             _padSubText.color = new Color(1f, 1f, 1f, 0.66f);
             _padPanel.gameObject.SetActive(false);
+
+            Untappable(purse);
+            Untappable(card);
+            Untappable(load);
+            Untappable(_padPanel);
 
             Refresh();
         }
 
         /// <summary>
-        /// A line of text occupying a horizontal band of its card. <see cref="UiBuild.Label"/> stretches
-        /// to fill, which stacks every line on top of the last; this is the band version.
+        /// Makes a card, and everything drawn inside it, invisible to the pointer.
+        ///
+        /// The stick's drag surface lies UNDER these, so a card that answers a touch is a patch of screen
+        /// where the joystick does not work. Both readouts sit in the bottom corners — which is precisely
+        /// where a thumb lands — and neither of them has anything on it to press.
         /// </summary>
-        private static Text Line(Transform parent, string name, int size, TextAnchor anchor,
-                                 float bottom, float top)
+        private static void Untappable(RectTransform card)
         {
-            Text text = UiBuild.Label(parent, name, "", size, anchor);
-            var rect = (RectTransform)text.transform;
-            rect.anchorMin = new Vector2(0.05f, bottom);
-            rect.anchorMax = new Vector2(0.97f, top);
+            Graphic[] parts = card.GetComponentsInChildren<Graphic>(true);
+            for (int i = 0; i < parts.Length; i++) parts[i].raycastTarget = false;
+        }
+
+        /// <summary>
+        /// A line of text occupying a horizontal band of its card.
+        ///
+        /// TMP rather than <see cref="UiBuild.Label"/>'s legacy Text, and the reason is the font: TMP's
+        /// project default font asset IS Baloo2, the one every authored screen in the game is set in, so a
+        /// label built with nothing wired comes out in the game's own type. UiBuild.Label can only ever be
+        /// Arial, which is what made this screen look like a different game's debug overlay.
+        /// </summary>
+        private static TMP_Text Line(Transform parent, string name, float size,
+                                     TextAlignmentOptions align, float bottom, float top)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var text = go.AddComponent<TextMeshProUGUI>();
+            text.fontSize = size;
+            text.alignment = align;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.color = Color.white;
+            text.raycastTarget = false;      // never eat a tap meant for whatever is under it
+            var rect = (RectTransform)go.transform;
+            rect.anchorMin = new Vector2(0.06f, bottom);
+            rect.anchorMax = new Vector2(0.96f, top);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             return text;
+        }
+
+        /// <summary>
+        /// A button in the kit's art with a TMP label on it. <see cref="UiBuild.Btn"/> would do the same
+        /// job with a legacy Text child, and one Arial word on a screen of Baloo2 is the one that shows.
+        /// </summary>
+        private static Button Chip(Transform parent, string name, string label, Sprite art, float size,
+                                   UnityEngine.Events.UnityAction onClick)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var image = go.GetComponent<Image>();
+            image.sprite = art != null ? art : UiSkin.Flat;
+            image.type = Image.Type.Sliced;
+            image.color = UiSkin.HasArt ? Color.white : Chrome;
+            TMP_Text text = Line(go.transform, "Yazi", size, TextAlignmentOptions.Center, 0f, 1f);
+            text.text = label;
+            var button = go.GetComponent<Button>();
+            button.targetGraphic = image;
+            if (onClick != null) button.onClick.AddListener(onClick);
+            return button;
+        }
+
+        /// <summary>The coin on the purse capsule. Skipped entirely when the kit has no icon wired.</summary>
+        private static void Icon(Transform parent, Sprite sprite)
+        {
+            if (sprite == null) return;
+            var go = new GameObject("Ikon", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var image = go.GetComponent<Image>();
+            image.sprite = sprite;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            UiBuild.Anchor((RectTransform)go.transform, new Vector2(0.05f, 0.14f), new Vector2(0.28f, 0.86f));
         }
 
         /// <summary>
@@ -136,11 +272,22 @@ namespace Game.UI
             Refresh();
         }
 
-        /// <summary>A soft round blob. The kit has no joystick art yet, so the greybox draws its own.</summary>
+        /// <summary>
+        /// A soft round blob. The kit has no joystick art yet, so the greybox draws its own.
+        ///
+        /// Anchored to the CENTRE of its parent, and that is a fix rather than a preference. The stick
+        /// drives these by writing the thumb's position straight into anchoredPosition, and that position
+        /// comes out of ScreenPointToLocalPointInRectangle, which measures from the zone's pivot — its
+        /// middle. Anchored to the corner, as these were, the two disagreed by half a screen: put a thumb
+        /// in the middle of the zone and the ring drew itself down in the bottom-left corner. Which is a
+        /// large part of why nobody could tell there was a stick at all.
+        /// </summary>
         private static RectTransform Ring(Transform parent, string name, float size, Color c)
         {
             RectTransform rect = UiBuild.Flat(parent, name, c, Vector2.zero, Vector2.zero);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
             rect.sizeDelta = new Vector2(size, size);
             var img = rect.GetComponent<Image>();
             img.sprite = UiSkin.Flat;
@@ -205,6 +352,12 @@ namespace Game.UI
 
         private void Refresh()
         {
+            // Off the same once-a-second beat as the rest. The wallet has an event, but a pad being stood
+            // on fires it several times a second and a counter that repainted on every one of them would
+            // be the only thing in this HUD doing per-frame text work.
+            if (_cashText != null && _wallet != null)
+                _cashText.text = "$" + NumberFormatter.Format(_wallet.Cash);
+
             if (_market == null || string.IsNullOrEmpty(_yardKey)) return;
 
             double stock = _market.Stock(_yardKey);

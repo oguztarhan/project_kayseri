@@ -2,7 +2,6 @@ using Game.Core;
 using Game.Gameplay;
 using Game.Systems;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Game.UI
@@ -96,10 +95,15 @@ namespace Game.UI
         private void Open()
         {
             if (_opening) return;
-            _opening = true;
-            // Async: the synchronous load blocked the frame for the whole swap, which on a phone
-            // reads as the game freezing at the tap. The island keeps animating until Market is ready.
-            SceneManager.LoadSceneAsync(marketSceneName, LoadSceneMode.Single);
+            // Behind a loading screen, like every other scene the game reads. The async load on its own
+            // was better than the synchronous one it replaced — the island kept animating instead of the
+            // frame freezing — but it also meant a tap with no answer for as long as the read took, on
+            // the one button in the game whose whole job is to promise a change of place.
+            //
+            // The curtain owns the double tap too, so the guard above is belt and braces.
+            string key = ServiceLocator.Get<MarketService>()?.ActiveIsland;
+            _opening = SceneCurtain.Cover(marketSceneName, WorldIslands.OreColorFor(key),
+                                          Loc.Id("ada", key));
         }
 
         /// <summary>Travelling enables a different operation, so which one is live is re-checked on a timer.</summary>
