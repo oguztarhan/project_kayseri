@@ -1763,6 +1763,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.UI::Game.UI.AdRewardUI
   panelRoot: {fileID: 1593188917650259175}
   closeButton: {fileID: 749999212442782154}
+  dimmer: {fileID: 5980203933384227923}
+  layoutPanel: {fileID: 2961056388188457037}
+  title: {fileID: 6256075267609984718}
+  description: {fileID: 6543839250051039855}
+  titleRibbonSprite: {fileID: 21300000, guid: bd636c964d9427f4d8f42b4c0070cee4, type: 3}
   slots:
   - id: elmas
     kind: 0
@@ -2246,8 +2251,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 368c0c90d72344a4b8be30ea592af075, type: 3}
-  m_Type: 0
+  m_Sprite: {fileID: 21300000, guid: 54089e8be6306e041ba5c95acf66ee6d, type: 3}
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -2255,7 +2260,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 2
 --- !u!1 &6179557668127823409
 GameObject:
   m_ObjectHideFlags: 0
@@ -2381,7 +2386,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.LetterboxRoot
   designSize: {x: 1080, y: 2340}
-  landscapeFit: 5
+  landscapeFit: 2
   content: {fileID: 0}
   card: {fileID: 2961056388188457037}
   edgePadding: 24
@@ -2778,16 +2783,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: 4c0073cd05eea9d459341e9183201d66, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1

@@ -21,6 +21,7 @@ namespace Game.UI
     /// the aura breathes, sparkles orbit an owned island — but nothing here draws layout.
     /// Buying costs billions, so it goes through a confirm popup rather than one tap.
     /// </summary>
+    [DefaultExecutionOrder(-110)]
     public sealed class IslandMapUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         [Header("Panel (UI_Harita prefabında bağlı)")]
@@ -31,12 +32,18 @@ namespace Game.UI
         [Tooltip("Madalyonun arkasında yavaşça dönen ışın çarkı.")]
         [SerializeField] private Image rays;
 
+        [Header("Yatay yerleşim")]
+        [SerializeField] private RectTransform titleRibbon;
+        [SerializeField] private RectTransform infoCard;
+
         [Header("Vitrin")]
         [Tooltip("Madalyon, tabela ve butonu taşıyan kök. Kaydırma animasyonu bunu oynatır.")]
         [SerializeField] private RectTransform stage;
         [SerializeField] private CanvasGroup stageGroup;
         [SerializeField] private Image aura;
         [SerializeField] private Image disc;
+        [Tooltip("Madalyonun altın dış çerçevesi; diskten ayrı bir prefab düğümüdür.")]
+        [SerializeField] private RectTransform medalFrame;
         [SerializeField] private Image emblem;
         [SerializeField] private GameObject lockIcon;
         [SerializeField] private RectTransform sparkleRing;
@@ -140,6 +147,11 @@ namespace Game.UI
 
         private Image _curtain;
 
+        private void Awake()
+        {
+            ApplyLandscapeLayout();
+        }
+
         private void Start()
         {
             _world = FindAnyObjectByType<WorldIslands>();
@@ -162,6 +174,49 @@ namespace Game.UI
             if (fadeGroup != null) fadeGroup.gameObject.SetActive(false);
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
+        }
+
+        private void ApplyLandscapeLayout()
+        {
+            if (Screen.width <= Screen.height || stage == null) return;
+
+            SetRect(stage, Vector2.zero, new Vector2(2100f, 850f));
+            SetRect(titleRibbon, new Vector2(0f, 350f), new Vector2(900f, 210f));
+            SetRect(closeButton != null ? closeButton.transform as RectTransform : null,
+                    new Vector2(1000f, 350f), new Vector2(120f, 120f));
+
+            Vector2 medal = new Vector2(-600f, -20f);
+            SetPosition(rays != null ? rays.rectTransform : null, medal);
+            SetPosition(aura != null ? aura.rectTransform : null, medal);
+            SetPosition(disc != null ? disc.rectTransform : null, medal);
+            SetPosition(medalFrame, medal);
+            SetPosition(emblem != null ? emblem.rectTransform : null, medal);
+            SetPosition(lockIcon != null ? lockIcon.transform as RectTransform : null, medal);
+            SetPosition(sparkleRing, medal);
+
+            SetRect(infoCard, new Vector2(450f, 105f), new Vector2(900f, 300f));
+            SetRect(pipRoot, new Vector2(450f, -115f), new Vector2(720f, 56f));
+            SetRect(ctaButton != null ? ctaButton.transform as RectTransform : null,
+                    new Vector2(450f, -285f), new Vector2(720f, 190f));
+            SetRect(prevButton != null ? prevButton.transform as RectTransform : null,
+                    new Vector2(-960f, -20f), new Vector2(124f, 124f));
+            SetRect(nextButton != null ? nextButton.transform as RectTransform : null,
+                    new Vector2(960f, -20f), new Vector2(124f, 124f));
+        }
+
+        private static void SetPosition(RectTransform rect, Vector2 position)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+        }
+
+        private static void SetRect(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
         }
 
         /// <summary>Open/close the world map — called by the HUD's map button.</summary>

@@ -22,11 +22,19 @@ namespace Game.UI
     /// Nothing on this screen expires. The ship waits on the offers and waits on an unclaimed reward, so
     /// there is no way to lose anything by not looking at it — see <see cref="ContractService"/>.
     /// </summary>
+    [DefaultExecutionOrder(-110)]
     public sealed class ContractUI : MonoBehaviour
     {
         [Header("Panel (UI_Kontrat prefabında bağlı)")]
         [SerializeField] private GameObject panelRoot;
         [SerializeField] private Button closeButton;
+
+        [Header("Yatay yerleşim")]
+        [SerializeField] private RectTransform layoutPanel;
+        [SerializeField] private RectTransform titleRibbon;
+        [SerializeField] private RectTransform pageBackground;
+        [SerializeField] private RectTransform runningCard;
+        [SerializeField] private RectTransform nextSlot;
 
         [Header("Kontrat kartı (sürmekte olan iş)")]
         [Tooltip("Kartın kökü. Boş bırakılırsa kart görselinin kendi nesnesi kullanılır. Teklifler " +
@@ -86,6 +94,11 @@ namespace Game.UI
         private readonly TMP_Text[] _offerPay = new TMP_Text[ContractService.TierCount];
         private readonly TMP_Text[] _offerGems = new TMP_Text[ContractService.TierCount];
 
+        private void Awake()
+        {
+            ApplyLandscapeLayout();
+        }
+
         private void Start()
         {
             _contract = ServiceLocator.Get<ContractService>();
@@ -101,6 +114,27 @@ namespace Game.UI
 
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
+        }
+
+        private void ApplyLandscapeLayout()
+        {
+            if (Screen.width <= Screen.height || layoutPanel == null) return;
+
+            SetRect(layoutPanel, Vector2.zero, new Vector2(1900f, 900f));
+            SetRect(pageBackground, Vector2.zero, new Vector2(1900f, 900f));
+            SetRect(titleRibbon, new Vector2(0f, 350f), new Vector2(900f, 210f));
+            SetRect(closeButton != null ? closeButton.transform as RectTransform : null,
+                    new Vector2(900f, 350f), new Vector2(120f, 120f));
+            SetRect(runningCard, new Vector2(-465f, -35f), new Vector2(900f, 468f));
+            SetRect(nextSlot, new Vector2(465f, -35f), new Vector2(908f, 484f));
+        }
+
+        private static void SetRect(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
         }
 
         private void Update()
@@ -269,16 +303,26 @@ namespace Game.UI
             Stretch(root, Vector2.zero, Vector2.one);
             root.SetAsLastSibling();
 
+            bool landscape = Screen.width > Screen.height;
             TMP_Text title = Text(root, "Baslik", 40, TextAlignmentOptions.Center,
-                                  new Vector2(0.06f, 0.82f), new Vector2(0.94f, 0.89f));
+                                  landscape ? new Vector2(0.28f, 0.80f) : new Vector2(0.06f, 0.82f),
+                                  landscape ? new Vector2(0.72f, 0.90f) : new Vector2(0.94f, 0.89f));
             title.text = Loc.T("kontrat.teklifler");
 
             Color[] tints = { easyTint, normalTint, hardTint };
             string[] keys = { "kontrat.kolay", "kontrat.normal", "kontrat.zor" };
             for (int i = 0; i < ContractService.TierCount; i++)
             {
-                float top = 0.78f - i * 0.235f;
-                BuildOfferCard(root, i, keys[i], tints[i], top - 0.205f, top);
+                if (landscape)
+                {
+                    float left = 0.035f + i * 0.32f;
+                    BuildOfferCard(root, i, keys[i], tints[i], left, left + 0.29f, 0.12f, 0.74f);
+                }
+                else
+                {
+                    float top = 0.78f - i * 0.235f;
+                    BuildOfferCard(root, i, keys[i], tints[i], top - 0.205f, top);
+                }
             }
 
             _offersRoot.SetActive(false);
@@ -286,11 +330,15 @@ namespace Game.UI
 
         private void BuildOfferCard(RectTransform parent, int tier, string tierKey, Color tint,
                                     float yMin, float yMax)
+            => BuildOfferCard(parent, tier, tierKey, tint, 0.06f, 0.94f, yMin, yMax);
+
+        private void BuildOfferCard(RectTransform parent, int tier, string tierKey, Color tint,
+                                    float xMin, float xMax, float yMin, float yMax)
         {
             var go = new GameObject("Teklif" + tier, typeof(RectTransform), typeof(Image), typeof(Button));
             var rt = (RectTransform)go.transform;
             rt.SetParent(parent, false);
-            Stretch(rt, new Vector2(0.06f, yMin), new Vector2(0.94f, yMax));
+            Stretch(rt, new Vector2(xMin, yMin), new Vector2(xMax, yMax));
 
             var img = go.GetComponent<Image>();
             img.sprite = cardRunning != null ? cardRunning : UiSkin.Panel;

@@ -24,6 +24,9 @@ namespace Game.UI
     /// <see cref="FreeRewardService"/> owns only the state (charges spent, cooldown), which has to
     /// persist; everything a designer would want to change lives here.
     /// </summary>
+    // This screen has a deliberate landscape composition; it must be placed before LetterboxRoot
+    // measures the portrait-authored panel.
+    [DefaultExecutionOrder(-110)]
     public sealed class AdRewardUI : MonoBehaviour
     {
         /// <summary>What a slot pays out. Exactly one of the three is normally non-zero.</summary>
@@ -65,6 +68,15 @@ namespace Game.UI
         [Header("Panel (UI_Reklam prefabında bağlı)")]
         [SerializeField] private GameObject panelRoot;
         [SerializeField] private Button closeButton;
+        [Tooltip("Panel dışındaki karartma. Dokununca ekranı kapatır.")]
+        [SerializeField] private Image dimmer;
+
+        [Header("Yatay yerleşim")]
+        [SerializeField] private RectTransform layoutPanel;
+        [SerializeField] private RectTransform title;
+        [SerializeField] private RectTransform description;
+        [Tooltip("Ayarlar ekranında kullanılan başlık şeridi.")]
+        [SerializeField] private Sprite titleRibbonSprite;
 
         [Header("Yuvalar")]
         [SerializeField] private List<Slot> slots = new List<Slot>();
@@ -81,6 +93,12 @@ namespace Game.UI
         private WorldIslands _world;
         private CoalOperation _op;
         private float _timer;
+        private RectTransform _titleRibbon;
+
+        private void Awake()
+        {
+            ApplyLandscapeLayout();
+        }
 
         private void Start()
         {
@@ -100,6 +118,13 @@ namespace Game.UI
                 slot.watchButton.onClick.AddListener(() => Watch(captured));
             }
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
+            if (dimmer != null)
+            {
+                Button dimButton = dimmer.GetComponent<Button>();
+                if (dimButton == null) dimButton = dimmer.gameObject.AddComponent<Button>();
+                dimButton.transition = Selectable.Transition.None;
+                dimButton.onClick.AddListener(Hide);
+            }
 
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
@@ -131,6 +156,64 @@ namespace Game.UI
         public void Hide()
         {
             if (panelRoot != null) panelRoot.SetActive(false);
+        }
+
+        /// <summary>
+        /// Keeps every reward row at its authored size so the controls inside do not distort, then
+        /// places the three rows side by side inside one centred, wide panel.
+        /// </summary>
+        private void ApplyLandscapeLayout()
+        {
+            if (Screen.width <= Screen.height || layoutPanel == null) return;
+
+            // Wide and deliberately shallow: the previous 980-high shell left almost a third of the
+            // landscape card empty below the rewards.
+            SetRect(layoutPanel, Vector2.zero, new Vector2(2500f, 760f));
+            BuildLandscapeRibbon();
+            SetRect(description, new Vector2(0f, 145f), new Vector2(1100f, 62f));
+
+            float[] x = { -830f, 0f, 830f };
+            int count = Mathf.Min(slots.Count, x.Length);
+            for (int i = 0; i < count; i++)
+            {
+                Slot slot = slots[i];
+                if (slot == null || slot.background == null) continue;
+                RectTransform row = slot.background.rectTransform;
+                SetRect(row, new Vector2(x[i], -70f), new Vector2(916f, 360f));
+                row.localScale = Vector3.one * 0.88f;
+            }
+
+            SetRect(closeButton != null ? closeButton.transform as RectTransform : null,
+                    new Vector2(1150f, 300f), new Vector2(120f, 120f));
+            if (closeButton != null) closeButton.transform.SetAsLastSibling();
+        }
+
+        private void BuildLandscapeRibbon()
+        {
+            if (_titleRibbon == null)
+            {
+                var go = new GameObject("BaslikSeridi", typeof(RectTransform), typeof(Image));
+                _titleRibbon = (RectTransform)go.transform;
+                _titleRibbon.SetParent(layoutPanel, false);
+                var image = go.GetComponent<Image>();
+                image.sprite = titleRibbonSprite;
+                image.type = Image.Type.Simple;
+                image.raycastTarget = false;
+            }
+
+            SetRect(_titleRibbon, new Vector2(0f, 300f), new Vector2(980f, 230f));
+            if (title == null) return;
+            if (title.parent != _titleRibbon) title.SetParent(_titleRibbon, false);
+            SetRect(title, new Vector2(0f, -6f), new Vector2(600f, 120f));
+        }
+
+        private static void SetRect(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
         }
 
         private void Refresh()

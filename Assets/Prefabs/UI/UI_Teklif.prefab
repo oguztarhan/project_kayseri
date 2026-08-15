@@ -128,12 +128,16 @@ MonoBehaviour:
   boostIcon: {fileID: 21300000, guid: 51adb7312158f584cb5cb62bf807ecc2, type: 3}
   rewardGemIcon: {fileID: 21300000, guid: dbe3829665812ac47953360220d749a2, type: 3}
   cardFont: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
-  cardSize: {x: 216, y: 300}
-  cardGap: 14
-  cardIconSize: 104
+  cardSize: {x: 270, y: 330}
+  cardGap: 22
+  cardIconSize: 112
   priceLabel: {fileID: 2414014997919380254}
   countdownLabel: {fileID: 6334928825577933536}
   oreTint: {fileID: 4229413732753313645}
+  offerCard: {fileID: 4242406260371066496}
+  limitedOfferBadge: {fileID: 1141110265747656708}
+  titleDivider: {fileID: 1701749809788189179}
+  backdropGlow: {fileID: 4142419122980384910}
   tiers:
   - sku: teklif_kucuk
     priceLabel: "\u20BA19,99"
@@ -513,7 +517,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 07408ab32904e93438f365f3f05c4f7a, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 54089e8be6306e041ba5c95acf66ee6d, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -522,7 +526,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 2
 --- !u!114 &5930457351544452460
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1615,7 +1619,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.LetterboxRoot
   designSize: {x: 1080, y: 2340}
-  landscapeFit: 5
+  landscapeFit: 2
   content: {fileID: 8645003185300161042}
   card: {fileID: 4242406260371066496}
   edgePadding: 24

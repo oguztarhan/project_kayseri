@@ -34,6 +34,7 @@ namespace Game.UI
     /// <see cref="StationPreviewStage"/>. What the player is looking at is what they are about to walk
     /// back out to.
     /// </summary>
+    [DefaultExecutionOrder(-110)]
     public sealed class StationScreenUI : MonoBehaviour
     {
         /// <summary>One building this screen owns. Its index is a <see cref="CoalOperation"/> station.</summary>
@@ -149,9 +150,15 @@ namespace Game.UI
         private int _station = -1;
         private int _builtFor = -1;
         private bool _busy;
+        private bool _landscapeLayout;
+        private RectTransform _titleRibbon;
+        private RectTransform _goldPill;
+        private readonly Vector2 _stationSheetHome = new Vector2(550f, -400f);
+        private readonly Vector2 _listSheetHome = new Vector2(0f, -400f);
 
         private void Awake()
         {
+            ApplyLandscapeLayout();
             // Down, not up: this script sits on the prefab root and the letterbox is inside Pencere.
             _letterbox = GetComponentInChildren<LetterboxRoot>(true);
             if (sheet != null) { _sheetHome = sheet.anchoredPosition; _scroll = sheet.GetComponent<ScrollRect>(); }
@@ -166,6 +173,41 @@ namespace Game.UI
                 cardTemplate.SetActive(false);
             }
             HideFx();
+        }
+
+        private void ApplyLandscapeLayout()
+        {
+            if (Screen.width <= Screen.height || sheet == null) return;
+            _landscapeLayout = true;
+            _titleRibbon = titleText != null ? titleText.rectTransform.parent as RectTransform : null;
+            _goldPill = goldValue != null ? goldValue.rectTransform.parent as RectTransform : null;
+
+            SetCentered(_titleRibbon, new Vector2(-550f, 350f), new Vector2(900f, 200f));
+            SetCentered(stripContent, new Vector2(-550f, 205f), new Vector2(980f, 130f));
+            SetCentered(_goldPill, new Vector2(-550f, 105f), new Vector2(320f, 104f));
+            SetCentered(stageGroup != null ? stageGroup.transform as RectTransform : null,
+                        new Vector2(-550f, -125f), new Vector2(1000f, 520f));
+            SetCentered(phaseGroup != null ? phaseGroup.transform as RectTransform : null,
+                        new Vector2(550f, 275f), new Vector2(900f, 150f));
+            SetBottom(sheet, _stationSheetHome, new Vector2(980f, 650f));
+            SetCentered(phaseBanner, new Vector2(550f, 350f), new Vector2(900f, 180f));
+        }
+
+        private static void SetCentered(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+        }
+
+        private static void SetBottom(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
         }
 
         private void Start()
@@ -309,6 +351,17 @@ namespace Game.UI
             if (stageGroup != null) stageGroup.SetActive(!listPage);
             if (phaseGroup != null) phaseGroup.SetActive(!listPage);
             if (sheet == null) return;
+
+            if (_landscapeLayout)
+            {
+                Vector2 sheetHome = listPage ? _listSheetHome : _stationSheetHome;
+                sheet.anchoredPosition = sheetHome;
+                _sheetHome = sheetHome;
+                sheet.sizeDelta = new Vector2(listPage ? 1400f : 980f, sheet.sizeDelta.y);
+                SetCentered(_titleRibbon, new Vector2(listPage ? 0f : -550f, 350f), new Vector2(900f, 200f));
+                SetCentered(stripContent, new Vector2(listPage ? 0f : -550f, 205f), new Vector2(980f, 130f));
+                SetCentered(_goldPill, new Vector2(listPage ? 0f : -550f, 105f), new Vector2(320f, 104f));
+            }
 
             float height = SheetStationHeight;
             if (listPage)

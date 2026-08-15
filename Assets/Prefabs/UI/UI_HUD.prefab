@@ -2266,14 +2266,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.UI::Game.UI.TutorialUI
   cardPanel: {fileID: 21300000, guid: 54089e8be6306e041ba5c95acf66ee6d, type: 3}
   cardRibbon: {fileID: 21300000, guid: dd988dc1d62a392469b820556a8d87ca, type: 3}
+  tutorialPanel: {fileID: 21300000, guid: 2b9327728f2e4f22be7f28dcd690cf52, type: 3}
+  tutorialButton: {fileID: 21300000, guid: a93ac639aaf24d25ad17c9dfb6f2b518, type: 3}
   medallion: {fileID: 21300000, guid: d5ecd521a2f84724d914b4126b12ca19, type: 3}
-  nextIcon: {fileID: 21300000, guid: 0b3e07e986e996f43aaffc2ba13a0230, type: 3}
   skipPill: {fileID: 21300000, guid: 2dc1971bf76826e4c967527deb87f1fa, type: 3}
   pipOn: {fileID: 21300000, guid: 5d5f19413de43274a9c6f368d6227e46, type: 3}
   pipOff: {fileID: 21300000, guid: 692c1467bea57064ea33e3176a0119fd, type: 3}
   worldPin: {fileID: 21300000, guid: 217103a8ee5834c4ca5e803a13a2c28c, type: 3}
   tapHand: {fileID: 0}
   font: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
+  narratorWelcome: {fileID: 21300000, guid: f1138cd686d94f088df5098c7b847dc9, type: 3}
+  narratorFirstEntry: {fileID: 21300000, guid: 58bf8233ec774d488d0d35d608589d4f, type: 3}
+  narratorThoughtful: {fileID: 21300000, guid: 7cb6dbf0c6bb41d4aa1c17c612f25039, type: 3}
+  narratorWarning: {fileID: 21300000, guid: e0420e78fe324f32832fcac8b9011c5c, type: 3}
+  narratorHappy: {fileID: 21300000, guid: c014d458ee6c4a6bb2880e14f35f5f11, type: 3}
+  narratorPoint: {fileID: 21300000, guid: 3e9d2802e3304b678b27e30850605553, type: 3}
   tourIcons:
   - {fileID: 21300000, guid: 2bb79e9405f727f4a816f624d462feb6, type: 3}
   - {fileID: 21300000, guid: cb7f11f35f3905a4e9fd794e931ce7bf, type: 3}
@@ -2281,13 +2288,11 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 3ce5d9916f6fe8a4298a8cf813245816, type: 3}
   - {fileID: 21300000, guid: e3e11c87903fd134f9cf978628db2df3, type: 3}
   - {fileID: 21300000, guid: 8b8d5168e7dc2594aaaa5e8b73995052, type: 3}
-  beatSeconds: 4.2
   flySeconds: 1.15
   beatSpan: 110
   focusPadding: 1.6
   beatRise: 0.15
   tipSeconds: 5.5
-  buttonStopSeconds: 1.9
   handTapSeconds: 0.9
   shadeColor: {r: 0.02, g: 0.04, b: 0.09, a: 0.8}
   inkColor: {r: 0.16470589, g: 0.22745098, b: 0.36078432, a: 1}

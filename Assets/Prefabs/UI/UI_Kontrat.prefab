@@ -2322,7 +2322,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.LetterboxRoot
   designSize: {x: 1080, y: 2340}
-  landscapeFit: 3
+  landscapeFit: 2
   content: {fileID: 0}
   card: {fileID: 0}
   edgePadding: 24
@@ -3175,6 +3175,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.UI::Game.UI.ContractUI
   panelRoot: {fileID: 4126450845257058193}
   closeButton: {fileID: 3762062594142652297}
+  layoutPanel: {fileID: 2306881262719667887}
+  titleRibbon: {fileID: 583414938564880242}
+  pageBackground: {fileID: 3068184116350062282}
+  runningCard: {fileID: 8027578463243607104}
+  nextSlot: {fileID: 8035091927250538943}
   cardRoot: {fileID: 0}
   cardImage: {fileID: 8843038536753483705}
   cardRunning: {fileID: 21300000, guid: d6d6cdffe7696144ba7675203c68121d, type: 3}

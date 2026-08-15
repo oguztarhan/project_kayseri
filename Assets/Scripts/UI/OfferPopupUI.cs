@@ -31,6 +31,9 @@ namespace Game.UI
     /// bindings handed to the store carry <c>oneTime = false</c> so the store never files the shared
     /// sku away.
     /// </summary>
+    // The offer owns an authored landscape arrangement. It has to land before LetterboxRoot measures
+    // the card, otherwise the generic portrait-fold pass measures the old 900x1240 stack first.
+    [DefaultExecutionOrder(-110)]
     public sealed class OfferPopupUI : MonoBehaviour
     {
         /// <summary>
@@ -86,6 +89,16 @@ namespace Game.UI
         [Tooltip("Adanın cevher rengine boyanan şerit; boş bırakılabilir.")]
         [SerializeField] private Image oreTint;
 
+        [Header("Yatay yerleşim")]
+        [Tooltip("Kartın beyaz ana gövdesi. Yatay ekranda geniş ve kısa olacak şekilde düzenlenir.")]
+        [SerializeField] private RectTransform offerCard;
+        [Tooltip("SINIRLI FIRSAT satırı.")]
+        [SerializeField] private RectTransform limitedOfferBadge;
+        [Tooltip("Paket adının altındaki ayırıcı çizgi.")]
+        [SerializeField] private RectTransform titleDivider;
+        [Tooltip("Kartın arkasındaki dekoratif ışık. Ölçüme dikey kart yüksekliğini taşımaması için yataylaşır.")]
+        [SerializeField] private RectTransform backdropGlow;
+
         [Header("Ne satıyoruz")]
         [Tooltip("Üç basamak, ucuzdan pahalıya. Sırayla döner: alınmamış olanların arasında gezinir.")]
         [SerializeField]
@@ -134,6 +147,11 @@ namespace Game.UI
         private int _paintedSecond = -1;
         private bool _autoOpened;                       // a hand-opened window must not count as a refusal
 
+        private void Awake()
+        {
+            ApplyLandscapeLayout();
+        }
+
         /// <summary>Whether a pack is armed and buyable — what the HUD's clock chip rides on.</summary>
         public bool HasLiveOffer => SecondsLeft() > 0L;
 
@@ -170,6 +188,50 @@ namespace Game.UI
                 panelRoot.SetActive(false);
                 UiPanelSound.Attach(panelRoot);   // after the switch-off, or boot plays open+close
             }
+        }
+
+        /// <summary>
+        /// The portrait card is a 900x1240 vertical stack. Letting the generic letterbox helper fold
+        /// that stack made the title overlap the rewards and left the action controls floating at the
+        /// bottom edge. Landscape gets a deliberate top-to-bottom composition instead: identity below
+        /// the ribbon, three generous reward cards through the middle, and both actions on one lower row.
+        /// </summary>
+        private void ApplyLandscapeLayout()
+        {
+            if (Screen.width <= Screen.height || offerCard == null) return;
+
+            SetRect(backdropGlow, Vector2.zero, new Vector2(1900f, 760f));
+            SetRect(offerCard, Vector2.zero, new Vector2(2100f, 820f));
+
+            RectTransform ribbon = islandTitle != null ? islandTitle.rectTransform.parent as RectTransform : null;
+            SetRect(ribbon, new Vector2(0f, 340f), new Vector2(900f, 180f));
+            SetRect(limitedOfferBadge, new Vector2(-650f, 165f), new Vector2(600f, 58f));
+            SetRect(tierTitle != null ? tierTitle.rectTransform : null,
+                    new Vector2(-650f, 95f), new Vector2(700f, 86f));
+            SetRect(titleDivider, new Vector2(-650f, 25f), new Vector2(560f, 8f));
+
+            cardSize = new Vector2(270f, 330f);
+            cardGap = 22f;
+            cardIconSize = 112f;
+            SetRect(rewardRow, new Vector2(200f, 45f), new Vector2(900f, 360f));
+
+            RectTransform timer = countdownLabel != null
+                ? countdownLabel.rectTransform.parent as RectTransform
+                : null;
+            SetRect(timer, new Vector2(-240f, -275f), new Vector2(390f, 140f));
+            SetRect(buyButton != null ? buyButton.transform as RectTransform : null,
+                    new Vector2(300f, -275f), new Vector2(520f, 150f));
+            SetRect(closeButton != null ? closeButton.transform as RectTransform : null,
+                    new Vector2(975f, 350f), new Vector2(110f, 110f));
+        }
+
+        private static void SetRect(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
         }
 
         private void Update()

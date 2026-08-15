@@ -115,6 +115,10 @@ namespace Game.UI
         [Header("Panel (UI_Magaza prefabında bağlı)")]
         [SerializeField] private GameObject panelRoot;
         [SerializeField] private Button closeButton;
+        [Tooltip("Kırmızı-beyaz tenteyi de taşıyan tam ekran mağaza arka planı.")]
+        [SerializeField] private RectTransform storefrontBackground;
+        [Tooltip("Yatay mağazada her zaman görünen üst tente yüksekliği.")]
+        [SerializeField, Min(80f)] private float awningHeight = 185f;
 
         [Header("Paket ızgaraları")]
         [Tooltip("GoldPackIAP hücrelerinin eklendiği ızgara.")]
@@ -152,6 +156,7 @@ namespace Game.UI
         private PrestigeService _prestige;
         private Game.Gameplay.WorldIslands _world;
         private bool _built;
+        private RawImage _awning;
 
         /// <summary>
         /// The remove-ads entitlement lives in the save (via <see cref="FreeRewardService"/>) rather than
@@ -165,6 +170,7 @@ namespace Game.UI
 
         private void Start()
         {
+            FitStorefrontBackground();
             ResolveServices();
 
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
@@ -235,11 +241,77 @@ namespace Game.UI
         // ---------- open / close ----------
         public void Show()
         {
+            FitStorefrontBackground();
             ResolveServices();
             StampStarterWindow();
             if (panelRoot != null) panelRoot.SetActive(true);
             RefreshGoldAmounts();
             RefreshOffers();
+        }
+
+        /// <summary>
+        /// The storefront art is the whole screen, not a zero-sized decoration. The scene used to
+        /// override its stretch anchors back to (0,0), which collapsed both the navy wall and the
+        /// red-white awning painted across its top edge.
+        /// </summary>
+        private void FitStorefrontBackground()
+        {
+            if (storefrontBackground == null && panelRoot != null)
+                storefrontBackground = panelRoot.transform.Find("ArkaPlan") as RectTransform;
+            if (storefrontBackground == null) return;
+
+            storefrontBackground.anchorMin = Vector2.zero;
+            storefrontBackground.anchorMax = Vector2.one;
+            storefrontBackground.pivot = new Vector2(0.5f, 0.5f);
+            storefrontBackground.offsetMin = Vector2.zero;
+            storefrontBackground.offsetMax = Vector2.zero;
+            storefrontBackground.SetAsFirstSibling();
+
+            EnsureAwning();
+        }
+
+        /// <summary>
+        /// Draws the top of the storefront texture as its own strip inside the safe UI hierarchy.
+        /// Keeping it separate from the full-screen background prevents the scroll viewport or an
+        /// aspect-ratio change from hiding the red-white awning again.
+        /// </summary>
+        private void EnsureAwning()
+        {
+            Image backgroundImage = storefrontBackground.GetComponent<Image>();
+            Sprite sprite = backgroundImage != null ? backgroundImage.sprite : null;
+            if (sprite == null || sprite.texture == null) return;
+
+            RectTransform host = closeButton != null
+                ? closeButton.transform.parent as RectTransform
+                : storefrontBackground.parent as RectTransform;
+            if (host == null) return;
+
+            if (_awning == null)
+            {
+                Transform existing = host.Find("MagazaTentesi");
+                if (existing != null) _awning = existing.GetComponent<RawImage>();
+            }
+
+            if (_awning == null)
+            {
+                var go = new GameObject("MagazaTentesi", typeof(RectTransform), typeof(RawImage));
+                go.transform.SetParent(host, false);
+                _awning = go.GetComponent<RawImage>();
+            }
+
+            RectTransform rect = _awning.rectTransform;
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(0f, awningHeight);
+            rect.SetAsFirstSibling();
+
+            _awning.texture = sprite.texture;
+            _awning.uvRect = new Rect(0f, 0.80f, 1f, 0.20f);
+            _awning.color = Color.white;
+            _awning.raycastTarget = false;
+            _awning.gameObject.SetActive(true);
         }
 
         /// <summary>

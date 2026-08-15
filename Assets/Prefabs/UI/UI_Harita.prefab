@@ -258,10 +258,13 @@ MonoBehaviour:
   closeButton: {fileID: 8107562238696522711}
   backdrop: {fileID: 4156324647249853703}
   rays: {fileID: 6961411399312404846}
+  titleRibbon: {fileID: 4660507351527791201}
+  infoCard: {fileID: 6044817984202377479}
   stage: {fileID: 342593977973561842}
   stageGroup: {fileID: 5002182119206519451}
   aura: {fileID: 1193857774507901358}
   disc: {fileID: 4239559833396194317}
+  medalFrame: {fileID: 1336913629086944267}
   emblem: {fileID: 8614077253336622322}
   lockIcon: {fileID: 7866844915460854337}
   sparkleRing: {fileID: 2321549615490700298}
@@ -4549,7 +4552,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.LetterboxRoot
   designSize: {x: 1080, y: 2340}
-  landscapeFit: 5
+  landscapeFit: 2
   content: {fileID: 8998512433242680924}
   card: {fileID: 342593977973561842}
   edgePadding: 24

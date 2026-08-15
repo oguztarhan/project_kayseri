@@ -16,12 +16,10 @@ namespace Game.UI
     /// Three parts, in this order, and only the first two are ever seen back to back:
     ///
     ///   1. THE TOUR — the camera walks the production chain, one stop per stage, with a caption. This
-    ///      is the whole game in twenty-five seconds: coal leaves the mountain and comes back as money.
-    ///      Nothing is asked of the player, the HUD is off, and a tap moves it along.
-    ///   2. THE FIRST UPGRADE — the HUD comes back and everything but one control is shaded out and
-    ///      unclickable. The player presses UPGRADE, buys a mine level with their own thumb, and reads
-    ///      the income go up. Learning to buy by buying is the point; a caption saying "you can buy
-    ///      upgrades" teaches nobody.
+    ///      coal leaves the mountain and comes back as money. The HUD is off and only DEVAM advances.
+    ///   2. THE CONTROLS — the HUD comes back and Usta Max points at each relevant control. The control
+    ///      stays visible inside the spotlight, but a full-screen blocker keeps it visual-only; DEVAM
+    ///      remains the one active input until the onboarding finishes.
     ///   3. THE TIPS — one-shot cards fired much later, when the thing they describe first becomes
     ///      true: a contract falls due, a boost charges, an island becomes affordable. Never twice, and
     ///      never blocking.
@@ -31,10 +29,8 @@ namespace Game.UI
     /// re-dressed sixteen times. What IS art arrives through the Inspector slots below, so the look
     /// stays tunable from the hierarchy like every other screen.
     ///
-    /// The shade is what makes part 2 work. Four opaque quads surround the highlighted control and eat
-    /// every tap; the hole over the control has no graphic in it, so the real button — on the HUD's own
-    /// canvas, underneath — is the topmost raycast target there and gets the press. The tutorial never
-    /// simulates a click, so the game cannot be taught a path it does not actually have.
+    /// Four shade quads leave a moving spotlight around the explained control. A separate transparent
+    /// blocker covers even that hole, so highlighted game controls can be seen but cannot be pressed.
     /// </summary>
     public sealed class TutorialUI : MonoBehaviour
     {
@@ -48,10 +44,12 @@ namespace Game.UI
         [SerializeField] private Sprite cardPanel;
         [Tooltip("Kartın üstündeki başlık şeridi — serit_baslik.")]
         [SerializeField] private Sprite cardRibbon;
+        [Tooltip("Yeni lacivert tutorial paneli. Atanırsa eski panel ve ayrı şerit yerine kullanılır.")]
+        [SerializeField] private Sprite tutorialPanel;
+        [Tooltip("Yeni altın çerçeveli mavi DEVAM butonu.")]
+        [SerializeField] private Sprite tutorialButton;
         [Tooltip("Simgenin oturduğu yuvarlak — madalyon.")]
         [SerializeField] private Sprite medallion;
-        [Tooltip("Kartın sağ altındaki ileri oku — btn_ok.")]
-        [SerializeField] private Sprite nextIcon;
         [Tooltip("ATLA tuşunun zemini — pill_sayac.")]
         [SerializeField] private Sprite skipPill;
         [SerializeField] private Sprite pipOn;         // pip_dolu
@@ -64,12 +62,24 @@ namespace Game.UI
         [Tooltip("Boşken sahnedeki ilk TMP yazı tipi ödünç alınır.")]
         [SerializeField] private TMP_FontAsset font;
 
+        [Header("Anlatıcı — Usta Max")]
+        [Tooltip("Hedef göstermeyen karşılama ve genel anlatım pozu.")]
+        [SerializeField] private Sprite narratorWelcome;
+        [Tooltip("Oyuna ilk girişte şapkasına dokunarak oyuncuyu selamlayan poz.")]
+        [SerializeField] private Sprite narratorFirstEntry;
+        [Tooltip("Tur anlatımında kullanılan düşünceli/açıklayıcı poz.")]
+        [SerializeField] private Sprite narratorThoughtful;
+        [Tooltip("Tur anlatımında önemli noktaları vurgulayan ciddi poz.")]
+        [SerializeField] private Sprite narratorWarning;
+        [Tooltip("Bütün tutorial tamamlandığında gösterilen mutlu poz.")]
+        [SerializeField] private Sprite narratorHappy;
+        [Tooltip("Sola işaret pozu. Sağdaki hedefler için kod tarafından yatay çevrilir.")]
+        [SerializeField] private Sprite narratorPoint;
+
         [Header("Tur simgeleri (maden, tren, depo, izabe, pazar, nakit)")]
         [SerializeField] private Sprite[] tourIcons = new Sprite[6];
 
         [Header("Zamanlama")]
-        [Tooltip("Dokunulmazsa bir durağın kendi kendine geçme süresi.")]
-        [SerializeField] private float beatSeconds = 4.2f;
         [Tooltip("Kameranın bir duraktan diğerine süzülme süresi.")]
         [SerializeField] private float flySeconds = 1.15f;
         [Tooltip("Bir durakta ekranın dikeyde kapsadığı EN AZ dünya birimi. Bölgesi ölçülebilen " +
@@ -86,9 +96,6 @@ namespace Game.UI
         [SerializeField] private float beatRise = 0.15f;
         [Tooltip("Bağlamsal ipucu kartının ekranda kalma süresi.")]
         [SerializeField] private float tipSeconds = 5.5f;
-        [Tooltip("Kapanıştaki hızlı buton turunda her butonun ekranda kalma süresi. Dokunuş beklemez, "
-                 + "dokunulursa hemen geçer.")]
-        [SerializeField] private float buttonStopSeconds = 1.9f;
         [Tooltip("Elin bir dokunuşunun süresi. Yavaş olsun: hızlısı dokunmuyor, titriyor gibi duruyor.")]
         [SerializeField] private float handTapSeconds = 0.9f;
 
@@ -98,8 +105,8 @@ namespace Game.UI
         [SerializeField] private Color ringColor = new Color32(0xFF, 0xC8, 0x3C, 0xFF);
 
         // ------------------------------------------------------------------ ölçüler
-        private const float CanvasWidth = 1080f;
-        private const float CanvasHeight = 2340f;
+        private const float CanvasWidth = 1920f;
+        private const float CanvasHeight = 1080f;
         private const int SortingOrder = 250;      // hoş geldin ekranı 200; eğitim her şeyin üstünde
 
         // panel_ayarlar'ın dilim kenarı 120 px; çarpansız 940×330'luk kartta üst+alt kenar 240 px yer
@@ -107,19 +114,20 @@ namespace Game.UI
         // Ayarlar penceresinin kendi çözümü neyse o: çarpan 2, kenar 60'a iner, içerik 60'ın içinde kalır.
         private const float CardPpu = 2f;
         private const float CardInset = 60f;
-        private const float CardWidth = 940f;
-        private const float CardHeight = 330f;
-        private const float RibbonWidth = 700f;
-        private const float RibbonHeight = 168f;
-        private const float MedalSize = 140f;
+        private const float CardWidth = 1160f;
+        private const float CardHeight = 455f;
+        private const float RibbonWidth = 660f;
+        private const float RibbonHeight = 124f;
+        private const float MedalSize = 126f;
         private const float PipSize = 22f;
-        private const float NextSize = 84f;
-        private const float CardBottomY = 470f;    // ekranın altından — HUD'un alt sırasının üstünde
-        private const float CardTopY = -540f;      // ekranın üstünden
+        private const float ContinueWidth = 300f;
+        private const float ContinueHeight = 112f;
+        private const float CardBottomY = 34f;
+        private const float CardTopY = -34f;
         private const float RingPad = 26f;         // deliğin kenarından halkanın dışına
         private const float CardGap = 44f;         // halkanın dışından kartın kenarına — kalan nefes payı
-        private const float RibbonRise = 92f;      // şeridin kartın üst kenarından yukarı taşan payı
-        private const float PipDrop = 58f;         // noktaların kartın alt kenarından aşağı taşan payı
+        private const float RibbonRise = 12f;
+        private const float PipDrop = 42f;
 
         // ------------------------------------------------------------------ tur
         private struct Beat
@@ -184,8 +192,11 @@ namespace Game.UI
         private RectTransform _root;
         private RectTransform _canvasRect;
         private Image[] _shade;
+        private Image _inputBlocker;
         private Image _ring;
         private Image _pulse;
+        private Image _narrator;
+        private bool _narratorLeft = true;
         private RectTransform _card;
         private CanvasGroup _cardFade;
         private Image _cardIcon;
@@ -194,6 +205,7 @@ namespace Game.UI
         private RectTransform _pips;
         private Image[] _pip;
         private RectTransform _next;
+        private TMP_Text _nextText;
         private RectTransform _skip;
         private TMP_Text _skipText;
         private RectTransform _pin;
@@ -297,6 +309,8 @@ namespace Game.UI
             // Tekrar oynatıldığında ekran bir önceki turdan kapalı kalmış ve gölgeler bir ipucu kartı
             // yüzünden söndürülmüş olabilir; ikisini de baştan aç.
             _root.gameObject.SetActive(true);
+            BlockInput(true);
+            ShowSkip(false);
             for (int i = 0; i < _shade.Length; i++)
             {
                 _shade[i].enabled = true;
@@ -304,11 +318,32 @@ namespace Game.UI
             }
             yield return null;                       // düzen bir kare otursun, ölçüler doğru çıksın
 
-            yield return TourPart();
+            yield return WelcomePart();
+            if (!_skipped) yield return TourPart();
             if (!_skipped) yield return UpgradePart();
             if (!_skipped) yield return ButtonsPart();
+            if (!_skipped) yield return FinalePart();
 
             Finish();
+        }
+
+        /// <summary>Oyuncunun gördüğü ilk tutorial karesi: Usta Max doğrudan karşılayıp turu başlatır.</summary>
+        private IEnumerator WelcomePart()
+        {
+            HudVisible(false);
+            _targetRect = null;
+            _tapAdvances = true;
+            ShowRing(false);
+            ShowPips(false);
+            SetHole(new Rect());
+            yield return Fade(_shade[0].color.a, shadeColor.a, 0.28f);
+            ShowCard(Loc.T("egitim.hosgeldin_b"), Loc.T("egitim.hosgeldin_m"), null,
+                     CardBottomY, true,
+                     narratorFirstEntry != null ? narratorFirstEntry : narratorWelcome);
+            Sound(SoundId.PanelOpen);
+            yield return WaitContinue();
+            yield return HideCard();
+            _tapAdvances = false;
         }
 
         /// <summary>
@@ -326,7 +361,7 @@ namespace Game.UI
 
             SetHole(new Rect());
             _tapAdvances = true;
-            ShowSkip(true);
+            ShowSkip(false);
             ShowPips(true);
             yield return Fade(_shade[0].color.a, 0.34f, 0.3f);   // dünyayı hafifçe bastır, karartma değil
 
@@ -355,9 +390,9 @@ namespace Game.UI
                 if (_pin != null) _pin.gameObject.SetActive(onStation && worldPin != null);
                 ShowCard(Loc.T("egitim.tur_" + Tour[i].key + "_b"),
                          Loc.T("egitim.tur_" + Tour[i].key + "_m"),
-                         Icon(Tour[i].icon), CardBottomY, true);
+                         Icon(Tour[i].icon), CardBottomY, true, TourNarrator(i));
                 Sound(SoundId.PanelOpen);
-                yield return _ride != null ? Ride(cam, rot, beatSeconds) : WaitTap(beatSeconds);
+                yield return _ride != null ? Ride(cam, rot) : WaitContinue();
                 _ride = null;
                 if (_pin != null) _pin.gameObject.SetActive(false);
                 if (i < Tour.Length - 1) yield return HideCard();
@@ -372,113 +407,57 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// Part 2. Three shaded holes in a row: the UPGRADE button, the mine's first price button, and
-        /// then the income pill so the purchase has a visible consequence. The player's own taps drive
-        /// it — this waits, it never presses anything itself.
+        /// Part 2. The upgrade button and the income counter are explained without opening gameplay
+        /// panels. The highlighted controls are visual examples only; DEVAM is the sole active control.
         /// </summary>
         private IEnumerator UpgradePart()
         {
-            var station = FindAnyObjectByType<StationScreenUI>(FindObjectsInactive.Include);
             RectTransform upgrade = _hud != null ? _hud.UpgradeRect : null;
-            if (station == null || upgrade == null) yield break;
+            if (upgrade == null) yield break;
 
-            // 0 — a new island starts at zero cash, so the very first thing that happens after the tour
-            // is usually a wait. Rather than shade the screen and hold the player in front of a button
-            // they cannot press, the wait is the lesson: the balance is highlighted and it climbs on its
-            // own. Skipped outright once there is money, which is every replay after the first.
-            BigDouble price = _op.AxisCost(IslandEconomy.Mine, 0);
-            if (_wallet != null && !_wallet.CanAfford(price))
-            {
-                // Bu adım dakikalarca sürebilir. Gölge burada hiçbir şeyi kapatmamalı: oyuncu bu
-                // sırada adayı gezebilmeli, mağazaya bakabilmeli, hatta reklam izleyip para
-                // kazanabilmeli. Halka yalnızca nereye bakacağını söylüyor.
-                ShadeBlocks(false);
-                _targetRect = _hud.GoldRect;
-                ShowRing(_targetRect != null);
-                ShowCard(Loc.T("egitim.adim0_b"), Progress(price), Icon(5), CardBottomY, false);
-                // Duran bir yazi bir dakikayi bir dakika gibi gecirtir; ilerleyen bir sayi bir hedef
-                // veriyor. Ceyrek saniyede bir — her karede yeniden yazmak bos yere coplenir.
-                float tick = 0f;
-                while (!_skipped && !_wallet.CanAfford(price))
-                {
-                    tick -= Time.unscaledDeltaTime;
-                    if (tick <= 0f) { tick = 0.25f; _cardBody.text = Progress(price); }
-                    yield return null;
-                }
-                if (_skipped) yield break;
-                Sound(SoundId.Coin);
-                yield return HideCard();
-                ShowRing(false);
-                ShadeBlocks(true);
-            }
-
-            // 1 — YÜKSELT
+            _tapAdvances = true;
+            ShadeBlocks(true);
             _targetRect = upgrade;
             yield return Fade(_shade[0].color.a, shadeColor.a, 0.28f);
             ShowRing(true);
             ShowCard(Loc.T("egitim.adim1_b"), Loc.T("egitim.adim1_m"), Icon(5), PlaceFor(upgrade), false);
-            while (!_skipped && !station.IsOpen) yield return null;
+            yield return WaitContinue();
             if (_skipped) yield break;
 
-            // 2 — madenin ilk alınabilir ekseni. Ekran son bakılan istasyonda açılıyor; ilk oyunda o da
-            // maden, ama tekrar oynatıldığında başka bir sayfa olabilir, o yüzden madene çevriliyor.
-            // Eksen sabit 0 değil: eğitimi geç tekrar oynatan birinde zenginlik çoktan dolmuş olabilir
-            // ve dolu bir satırda alınacak tuş yok.
             yield return HideCard();
-            if (station.OpenStation != IslandEconomy.Mine) station.Open(IslandEconomy.Mine);
-            int axis = -1;
-            for (int a = 0; a < _op.AxisCount(IslandEconomy.Mine) && axis < 0; a++)
-                if (!_op.AxisMaxed(IslandEconomy.Mine, a)) axis = a;
-            if (axis < 0) yield break;
-
-            RectTransform buy = null;
-            float guard = 0f;
-            while (!_skipped && buy == null && guard < 4f)
-            {
-                buy = station.BuyRect(axis);
-                guard += Time.unscaledDeltaTime;
-                yield return null;
-            }
-            if (_skipped || buy == null) yield break;
-
-            int before = _op.AxisLevel(IslandEconomy.Mine, axis);
-            _targetRect = buy;
-            ShowCard(Loc.T("egitim.adim2_b"), Loc.T("egitim.adim2_m"), Icon(0), PlaceFor(buy), false);
-            while (!_skipped && _op.AxisLevel(IslandEconomy.Mine, axis) <= before) yield return null;
-            if (_skipped) yield break;
-
-            // 3 — alınan seviyenin nereye yazıldığı. Ekran kapanıyor ki gösterge görünsün. Satın alma
-            // animasyonu (binanın zıplaması) bitene kadar bekleniyor; Hide o sırada kendini reddediyor.
-            yield return new WaitForSecondsRealtime(0.9f);
-            yield return HideCard();
-            _targetRect = null;
-            ShowRing(false);
-            float shut = 0f;
-            while (station.IsOpen && shut < 3f)
-            {
-                station.Hide();
-                shut += Time.unscaledDeltaTime;
-                yield return null;
-            }
-            yield return new WaitForSecondsRealtime(0.25f);
-
             RectTransform rate = _hud != null ? _hud.RateRect : null;
             _targetRect = rate;
             ShowRing(rate != null);
             ShowCard(Loc.T("egitim.adim3_b"), Loc.T("egitim.adim3_m"), Icon(5),
-                     rate != null ? PlaceFor(rate) : CardBottomY, true);
+                     rate != null ? PlaceFor(rate) : CardBottomY, false);
             Sound(SoundId.Coin);
-            _tapAdvances = true;
-            yield return WaitTap(4.5f);
+            yield return WaitContinue();
+            if (_skipped) yield break;
 
-            // 4 — oyunun asıl kuralı, tek cümlede.
             yield return HideCard();
             _targetRect = null;
             ShowRing(false);
             SetHole(new Rect());
             ShowCard(Loc.T("egitim.adim4_b"), Loc.T("egitim.adim4_m"), Icon(5), CardBottomY, true);
-            yield return WaitTap(5.5f);
+            yield return WaitContinue();
             _tapAdvances = false;
+        }
+
+        /// <summary>
+        /// İlk selamdan sonra ifadeler tur boyunca sırayla değişir. Mutlu poz burada özellikle
+        /// kullanılmaz; oyuncu onu ancak bütün anlatımı tamamladığında görür.
+        /// </summary>
+        private Sprite TourNarrator(int index)
+        {
+            switch (index)
+            {
+                case 0: return narratorThoughtful != null ? narratorThoughtful : narratorWelcome;
+                case 1: return narratorWarning != null ? narratorWarning : narratorWelcome;
+                case 2: return narratorWelcome;
+                case 3: return narratorThoughtful != null ? narratorThoughtful : narratorWelcome;
+                case 4: return narratorWarning != null ? narratorWarning : narratorWelcome;
+                default: return narratorWelcome;
+            }
         }
 
         /// <summary>
@@ -497,7 +476,7 @@ namespace Game.UI
             yield return new WaitForSecondsRealtime(0.2f);
 
             _tapAdvances = true;
-            ShowSkip(true);
+            ShowSkip(false);
             bool wrote = false;
 
             for (int i = 0; i < Stops.Length && !_skipped; i++)
@@ -520,7 +499,7 @@ namespace Game.UI
                     wrote = true;
                 }
 
-                yield return WaitTap(buttonStopSeconds);
+                yield return WaitContinue();
                 yield return HideCard();
             }
 
@@ -531,6 +510,22 @@ namespace Game.UI
             ShowRing(false);
             ShowSkip(false);
             SetHole(new Rect());
+            _tapAdvances = false;
+        }
+
+        /// <summary>Son kontrol de anlatıldıktan sonra oyuncuyu mutlu pozla oyuna uğurlar.</summary>
+        private IEnumerator FinalePart()
+        {
+            _targetRect = null;
+            ShowRing(false);
+            ShowPips(false);
+            SetHole(new Rect());
+            _tapAdvances = true;
+            ShowCard(Loc.T("egitim.bitti_b"), Loc.T("egitim.bitti_m"), null,
+                     CardBottomY, true, narratorHappy != null ? narratorHappy : narratorWelcome);
+            Sound(SoundId.PanelOpen);
+            yield return WaitContinue();
+            yield return HideCard();
             _tapAdvances = false;
         }
 
@@ -634,6 +629,7 @@ namespace Game.UI
             _tipShowing = true;
             if (_root == null) Build();
             _root.gameObject.SetActive(true);
+            BlockInput(false);
             SetHole(new Rect());
             ShadeBlocks(false);              // ipucu hiçbir şeyi engellemez
             _targetRect = target;
@@ -678,13 +674,11 @@ namespace Game.UI
         /// pinned — a camera welded to a moving object reads as the world sliding past, and the whole
         /// point of the shot is that the train is the thing moving.
         /// </summary>
-        private IEnumerator Ride(Camera cam, Quaternion rot, float seconds)
+        private IEnumerator Ride(Camera cam, Quaternion rot)
         {
             _tapped = false;
-            float t = 0f;
-            while (t < seconds && !_tapped && !_skipped)
+            while (!_tapped && !_skipped)
             {
-                t += Time.unscaledDeltaTime;
                 if (_ride != null)
                 {
                     _targetWorld = _ride.position;
@@ -718,27 +712,72 @@ namespace Game.UI
 
         // ------------------------------------------------------------------ kart
 
-        private void ShowCard(string title, string body, Sprite icon, float y, bool bottomAnchored)
+        private void ShowCard(string title, string body, Sprite icon, float y, bool bottomAnchored,
+                              Sprite narratorOverride = null)
         {
             if (_card == null) return;
+            PlaceNarrator(_targetRect, narratorOverride);
             _card.gameObject.SetActive(true);
-            _cardTitle.text = title;
-            _cardBody.text = body;
+            bool newPanel = tutorialPanel != null;
+            _cardTitle.text = newPanel ? "USTA MAX" : "USTA MAX  •  " + title;
+            _cardBody.text = newPanel ? "<b>" + title + "</b>\n" + body : body;
             _cardIcon.transform.parent.gameObject.SetActive(icon != null);
             _cardIcon.sprite = icon;
             // Simgesiz kartta (ipuçları) yazı madalyonun boşluğuna kadar genişler.
             var brt = (RectTransform)_cardBody.transform;
             brt.offsetMin = new Vector2(icon != null ? CardInset + MedalSize + 24f : CardInset + 26f,
                                         brt.offsetMin.y);
+            brt.offsetMax = new Vector2(-(_tapAdvances ? CardInset + ContinueWidth + 34f : CardInset + 26f),
+                                        brt.offsetMax.y);
             _next.gameObject.SetActive(_tapAdvances);
 
             bool top = y < 0f;
-            _card.anchorMin = _card.anchorMax = new Vector2(0.5f, top ? 1f : 0f);
-            _card.pivot = new Vector2(0.5f, top ? 1f : 0f);
-            _card.anchoredPosition = new Vector2(0f, y);
+            float side = _narratorLeft ? 1f : 0f;
+            _card.anchorMin = _card.anchorMax = new Vector2(side, top ? 1f : 0f);
+            _card.pivot = new Vector2(side, top ? 1f : 0f);
+            _card.anchoredPosition = new Vector2(_narratorLeft ? -28f : 28f, y);
             if (_pips != null) _pips.gameObject.SetActive(_pipsOn && !top);
             StopCoroutine("CardIn");
             StartCoroutine("CardIn");
+        }
+
+        /// <summary>
+        /// Max stands opposite the highlighted control and points at it. The source pose points left;
+        /// placing him on the left flips it so one clean asset covers both screen directions.
+        /// </summary>
+        private void PlaceNarrator(RectTransform target, Sprite narratorOverride = null)
+        {
+            if (_narrator == null) return;
+
+            Rect targetRect = new Rect();
+            bool pointing = narratorOverride == null && target != null && narratorPoint != null &&
+                            CanvasRectOf(target, out targetRect);
+            float canvasWidth = _canvasRect != null ? _canvasRect.rect.width : CanvasWidth;
+            float canvasHeight = _canvasRect != null ? _canvasRect.rect.height : CanvasHeight;
+            _narratorLeft = !pointing || targetRect.center.x >= canvasWidth * 0.5f;
+
+            Sprite sprite = narratorOverride != null ? narratorOverride :
+                            (pointing ? narratorPoint : narratorWelcome);
+            if (sprite == null) sprite = narratorPoint;
+            _narrator.sprite = sprite;
+            _narrator.gameObject.SetActive(sprite != null);
+            if (sprite == null) return;
+
+            RectTransform rect = _narrator.rectTransform;
+            float height = Mathf.Min(canvasHeight * 0.82f, 780f);
+            float width = height * sprite.rect.width / Mathf.Max(1f, sprite.rect.height);
+            float maxWidth = canvasWidth * 0.36f;
+            if (width > maxWidth)
+            {
+                height *= maxWidth / width;
+                width = maxWidth;
+            }
+
+            rect.sizeDelta = new Vector2(width, height);
+            rect.anchorMin = rect.anchorMax = new Vector2(_narratorLeft ? 0f : 1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(_narratorLeft ? width * 0.5f + 8f : -width * 0.5f - 8f, 0f);
+            rect.localScale = new Vector3(pointing && _narratorLeft ? -1f : 1f, 1f, 1f);
         }
 
         private IEnumerator CardIn()
@@ -777,6 +816,7 @@ namespace Game.UI
                 yield return null;
             }
             _card.gameObject.SetActive(false);
+            if (_narrator != null) _narrator.gameObject.SetActive(false);
             _card.anchoredPosition = home;
             _cardFade.alpha = 1f;
         }
@@ -829,6 +869,14 @@ namespace Game.UI
                 t += Time.unscaledDeltaTime;
                 yield return null;
             }
+            _tapped = false;
+        }
+
+        /// <summary>Main onboarding steps never time out; only the visible DEVAM button advances.</summary>
+        private IEnumerator WaitContinue()
+        {
+            _tapped = false;
+            while (!_tapped && !_skipped) yield return null;
             _tapped = false;
         }
 
@@ -966,6 +1014,13 @@ namespace Game.UI
             for (int i = 0; i < _shade.Length; i++) _shade[i].enabled = on;
         }
 
+        private void BlockInput(bool on)
+        {
+            if (_inputBlocker == null) return;
+            _inputBlocker.enabled = on;
+            _inputBlocker.raycastTarget = on;
+        }
+
         private void ShowRing(bool on)
         {
             if (_ring == null) return;
@@ -1049,6 +1104,14 @@ namespace Game.UI
             if (_tapAdvances) { _tapped = true; Sound(SoundId.Tap); }
         }
 
+        private void OnContinue()
+        {
+            if (!_tapAdvances) return;
+            _tapped = true;
+            Sound(SoundId.Tap);
+            if (_haptic != null) _haptic.Light();
+        }
+
         private void OnSkip()
         {
             _skipped = true;
@@ -1082,8 +1145,10 @@ namespace Game.UI
             _canvasRect = _root;
 
             BuildShade();
+            BuildInputBlocker();
             BuildRing();
             BuildPin();
+            BuildNarrator();
             BuildCard();
             BuildSkip();
         }
@@ -1105,6 +1170,24 @@ namespace Game.UI
                 b.onClick.AddListener(OnShadeTap);
             }
             SetHole(new Rect());
+        }
+
+        /// <summary>
+        /// Sits above every game canvas and every spotlight hole, but below the tutorial artwork and
+        /// DEVAM button. This is what makes highlighted HUD controls visual-only until onboarding ends.
+        /// </summary>
+        private void BuildInputBlocker()
+        {
+            var go = new GameObject("GirisKilidi", typeof(RectTransform), typeof(Image));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(_root, false);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            _inputBlocker = go.GetComponent<Image>();
+            _inputBlocker.color = new Color(0f, 0f, 0f, 0.001f);
+            _inputBlocker.raycastTarget = true;
         }
 
         private void BuildRing()
@@ -1166,39 +1249,63 @@ namespace Game.UI
             _pin.gameObject.SetActive(false);
         }
 
+        private void BuildNarrator()
+        {
+            var go = new GameObject("UstaMax", typeof(RectTransform), typeof(Image));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(_root, false);
+            _narrator = go.GetComponent<Image>();
+            _narrator.raycastTarget = false;
+            _narrator.preserveAspect = true;
+            go.SetActive(false);
+        }
+
         private void BuildCard()
         {
+            bool newPanel = tutorialPanel != null;
             var go = new GameObject("Kart", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
             _card = (RectTransform)go.transform;
             _card.SetParent(_root, false);
             _card.sizeDelta = new Vector2(CardWidth, CardHeight);
             _cardFade = go.GetComponent<CanvasGroup>();
             var body = go.GetComponent<Image>();
-            body.sprite = cardPanel != null ? cardPanel : UiSkin.Panel;
-            body.type = Image.Type.Sliced;
+            body.sprite = newPanel ? tutorialPanel : (cardPanel != null ? cardPanel : UiSkin.Panel);
+            body.type = newPanel ? Image.Type.Simple : Image.Type.Sliced;
             body.pixelsPerUnitMultiplier = CardPpu;
-            body.color = cardPanel != null ? Color.white : new Color(0.97f, 0.95f, 0.88f, 1f);
+            body.color = newPanel || cardPanel != null ? Color.white : new Color(0.97f, 0.95f, 0.88f, 1f);
             body.raycastTarget = false;
 
-            // başlık şeridi — kartın üst kenarına oturur
+            // Yeni panelin altın isimliği görselin kendi içinde. Eski panelde ayrı şerit kullanılır.
             var rib = new GameObject("Serit", typeof(RectTransform), typeof(Image));
             var rrt = (RectTransform)rib.transform;
             rrt.SetParent(_card, false);
-            rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, 1f);
-            rrt.sizeDelta = new Vector2(RibbonWidth, RibbonHeight);
-            rrt.anchoredPosition = new Vector2(0f, 8f);
             var ribImg = rib.GetComponent<Image>();
-            ribImg.sprite = cardRibbon != null ? cardRibbon : UiSkin.ButtonYellow;
-            ribImg.type = Image.Type.Sliced;
+            if (newPanel)
+            {
+                rrt.anchorMin = rrt.anchorMax = new Vector2(0f, 1f);
+                rrt.pivot = new Vector2(0f, 1f);
+                rrt.sizeDelta = new Vector2(338f, 88f);
+                rrt.anchoredPosition = new Vector2(84f, -22f);
+                ribImg.enabled = false;
+            }
+            else
+            {
+                rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, 1f);
+                rrt.sizeDelta = new Vector2(RibbonWidth, RibbonHeight);
+                rrt.anchoredPosition = new Vector2(0f, 8f);
+                ribImg.sprite = cardRibbon != null ? cardRibbon : UiSkin.ButtonYellow;
+                ribImg.type = Image.Type.Sliced;
+            }
             ribImg.raycastTarget = false;
-            _cardTitle = Text(rrt, "Baslik", 52f, TextAlignmentOptions.Center, Color.white);
+            _cardTitle = Text(rrt, "Baslik", newPanel ? 40f : 52f, TextAlignmentOptions.Center,
+                              newPanel ? new Color32(0x58, 0x32, 0x0B, 0xFF) : Color.white);
             var trt = (RectTransform)_cardTitle.transform;
-            trt.offsetMin = new Vector2(120f, 26f);
-            trt.offsetMax = new Vector2(-120f, -12f);
+            trt.offsetMin = newPanel ? new Vector2(24f, 14f) : new Vector2(120f, 26f);
+            trt.offsetMax = newPanel ? new Vector2(-24f, -10f) : new Vector2(-120f, -12f);
             _cardTitle.enableAutoSizing = true;
-            _cardTitle.fontSize = 52f;
-            _cardTitle.fontSizeMin = 30f;
-            _cardTitle.fontSizeMax = 52f;
+            _cardTitle.fontSize = newPanel ? 40f : 52f;
+            _cardTitle.fontSizeMin = newPanel ? 26f : 30f;
+            _cardTitle.fontSizeMax = newPanel ? 40f : 52f;
 
             // madalyon + simge
             var med = new GameObject("Madalyon", typeof(RectTransform), typeof(Image));
@@ -1226,27 +1333,40 @@ namespace Game.UI
             _cardIcon.preserveAspect = true;
 
             // gövde yazısı — sol kenarı simgeye göre ShowCard ayarlıyor (ipuçlarının simgesi yok)
-            _cardBody = Text(_card, "Metin", 42f, TextAlignmentOptions.Left, inkColor);
+            _cardBody = Text(_card, "Metin", 42f, TextAlignmentOptions.Left,
+                             newPanel ? Color.white : inkColor);
             var brt = (RectTransform)_cardBody.transform;
-            brt.offsetMin = new Vector2(CardInset + MedalSize + 24f, CardInset - 4f);
-            brt.offsetMax = new Vector2(-(CardInset + 26f), -(RibbonHeight * 0.5f + 8f + 22f));
+            brt.offsetMin = new Vector2(CardInset + MedalSize + 24f, newPanel ? 72f : CardInset - 4f);
+            brt.offsetMax = new Vector2(-(CardInset + 26f), newPanel ? -116f : -(RibbonHeight * 0.5f + 8f + 22f));
             _cardBody.enableAutoSizing = true;
             _cardBody.fontSize = 42f;
             _cardBody.fontSizeMin = 28f;
             _cardBody.fontSizeMax = 44f;
 
-            // ileri oku — iç kapsülün sağ alt köşesine, kenarın içinde
-            var nx = new GameObject("Ileri", typeof(RectTransform), typeof(Image));
+            // Referanstaki gibi açık bir DEVAM düğmesi; bütün diğer girişler kilitliyken tek ilerleme yolu.
+            var nx = new GameObject("BtnDevam", typeof(RectTransform), typeof(Image), typeof(Button));
             _next = (RectTransform)nx.transform;
             _next.SetParent(_card, false);
-            _next.anchorMin = _next.anchorMax = new Vector2(1f, 0f);
-            _next.sizeDelta = new Vector2(NextSize, NextSize);
-            _next.anchoredPosition = new Vector2(-(CardInset + NextSize * 0.5f - 8f), CardInset + NextSize * 0.5f - 8f);
+            _next.anchorMin = _next.anchorMax = newPanel ? new Vector2(1f, 0f) : new Vector2(1f, 0.5f);
+            _next.pivot = newPanel ? new Vector2(1f, 0f) : new Vector2(0.5f, 0.5f);
+            _next.sizeDelta = new Vector2(ContinueWidth, ContinueHeight);
+            _next.anchoredPosition = newPanel
+                ? new Vector2(-54f, 48f)
+                : new Vector2(-(CardInset + ContinueWidth * 0.5f - 8f), -20f);
             var nimg = nx.GetComponent<Image>();
-            nimg.sprite = nextIcon;
-            nimg.raycastTarget = false;
-            nimg.preserveAspect = true;
-            nimg.enabled = nextIcon != null;
+            nimg.sprite = tutorialButton != null ? tutorialButton : UiSkin.ButtonBlue;
+            nimg.type = tutorialButton != null ? Image.Type.Simple : Image.Type.Sliced;
+            nimg.color = Color.white;
+            var nextButton = nx.GetComponent<Button>();
+            nextButton.targetGraphic = nimg;
+            nextButton.onClick.AddListener(OnContinue);
+            TapBounce.Attach(nextButton);
+            _nextText = Text(_next, "Yazi", 46f, TextAlignmentOptions.Center, Color.white);
+            _nextText.text = Loc.T("egitim.devam");
+            _nextText.enableAutoSizing = true;
+            _nextText.fontSizeMin = 30f;
+            _nextText.fontSizeMax = 46f;
+            _next.gameObject.SetActive(false);
 
             BuildPips();
             _card.gameObject.SetActive(false);

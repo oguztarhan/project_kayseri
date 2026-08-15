@@ -42,9 +42,11 @@ namespace Game.UI
         // madalyon boyu, satırın soldan boşluğu. Bu ekran o pencerenin bir sonraki sayfası; iki parmak
         // farklı bir satır yüksekliği, ekranın başka bir yerden gelmiş gibi durmasına yetiyordu.
         private const float PanelWidth = 976f;
+        private const float LandscapePanelWidth = 1900f;
         // Ayarlar penceresiyle birebir aynı yükseklik. Kısa bir panel denendi ve altından ayarların
         // son satırı görünüyordu — karartma bir pencereyi silmeye yetmiyor, üstünü örtmek gerekiyor.
         private const float PanelHeight = 1520f;
+        private const float LandscapePanelHeight = 900f;
         private const float PanelTop = -430f;       // ayarlar penceresinin üst kenarıyla aynı hizada
         private const float RibbonWidth = 980f;
         private const float RibbonHeight = 230f;
@@ -59,6 +61,7 @@ namespace Game.UI
         // görüş alanının ortasına oturtuyor: 159 + 6×150 + 5×16 + 159 = 1298, görüş alanının tamamı.
         private const float ListTopPad = 159f;
         private const int Columns = 2;
+        private const int LandscapeColumns = 4;
         // 2×420 + 16 = 856, yani görüş alanının tam genişliği
         private const float CellWidth = 420f;
         private const float CellHeight = 150f;
@@ -142,9 +145,14 @@ namespace Game.UI
             var panelGO = new GameObject("Panel", typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(PanelOpenFx));
             var panel = (RectTransform)panelGO.transform;
             panel.SetParent(icerik, false);
-            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(0.5f, 1f);
-            panel.sizeDelta = new Vector2(PanelWidth, PanelHeight);
-            panel.anchoredPosition = new Vector2(0f, PanelTop);
+            bool landscape = Screen.width > Screen.height;
+            panel.anchorMin = panel.anchorMax = panel.pivot = landscape
+                ? new Vector2(0.5f, 0.5f)
+                : new Vector2(0.5f, 1f);
+            panel.sizeDelta = landscape
+                ? new Vector2(LandscapePanelWidth, LandscapePanelHeight)
+                : new Vector2(PanelWidth, PanelHeight);
+            panel.anchoredPosition = landscape ? Vector2.zero : new Vector2(0f, PanelTop);
             Art(panelGO.GetComponent<Image>(), _art ? _skin.Panel : UiSkin.Panel, _art ? Color.white : new Color(0.10f, 0.13f, 0.20f, 1f));
             // panele basmak paneli kapatmasın — karartmaya basmak kapatır
             panelGO.AddComponent<Button>().transition = Selectable.Transition.None;
@@ -165,8 +173,12 @@ namespace Game.UI
             view.SetParent(panel, false);
             view.anchorMin = Vector2.zero;
             view.anchorMax = Vector2.one;
-            view.offsetMin = new Vector2(ViewportSide, ViewportBottom);
-            view.offsetMax = new Vector2(-ViewportSide, -ViewportTop);
+            bool landscape = Screen.width > Screen.height;
+            float side = landscape ? 80f : ViewportSide;
+            float top = landscape ? 180f : ViewportTop;
+            float bottom = landscape ? 54f : ViewportBottom;
+            view.offsetMin = new Vector2(side, bottom);
+            view.offsetMax = new Vector2(-side, -top);
 
             _list = (RectTransform)new GameObject("Icerik", typeof(RectTransform)).transform;
             _list.SetParent(view, false);
@@ -181,9 +193,10 @@ namespace Game.UI
             var grid = _list.gameObject.AddComponent<GridLayoutGroup>();
             grid.cellSize = new Vector2(CellWidth, CellHeight);
             grid.spacing = new Vector2(CellSpacing, CellSpacing);
-            grid.padding = new RectOffset(0, 0, (int)ListTopPad, (int)ListTopPad);
+            float topPad = landscape ? 70f : ListTopPad;
+            grid.padding = new RectOffset(0, 0, (int)topPad, (int)topPad);
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = Columns;
+            grid.constraintCount = landscape ? LandscapeColumns : Columns;
             grid.childAlignment = TextAnchor.UpperCenter;
             var fit = _list.gameObject.AddComponent<ContentSizeFitter>();
             fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -265,7 +278,7 @@ namespace Game.UI
             rt.SetParent(panel, false);
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
             rt.sizeDelta = new Vector2(RibbonWidth, RibbonHeight);
-            rt.anchoredPosition = new Vector2(0f, RibbonDrop);
+            rt.anchoredPosition = new Vector2(0f, Screen.width > Screen.height ? -18f : RibbonDrop);
             var img = go.GetComponent<Image>();
             img.raycastTarget = false;
             Art(img, _art ? _skin.Ribbon : UiSkin.ButtonYellow, Color.white);
@@ -292,7 +305,9 @@ namespace Game.UI
             rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = new Vector2(CloseSize, CloseSize);
-            rt.anchoredPosition = new Vector2(CloseRight, CloseTop);
+            rt.anchoredPosition = Screen.width > Screen.height
+                ? new Vector2(-82f, -82f)
+                : new Vector2(CloseRight, CloseTop);
             var img = go.GetComponent<Image>();
             Art(img, _art ? _skin.Close : UiSkin.ButtonGrey, Color.white);
             var b = go.GetComponent<Button>();
@@ -358,7 +373,10 @@ namespace Game.UI
             float span = _list.rect.height - viewH;
             if (span <= 1f) { _scroll.verticalNormalizedPosition = 1f; return; }
 
-            float top = ListTopPad + (live / Columns) * (CellHeight + CellSpacing) - (viewH - CellHeight) * 0.5f;
+            bool landscape = Screen.width > Screen.height;
+            int columns = landscape ? LandscapeColumns : Columns;
+            float pad = landscape ? 70f : ListTopPad;
+            float top = pad + (live / columns) * (CellHeight + CellSpacing) - (viewH - CellHeight) * 0.5f;
             _scroll.verticalNormalizedPosition = 1f - Mathf.Clamp01(top / span);
         }
 
