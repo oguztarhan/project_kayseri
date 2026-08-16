@@ -127,6 +127,7 @@ namespace Game.UI
         {
             public int axis;
             public int unlock = -1;       // unlock row when >= 0, axis row otherwise
+            public RectTransform icon;
             public TMP_Text name, level, detail, price, badgeText;
             public Button buyBtn;
             public Image buyImg, badge;
@@ -153,8 +154,8 @@ namespace Game.UI
         private bool _landscapeLayout;
         private RectTransform _titleRibbon;
         private RectTransform _goldPill;
-        private readonly Vector2 _stationSheetHome = new Vector2(550f, -400f);
-        private readonly Vector2 _listSheetHome = new Vector2(0f, -400f);
+        private readonly Vector2 _stationSheetHome = new Vector2(500f, -360f);
+        private readonly Vector2 _listSheetHome = new Vector2(0f, -420f);
 
         private void Awake()
         {
@@ -182,15 +183,67 @@ namespace Game.UI
             _titleRibbon = titleText != null ? titleText.rectTransform.parent as RectTransform : null;
             _goldPill = goldValue != null ? goldValue.rectTransform.parent as RectTransform : null;
 
-            SetCentered(_titleRibbon, new Vector2(-550f, 350f), new Vector2(900f, 200f));
-            SetCentered(stripContent, new Vector2(-550f, 205f), new Vector2(980f, 130f));
-            SetCentered(_goldPill, new Vector2(-550f, 105f), new Vector2(320f, 104f));
+            // The selector is one centred header, not part of either content column: ribbon first,
+            // all ten page buttons below it, then the balance. This also leaves both columns with
+            // an identical, quiet top edge instead of making the left side look like a second panel.
+            SetCentered(_titleRibbon, new Vector2(0f, 365f), new Vector2(660f, 150f));
+            SetCentered(stripContent, new Vector2(0f, 245f), new Vector2(860f, 108f));
+            SetCentered(_goldPill, new Vector2(0f, 140f), new Vector2(300f, 86f));
+
+            // Landscape titles use the ribbon only for text. Detailed station art already appears in
+            // the selector row and the preview; repeating it here steals the width long translations
+            // need and leaves icons stranded on the ribbon tails.
+            if (titleIcon != null)
+            {
+                titleIcon.enabled = false;
+                titleIcon.gameObject.SetActive(false);
+            }
+            if (titleText != null)
+            {
+                SetCentered(titleText.rectTransform, new Vector2(0f, -6f), new Vector2(540f, 100f));
+                titleText.enableAutoSizing = true;
+                titleText.fontSizeMin = 18f;
+                titleText.fontSizeMax = 54f;
+                titleText.textWrappingMode = TextWrappingModes.NoWrap;
+                titleText.overflowMode = TextOverflowModes.Ellipsis;
+                titleText.alignment = TextAlignmentOptions.Center;
+            }
+            if (_titleRibbon != null && _titleRibbon.GetComponent<RectMask2D>() == null)
+                _titleRibbon.gameObject.AddComponent<RectMask2D>();
+
+            // Ten compact selectors fit on one line without touching. The selected one still gets
+            // its 1.12x emphasis, but remains inside the row instead of growing over its neighbours.
+            if (stripTemplate != null)
+            {
+                RectTransform slotRect = stripTemplate.transform as RectTransform;
+                if (slotRect != null) slotRect.sizeDelta = new Vector2(74f, 74f);
+                Transform slotIcon = stripTemplate.transform.Find("Ikon");
+                RectTransform slotIconRect = slotIcon != null ? slotIcon as RectTransform : null;
+                if (slotIconRect != null) slotIconRect.sizeDelta = new Vector2(56f, 56f);
+            }
+
+            // Preview on the left, purchase sheet on the right. The phase meter belongs to the
+            // building it describes, so it sits directly below the preview rather than above the
+            // upgrade cards. Its authored children are 900 units wide; scaling the group preserves
+            // their spacing while fitting the narrower left column.
             SetCentered(stageGroup != null ? stageGroup.transform as RectTransform : null,
-                        new Vector2(-550f, -125f), new Vector2(1000f, 520f));
-            SetCentered(phaseGroup != null ? phaseGroup.transform as RectTransform : null,
-                        new Vector2(550f, 275f), new Vector2(900f, 150f));
-            SetBottom(sheet, _stationSheetHome, new Vector2(980f, 650f));
-            SetCentered(phaseBanner, new Vector2(550f, 350f), new Vector2(900f, 180f));
+                        new Vector2(-500f, -100f), new Vector2(760f, 520f));
+            RectTransform phaseRect = phaseGroup != null ? phaseGroup.transform as RectTransform : null;
+            SetCentered(phaseRect, new Vector2(-500f, -430f), new Vector2(900f, 150f));
+            if (phaseRect != null) phaseRect.localScale = Vector3.one * 0.82f;
+            SetBottom(sheet, _stationSheetHome, new Vector2(760f, 520f));
+            SetCentered(phaseBanner, new Vector2(-500f, -100f), new Vector2(720f, 170f));
+
+            // Two compact 220-high cards fill the same-height panel as the preview without forcing
+            // text or price controls to overlap; their child anchors already fit this shorter card.
+            if (cardTemplate != null)
+            {
+                LayoutElement cardLayout = cardTemplate.GetComponent<LayoutElement>();
+                if (cardLayout != null) cardLayout.preferredHeight = LandscapeCardHeight;
+            }
+            VerticalLayoutGroup cardGroup = sheetContent != null
+                ? sheetContent.GetComponent<VerticalLayoutGroup>() : null;
+            if (cardGroup != null) cardGroup.spacing = 12f;
         }
 
         private static void SetCentered(RectTransform rect, Vector2 position, Vector2 size)
@@ -357,13 +410,15 @@ namespace Game.UI
                 Vector2 sheetHome = listPage ? _listSheetHome : _stationSheetHome;
                 sheet.anchoredPosition = sheetHome;
                 _sheetHome = sheetHome;
-                sheet.sizeDelta = new Vector2(listPage ? 1400f : 980f, sheet.sizeDelta.y);
-                SetCentered(_titleRibbon, new Vector2(listPage ? 0f : -550f, 350f), new Vector2(900f, 200f));
-                SetCentered(stripContent, new Vector2(listPage ? 0f : -550f, 205f), new Vector2(980f, 130f));
-                SetCentered(_goldPill, new Vector2(listPage ? 0f : -550f, 105f), new Vector2(320f, 104f));
+                sheet.sizeDelta = new Vector2(listPage ? LandscapeListPanelWidth : 760f, sheet.sizeDelta.y);
+                SetCentered(_titleRibbon, new Vector2(0f, 365f), new Vector2(660f, 150f));
+                SetCentered(stripContent, new Vector2(0f, 245f), new Vector2(860f, 108f));
+                SetCentered(_goldPill, new Vector2(0f, 140f), new Vector2(300f, 86f));
             }
 
-            float height = SheetStationHeight;
+            float height = _landscapeLayout
+                ? (listPage ? LandscapeListPanelHeight : LandscapePanelHeight)
+                : SheetStationHeight;
             if (listPage)
             {
                 // Against what is on screen, not against the parent. The parent is the full 2340-tall
@@ -371,9 +426,12 @@ namespace Game.UI
                 // where the sheet is scaled down and folded into columns — sizing off it grows the tray
                 // to more than twice the height there is, and since the tray's pivot is its bottom edge
                 // the extra goes straight up off the top of the screen.
-                float room = _letterbox != null ? _letterbox.VisibleHeight
-                                                : (sheet.parent as RectTransform)?.rect.height ?? 0f;
-                if (room > 0f) height = Mathf.Max(SheetStationHeight, room - ExpansionTop - SheetBottom);
+                if (!_landscapeLayout)
+                {
+                    float room = _letterbox != null ? _letterbox.VisibleHeight
+                                                    : (sheet.parent as RectTransform)?.rect.height ?? 0f;
+                    if (room > 0f) height = Mathf.Max(SheetStationHeight, room - ExpansionTop - SheetBottom);
+                }
             }
             sheet.sizeDelta = new Vector2(sheet.sizeDelta.x, height);
             if (_scroll != null) _scroll.verticalNormalizedPosition = 1f;
@@ -735,6 +793,7 @@ namespace Game.UI
             Transform t = go.transform.Find("Ikon");
             if (t != null)
             {
+                row.icon = t as RectTransform;
                 Image img = t.GetComponent<Image>();
                 if (img != null) { img.sprite = icon; img.enabled = icon != null; }
             }
@@ -760,9 +819,95 @@ namespace Game.UI
             }
             t = go.transform.Find("Kilit");
             if (t != null) { row.lockGO = t.gameObject; t.gameObject.SetActive(false); }
+            if (_landscapeLayout) LayoutLandscapeCard(row, _station < 0 || Phases == null);
             _rows.Add(row);
             return row;
         }
+
+        /// <summary>
+        /// Keeps every line inside the shorter landscape card. The old portrait offsets placed the
+        /// detail beneath the card and gave the title only a narrow column, which is why Turkish words
+        /// split in half and the next panel covered the description.
+        /// </summary>
+    private static void LayoutLandscapeCard(Row row, bool wide)
+    {
+        if (row == null) return;
+
+        if (wide)
+        {
+            SetLeftMiddle(row.icon, new Vector2(28f, 18f), new Vector2(82f, 82f));
+            SetLeftMiddle(TextRect(row.name), new Vector2(138f, 48f), new Vector2(640f, 40f));
+            SetLeftMiddle(TextRect(row.level), new Vector2(138f, 8f), new Vector2(640f, 32f));
+            SetLeftMiddle(TextRect(row.detail), new Vector2(138f, -34f), new Vector2(640f, 34f));
+            SetRightMiddle(ObjectRect(row.buyGO), new Vector2(-26f, 17f), new Vector2(250f, 102f));
+            SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-26f, 17f), new Vector2(250f, 102f));
+            FitCardText(row.name, 32f, 19f);
+            FitCardText(row.level, 25f, 17f);
+            FitCardText(row.detail, 22f, 16f);
+            LayoutButtonText(row.price, 68f, 12f, 34f, 22f);
+            LayoutButtonText(row.badgeText, 16f, 16f, 42f, 28f);
+        }
+        else
+        {
+            SetLeftMiddle(row.icon, new Vector2(20f, 18f), new Vector2(76f, 76f));
+            SetLeftMiddle(TextRect(row.name), new Vector2(112f, 48f), new Vector2(270f, 40f));
+            SetLeftMiddle(TextRect(row.level), new Vector2(112f, 8f), new Vector2(270f, 32f));
+            SetLeftMiddle(TextRect(row.detail), new Vector2(112f, -34f), new Vector2(270f, 34f));
+            SetRightMiddle(ObjectRect(row.buyGO), new Vector2(-18f, 17f), new Vector2(220f, 102f));
+            SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-18f, 17f), new Vector2(220f, 102f));
+            FitCardText(row.name, 31f, 19f);
+            FitCardText(row.level, 25f, 17f);
+            FitCardText(row.detail, 21f, 15f);
+            LayoutButtonText(row.price, 68f, 12f, 34f, 22f);
+            LayoutButtonText(row.badgeText, 16f, 16f, 40f, 27f);
+        }
+    }
+
+        private static RectTransform TextRect(TMP_Text text) => text != null ? text.rectTransform : null;
+        private static RectTransform ObjectRect(GameObject go) => go != null ? go.transform as RectTransform : null;
+
+        private static void SetLeftMiddle(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 0.5f);
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+        }
+
+        private static void SetRightMiddle(RectTransform rect, Vector2 position, Vector2 size)
+        {
+            if (rect == null) return;
+            rect.anchorMin = rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.pivot = new Vector2(1f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+        }
+
+    private static void FitCardText(TMP_Text text, float maximum, float minimum)
+    {
+        if (text == null) return;
+        text.enableAutoSizing = true;
+            text.fontSizeMax = maximum;
+            text.fontSizeMin = minimum;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+    }
+
+    private static void LayoutButtonText(TMP_Text text, float left, float right, float maximum, float minimum)
+    {
+        if (text == null) return;
+
+        RectTransform rect = text.rectTransform;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.offsetMin = new Vector2(left, 10f);
+        rect.offsetMax = new Vector2(-right, -10f);
+
+        text.alignment = TextAlignmentOptions.Center;
+        FitCardText(text, maximum, minimum);
+    }
 
         /// <summary>
         /// Pushes a short list down so it sits in the middle of the tray instead of clinging to the top,
@@ -876,7 +1021,8 @@ namespace Game.UI
             if (titleIcon != null)
             {
                 titleIcon.sprite = IconFor(_station);
-                titleIcon.enabled = titleIcon.sprite != null;
+                titleIcon.enabled = !_landscapeLayout && titleIcon.sprite != null;
+                if (_landscapeLayout && titleIcon.gameObject.activeSelf) titleIcon.gameObject.SetActive(false);
             }
 
             if (_station == ExpansionPage)
@@ -1191,76 +1337,48 @@ namespace Game.UI
             // Ses ve titreşim OnDistrictPhaseChanged'den geliyor; o zaten bu karede çalıştı.
             Bind();
 
-            // 1 · clear the stage
-            yield return SlideSheet(_sheetHome.y, HiddenSheetY(), SheetOutSeconds);
+            // The island rebuild already happened in the purchase frame. Let that frame finish before
+            // rebuilding the preview too; doing both hierarchies together caused the visible hitch.
+            // The purchase panel stays exactly where it is throughout the phase celebration.
+            if (sheet != null) sheet.anchoredPosition = _sheetHome;
+            yield return null;
 
-            // 2 · the old building sinks, and the camera leans in after it
             Transform old = _model;
-            float drop = stage != null ? stage.FocusRadius * 1.4f : 40f;
             float t = 0f;
-            while (t < SinkSeconds)
+            while (t < PhaseSwapOutSeconds)
             {
                 t += Time.unscaledDeltaTime;
-                float k = Mathf.Clamp01(t / SinkSeconds);
-                float ease = k * k;                              // slow to let go, then gone
-                if (old != null)
-                {
-                    old.localPosition = Vector3.down * (drop * ease);
-                    old.localScale = Vector3.one * Mathf.Lerp(1f, 0.82f, ease);
-                }
-                if (stage != null) stage.Zoom = Mathf.Lerp(1f, 1.14f, ease);
+                float k = Mathf.Clamp01(t / PhaseSwapOutSeconds);
+                if (old != null) old.localScale = Vector3.one * Mathf.Lerp(1f, 0.88f, k);
                 yield return null;
             }
-            if (old != null) Destroy(old.gameObject);
+            if (stage != null) stage.Clear();
             _model = null;
+            yield return null;
 
-            // 3 · the flash the new one arrives through
             _model = MountPhase(phase);
-            if (_model != null)
-            {
-                _model.localPosition = Vector3.down * drop;
-                _model.localScale = Vector3.one * 0.6f;
-            }
+            if (_model != null) _model.localScale = Vector3.one * 0.82f;
             if (flash != null) flash.gameObject.SetActive(true);
             t = 0f;
-            while (t < FlashSeconds)
+            while (t < PhaseSwapInSeconds)
             {
                 t += Time.unscaledDeltaTime;
-                float k = Mathf.Clamp01(t / FlashSeconds);
-                if (flash != null) SetAlpha(flash, Mathf.Sin(k * Mathf.PI) * 0.9f);
+                float k = Mathf.Clamp01(t / PhaseSwapInSeconds);
+                float ease = 1f - Mathf.Pow(1f - k, 3f);
+                float over = 1f + Mathf.Sin(k * Mathf.PI) * 0.05f;
+                if (_model != null) _model.localScale = Vector3.one * Mathf.Lerp(0.82f, 1f, ease) * over;
+                if (flash != null) SetAlpha(flash, Mathf.Sin(k * Mathf.PI) * 0.72f);
                 yield return null;
             }
+            if (_model != null) _model.localScale = Vector3.one;
             if (flash != null) { SetAlpha(flash, 0f); flash.gameObject.SetActive(false); }
 
-            // 4 · it rises, overshoots, settles — with a sweep of light across it
-            if (shine != null) shine.gameObject.SetActive(true);
-            float shineFrom = -StageHalfWidth() - 220f;
-            float shineTo = StageHalfWidth() + 220f;
-            t = 0f;
-            while (t < RiseSeconds)
-            {
-                t += Time.unscaledDeltaTime;
-                float k = Mathf.Clamp01(t / RiseSeconds);
-                float ease = 1f - Mathf.Pow(1f - k, 3f);
-                float over = 1f + Mathf.Sin(k * Mathf.PI) * 0.07f;
-                if (_model != null)
-                {
-                    _model.localPosition = Vector3.down * Mathf.Lerp(drop, 0f, ease);
-                    _model.localScale = Vector3.one * Mathf.Lerp(0.6f, 1f, ease) * over;
-                }
-                if (stage != null) stage.Zoom = Mathf.Lerp(1.14f, 1f, ease);
-                if (shine != null) shine.anchoredPosition = new Vector2(Mathf.Lerp(shineFrom, shineTo, ease), 0f);
-                yield return null;
-            }
-            if (_model != null) { _model.localPosition = Vector3.zero; _model.localScale = Vector3.one; }
-            if (stage != null) stage.Zoom = 1f;
-            if (shine != null) shine.gameObject.SetActive(false);
-
-            // 5 · name what just happened
             Refresh();
-            // Konfeti bandın hemen öncesinde: kağıt havaya çıkarken bant içeri kayıyor, ikisi
-            // aynı anda tepe yapıyor. Banttan sonra atılsa kutlama iki ayrı olaya bölünürdü.
-            if (confetti != null) confetti.Play();
+            if (confetti != null)
+            {
+                if (_landscapeLayout) confetti.PlayAt(new Vector2(-500f, -100f));
+                else confetti.Play();
+            }
             if (phaseBanner != null)
             {
                 if (phaseBannerText != null) phaseBannerText.text = string.Format(Loc.T("istasyon_ekrani.faz_bant"), phase);
@@ -1297,8 +1415,7 @@ namespace Game.UI
                 phaseBanner.gameObject.SetActive(false);
             }
 
-            // 6 · and back to shopping
-            yield return SlideSheet(HiddenSheetY(), _sheetHome.y, SheetInSeconds);
+            if (sheet != null) sheet.anchoredPosition = _sheetHome;
             _busy = false;
             Refresh();
         }
@@ -1376,6 +1493,10 @@ namespace Game.UI
         private const int ReportPage = -3;
         private const float ExpansionTop = 530f;      // altın hapının altı: tepsi genişletmelerde buraya kadar büyür
         private const float SheetBottom = 26f;
+        private const float LandscapePanelHeight = 520f;
+        private const float LandscapeListPanelWidth = 1200f;
+        private const float LandscapeListPanelHeight = 550f;
+        private const float LandscapeCardHeight = 212f;
         private const float SheetStationHeight = 810f;
 
         private static readonly Color SlotIdleIcon = new Color(1f, 1f, 1f, 0.72f);
@@ -1385,13 +1506,15 @@ namespace Game.UI
 
         private const float OpenSeconds = 0.30f;
         private const float PunchSeconds = 0.45f;
+        private const float PhaseSwapOutSeconds = 0.08f;
+        private const float PhaseSwapInSeconds = 0.18f;
         private const float SheetOutSeconds = 0.22f;
         private const float SinkSeconds = 0.45f;
         private const float FlashSeconds = 0.26f;
         private const float RiseSeconds = 0.70f;
-        private const float BannerInSeconds = 0.45f;
-        private const float BannerHoldSeconds = 0.55f;
-        private const float BannerOutSeconds = 0.30f;
+        private const float BannerInSeconds = 0.24f;
+        private const float BannerHoldSeconds = 0.25f;
+        private const float BannerOutSeconds = 0.18f;
         private const float SheetInSeconds = 0.28f;
 
     }

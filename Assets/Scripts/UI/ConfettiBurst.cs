@@ -131,6 +131,13 @@ namespace Game.UI
             _running = true;
         }
 
+        /// <summary>Starts the pooled burst from a caller-selected point in this canvas.</summary>
+        public void PlayAt(Vector2 canvasPosition)
+        {
+            origin = canvasPosition;
+            Play();
+        }
+
         private void Update()
         {
             if (!_running) return;

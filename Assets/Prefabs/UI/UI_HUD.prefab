@@ -294,7 +294,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 14, y: -430}
-  m_SizeDelta: {x: 160, y: 184}
+  m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &8817329332323602723
 CanvasRenderer:
@@ -415,7 +415,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
   m_AnchoredPosition: {x: 0, y: 78}
-  m_SizeDelta: {x: 228.5, y: 218.4}
+  m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!222 &1738739244675701655
 CanvasRenderer:
@@ -535,7 +535,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
   m_AnchoredPosition: {x: -220.45, y: 78}
-  m_SizeDelta: {x: 190.4, y: 218.4}
+  m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!222 &4994392602095807202
 CanvasRenderer:
@@ -913,7 +913,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
   m_AnchoredPosition: {x: -421.84998, y: 78}
-  m_SizeDelta: {x: 190.4, y: 218.4}
+  m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!222 &9041781280231828517
 CanvasRenderer:
@@ -1191,7 +1191,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 14, y: -628}
-  m_SizeDelta: {x: 160, y: 184}
+  m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &4639483987563095951
 CanvasRenderer:
@@ -1513,7 +1513,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: -198}
-  m_SizeDelta: {x: 160, y: 184}
+  m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &8447723688868208741
 CanvasRenderer:
@@ -1862,7 +1862,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
   m_AnchoredPosition: {x: 421.84998, y: 78}
-  m_SizeDelta: {x: 190.4, y: 218.4}
+  m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!222 &5722048416354965868
 CanvasRenderer:
@@ -2282,12 +2282,12 @@ MonoBehaviour:
   narratorHappy: {fileID: 21300000, guid: c014d458ee6c4a6bb2880e14f35f5f11, type: 3}
   narratorPoint: {fileID: 21300000, guid: 3e9d2802e3304b678b27e30850605553, type: 3}
   tourIcons:
-  - {fileID: 21300000, guid: 2bb79e9405f727f4a816f624d462feb6, type: 3}
-  - {fileID: 21300000, guid: cb7f11f35f3905a4e9fd794e931ce7bf, type: 3}
-  - {fileID: 21300000, guid: 186564efa66d02d4393a21202a473b80, type: 3}
-  - {fileID: 21300000, guid: 3ce5d9916f6fe8a4298a8cf813245816, type: 3}
-  - {fileID: 21300000, guid: e3e11c87903fd134f9cf978628db2df3, type: 3}
-  - {fileID: 21300000, guid: 8b8d5168e7dc2594aaaa5e8b73995052, type: 3}
+  - {fileID: 21300000, guid: 2fa23276e1de4cadaaa4b04a5fe33e52, type: 3}
+  - {fileID: 21300000, guid: 4449657bac3a4219a10b5d4c8c379a24, type: 3}
+  - {fileID: 21300000, guid: 37051ef7e2be4ef7b85c27c7ce988c18, type: 3}
+  - {fileID: 21300000, guid: 0f86a394e55b45b6a54ffef1159597cc, type: 3}
+  - {fileID: 21300000, guid: 41b0527f2bbc4f1cb9fe5d2d45938c3d, type: 3}
+  - {fileID: 21300000, guid: 1a2fb2acc69f493e88d8f44a3cdf33d8, type: 3}
   flySeconds: 1.15
   beatSpan: 110
   focusPadding: 1.6
@@ -2470,7 +2470,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 160, y: 184}
+  m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &3198902228162460009
 CanvasRenderer:
@@ -2667,7 +2667,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
   m_AnchoredPosition: {x: 220.45, y: 78}
-  m_SizeDelta: {x: 190.4, y: 218.4}
+  m_SizeDelta: {x: 150, y: 150}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!222 &2302895783644185397
 CanvasRenderer:

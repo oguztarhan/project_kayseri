@@ -49,13 +49,17 @@ namespace Game.Systems
                  "karede gelir ve oyuncu neyi onayladığını görmeden karar verir.")]
         [SerializeField, Min(0f)] private float permissionDelaySeconds = 0.9f;
 
+        private string _loadingText;
+        private int _lastPercent = -1;
+
         private void Awake() => DontDestroyOnLoad(gameObject);
 
         /// <summary>Paints the splash for the saved island, then loads <paramref name="sceneName"/> behind it.</summary>
         public void Begin(string sceneName, SaveData data)
         {
             Paint(data);
-            if (barLabel != null) barLabel.text = Loc.T("ortak.yukleniyor");
+            _loadingText = Loc.T("ortak.yukleniyor");
+            if (barLabel != null) barLabel.text = _loadingText;
             StartCoroutine(Run(sceneName));
         }
 
@@ -71,9 +75,19 @@ namespace Game.Systems
         /// <summary>Drives the fill's right edge; the track is whatever rect the fill sits in.</summary>
         private void Progress(float t)
         {
-            if (barFill == null) return;
-            Vector2 max = barFill.anchorMax;
-            barFill.anchorMax = new Vector2(Mathf.Clamp01(t), max.y);
+            float value = Mathf.Clamp01(t);
+            if (barFill != null)
+            {
+                Vector2 max = barFill.anchorMax;
+                barFill.anchorMax = new Vector2(value, max.y);
+            }
+
+            int percent = Mathf.RoundToInt(value * 100f);
+            if (barLabel != null && percent != _lastPercent)
+            {
+                _lastPercent = percent;
+                barLabel.text = $"{_loadingText}  {percent}%";
+            }
         }
 
         private static int ActiveIsland(SaveData data)

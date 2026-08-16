@@ -1148,8 +1148,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2c2a3c10c4aa8f4bab0732c5f1e7cb0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.ConfettiBurst
-  pieceCount: 80
-  lifeSeconds: 3
+  pieceCount: 48
+  lifeSeconds: 2.2
   pieceSize: {x: 20, y: 30}
   pieceSprite: {fileID: 0}
   speedMin: 900
@@ -1607,7 +1607,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 2}
-  m_SizeDelta: {x: 70, y: 70}
+  m_SizeDelta: {x: 56, y: 56}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7769313418969092878
 CanvasRenderer:
@@ -2083,20 +2083,20 @@ MonoBehaviour:
   cardTemplate: {fileID: 8690089912977479976}
   stripContent: {fileID: 3983014682414337692}
   stripTemplate: {fileID: 9172227590078882110}
-  slotIdleTint: {r: 0.7, g: 0.77, b: 0.88, a: 0.62}
-  expansionIcon: {fileID: 21300000, guid: dde48e55cf1b450488b8f99650bdd3b0, type: 3}
-  reportIcon: {fileID: 21300000, guid: 8b8d5168e7dc2594aaaa5e8b73995052, type: 3}
+  slotIdleTint: {r: 1, g: 1, b: 1, a: 0.86}
+  expansionIcon: {fileID: 21300000, guid: ad4b32fa9aa64151a0f97cc554e9f771, type: 3}
+  reportIcon: {fileID: 21300000, guid: 1a2fb2acc69f493e88d8f44a3cdf33d8, type: 3}
   unlockIcons:
-  - {fileID: 21300000, guid: 2bb79e9405f727f4a816f624d462feb6, type: 3}
-  - {fileID: 21300000, guid: 3ce5d9916f6fe8a4298a8cf813245816, type: 3}
-  - {fileID: 21300000, guid: e3e11c87903fd134f9cf978628db2df3, type: 3}
-  - {fileID: 21300000, guid: 2bb79e9405f727f4a816f624d462feb6, type: 3}
-  - {fileID: 21300000, guid: 186564efa66d02d4393a21202a473b80, type: 3}
-  - {fileID: 21300000, guid: cb7f11f35f3905a4e9fd794e931ce7bf, type: 3}
-  - {fileID: 21300000, guid: e3e11c87903fd134f9cf978628db2df3, type: 3}
-  - {fileID: 21300000, guid: 2bb79e9405f727f4a816f624d462feb6, type: 3}
-  - {fileID: 21300000, guid: 73aa121c569f92f4b9d8f1dbee50889e, type: 3}
-  - {fileID: 21300000, guid: 2bb79e9405f727f4a816f624d462feb6, type: 3}
+  - {fileID: 21300000, guid: 2fa23276e1de4cadaaa4b04a5fe33e52, type: 3}
+  - {fileID: 21300000, guid: 0f86a394e55b45b6a54ffef1159597cc, type: 3}
+  - {fileID: 21300000, guid: 41b0527f2bbc4f1cb9fe5d2d45938c3d, type: 3}
+  - {fileID: 21300000, guid: 2fa23276e1de4cadaaa4b04a5fe33e52, type: 3}
+  - {fileID: 21300000, guid: 37051ef7e2be4ef7b85c27c7ce988c18, type: 3}
+  - {fileID: 21300000, guid: 4449657bac3a4219a10b5d4c8c379a24, type: 3}
+  - {fileID: 21300000, guid: 41b0527f2bbc4f1cb9fe5d2d45938c3d, type: 3}
+  - {fileID: 21300000, guid: 2fa23276e1de4cadaaa4b04a5fe33e52, type: 3}
+  - {fileID: 21300000, guid: 2bcfdc6f85d64eeca8dbac230f3e4331, type: 3}
+  - {fileID: 21300000, guid: 2fa23276e1de4cadaaa4b04a5fe33e52, type: 3}
   priceGreen: {fileID: 21300000, guid: 18a9e3ae18ec2234ab0b2d1fe5ec1bdd, type: 3}
   priceGrey: {fileID: 21300000, guid: bc74f5acbcd18e34cb13ca763dd4c1b8, type: 3}
   badgeMax: {fileID: 21300000, guid: 19bbcb7823368ce4487c2bb96b36bfd6, type: 3}
@@ -2110,28 +2110,28 @@ MonoBehaviour:
   stations:
   - station: 0
     title: 
-    icon: {fileID: 21300000, guid: 2bb79e9405f727f4a816f624d462feb6, type: 3}
+    icon: {fileID: 21300000, guid: 2fa23276e1de4cadaaa4b04a5fe33e52, type: 3}
   - station: 1
     title: 
-    icon: {fileID: 21300000, guid: cb7f11f35f3905a4e9fd794e931ce7bf, type: 3}
+    icon: {fileID: 21300000, guid: 4449657bac3a4219a10b5d4c8c379a24, type: 3}
   - station: 2
     title: 
-    icon: {fileID: 21300000, guid: 186564efa66d02d4393a21202a473b80, type: 3}
+    icon: {fileID: 21300000, guid: 37051ef7e2be4ef7b85c27c7ce988c18, type: 3}
   - station: 3
     title: 
-    icon: {fileID: 21300000, guid: 8de8c63bca4fc5a49859415a6a712d87, type: 3}
+    icon: {fileID: 21300000, guid: b578ebff2b344719917d1b0cded5038f, type: 3}
   - station: 4
     title: 
-    icon: {fileID: 21300000, guid: 3ce5d9916f6fe8a4298a8cf813245816, type: 3}
+    icon: {fileID: 21300000, guid: 0f86a394e55b45b6a54ffef1159597cc, type: 3}
   - station: 5
     title: 
-    icon: {fileID: 21300000, guid: 84882feac42d8574c9f65b3468408e86, type: 3}
+    icon: {fileID: 21300000, guid: 52ab834d7d004fa4949d37f8a094bbd5, type: 3}
   - station: 6
     title: 
-    icon: {fileID: 21300000, guid: e3e11c87903fd134f9cf978628db2df3, type: 3}
+    icon: {fileID: 21300000, guid: 41b0527f2bbc4f1cb9fe5d2d45938c3d, type: 3}
   - station: 7
     title: 
-    icon: {fileID: 21300000, guid: 73aa121c569f92f4b9d8f1dbee50889e, type: 3}
+    icon: {fileID: 21300000, guid: 2bcfdc6f85d64eeca8dbac230f3e4331, type: 3}
   refreshInterval: 0.25
 --- !u!1 &4369827373988491908
 GameObject:
@@ -4176,7 +4176,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 86, y: 114}
+  m_SizeDelta: {x: 74, y: 74}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &5495197853677649010
 CanvasRenderer:
@@ -4206,9 +4206,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: c8c11abc27f210542b83de97a3985693, type: 3}
-  m_Type: 1
-  m_PreserveAspect: 0
+  m_Sprite: {fileID: 21300000, guid: d5ecd521a2f84724d914b4126b12ca19, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
