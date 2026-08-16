@@ -20,6 +20,8 @@ namespace Game.UI
     /// </summary>
     public sealed class MarketDoorMarker : MonoBehaviour
     {
+        private const string MarketButtonResource = "UI/Buttons/market_enter_yellow";
+
         [Header("Hedef")]
         [Tooltip("Açılacak sahne. Build Settings'te ekli olmalı, yoksa dokunuş bir şey yapmaz.")]
         [SerializeField] private string marketSceneName = "Market";
@@ -70,7 +72,9 @@ namespace Game.UI
             go.transform.SetParent(transform, false);
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = sortingOrder;
+            // The button sits just above the bottom HUD row. It must also be above that row in the
+            // raycast stack, otherwise a transparent edge of a HUD button can steal the tap.
+            canvas.sortingOrder = Mathf.Max(sortingOrder, 102);
             var sc = go.GetComponent<CanvasScaler>();
             sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             sc.referenceResolution = new Vector2(1080f, 1920f);
@@ -82,8 +86,18 @@ namespace Game.UI
             // dark grey — a flat rectangle sitting on a hand-drawn island, which is exactly as bad as
             // it sounds. UiBuild leaves pre-coloured kit art untinted, so the tint below is only ever
             // used on a project with no skin wired.
+            Sprite marketArt = Resources.Load<Sprite>(MarketButtonResource);
             Button button = UiBuild.Btn(_canvasRect, "MarketeGir", Loc.T("market.gir"),
-                                        UiSkin.ButtonYellow, tint, fontSize, Open);
+                                        marketArt != null ? marketArt : UiSkin.ButtonYellow,
+                                        tint, fontSize, Open);
+            Image buttonImage = button.GetComponent<Image>();
+            if (buttonImage != null && marketArt != null)
+            {
+                // This is a complete glossy button painting rather than a 9-slice kit part.
+                buttonImage.type = Image.Type.Simple;
+                buttonImage.preserveAspect = false;
+                buttonImage.color = Color.white;
+            }
             _rect = (RectTransform)button.transform;
             _rect.anchorMin = _rect.anchorMax = new Vector2(0.5f, 0.5f);
             _rect.pivot = new Vector2(0.5f, 0.5f);
@@ -94,7 +108,16 @@ namespace Game.UI
 
         private void Open()
         {
-            if (_opening) return;
+            // Main is parked rather than destroyed while the market is open. The same marker instance
+            // therefore wakes on return, and an old true value must not block every later visit.
+            if (_opening && SceneCurtain.Busy) return;
+            _opening = false;
+
+            if (!Application.CanStreamedLevelBeLoaded(marketSceneName))
+            {
+                Debug.LogError("Market sahnesi Build Settings içinde yüklenebilir değil: " + marketSceneName);
+                return;
+            }
             // Behind a loading screen, like every other scene the game reads. The async load on its own
             // was better than the synchronous one it replaced — the island kept animating instead of the
             // frame freezing — but it also meant a tap with no answer for as long as the read took, on
@@ -102,8 +125,16 @@ namespace Game.UI
             //
             // The curtain owns the double tap too, so the guard above is belt and braces.
             string key = ServiceLocator.Get<MarketService>()?.ActiveIsland;
+            if (string.IsNullOrEmpty(key)) key = "coal";
             _opening = SceneCurtain.Cover(marketSceneName, WorldIslands.OreColorFor(key),
                                           Loc.Id("ada", key));
+            if (_opening && _root != null) _root.SetActive(false);
+        }
+
+        private void OnEnable()
+        {
+            // Called again when the parked island roots are restored after leaving the market.
+            _opening = false;
         }
 
         /// <summary>Travelling enables a different operation, so which one is live is re-checked on a timer.</summary>
@@ -119,6 +150,7 @@ namespace Game.UI
 
         private void Update()
         {
+            if (_opening && !SceneCurtain.Busy) _opening = false;
             float dt = Time.unscaledDeltaTime;
             _rebindIn -= dt;
             if (_rebindIn <= 0f) { _rebindIn = 1f; Rebind(); }

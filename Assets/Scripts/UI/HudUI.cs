@@ -117,6 +117,7 @@ namespace Game.UI
             if (dailyButton != null) dailyButton.onClick.AddListener(OnDaily);
             if (mapButton != null) mapButton.onClick.AddListener(OnMap);
             if (contractButton != null) contractButton.onClick.AddListener(OnContract);
+            if (contractButton != null) contractButton.gameObject.SetActive(true);
             if (adButton != null) adButton.onClick.AddListener(OnAds);
             if (offerButton != null) offerButton.onClick.AddListener(OnOffer);
             if (upgradeButton != null) upgradeButton.onClick.AddListener(OnUpgrades);

@@ -94,9 +94,6 @@ namespace Game.UI
         [Header("Geçiş (yükleme perdesi)")]
         [Tooltip("Tam ekran katman; ada değişimi perdenin arkasında olur, böylece kök takası görünmez.")]
         [SerializeField] private CanvasGroup fadeGroup;
-        [Tooltip("Açılış ekranlarının aynısı, ada sırasıyla: kömür, bakır, demir, gümüş, altın, yakut, " +
-                 "zümrüt, elmas. Boş bırakılan yuva o adada perdeyi düz siyah bırakır.")]
-        [SerializeField] private Sprite[] sailBackgrounds;
         [SerializeField] private float fadeOutSeconds = 0.25f;
         [Tooltip("Perde düz siyahken bekleme — gösterecek bir şey yok, kısa olmalı.")]
         [SerializeField] private float fadeHoldSeconds = 0.1f;
@@ -121,6 +118,7 @@ namespace Game.UI
         private WorldIslands _world;
         private WalletService _wallet;
         private Canvas _canvas;
+        private int _canvasBaseSortingOrder;
 
         private int _shown;             // island the showcase is displaying, not necessarily the live one
         private int _pending = -1;      // island waiting on the confirm popup
@@ -146,6 +144,12 @@ namespace Game.UI
         private HudJuice _juice;
 
         private Image _curtain;
+        private TMP_Text _travelName;
+        private TMP_Text _travelPercent;
+        private RectTransform _travelFill;
+        private Image _travelFillImage;
+
+        private const string TravelBackdropResource = "UI/Transitions/island_transition";
 
         private void Awake()
         {
@@ -157,6 +161,7 @@ namespace Game.UI
             _world = FindAnyObjectByType<WorldIslands>();
             _wallet = ServiceLocator.Get<WalletService>();
             _canvas = GetComponentInParent<Canvas>();
+            if (_canvas != null) _canvasBaseSortingOrder = _canvas.sortingOrder;
 
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
             if (confirmCancelButton != null) confirmCancelButton.onClick.AddListener(CloseConfirm);
@@ -165,15 +170,67 @@ namespace Game.UI
             if (nextButton != null) nextButton.onClick.AddListener(StepOn);
             if (ctaButton != null) ctaButton.onClick.AddListener(OnCta);
 
+            NormalizeSideButton(prevButton, prevLabel, true);
+            NormalizeSideButton(nextButton, nextLabel, false);
+
             if (aura != null) _auraBase = aura.rectTransform.localScale;
             // Perde zaten tam ekran bir Image taşıyor (siyah, sprite'sız). Ada görselini onun üstüne
             // basıyoruz — ikinci bir katman kurmak, ikinci bir referans bağlamak demekti.
             if (fadeGroup != null) _curtain = fadeGroup.GetComponent<Image>();
+            BuildTravelOverlay();
             BuildPips();
             CloseConfirm();
             if (fadeGroup != null) fadeGroup.gameObject.SetActive(false);
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
+        }
+
+        /// <summary>
+        /// Only the arrow art is mirrored on the previous-island button. Mirroring the whole Button
+        /// transform also mirrors every child TMP label and produced the backwards island name seen on
+        /// the map. A dedicated graphic child keeps both labels in a normal coordinate system.
+        /// </summary>
+        private static void NormalizeSideButton(Button button, TMP_Text label, bool mirrorArrow)
+        {
+            if (button == null) return;
+
+            RectTransform root = button.transform as RectTransform;
+            if (root == null) return;
+            root.localScale = Vector3.one;
+            root.localRotation = Quaternion.identity;
+            if (label != null)
+            {
+                label.rectTransform.localScale = Vector3.one;
+                label.rectTransform.localRotation = Quaternion.identity;
+            }
+
+            Image source = button.GetComponent<Image>();
+            if (source == null) return;
+            Transform found = root.Find("OkGorseli");
+            Image arrow;
+            if (found == null)
+            {
+                var go = new GameObject("OkGorseli", typeof(RectTransform), typeof(Image));
+                var rt = (RectTransform)go.transform;
+                rt.SetParent(root, false);
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
+                rt.SetAsFirstSibling();
+                arrow = go.GetComponent<Image>();
+            }
+            else arrow = found.GetComponent<Image>();
+
+            if (arrow == null) return;
+            arrow.sprite = source.sprite;
+            arrow.type = source.type;
+            arrow.preserveAspect = source.preserveAspect;
+            arrow.color = source.color;
+            arrow.raycastTarget = true;
+            arrow.rectTransform.localScale = new Vector3(mirrorArrow ? -1f : 1f, 1f, 1f);
+            source.enabled = false;
+            button.targetGraphic = arrow;
         }
 
         private void ApplyLandscapeLayout()
@@ -594,6 +651,79 @@ namespace Game.UI
         }
 
         /// <summary>
+        /// Builds the destination name and progress readout once. They live as children of the authored
+        /// full-screen curtain, so they are always above the painting and inherit the same fade/input
+        /// block without adding another canvas or another safe-area edge case.
+        /// </summary>
+        private void BuildTravelOverlay()
+        {
+            if (fadeGroup == null) return;
+            Transform root = fadeGroup.transform;
+
+            // Travel is a global transition, so it must render above every regular modal canvas.
+            RaiseTravelOverlay();
+
+            _travelName = TravelLabel(root, "HedefAda", 60f,
+                                      new Vector2(0.13f, 0.755f), new Vector2(0.87f, 0.865f),
+                                      new Color(1f, 0.86f, 0.40f, 1f));
+
+            // Two nested beds give the bar a crisp readable edge on both the bright sea and the dark
+            // tunnel foreground. The fill itself is coloured for the destination ore in Curtain().
+            UiBuild.Flat(root, "YuklemeGolgesi", new Color(0.005f, 0.018f, 0.045f, 0.88f),
+                         new Vector2(0.205f, 0.068f), new Vector2(0.795f, 0.118f));
+            RectTransform track = UiBuild.Flat(root, "YuklemeYatagi", new Color(0.035f, 0.10f, 0.20f, 0.94f),
+                                               new Vector2(0.215f, 0.078f), new Vector2(0.785f, 0.108f));
+            _travelFill = UiBuild.Flat(track, "Dolgu", Color.white, Vector2.zero, new Vector2(0f, 1f));
+            _travelFillImage = _travelFill.GetComponent<Image>();
+
+            _travelPercent = TravelLabel(root, "Yuzde", 25f,
+                                          new Vector2(0.42f, 0.118f), new Vector2(0.58f, 0.16f),
+                                          new Color(1f, 1f, 1f, 0.92f));
+            TravelProgress(0f);
+        }
+
+        private void RaiseTravelOverlay()
+        {
+            if (fadeGroup == null) return;
+            if (_canvas == null) _canvas = GetComponentInParent<Canvas>();
+            if (_canvas != null) _canvas.sortingOrder = 1000;
+            fadeGroup.transform.SetAsLastSibling();
+        }
+
+        private TMP_Text TravelLabel(Transform parent, string name, float size,
+                                     Vector2 aMin, Vector2 aMax, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var text = go.AddComponent<TextMeshProUGUI>();
+            TMP_FontAsset font = nameText != null ? nameText.font : TMP_Settings.defaultFontAsset;
+            if (font != null) text.font = font;
+            text.fontSize = size;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = Mathf.Max(22f, size * 0.58f);
+            text.fontSizeMax = size;
+            text.fontStyle = FontStyles.Bold;
+            text.alignment = TextAlignmentOptions.Center;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.color = color;
+            if (text.font != null)
+            {
+                text.outlineColor = new Color32(4, 14, 31, 240);
+                text.outlineWidth = 0.22f;
+            }
+            text.raycastTarget = false;
+            UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
+            return text;
+        }
+
+        private void TravelProgress(float value)
+        {
+            float t = Mathf.Clamp01(value);
+            if (_travelFill != null) _travelFill.anchorMax = new Vector2(t, 1f);
+            if (_travelPercent != null) _travelPercent.text = Mathf.RoundToInt(t * 100f) + "%";
+        }
+
+        /// <summary>
         /// Sail to an island behind the destination's loading screen — the same splash the game boots
         /// on, so arriving somewhere new is announced by the art of the place rather than by a black
         /// gap. The swap itself — island roots, operation, camera framing, and the three HUD screens
@@ -604,13 +734,17 @@ namespace Game.UI
         {
             _sailing = true;
             bool art = Curtain(i);
+            TravelProgress(0f);
 
             if (fadeGroup != null)
             {
                 fadeGroup.alpha = 0f;
                 fadeGroup.blocksRaycasts = true;
                 fadeGroup.gameObject.SetActive(true);
-                yield return Fade(0f, 1f, fadeOutSeconds);
+                // Unity can rebuild a nested Canvas when an inactive prefab node is enabled. Apply
+                // the global sorting order after activation as well so no modal can cover travel.
+                RaiseTravelOverlay();
+                yield return Fade(0f, 1f, fadeOutSeconds, 0f, 0.18f);
             }
 
             CoalOperation op = _world.Travel(i);
@@ -623,6 +757,7 @@ namespace Game.UI
                 if (_upgrades != null) _upgrades.SetOperation(op);
                 if (_juice != null) _juice.SetOperation(op);
             }
+            TravelProgress(0.58f);
 
             CloseConfirm();
             if (panelRoot != null) panelRoot.SetActive(false);
@@ -630,12 +765,27 @@ namespace Game.UI
             // Siyah perdenin beklemesi için sebep yok; ada görselini taşıyorsa oyuncunun onu görmesi
             // için var.
             float hold = art ? sailHoldSeconds : fadeHoldSeconds;
-            if (hold > 0f) yield return new WaitForSecondsRealtime(hold);
+            if (hold > 0f)
+            {
+                float elapsed = 0f;
+                while (elapsed < hold)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    float t = Mathf.Clamp01(elapsed / hold);
+                    // A gentle ease keeps the bar moving throughout the announcement instead of
+                    // reaching 100% immediately and pretending to be stuck there.
+                    t = 1f - (1f - t) * (1f - t);
+                    TravelProgress(Mathf.Lerp(0.58f, 1f, t));
+                    yield return null;
+                }
+            }
+            TravelProgress(1f);
             if (fadeGroup != null)
             {
                 yield return Fade(1f, 0f, fadeInSeconds);
                 fadeGroup.blocksRaycasts = false;
                 fadeGroup.gameObject.SetActive(false);
+                if (_canvas != null) _canvas.sortingOrder = _canvasBaseSortingOrder;
             }
             _sailing = false;
         }
@@ -648,20 +798,40 @@ namespace Game.UI
         private bool Curtain(int i)
         {
             if (_curtain == null) return false;
-            bool has = sailBackgrounds != null && i >= 0 && i < sailBackgrounds.Length && sailBackgrounds[i] != null;
-            _curtain.sprite = has ? sailBackgrounds[i] : null;
+            Sprite background = Resources.Load<Sprite>(TravelBackdropResource);
+            bool has = background != null;
+            _curtain.sprite = background;
             _curtain.color = has ? Color.white : Color.black;
+            _curtain.type = Image.Type.Simple;
+            _curtain.preserveAspect = false;
+
+            if (_travelName != null)
+            {
+                // i is the destination, never the island being left. The sentence therefore says
+                // "BAKIR ADASI YÜKLENİYOR" for coal -> copper and "KÖMÜR ADASI YÜKLENİYOR" on the way back.
+                _travelName.text = IslandName(i).ToUpperInvariant() + " " +
+                                   Loc.T("ortak.yukleniyor").ToUpperInvariant();
+            }
+            if (_travelFillImage != null && _world != null)
+            {
+                Color ore = _world.OreColor(i);
+                _travelFillImage.color = Color.Lerp(ore, new Color(1f, 0.80f, 0.28f, 1f), 0.42f);
+            }
             return has;
         }
 
-        private IEnumerator Fade(float from, float to, float seconds)
+        private IEnumerator Fade(float from, float to, float seconds,
+                                 float progressFrom = -1f, float progressTo = -1f)
         {
             if (seconds <= 0f) { fadeGroup.alpha = to; yield break; }
             float t = 0f;
             while (t < seconds)
             {
                 t += Time.unscaledDeltaTime;
-                fadeGroup.alpha = Mathf.Lerp(from, to, Mathf.Clamp01(t / seconds));
+                float k = Mathf.Clamp01(t / seconds);
+                fadeGroup.alpha = Mathf.Lerp(from, to, k);
+                if (progressFrom >= 0f && progressTo >= 0f)
+                    TravelProgress(Mathf.Lerp(progressFrom, progressTo, k));
                 yield return null;
             }
             fadeGroup.alpha = to;

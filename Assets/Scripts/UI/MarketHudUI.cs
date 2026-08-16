@@ -57,6 +57,7 @@ namespace Game.UI
         /// the moment a real panel sprite exists.
         /// </summary>
         private static readonly Color Chrome = new Color(0.07f, 0.08f, 0.11f, 0.86f);
+        private const string GlassPath = "UI/MarketLiquid/";
 
         private TMP_Text _stockText, _incomeText, _padText, _padSubText, _carryText, _yardText, _cashText;
         private RectTransform _stockFill, _carryFill, _padPanel, _accent;
@@ -77,6 +78,11 @@ namespace Game.UI
             _wallet = ServiceLocator.Get<WalletService>();
 
             RectTransform canvas = UiBuild.Canvas(transform, "MarketHudKanvas", sortingOrder);
+            Sprite backArt = Glass("back_button");
+            Sprite currencyArt = Glass("currency_panel");
+            Sprite infoArt = Glass("island_info_panel");
+            Sprite counterArt = Glass("objective_counter");
+            Sprite joystickArt = Glass("joystick");
 
             // ---- the stick's zone, underneath everything, and everything above it is deaf to touch ----
             // Full bleed, and the one thing here that stays OUTSIDE the safe area: this is a surface you
@@ -88,8 +94,8 @@ namespace Game.UI
             UiBuild.Anchor(zone, Vector2.zero, new Vector2(1f, stickZoneHeight));
             MarketJoystick.DragSurface(zone);
 
-            RectTransform ring = Ring(zone, "KolTabani", 300f, new Color(1f, 1f, 1f, 0.16f));
-            RectTransform knob = Ring(zone, "KolBasi", 130f, new Color(1f, 1f, 1f, 0.42f));
+            RectTransform ring = Ring(zone, "KolTabani", 300f, new Color(1f, 1f, 1f, 0.68f), joystickArt);
+            RectTransform knob = Ring(zone, "KolBasi", 108f, new Color(1f, 1f, 1f, 0.62f), UiSkin.Flat);
 
             _stick = zoneGo.AddComponent<MarketJoystick>();
             _stick.Bind(ring, knob);
@@ -115,13 +121,11 @@ namespace Game.UI
             var padGo = new GameObject("YuruyusPedi", typeof(RectTransform));
             var pad = (RectTransform)padGo.transform;
             pad.SetParent(safe, false);
-            pad.anchorMin = pad.anchorMax = new Vector2(0.875f, 0.21f);
-            pad.pivot = new Vector2(0.5f, 0.5f);
-            pad.sizeDelta = new Vector2(320f, 320f);
+            Pin(pad, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-26f, 24f),
+                new Vector2(300f, 286f));
             // The ripple first, so the base and the head draw over it as it passes them.
-            RectTransform ripple = Ring(pad, "Dalga", 300f, new Color(1f, 1f, 1f, 0.22f));
-            Ring(pad, "Taban", 300f, new Color(1f, 1f, 1f, 0.10f));
-            Ring(pad, "Bas", 130f, new Color(1f, 1f, 1f, 0.30f));
+            RectTransform ripple = Ring(pad, "Dalga", 286f, new Color(1f, 1f, 1f, 0.20f), joystickArt);
+            Ring(pad, "Taban", 286f, new Color(1f, 1f, 1f, 0.92f), joystickArt);
             _stick.BindRest(pad, ripple);
 
             // ---- top bar: the way out, the wallet, and what this yard is ----
@@ -129,54 +133,67 @@ namespace Game.UI
             // control a player reaches for while their other thumb is on the stick, and it was a strip
             // less than six per cent of the screen tall. Kit yellow, the same art as MARKETE GİR — the
             // door in and the door out wearing one colour is the cheapest wayfinding there is.
-            Button exit = Chip(safe, "CikisDugmesi", "‹  " + Loc.T("market.cik"), UiSkin.ButtonYellow,
-                               44f, onExit);
-            UiBuild.Anchor((RectTransform)exit.transform,
-                           new Vector2(0.022f, 0.855f), new Vector2(0.235f, 0.975f));
+            Button exit = Chip(safe, "CikisDugmesi", "‹  " + Loc.T("market.cik"), backArt,
+                               40f, onExit);
+            Pin((RectTransform)exit.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(20f, -18f), new Vector2(300f, 156f));
+            TMP_Text exitText = exit.GetComponentInChildren<TMP_Text>();
+            if (exitText != null) Inset(exitText, 0.16f, 0.84f);
 
             // What is in the wallet, in the kit's counter capsule. Every pad in the yard is priced in
             // cash and this screen used to be the one place in the game that would not tell you how much
             // you had — you bought upgrades by walking onto them and hoping.
             RectTransform purse = UiBuild.Box(safe, "ParaKarti", Chrome,
                                               new Vector2(0.255f, 0.855f), new Vector2(0.475f, 0.975f));
-            var purseImage = purse.GetComponent<Image>();
-            if (purseImage != null) purseImage.sprite = UiSkin.Pill;
+            Skin(purse, currencyArt);
+            Pin(purse, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(336f, -18f), new Vector2(270f, 158f));
             Icon(purse, UiSkin.Coin);
-            _cashText = Line(purse, "ParaYazisi", 46f, TextAlignmentOptions.Left, 0.06f, 0.94f);
+            _cashText = Line(purse, "ParaYazisi", 38f, TextAlignmentOptions.Left, 0.17f, 0.83f);
             var cashRect = (RectTransform)_cashText.transform;
-            cashRect.anchorMin = new Vector2(0.30f, 0.06f);
-            cashRect.anchorMax = new Vector2(0.94f, 0.94f);
+            cashRect.anchorMin = new Vector2(0.34f, 0.17f);
+            cashRect.anchorMax = new Vector2(0.85f, 0.83f);
 
             RectTransform card = UiBuild.Box(safe, "AvluKarti", Chrome,
                                              new Vector2(0.495f, 0.80f), new Vector2(0.978f, 0.975f));
+            Skin(card, infoArt);
+            Pin(card, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(500f, 345f));
 
             // The ore's own colour down the leading edge, so which yard you are in is answerable
             // without reading anything — the same cue the world map uses for the same islands.
-            _accent = UiBuild.Flat(card, "Cizgi", FillColour, new Vector2(0.02f, 0.12f),
-                                   new Vector2(0.036f, 0.88f));
+            _accent = UiBuild.Flat(card, "Cizgi", FillColour, new Vector2(0.105f, 0.20f),
+                                   new Vector2(0.12f, 0.79f));
 
-            _yardText = Line(card, "AvluAdi", 34f, TextAlignmentOptions.TopLeft, 0.62f, 0.96f);
-            _yardText.color = new Color(1f, 1f, 1f, 0.66f);
-            _incomeText = Line(card, "GelirYazisi", 50f, TextAlignmentOptions.TopLeft, 0.33f, 0.66f);
-            _stockText = Line(card, "StokYazisi", 32f, TextAlignmentOptions.TopLeft, 0.16f, 0.35f);
+            _yardText = Line(card, "AvluAdi", 34f, TextAlignmentOptions.TopLeft, 0.65f, 0.84f);
+            _yardText.color = new Color(1f, 0.94f, 0.70f, 1f);
+            _incomeText = Line(card, "GelirYazisi", 45f, TextAlignmentOptions.TopLeft, 0.42f, 0.65f);
+            _stockText = Line(card, "StokYazisi", 29f, TextAlignmentOptions.TopLeft, 0.25f, 0.43f);
+            Inset(_yardText, 0.14f, 0.88f);
+            Inset(_incomeText, 0.14f, 0.88f);
+            Inset(_stockText, 0.14f, 0.88f);
 
             UiBuild.Bar(card, "StokCubugu", new Color(1f, 1f, 1f, 0.12f), FillColour,
-                        new Vector2(0.06f, 0.07f), new Vector2(0.95f, 0.13f), out _stockFill);
+                        new Vector2(0.12f, 0.17f), new Vector2(0.88f, 0.205f), out _stockFill);
             _stockFillImage = _stockFill.GetComponent<Image>();
 
             // ---- bottom left: what is on your back ----
             RectTransform load = UiBuild.Box(safe, "SirtKarti", Chrome,
                                              new Vector2(0.022f, 0.035f), new Vector2(0.235f, 0.155f));
-            _carryText = Line(load, "SirtYazisi", 48f, TextAlignmentOptions.Left, 0.34f, 0.92f);
+            Skin(load, counterArt);
+            Pin(load, Vector2.zero, Vector2.zero, new Vector2(20f, 18f), new Vector2(270f, 163f));
+            _carryText = Line(load, "SirtYazisi", 46f, TextAlignmentOptions.Center, 0.34f, 0.80f);
             UiBuild.Bar(load, "SirtCubugu", new Color(1f, 1f, 1f, 0.12f), new Color(0.44f, 0.72f, 0.95f, 0.95f),
-                        new Vector2(0.09f, 0.16f), new Vector2(0.93f, 0.26f), out _carryFill);
+                        new Vector2(0.17f, 0.22f), new Vector2(0.83f, 0.27f), out _carryFill);
 
             // ---- what the pad underfoot is selling. Hidden until they stand on one ----
             _padPanel = UiBuild.Box(safe, "PedBilgisi", new Color(0.09f, 0.10f, 0.14f, 0.94f),
                                     new Vector2(0.315f, 0.035f), new Vector2(0.685f, 0.175f));
-            _padText = Line(_padPanel, "PedYazisi", 42f, TextAlignmentOptions.Top, 0.48f, 0.92f);
-            _padSubText = Line(_padPanel, "PedAltYazisi", 36f, TextAlignmentOptions.Top, 0.10f, 0.48f);
-            _padSubText.color = new Color(1f, 1f, 1f, 0.66f);
+            Skin(_padPanel, counterArt);
+            Pin(_padPanel, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 18f),
+                new Vector2(390f, 236f));
+            _padText = Line(_padPanel, "PedYazisi", 38f, TextAlignmentOptions.Top, 0.48f, 0.73f);
+            _padSubText = Line(_padPanel, "PedAltYazisi", 31f, TextAlignmentOptions.Top, 0.27f, 0.49f);
+            _padSubText.color = new Color(1f, 1f, 1f, 0.88f);
             _padPanel.gameObject.SetActive(false);
 
             Untappable(purse);
@@ -200,6 +217,37 @@ namespace Game.UI
             for (int i = 0; i < parts.Length; i++) parts[i].raycastTarget = false;
         }
 
+        private static Sprite Glass(string name) => Resources.Load<Sprite>(GlassPath + name);
+
+        /// <summary>Applies one of the authored glass plates without slicing or recolouring its glow.</summary>
+        private static void Skin(RectTransform rect, Sprite art)
+        {
+            if (rect == null || art == null) return;
+            var image = rect.GetComponent<Image>();
+            if (image == null) return;
+            image.sprite = art;
+            image.type = Image.Type.Simple;
+            image.preserveAspect = true;
+            image.color = Color.white;
+        }
+
+        /// <summary>Positions a glass component at a corner/edge with its authored aspect ratio intact.</summary>
+        private static void Pin(RectTransform rect, Vector2 anchor, Vector2 pivot,
+                                Vector2 offset, Vector2 size)
+        {
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.pivot = pivot;
+            rect.anchoredPosition = offset;
+            rect.sizeDelta = size;
+        }
+
+        private static void Inset(TMP_Text text, float left, float right)
+        {
+            var rect = (RectTransform)text.transform;
+            rect.anchorMin = new Vector2(left, rect.anchorMin.y);
+            rect.anchorMax = new Vector2(right, rect.anchorMax.y);
+        }
+
         /// <summary>
         /// A line of text occupying a horizontal band of its card.
         ///
@@ -215,9 +263,15 @@ namespace Game.UI
             go.transform.SetParent(parent, false);
             var text = go.AddComponent<TextMeshProUGUI>();
             text.fontSize = size;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = Mathf.Max(18f, size * 0.58f);
+            text.fontSizeMax = size;
             text.alignment = align;
             text.textWrappingMode = TextWrappingModes.NoWrap;
             text.color = Color.white;
+            text.fontStyle = FontStyles.Bold;
+            text.outlineColor = new Color32(8, 22, 44, 225);
+            text.outlineWidth = 0.18f;
             text.raycastTarget = false;      // never eat a tap meant for whatever is under it
             var rect = (RectTransform)go.transform;
             rect.anchorMin = new Vector2(0.06f, bottom);
@@ -238,8 +292,9 @@ namespace Game.UI
             go.transform.SetParent(parent, false);
             var image = go.GetComponent<Image>();
             image.sprite = art != null ? art : UiSkin.Flat;
-            image.type = Image.Type.Sliced;
-            image.color = UiSkin.HasArt ? Color.white : Chrome;
+            image.type = art != null ? Image.Type.Simple : Image.Type.Sliced;
+            image.preserveAspect = art != null;
+            image.color = art != null || UiSkin.HasArt ? Color.white : Chrome;
             TMP_Text text = Line(go.transform, "Yazi", size, TextAlignmentOptions.Center, 0f, 1f);
             text.text = label;
             var button = go.GetComponent<Button>();
@@ -258,7 +313,7 @@ namespace Game.UI
             image.sprite = sprite;
             image.preserveAspect = true;
             image.raycastTarget = false;
-            UiBuild.Anchor((RectTransform)go.transform, new Vector2(0.05f, 0.14f), new Vector2(0.28f, 0.86f));
+            UiBuild.Anchor((RectTransform)go.transform, new Vector2(0.14f, 0.22f), new Vector2(0.32f, 0.78f));
         }
 
         /// <summary>
@@ -282,7 +337,7 @@ namespace Game.UI
         /// in the middle of the zone and the ring drew itself down in the bottom-left corner. Which is a
         /// large part of why nobody could tell there was a stick at all.
         /// </summary>
-        private static RectTransform Ring(Transform parent, string name, float size, Color c)
+        private static RectTransform Ring(Transform parent, string name, float size, Color c, Sprite art)
         {
             RectTransform rect = UiBuild.Flat(parent, name, c, Vector2.zero, Vector2.zero);
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -290,7 +345,9 @@ namespace Game.UI
             rect.anchoredPosition = Vector2.zero;
             rect.sizeDelta = new Vector2(size, size);
             var img = rect.GetComponent<Image>();
-            img.sprite = UiSkin.Flat;
+            img.sprite = art != null ? art : UiSkin.Flat;
+            img.type = art != null ? Image.Type.Simple : Image.Type.Sliced;
+            img.preserveAspect = art != null;
             // Never a raycast target: the zone underneath owns the drag, and a blob that ate pointers
             // would cancel the very gesture that spawned it.
             img.raycastTarget = false;

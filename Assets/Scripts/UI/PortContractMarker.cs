@@ -56,6 +56,8 @@ namespace Game.UI
         private float _shownAt;
         private float _rebindIn;
 
+        public RectTransform MarkerRect => _rect;
+
         private void Awake()
         {
             _cam = Camera.main;
@@ -77,7 +79,10 @@ namespace Game.UI
             _rect.SetParent(_canvasRect, false);
             _rect.anchorMin = _rect.anchorMax = new Vector2(0.5f, 0.5f);
             _rect.pivot = new Vector2(0.5f, 0.5f);
-            _rect.sizeDelta = new Vector2(size, size);
+            // The authored scene used to override this to 170 px, which read like a second HUD button.
+            // Keep the harbour marker deliberately small and local to the pier.
+            float markerSize = Mathf.Min(size, 86f);
+            _rect.sizeDelta = new Vector2(markerSize, markerSize);
 
             var img = _root.GetComponent<Image>();
             img.sprite = badge;
@@ -86,6 +91,9 @@ namespace Game.UI
 
             _root.GetComponent<Button>().onClick.AddListener(OpenScreen);
             _root.SetActive(false);
+
+            // Kontrat erişimi yeniden ana HUD butonunda; limandaki geçici kopya kapalı kalsın.
+            enabled = false;
         }
 
         /// <summary>
@@ -129,22 +137,17 @@ namespace Game.UI
             world.y += worldLift;
             Vector3 screen = _cam.WorldToScreenPoint(world);
 
+            // It belongs to the harbour. When the harbour leaves the camera, the marker leaves too;
+            // clamping it to an edge made it follow the player around like a HUD control.
+            const float viewportMargin = 18f;
+            bool onScreen = screen.z > 0f
+                            && screen.x >= viewportMargin && screen.x <= Screen.width - viewportMargin
+                            && screen.y >= viewportMargin && screen.y <= Screen.height - viewportMargin;
+            if (!onScreen) { Hide(); return; }
+
             Vector2 local;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 _canvasRect, new Vector2(screen.x, screen.y), null, out local);
-
-            // The harbour sits outside the frame the operation camera composes — it is past the market,
-            // on the far side of the island's own working area, and on some islands it is off the bottom
-            // corner at every zoom the player is likely to use. So the badge is pinned to the pier when
-            // the pier is on screen and clamped to the edge nearest it when it is not: an off-screen
-            // contract the player has no way of noticing is the same as no contract.
-            if (screen.z < 0f) local = -local;         // behind the camera: mirror through the centre
-            Rect view = _canvasRect.rect;
-            float inset = size * 0.7f + edgeMargin;
-            float mx = view.width * 0.5f - inset;
-            float my = view.height * 0.5f - inset;
-            if (mx > 0f) local.x = Mathf.Clamp(local.x, -mx, mx);
-            if (my > 0f) local.y = Mathf.Clamp(local.y, -my, my);
 
             if (!_shown)
             {
@@ -154,10 +157,6 @@ namespace Game.UI
             }
 
             float now = Time.unscaledTime;
-            float cycle = now / bobSeconds * Mathf.PI * 2f;
-            float bob = Mathf.Sin(cycle) * bobPixels;
-            float breath = 1f + Mathf.Sin(cycle - Mathf.PI * 0.5f) * pulseAmount;
-
             float age = now - _shownAt;
             float pop = 1f;
             if (age < popSeconds && popSeconds > 0f)
@@ -166,8 +165,8 @@ namespace Game.UI
                 pop = u * u * ((PopOvershoot + 1f) * u + PopOvershoot) + 1f;
             }
 
-            _rect.anchoredPosition = new Vector2(local.x, local.y + bob);
-            float scale = breath * pop;
+            _rect.anchoredPosition = local;
+            float scale = pop;
             _rect.localScale = new Vector3(scale, scale, 1f);
         }
 

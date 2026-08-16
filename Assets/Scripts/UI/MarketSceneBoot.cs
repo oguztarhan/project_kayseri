@@ -3,6 +3,7 @@ using Game.Gameplay;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace Game.UI
 {
@@ -222,6 +223,12 @@ namespace Game.UI
         /// </summary>
         private void Update()
         {
+            // Main normally lends the additive market its EventSystem. Keep this recovery here as well:
+            // an editor hot reload or an interrupted transition may have parked the old system before
+            // the market could inherit it. Without one, movement, taps and the return button all stop.
+            if (EventSystem.current == null || !EventSystem.current.isActiveAndEnabled)
+                UiBuild.EnsureEventSystem(transform);
+
             if (_player == null || _yards.Count < 2) return;
             _checkIn -= Time.deltaTime;
             if (_checkIn > 0f) return;

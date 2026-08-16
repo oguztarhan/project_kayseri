@@ -304,9 +304,9 @@ namespace Game.UI
             root.SetAsLastSibling();
 
             bool landscape = Screen.width > Screen.height;
-            TMP_Text title = Text(root, "Baslik", 40, TextAlignmentOptions.Center,
-                                  landscape ? new Vector2(0.28f, 0.80f) : new Vector2(0.06f, 0.82f),
-                                  landscape ? new Vector2(0.72f, 0.90f) : new Vector2(0.94f, 0.89f));
+            TMP_Text title = Text(root, "Baslik", 38, TextAlignmentOptions.Center,
+                                  landscape ? new Vector2(0.30f, 0.79f) : new Vector2(0.06f, 0.82f),
+                                  landscape ? new Vector2(0.70f, 0.88f) : new Vector2(0.94f, 0.89f));
             title.text = Loc.T("kontrat.teklifler");
 
             Color[] tints = { easyTint, normalTint, hardTint };
@@ -315,8 +315,8 @@ namespace Game.UI
             {
                 if (landscape)
                 {
-                    float left = 0.035f + i * 0.32f;
-                    BuildOfferCard(root, i, keys[i], tints[i], left, left + 0.29f, 0.12f, 0.74f);
+                    float left = 0.035f + i * 0.3225f;
+                    BuildOfferCard(root, i, keys[i], tints[i], left, left + 0.2875f, 0.16f, 0.73f);
                 }
                 else
                 {
@@ -350,32 +350,51 @@ namespace Game.UI
             btn.targetGraphic = img;
             btn.onClick.AddListener(() => OnAccept(captured));
 
-            // Left column reads the job top to bottom — difficulty, what it asks, how long. Right column
-            // is what it pays. Nothing overlaps, because the card is 219 units tall and the authored art
-            // has no dividers to hide a collision behind.
-            _offerTier[tier] = Text(rt, "Zorluk", 32, TextAlignmentOptions.Left,
-                                    new Vector2(0.05f, 0.60f), new Vector2(0.45f, 0.95f));
+            // A compact card: header/pay, job, meta row, then one clear action strip. Keeping each item
+            // in its own band prevents the sparse corner layout and long localisation collisions.
+            Image header = Plate(rt, "BaslikSeridi", new Vector2(0.035f, 0.75f),
+                                 new Vector2(0.965f, 0.955f), new Color(tint.r, tint.g, tint.b, 0.10f));
+            header.raycastTarget = false;
+
+            _offerTier[tier] = Text(rt, "Zorluk", 31, TextAlignmentOptions.MidlineLeft,
+                                    new Vector2(0.07f, 0.77f), new Vector2(0.53f, 0.94f));
             _offerTier[tier].text = Loc.T(tierKey);
             _offerTier[tier].color = tint;
 
-            _offerTask[tier] = Text(rt, "Is", 38, TextAlignmentOptions.Left,
-                                    new Vector2(0.05f, 0.28f), new Vector2(0.62f, 0.60f));
+            _offerPay[tier] = Text(rt, "Odul", 33, TextAlignmentOptions.MidlineRight,
+                                   new Vector2(0.50f, 0.77f), new Vector2(0.93f, 0.94f));
 
-            _offerTime[tier] = Text(rt, "Sure", 30, TextAlignmentOptions.Left,
-                                    new Vector2(0.05f, 0.05f), new Vector2(0.45f, 0.28f));
+            _offerTask[tier] = Text(rt, "Is", 35, TextAlignmentOptions.MidlineLeft,
+                                    new Vector2(0.07f, 0.47f), new Vector2(0.93f, 0.72f));
+
+            _offerTime[tier] = Text(rt, "Sure", 28, TextAlignmentOptions.MidlineLeft,
+                                    new Vector2(0.07f, 0.28f), new Vector2(0.46f, 0.45f));
             _offerTime[tier].color = Dim(_offerTime[tier].color, 0.6f);
 
-            _offerPay[tier] = Text(rt, "Odul", 38, TextAlignmentOptions.Right,
-                                   new Vector2(0.58f, 0.52f), new Vector2(0.95f, 0.92f));
-
-            _offerGems[tier] = Text(rt, "Elmas", 30, TextAlignmentOptions.Right,
-                                    new Vector2(0.58f, 0.26f), new Vector2(0.95f, 0.52f));
+            _offerGems[tier] = Text(rt, "Elmas", 28, TextAlignmentOptions.MidlineRight,
+                                    new Vector2(0.52f, 0.28f), new Vector2(0.93f, 0.45f));
             _offerGems[tier].color = new Color(0.16f, 0.45f, 0.78f);
 
-            TMP_Text take = Text(rt, "Kabul", 26, TextAlignmentOptions.Right,
-                                 new Vector2(0.58f, 0.04f), new Vector2(0.95f, 0.26f));
+            Image action = Plate(rt, "KabulSeridi", new Vector2(0.07f, 0.065f),
+                                 new Vector2(0.93f, 0.235f), new Color(tint.r, tint.g, tint.b, 0.15f));
+            action.raycastTarget = false;
+            TMP_Text take = Text(rt, "Kabul", 27, TextAlignmentOptions.Center,
+                                 new Vector2(0.10f, 0.075f), new Vector2(0.90f, 0.225f));
             take.text = Loc.T("kontrat.kabul");
             take.color = tint;
+        }
+
+        private static Image Plate(RectTransform parent, string name, Vector2 aMin, Vector2 aMax, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            Stretch(rt, aMin, aMax);
+            var image = go.GetComponent<Image>();
+            image.sprite = UiSkin.Flat;
+            image.type = Image.Type.Sliced;
+            image.color = color;
+            return image;
         }
 
         private void BuildStatus()
@@ -433,6 +452,9 @@ namespace Game.UI
             var t = go.AddComponent<TextMeshProUGUI>();
             if (targetText != null && targetText.font != null) t.font = targetText.font;
             t.fontSize = size;
+            t.enableAutoSizing = true;
+            t.fontSizeMin = Mathf.Max(18f, size * 0.68f);
+            t.fontSizeMax = size;
             t.alignment = align;
             // The card art is near-white, so the ink is the authored card's own dark navy rather than the
             // white every other floating label in this game uses. Taken off the card instead of hardcoded,
@@ -440,7 +462,7 @@ namespace Game.UI
             t.color = targetText != null ? targetText.color : new Color32(30, 43, 71, 255);
             t.raycastTarget = false;      // the card under it is the tap target
             t.textWrappingMode = TextWrappingModes.NoWrap;
-            t.overflowMode = TextOverflowModes.Overflow;
+            t.overflowMode = TextOverflowModes.Ellipsis;
             return t;
         }
 

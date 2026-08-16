@@ -53,6 +53,10 @@ namespace Game.UI
         [Tooltip("Gece yanan yazı rengi. Sokak lambalarıyla aynı sarıya yakın durmalı.")]
         [SerializeField] private Color _nightText = new Color(1f, 0.83f, 0.50f, 1f);
 
+        [Header("Modern tabela")]
+        [SerializeField] private bool _modernStyle = true;
+        [SerializeField] private Color _borderColor = new Color(1f, 0.66f, 0.12f, 1f);
+
         [Header("Bağlanma")]
         [Tooltip("Hangi operasyonun canlı olduğuna bu sıklıkta bakılır.")]
         [SerializeField] private float _rebindSeconds = 0.5f;
@@ -75,6 +79,14 @@ namespace Game.UI
         private void Awake()
         {
             _camera = Camera.main;
+
+            if (_modernStyle)
+            {
+                _dayPlate = new Color(0.055f, 0.105f, 0.20f, 0.96f);
+                _dayText = new Color(0.98f, 0.98f, 1f, 1f);
+                _nightPlate = new Color(0.025f, 0.055f, 0.12f, 0.97f);
+                _nightText = new Color(1f, 0.82f, 0.38f, 1f);
+            }
 
             var go = new GameObject("BinaTabelalariKanvas", typeof(Canvas), typeof(CanvasScaler));
             go.transform.SetParent(transform, false);
@@ -151,21 +163,45 @@ namespace Game.UI
             rect.pivot = new Vector2(0.5f, 0.5f);
 
             plate = go.GetComponent<Image>();
+            plate.sprite = UiSkin.Pill;
+            plate.type = Image.Type.Sliced;
+            plate.color = _borderColor;
+            plate.raycastTarget = false;
+
+            var shadow = go.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0.01f, 0.025f, 0.07f, 0.75f);
+            shadow.effectDistance = new Vector2(0f, -5f);
+            shadow.useGraphicAlpha = true;
+
+            var innerGo = new GameObject("IcZemin", typeof(RectTransform), typeof(Image));
+            var innerRect = (RectTransform)innerGo.transform;
+            innerRect.SetParent(rect, false);
+            innerRect.anchorMin = Vector2.zero;
+            innerRect.anchorMax = Vector2.one;
+            innerRect.offsetMin = new Vector2(3f, 3f);
+            innerRect.offsetMax = new Vector2(-3f, -3f);
+            plate = innerGo.GetComponent<Image>();
+            plate.sprite = UiSkin.Pill;
+            plate.type = Image.Type.Sliced;
             plate.raycastTarget = false;
 
             var textGo = new GameObject("Yazi", typeof(RectTransform), typeof(TextMeshProUGUI));
             var textRect = (RectTransform)textGo.transform;
-            textRect.SetParent(rect, false);
+            textRect.SetParent(innerRect, false);
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(14f, 6f);
-            textRect.offsetMax = new Vector2(-14f, -6f);
+            textRect.offsetMin = new Vector2(18f, 7f);
+            textRect.offsetMax = new Vector2(-18f, -7f);
 
             label = textGo.GetComponent<TextMeshProUGUI>();
             if (_font != null) label.font = _font;
             label.fontSize = _fontSize;
             label.alignment = TextAlignmentOptions.Center;
             label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = Mathf.Max(20f, _fontSize * 0.72f);
+            label.fontSizeMax = _fontSize;
+            label.fontStyle = FontStyles.Bold;
             label.raycastTarget = false;
             label.text = Loc.Id("istasyon", _operation.StationName(station));
 
@@ -173,7 +209,7 @@ namespace Game.UI
             // localised, and "POWER PLANT" and its Turkish are not the same width.
             label.ForceMeshUpdate();
             Vector2 text = label.GetRenderedValues(false);
-            rect.sizeDelta = new Vector2(text.x + 28f, text.y + 12f);
+            rect.sizeDelta = new Vector2(text.x + 44f, Mathf.Max(52f, text.y + 22f));
 
             return rect;
         }

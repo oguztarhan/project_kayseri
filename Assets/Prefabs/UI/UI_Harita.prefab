@@ -310,15 +310,6 @@ MonoBehaviour:
   confirmBuyImage: {fileID: 755579510190386779}
   confirmCancelButton: {fileID: 1571336133175359698}
   fadeGroup: {fileID: 982824037922202756}
-  sailBackgrounds:
-  - {fileID: 21300000, guid: dea497e08b11d0f4195ac928f43bc8da, type: 3}
-  - {fileID: 21300000, guid: 4e66973bc9c99854895f828f98b85050, type: 3}
-  - {fileID: 21300000, guid: 55ed5904bc1af95438ee529c2185c334, type: 3}
-  - {fileID: 21300000, guid: 3ee31425a84ef844790f133208089805, type: 3}
-  - {fileID: 21300000, guid: c91b2eeb601d5a748b5edda090f8f7ce, type: 3}
-  - {fileID: 21300000, guid: 192b19e6b0d5627469778e9eabd2312f, type: 3}
-  - {fileID: 21300000, guid: ec465cc5e31bf6d45909061588ace77d, type: 3}
-  - {fileID: 21300000, guid: e37fe660ec237714e91891ef768a4dbe, type: 3}
   fadeOutSeconds: 0.25
   fadeHoldSeconds: 0.1
   sailHoldSeconds: 1.7
