@@ -28,6 +28,7 @@ namespace Game.Systems
 
         private readonly string _unitId;
         private readonly float _showTimeout;
+        private readonly IConsent _consent;
 
         private RewardedAd _ad;
         private Action _pendingReward;
@@ -35,13 +36,15 @@ namespace Game.Systems
         private float _retryLeft;
         private float _retryDelay = FirstRetrySeconds;
         private bool _initialized;
+        private bool _initializeCalled;
         private bool _loading;
         private bool _showing;
 
-        public AdMobService(AdsConfig config)
+        public AdMobService(AdsConfig config, IConsent consent)
         {
             _unitId = config != null ? config.RewardedUnitId : null;
             _showTimeout = config != null ? config.ShowTimeoutSeconds : 5f;
+            _consent = consent;
 
             // The plugin raises every ad callback on a background thread, and all of them below end up
             // touching the wallet, the save file and the UI. ExecuteInUpdate marshals each one back to
@@ -51,10 +54,18 @@ namespace Game.Systems
             MobileAdsEventExecutor.Initialize();
 
             if (string.IsNullOrEmpty(_unitId))
-            {
                 Debug.LogError("[Ads] AdsConfig yok ya da reklam birimi boş; ödüllü reklam kapalı.");
-                return;
-            }
+        }
+
+        /// <summary>
+        /// SDK'yı ayağa kaldırır. Yapıcıdan ayrı durmasının sebebi rıza: UMP formu ve ATT izni
+        /// bitmeden tek bir reklam isteği bile gitmemeli, yoksa hem GDPR hem App Store tarafında
+        /// sorun olur. <see cref="UmpConsentService.Gather"/> bunu geri çağrı olarak alır.
+        /// </summary>
+        public void Initialize()
+        {
+            if (_initializeCalled || string.IsNullOrEmpty(_unitId)) return;
+            _initializeCalled = true;
 
             MobileAds.Initialize(status => MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
@@ -111,8 +122,20 @@ namespace Game.Systems
             if (string.IsNullOrEmpty(_unitId)) return;
 
             _loading = true;
-            RewardedAd.Load(_unitId, new AdRequest(),
+            RewardedAd.Load(_unitId, BuildRequest(),
                 (ad, error) => MobileAdsEventExecutor.ExecuteInUpdate(() => OnLoaded(ad, error)));
+        }
+
+        /// <summary>
+        /// Rıza yoksa kişiselleştirilmemiş reklam. UMP'nin yazdığı TCF dizesini SDK kendisi de okur;
+        /// npa yine de konur, çünkü TCF'nin geçerli olmadığı bölgelerde (ör. ABD eyalet kuralları,
+        /// ATT reddi) elimizdeki tek sinyal bu.
+        /// </summary>
+        private AdRequest BuildRequest()
+        {
+            var request = new AdRequest();
+            if (_consent == null || !_consent.PersonalizedAdsAllowed) request.Extras.Add("npa", "1");
+            return request;
         }
 
         private void OnLoaded(RewardedAd ad, LoadAdError error)

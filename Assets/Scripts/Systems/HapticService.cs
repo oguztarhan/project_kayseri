@@ -12,6 +12,9 @@ namespace Game.Systems
     /// <see cref="Handheld.Vibrate"/>; that call also has to stay in the source, because it is what
     /// makes Unity write the VIBRATE permission into the generated manifest.
     ///
+    /// iOS'un karşılığı <see cref="IOSHaptics"/>: orada süre ve şiddet ayarlanmaz, sistemin üç
+    /// ağırlığından biri seçilir ve Düşük Güç Modunda geri bildirim sessizce yutulur.
+    ///
     /// <see cref="Enabled"/> is mutable so the settings screen can flip it at runtime. Silent in the
     /// editor and on any device that refuses to hand over a vibrator.
     /// </summary>
@@ -30,7 +33,9 @@ namespace Game.Systems
         /// <summary>Double beat — a district rebuilt, an island maxed.</summary>
         public void Heavy()
         {
-#if UNITY_ANDROID && !UNITY_EDITOR
+#if UNITY_IOS && !UNITY_EDITOR
+            if (Enabled) IOSHaptics.Double();
+#elif UNITY_ANDROID && !UNITY_EDITOR
             if (!Enabled || !Resolve()) return;
             if (_api < 26 || _effects == null) { Handheld.Vibrate(); return; }
 
@@ -44,7 +49,10 @@ namespace Game.Systems
 
         private void OneShot(long milliseconds, int amplitude)
         {
-#if UNITY_ANDROID && !UNITY_EDITOR
+#if UNITY_IOS && !UNITY_EDITOR
+            // iOS'ta süre ve şiddet ayarlanmaz; çağrının taşıdığı ağırlık sistemin üç kademesine düşer.
+            if (Enabled) IOSHaptics.Impact(amplitude >= 160 ? IOSHaptics.Medium : IOSHaptics.Light);
+#elif UNITY_ANDROID && !UNITY_EDITOR
             if (!Enabled || !Resolve()) return;
             if (_api < 26 || _effects == null) { Handheld.Vibrate(); return; }
 

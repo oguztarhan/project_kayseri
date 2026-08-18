@@ -540,6 +540,18 @@ namespace Game.UI
             Hide();
         }
 
+        /// <summary>
+        /// Yarıda kalmış bir ada teklifini yeniden kurar. Hangi adada satıldığı kayıtta tutulmaz, o
+        /// yüzden içerik bugünkü gelire göre yeniden ölçülür; kademenin elmas ve hız ödülleri zaten
+        /// tablodan gelir. Sku tabloda yoksa null döner ve çağıran siparişi onaylamadan bırakır.
+        /// </summary>
+        public PremiumStoreUI.OfferBinding OrphanBinding(string sku)
+        {
+            for (int i = 0; i < tiers.Count; i++)
+                if (tiers[i] != null && tiers[i].sku == sku) return Binding(tiers[i]);
+            return null;
+        }
+
         private PremiumStoreUI.OfferBinding Binding(Tier tier)
         {
             return new PremiumStoreUI.OfferBinding

@@ -38,6 +38,11 @@ namespace Game.Systems
                  "birkaç dakikada izlenebilsin diye. YAYINA ÇIKMADAN ÖNCE 0 YAP.")]
         [SerializeField, Min(0)] private int notificationTestSpacingSeconds = 0;
 
+        [Tooltip("SADECE TEST. Açıkken UMP rıza formu AEA bölgesindeymiş gibi zorlanır, böylece " +
+                 "GDPR akışı Android'de denenebilir. Cihaz hash'i UMP'nin ilk çalıştırmada logcat'e " +
+                 "yazdığı listede olmalı. YAYINA ÇIKMADAN ÖNCE KAPAT.")]
+        [SerializeField] private bool forceEeaConsentForTesting;
+
         public GameClock Clock { get; private set; }
         public SaveService Save { get; private set; }
         public SaveData Data { get; private set; }
@@ -51,6 +56,7 @@ namespace Game.Systems
         private NotificationService _notifications;
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
         private AdMobService _ads;
+        private UmpConsentService _consent;
 #endif
 
         private void Awake()
@@ -90,15 +96,21 @@ namespace Game.Systems
 
             // Platform facades (dev stubs now, real SDKs need package installs at ship time)
             ServiceLocator.Register<IAnalytics>(new DevAnalyticsService());
-            ServiceLocator.Register<IConsent>(new DevConsentService());
             ServiceLocator.Register<IRemoteConfig>(new LocalRemoteConfigService());
             ServiceLocator.Register<ICloudSave>(new LocalCloudSaveStub());
             // Gerçek reklam yalnız cihazda. GMA'nın editör karşılığı yok, o yüzden editörde IAP ile
             // aynı yolu izleyip anında ödül veren taklit servis kalır.
+            //
+            // Rıza önce: UMP formu ve iOS'ta ATT bitmeden SDK başlatılmaz, bu yüzden MobileAds.Initialize
+            // artık AdMobService'in yapıcısında değil, Gather'ın geri çağrısında.
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
-            _ads = new AdMobService(adsConfig);
+            _consent = new UmpConsentService(forceEeaConsentForTesting);
+            ServiceLocator.Register<IConsent>(_consent);
+            _ads = new AdMobService(adsConfig, _consent);
             ServiceLocator.Register<IAdService>(_ads);
+            _consent.Gather(_ads.Initialize);
 #else
+            ServiceLocator.Register<IConsent>(new DevConsentService());
             ServiceLocator.Register<IAdService>(new StubAdService());
 #endif
             // Gerçek kasa yalnız Android/iOS cihazda. Editörde Billing/StoreKit yok; oradaki test yolu mağazanın kendi
@@ -272,6 +284,8 @@ namespace Game.Systems
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
             // The rewarded ad's load backoff, and the timeout on a tap that landed before one was ready.
             _ads?.Tick(dt);
+            // ATT izni ilk kareden önce sorulamaz; rıza akışının kalan adımı buradan sürülür.
+            _consent?.Tick(dt);
 #endif
         }
 

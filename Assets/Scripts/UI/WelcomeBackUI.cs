@@ -113,7 +113,7 @@ namespace Game.UI
             {
                 // Out of charges hides the button rather than dimming it: this screen is dismissed in
                 // one tap and a dead control on it reads as the game being broken, not as a limit.
-                bool offer = _ad != null && _ad.Available && CanDouble();
+                bool offer = AdReady && CanDouble();
                 adButton.gameObject.SetActive(offer);
                 if (offer && _adLabel != null)
                     _adLabel.text = string.Format(Loc.T("hosgeldin.bonus"),
@@ -124,18 +124,27 @@ namespace Game.UI
             if (audio != null) audio.Play(SoundId.Coin);
         }
 
+        /// <summary>
+        /// Reklamın yerine geçen tek şey reklamsız paketidir; satın alan oyuncu bonusu izlemeden alır.
+        /// Günlük hak yine geçerli — bkz. <see cref="CanDouble"/>.
+        /// </summary>
+        private bool AdReady => (_free != null && _free.AdsRemoved) || (_ad != null && _ad.Available);
+
         private void OnDouble()
         {
-            if (_ad == null || !_ad.Available || !CanDouble()) return;
-            _ad.ShowRewarded(() =>
-            {
-                if (_wallet != null && _report != null)
-                    _wallet.AddCash(_report.Amount * new BigDouble(adBonusFraction));
-                if (_free != null) _free.Consume(AdSlotId);
-                // Charges are the thing a player would reload the app to get back; write them now.
-                if (_save != null && _data != null) _save.Save(_data);
-                Dismiss();
-            });
+            if (!AdReady || !CanDouble()) return;
+            if (_free != null && _free.AdsRemoved) { PayDouble(); return; }
+            _ad.ShowRewarded(PayDouble);
+        }
+
+        private void PayDouble()
+        {
+            if (_wallet != null && _report != null)
+                _wallet.AddCash(_report.Amount * new BigDouble(adBonusFraction));
+            if (_free != null) _free.Consume(AdSlotId);
+            // Charges are the thing a player would reload the app to get back; write them now.
+            if (_save != null && _data != null) _save.Save(_data);
+            Dismiss();
         }
 
         /// <summary>

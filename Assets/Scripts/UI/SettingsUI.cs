@@ -44,6 +44,9 @@ namespace Game.UI
         [SerializeField] private Button rateButton;
         [SerializeField] private Button privacyButton;
         [SerializeField] private Button restoreButton;
+        [Tooltip("UMP rıza formunu yeniden açar. GDPR bölgesinde Google kalıcı bir giriş şart koşuyor; " +
+                 "gerekmeyen bölgelerde satır kendini gizler.")]
+        [SerializeField] private Button privacyOptionsButton;
         [Tooltip("App Store Connect'teki sayısal Apple ID. Boşken uygulama adına göre App Store araması açılır.")]
         [SerializeField] private string iosAppStoreId = "";
         [Tooltip("Gizlilik politikası adresi — boşken satır hiçbir şey yapmaz.")]
@@ -87,6 +90,14 @@ namespace Game.UI
             {
                 restoreButton.onClick.AddListener(OnRestorePurchases);
                 _restoreLabel = restoreButton.GetComponentInChildren<TMP_Text>(true);
+            }
+            if (privacyOptionsButton != null)
+            {
+                privacyOptionsButton.onClick.AddListener(OnPrivacyOptions);
+                // Satır yalnız UMP gerektiğini söylediğinde durur: GDPR dışındaki bir oyuncuya
+                // hiçbir şey yapmayan bir düğme göstermek, düğmeyi hiç göstermemekten kötü.
+                privacyOptionsButton.gameObject.SetActive(
+                    ServiceLocator.Get<IConsent>() is UmpConsentService ump && ump.PrivacyOptionsRequired);
             }
             RefreshSwitch();
 
@@ -170,6 +181,11 @@ namespace Game.UI
         private void OnPrivacy()
         {
             if (!string.IsNullOrEmpty(privacyUrl)) Application.OpenURL(privacyUrl);
+        }
+
+        private void OnPrivacyOptions()
+        {
+            if (ServiceLocator.Get<IConsent>() is UmpConsentService ump) ump.ShowPrivacyOptions();
         }
 
         public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;

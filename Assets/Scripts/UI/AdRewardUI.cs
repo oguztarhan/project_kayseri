@@ -314,7 +314,7 @@ namespace Game.UI
             get
             {
                 Slot s = BoostSlot();
-                return s != null && _free != null && _ad != null && _ad.Available
+                return s != null && _free != null && AdReady
                        && _free.CanWatch(s.id, Charges(s), s.cooldownSeconds);
             }
         }
@@ -345,35 +345,45 @@ namespace Game.UI
             Watch(BoostSlot());
         }
 
+        /// <summary>
+        /// Reklamın yerine geçen tek şey reklamsız paketidir. Satın alan oyuncu ödülü izlemeden alır;
+        /// günlük hak ve bekleme yine geçerli, yoksa bu ekran sınırsız para basardı.
+        /// </summary>
+        private bool AdReady => (_free != null && _free.AdsRemoved) || (_ad != null && _ad.Available);
+
         private void Watch(Slot slot)
         {
             if (_free == null || slot == null) return;
             if (!_free.CanWatch(slot.id, Charges(slot), slot.cooldownSeconds)) return;
+
+            if (_free.AdsRemoved) { Payout(slot); return; }
             if (_ad == null || !_ad.Available) return;
 
-            _ad.ShowRewarded(() =>
+            _ad.ShowRewarded(() => Payout(slot));
+        }
+
+        private void Payout(Slot slot)
+        {
+            switch (slot.kind)
             {
-                switch (slot.kind)
-                {
-                    case RewardKind.Gems:
-                        if (_wallet != null) _wallet.AddGems(slot.gems);
-                        break;
-                    case RewardKind.IncomeMinutes:
-                        if (_wallet != null) _wallet.AddCash(new BigDouble(IncomePerMinute() * slot.incomeMinutes));
-                        break;
-                    default:
-                        if (_boost != null) _boost.AddBoost(slot.boostMultiplier, slot.boostSeconds);
-                        break;
-                }
-                _free.Consume(slot.id);
-                var audio = ServiceLocator.Get<AudioService>();
-                if (audio != null) audio.Play(SoundId.Reward);
-                var haptic = ServiceLocator.Get<HapticService>();
-                if (haptic != null) haptic.Medium();
-                // Charges are the thing a player would reload the app to get back; write them now.
-                if (_save != null && _data != null) _save.Save(_data);
-                Refresh();
-            });
+                case RewardKind.Gems:
+                    if (_wallet != null) _wallet.AddGems(slot.gems);
+                    break;
+                case RewardKind.IncomeMinutes:
+                    if (_wallet != null) _wallet.AddCash(new BigDouble(IncomePerMinute() * slot.incomeMinutes));
+                    break;
+                default:
+                    if (_boost != null) _boost.AddBoost(slot.boostMultiplier, slot.boostSeconds);
+                    break;
+            }
+            _free.Consume(slot.id);
+            var audio = ServiceLocator.Get<AudioService>();
+            if (audio != null) audio.Play(SoundId.Reward);
+            var haptic = ServiceLocator.Get<HapticService>();
+            if (haptic != null) haptic.Medium();
+            // Charges are the thing a player would reload the app to get back; write them now.
+            if (_save != null && _data != null) _save.Save(_data);
+            Refresh();
         }
 
         /// <summary>Same fallback ladder the HUD and the daily screen use: whole empire if it exists.</summary>

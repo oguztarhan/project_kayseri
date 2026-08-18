@@ -30,6 +30,8 @@ namespace Game.Systems
         string LocalizedPrice(string sku, string fallback);
         void Purchase(string sku, Action<bool> onDone);
         void RestorePurchases(Action<bool, string> onDone);
+        /// <summary>Yarıda kalmış siparişleri yeniden teslim etmeyi dener.</summary>
+        void RetryUnfinishedPurchases();
     }
 
     public sealed class StubIAPService : IIAPService
@@ -45,6 +47,7 @@ namespace Game.Systems
         public void Purchase(string sku, Action<bool> onDone) => onDone?.Invoke(false);
         public void RestorePurchases(Action<bool, string> onDone)
             => onDone?.Invoke(false, "Mağaza bu platformda kullanılamıyor.");
+        public void RetryUnfinishedPurchases() { }
     }
 
     public struct LocalNotificationRequest

@@ -163,6 +163,7 @@ namespace Game.UI
         private PrestigeService _prestige;
         private MaintenanceService _maintenance;
         private Game.Gameplay.WorldIslands _world;
+        private OfferPopupUI _offerPopup;
         private bool _built;
         private RawImage _awning;
         private IIAPService _boundIap;
@@ -208,6 +209,7 @@ namespace Game.UI
             if (_prestige == null) _prestige = ServiceLocator.Get<PrestigeService>();
             if (_maintenance == null) _maintenance = ServiceLocator.Get<MaintenanceService>();
             if (_world == null) _world = FindAnyObjectByType<Game.Gameplay.WorldIslands>();
+            if (_offerPopup == null) _offerPopup = FindAnyObjectByType<OfferPopupUI>();
             BindIap();
         }
 
@@ -279,6 +281,9 @@ namespace Game.UI
         {
             FitStorefrontBackground();
             ResolveServices();
+            // Gelir sıfır olduğu için açılışta ödenemeyen bir ada teklifi burada tekrar denenir:
+            // mağaza açıldığında dünyanın bir geliri olduğu kesin.
+            if (_iap != null) _iap.RetryUnfinishedPurchases();
             StampStarterWindow();
             if (panelRoot != null) panelRoot.SetActive(true);
             RefreshGoldAmounts();
@@ -731,6 +736,10 @@ namespace Game.UI
                 {
                     if (!ok) return;
                     if (_wallet != null) _wallet.AddGems(item.gemAmount);
+                    // Sipariş çoktan onaylandı; ödenmiş elmas diskte olmadan bir kare bile beklemez.
+                    // iOS uygulamayı arka planda uyarısız öldürür ve tüketilmiş bir siparişin
+                    // yeniden teslim edileceği yol yoktur.
+                    if (_save != null && _data != null) _save.Save(_data);
                     if (purchaseFx != null) purchaseFx.PlayGems(card);
                 });
         }
@@ -843,7 +852,31 @@ namespace Game.UI
                 else GrantPermanent(offer);
                 return;
             }
-            throw new InvalidOperationException("Kalıcı IAP katalogda bulunamadı: " + sku);
+
+            // Elmas paketleri offers'ta değil items'ta durur; kalıcı hak satmadıkları için Grant
+            // yolundan geçmezler, cüzdana yazılıp diske basılırlar.
+            for (int i = 0; i < items.Count; i++)
+            {
+                StoreItem item = items[i];
+                if (item == null || item.kind != StoreItemKind.GemPackIAP || item.sku != sku) continue;
+                if (_wallet != null) _wallet.AddGems(item.gemAmount);
+                if (_save != null && _data != null) _save.Save(_data);
+                return;
+            }
+
+            // Ada teklifleri hiçbir listede durmaz, OfferPopupUI onları çalışma anında kurar.
+            OfferBinding island = _offerPopup != null ? _offerPopup.OrphanBinding(sku) : null;
+            if (island != null)
+            {
+                // İçerik dakikalık gelirle ölçülür ve boot anında gelir henüz sıfır olabilir. Sıfır
+                // ödemektense siparişi bırak: mağaza açıldığında RetryUnfinishedPurchases tekrar dener.
+                if (NothingToGrant(island))
+                    throw new InvalidOperationException("Ada teklifi henüz ödenemez (gelir yok): " + sku);
+                Grant(island);
+                return;
+            }
+
+            throw new InvalidOperationException("IAP katalogda bulunamadı: " + sku);
         }
 
         /// <summary>

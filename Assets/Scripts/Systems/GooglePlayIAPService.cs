@@ -63,56 +63,149 @@ namespace Game.Systems
 
         private async void Boot()
         {
+            Debug.Log("[IAP] boot: platform=" + Application.platform + " id=" + Application.identifier +
+                      " mağaza=" + UnityIAPServices.GetDefaultStore());
+
+            // UGS'yi yalnız Unity Analytics ve Unity Authentication ister; bu proje ikisini de kullanmıyor
+            // ve bağlı bir cloud proje kimliği yok. Eskiden bu çağrı kasanın önünde aynı try içinde
+            // duruyordu, yani patladığında mağaza hiç açılmıyordu — artık kendi başına uyarı veriyor.
             try
             {
                 await UnityServices.InitializeAsync();
+                Debug.Log("[IAP] UGS hazır.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[IAP] UGS başlatılamadı, mağaza yine de açılıyor: " +
+                                 e.GetType().Name + " — " + e.Message);
+            }
 
+            try
+            {
                 _store = UnityIAPServices.StoreController(UnityIAPServices.GetDefaultStore());
                 _store.OnStoreConnected += OnConnected;
+                _store.OnStoreDisconnected += OnDisconnected;
                 _store.OnProductsFetched += OnFetched;
                 _store.OnProductsFetchFailed += OnFetchFailed;
                 _store.OnPurchasesFetched += OnPurchasesFetched;
                 _store.OnPurchasesFetchFailed += OnPurchasesFetchFailed;
                 _store.OnPurchasePending += OnPending;
+                _store.OnPurchaseDeferred += OnDeferred;
                 _store.OnPurchaseFailed += OnFailed;
 
+                Debug.Log("[IAP] Connect() çağrıldı.");
                 await _store.Connect();
+                Debug.Log("[IAP] Connect() döndü — durum: " + _store.GetConnectionState());
             }
             catch (Exception e)
             {
                 // Swallowed on purpose: a store that will not open must not take the game down with it.
                 // Every card stays tappable and simply reports failure, which is what Purchase does below.
-                Debug.LogError("[IAP] başlatılamadı: " + e.Message);
+                Debug.LogError("[IAP] başlatılamadı: " + e.GetType().Name + " — " + e.Message + "\n" + e.StackTrace);
             }
+        }
+
+        /// <summary>
+        /// Başarısız bağlantı OnStoreConnected'a değil BURAYA düşer — dead bir mağazanın tek bir log
+        /// satırı bile bırakmamasının sebebi buydu. Bekleyen dokunuşu da serbest bırakır: bırakmazsa
+        /// tek bir başarısız bağlantı _waiting'i dolu tutar ve oturumun geri kalanında her alım
+        /// "zaten süren bir satın alma var" diye reddedilir.
+        /// </summary>
+        private void OnDisconnected(StoreConnectionFailureDescription failure)
+        {
+            _ready = false;
+            Debug.LogError("[IAP] mağaza bağlantısı yok: " +
+                           (failure != null ? failure.Message : "sebep bildirilmedi") +
+                           " (tekrar denenebilir: " + (failure != null && failure.IsRetryable) + ")");
+
+            if (_waiting == null) return;
+            Action<bool> done = _waiting;
+            _waiting = null;
+            _waitingSku = null;
+            done(false);
+        }
+
+        /// <summary>
+        /// Ask to Buy ve 3-D Secure alımı bitirmek yerine bekletir. Para hareket etmediği için hiçbir
+        /// şey verilmez, ama dokunuşun serbest bırakılması şart: yoksa süren-alım kilidi oturumun
+        /// kalanını bloklar. Sipariş, onay çıkınca OnPurchasePending üzerinden geri gelir.
+        /// </summary>
+        private void OnDeferred(DeferredOrder order)
+        {
+            string sku = SkuOf(order);
+            Debug.Log("[IAP] satın alma onay bekliyor (deferred): " + sku);
+            if (_waiting == null || sku != _waitingSku) return;
+
+            Action<bool> done = _waiting;
+            _waiting = null;
+            _waitingSku = null;
+            done(false);
         }
 
         private void OnConnected()
         {
+            Debug.Log("[IAP] mağazaya bağlanıldı; " +
+                      (Consumables.Length + NonConsumables.Length) + " ürün isteniyor.");
+
+            // StoreKit bitirilmemiş işlemleri her açılışta yeniden teslim eder, Play de onaylanmamışları.
+            // Bunları OnPurchasePending'e yönlendiren anahtar bu: orada ödül verilip sipariş onaylanıyor,
+            // yoksa sessizce ölüyorlar.
+            _store.ProcessPendingOrdersOnPurchasesFetched(true);
+
             var defs = new List<ProductDefinition>(Consumables.Length + NonConsumables.Length);
             for (int i = 0; i < Consumables.Length; i++)
                 defs.Add(new ProductDefinition(Consumables[i], ProductType.Consumable));
             for (int i = 0; i < NonConsumables.Length; i++)
                 defs.Add(new ProductDefinition(NonConsumables[i], ProductType.NonConsumable));
 
-            _store.FetchProductsWithNoRetries(defs);
+            // FetchProductsWithNoRetries değil FetchProducts: soğuk şebekede tek bir takılma
+            // mağazayı kalıcı olarak hazır-değil bırakıyordu ve tekrar deneyecek hiçbir şey yoktu.
+            _store.FetchProducts(defs);
         }
 
         private void OnFetched(List<Product> products)
         {
             _ready = true;
             Debug.Log("[IAP] mağaza hazır — " + products.Count + " ürün.");
+            for (int i = 0; i < products.Count; i++)
+            {
+                Product p = products[i];
+                Debug.Log("[IAP]   " + (p.definition != null ? p.definition.id : "?") +
+                          " alınabilir=" + p.availableToPurchase +
+                          " fiyat=" + (p.metadata != null ? p.metadata.localizedPriceString : "-"));
+            }
             ProductsUpdated?.Invoke();
             _store.FetchPurchases();
         }
 
         private void OnFetchFailed(ProductFetchFailed fail)
         {
-            Debug.LogError("[IAP] ürünler alınamadı: " + fail);
+            var ids = new System.Text.StringBuilder();
+            if (fail != null && fail.FailedFetchProducts != null)
+                for (int i = 0; i < fail.FailedFetchProducts.Count; i++)
+                {
+                    if (i > 0) ids.Append(", ");
+                    ids.Append(fail.FailedFetchProducts[i].id);
+                }
+            Debug.LogError("[IAP] ürünler alınamadı (" +
+                           (fail != null ? fail.FailureReason.ToString() : "?") + "): " + ids);
+
+            // Yanlış tanımlanmış tek bir sku bütün kasayı kapatmasın: elimizde ürün varsa mağaza açılır.
+            if (_ready || _store == null || _store.GetProducts().Count == 0) return;
+            _ready = true;
+            ProductsUpdated?.Invoke();
+            _store.FetchPurchases();
         }
 
         public void Purchase(string sku, Action<bool> onDone)
         {
-            if (!_ready || _store == null) { Refuse(onDone, "mağaza hazır değil"); return; }
+            if (!_ready || _store == null)
+            {
+                Refuse(onDone, "mağaza hazır değil (bağlantı=" +
+                               (_store != null ? _store.GetConnectionState().ToString() : "yok") +
+                               ", ürün=" + (_store != null ? _store.GetProducts().Count : 0) + ")");
+                return;
+            }
             // Play tek seferde tek siparişi kabul eder; ikinciyi göndermek ilkini de düşürür.
             if (_waiting != null) { Refuse(onDone, "zaten süren bir satın alma var"); return; }
 
@@ -192,21 +285,17 @@ namespace Game.Systems
         {
             string sku = SkuOf(order);
 
-            // Bizim başlattığımız alım değil: uygulama önceki oturumda ödemeyle ödül arasında kapanmış.
-            // Onaylarsak sipariş tüketilir ve oyuncu parayı ödeyip hiçbir şey almamış olur. Bekletirsek
-            // Google üç gün sonra kendisi iade eder — ikisi arasında doğru olan ikincisi.
+            // Bizim başlattığımız alım değil: uygulama ödemeyle ödül arasında kapanmış ya da mağaza
+            // bitirilmemiş bir işlemi yeniden teslim ediyor. Tüketilebilir de kalıcı da aynı kuyruğa
+            // girer: önce ödül kayda yazılır, sonra sipariş onaylanır. Tüketilebiliri bekletmek
+            // Android'de üç gün sonra iadeye, iOS'ta ise hiçbir şeye dönüşmez — StoreKit'te otomatik
+            // iade yoktur, sipariş her açılışta geri gelir ve oyuncu ödediğini hiç alamaz.
             if (_waiting == null || sku != _waitingSku)
             {
-                // Kalıcı ürün yarıda kaldıysa iade kuyruğuna bırakmak hakkı sonsuza kadar kilitler.
-                // UI hazır olana kadar siparişi tut; kayda ödül yazıldıktan sonra onayla. UI satın alma
-                // öncesi çökerse ödülü ilk kez, ödül sonrası çökerse owned kontrolüyle sıfır kez daha verir.
-                if (IsNonConsumable(sku))
-                {
-                    _unfinishedOrders.Add(order);
-                    FlushUnfinishedPurchases();
-                    return;
-                }
-                Debug.LogWarning("[IAP] sahipsiz sipariş bekletiliyor (iadeye bırakıldı): " + sku);
+                if (AlreadyQueued(order)) return;
+                Debug.LogWarning("[IAP] sahipsiz sipariş kuyruğa alındı: " + sku);
+                _unfinishedOrders.Add(order);
+                FlushUnfinishedPurchases();
                 return;
             }
 
@@ -219,6 +308,26 @@ namespace Game.Systems
             done(true);
             _store.ConfirmPurchase(order);
         }
+
+        /// <summary>Aynı sipariş hem OnPurchasePending hem FetchPurchases yolundan gelebilir.</summary>
+        private bool AlreadyQueued(PendingOrder order)
+        {
+            string id = order != null && order.Info != null ? order.Info.TransactionID : null;
+            if (string.IsNullOrEmpty(id)) return false;
+            for (int i = 0; i < _unfinishedOrders.Count; i++)
+            {
+                var info = _unfinishedOrders[i] != null ? _unfinishedOrders[i].Info : null;
+                if (info != null && info.TransactionID == id) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Kuyrukta bekleyen bir siparişi yeniden dener. Ada teklifleri günlük gelire göre ölçülür ve
+        /// açılış anında gelir henüz sıfır olabilir; mağaza açıldığında dünyanın bir geliri olduğu
+        /// kesindir, o yüzden PremiumStoreUI.Show buradan tekrar tetikler.
+        /// </summary>
+        public void RetryUnfinishedPurchases() => FlushUnfinishedPurchases();
 
         private void FlushUnfinishedPurchases()
         {

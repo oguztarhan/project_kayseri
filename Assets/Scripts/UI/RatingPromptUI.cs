@@ -55,6 +55,18 @@ namespace Game.UI
 
             if (!_pending || Time.unscaledTime < _showAt || IsAnotherPanelOpen()) return;
             _pending = false;
+
+            // iOS Apple'ın kendi sayfasını ister; önüne kendi "beğendin mi?" kartımızı koymak HIG
+            // ihlali ve bilinen bir ret sebebi. Sayfa hiç açılmayabilir (yıllık kota işletim sisteminde),
+            // ama tekrar sormak kendi zamanlama bütçemizi boşa harcar — o yüzden burada tamamlanmış sayılır.
+            if (IOSReview.Available)
+            {
+                IOSReview.Request();
+                _service.Complete();
+                ServiceLocator.Get<IAnalytics>()?.Log("rating_prompt_native");
+                return;
+            }
+
             if (promptRoot != null) promptRoot.SetActive(true);
             ServiceLocator.Get<IAnalytics>()?.Log("rating_prompt_shown");
         }

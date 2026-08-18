@@ -124,7 +124,12 @@ namespace Game.Systems
                 //
                 // The dialog pauses the app, so the bar freezes behind it and resumes once answered —
                 // which is why the delay sits well inside the minimum hold rather than near its end.
-                if (!asked && held >= permissionDelaySeconds)
+                //
+                // Rıza akışı da beklenir: iOS'ta UMP formu ve ATT izni bu sırada açık olabilir ve üst
+                // üste binen üç sistem diyaloğu ilk açılışı çöp eder. Yükleme bu döngü bitmeden rıza
+                // kapanmazsa bildirim izni bu açılışta hiç sorulmaz — bir sonraki açılışta rıza
+                // önbellekten anında çözülür ve sıra oraya gelir. Doğru takas bu.
+                if (!asked && held >= permissionDelaySeconds && ConsentSettled())
                 {
                     asked = true;
                     ServiceLocator.Get<NotificationService>()?.RequestPermission();
@@ -159,6 +164,16 @@ namespace Game.Systems
             Destroy(gameObject);
             // The seven islands we did not paint were pulled in with the array — let them go.
             Resources.UnloadUnusedAssets();
+        }
+
+        /// <summary>
+        /// Rıza akışı kapandı mı. Cihazda UMP servisi kayıtlıdır; editörde ve rıza gerektirmeyen her
+        /// yerde bu true döner ve bildirim izni eskisi gibi sorulur.
+        /// </summary>
+        private static bool ConsentSettled()
+        {
+            var consent = ServiceLocator.Get<IConsent>() as UmpConsentService;
+            return consent == null || consent.Finished;
         }
     }
 }
