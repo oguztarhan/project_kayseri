@@ -1,20 +1,20 @@
-time            : 13:32:40
+time            : 15:45:48
 colorSpace      : Linear
 activeBuildTgt  : Android
 
 MESH VERTEX COLOURS: 1106/1106 meshes have colours (from 6 fbx)
-    Civic.Tree1 verts=198 cols=198 first=(88,132,83) mid=(100,143,90)
-    Civic.Tree0 verts=198 cols=198 first=(88,132,83) mid=(100,143,90)
-    Civic.Benches verts=96 cols=96 first=(179,150,113) mid=(179,150,113)
+    Civic.Shop0 verts=1650 cols=1650 first=(163,133,98) mid=(197,95,77)
+    Civic.Tree2 verts=198 cols=198 first=(88,132,83) mid=(100,143,90)
+    Civic.Tower verts=152 cols=152 first=(147,118,85) mid=(252,237,199)
 
 PREFAB RENDERERS: 3290
     kayseriShader=2736 default=0 other=1599 null=0
-    Ground -> mat 'seabed' shader 'Kayseri/IslandVertexLit'
-    Ground -> mat 'sand' shader 'Kayseri/IslandVertexLit'
-    Ground -> mat 'grass' shader 'Kayseri/IslandVertexLit'
-    Ground -> mat 'grass_dry' shader 'Kayseri/IslandVertexLit'
-    Ground -> mat 'rock' shader 'Kayseri/IslandVertexLit'
-    Ground -> mat 'cliff' shader 'Kayseri/IslandVertexLit'
+    Ground -> mat 'seabed_Coal' shader 'Kayseri/IslandVertexLit'
+    Ground -> mat 'sand_Coal' shader 'Kayseri/IslandVertexLit'
+    Ground -> mat 'grass_Coal' shader 'Kayseri/IslandVertexLit'
+    Ground -> mat 'grass_dry_Coal' shader 'Kayseri/IslandVertexLit'
+    Ground -> mat 'rock_Coal' shader 'Kayseri/IslandVertexLit'
+    Ground -> mat 'cliff_Coal' shader 'Kayseri/IslandVertexLit'
 
 grass.mat shader     : Kayseri/IslandVertexLit
 grass.mat _BaseColor : RGBA(0.160, 0.354, 0.091, 1.000)

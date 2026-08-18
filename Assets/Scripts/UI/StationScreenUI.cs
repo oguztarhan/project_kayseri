@@ -724,6 +724,10 @@ namespace Game.UI
         /// market backwards and stops at the first full pile, which is the real one — a yard is
         /// only full because the leg after it is the bottleneck, never because of anything upstream.
         ///
+        /// "Full" is measured in seconds rather than sampled here: this screen refreshes four times
+        /// a second and every pile on the island is a sawtooth, so the level at the moment of asking
+        /// is as likely to be a trough as a ceiling. The operation keeps the clocks.
+        ///
         /// Nothing backed up anywhere means the island is supply-limited, and the mine is the wall.
         /// </summary>
         private int Bottleneck()
@@ -732,8 +736,6 @@ namespace Game.UI
             if (e == null) return ProductionBottleneck.Unknown;
 
             if (_market == null) _market = ServiceLocator.Get<MarketService>();
-            double storageFraction = e.StorageFull > 0f ? _op.StorageOre / e.StorageFull : 0d;
-            double barFraction = e.BarCap > 0f ? _op.Bars / e.BarCap : 0d;
 
             return ProductionBottleneck.Find(
                 _op.FlowReady,
@@ -741,10 +743,9 @@ namespace Game.UI
                 _op.OreHauledPerMinute,
                 _op.BarsRefinedPerMinute,
                 _op.BarsDeliveredPerMinute,
-                storageFraction,
-                _op.RefineQueue,
-                e.SmeltRate * 6f,
-                barFraction,
+                _op.YardFullSeconds,
+                _op.FurnaceQueueSeconds,
+                _op.BarStoreFullSeconds,
                 _market != null ? _market.OverflowSeconds(_op.IslandKey) : 0d);
         }
 

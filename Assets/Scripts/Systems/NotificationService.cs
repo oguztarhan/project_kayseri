@@ -157,11 +157,25 @@ namespace Game.Systems
             for (int i = 0; i < _data.conditions.Count && count < _candidates.Length; i++)
             {
                 IslandCondition row = _data.conditions[i];
-                if (row == null || string.IsNullOrEmpty(row.id) || row.repairEndUnix <= now) continue;
-                long left = row.repairEndUnix - now;
+                if (row == null || string.IsNullOrEmpty(row.id) || row.repairEnd == null) continue;
+
+                // ONE ping per island, timed to the LAST crew packing up. Several buildings can be
+                // under repair at once, and eight notifications for one island is spam — while a
+                // ping at the FIRST one would go out with most of the island still in scaffolding.
+                long done = 0L;
+                bool whole = true;
+                for (int s = 0; s < row.repairEnd.Length; s++)
+                {
+                    if (row.repairEnd[s] > done) done = row.repairEnd[s];
+                    // Worn, and nobody is on it: this island will not be finished when they pack up.
+                    if (row.repairEnd[s] <= 0L && row.station != null && s < row.station.Length
+                        && row.station[s] < 1f) whole = false;
+                }
+                if (done <= now) continue;
+
+                long left = done - now;
                 if (left > int.MaxValue) continue;
                 string island = Loc.Id("ada", row.id);
-                bool whole = row.repairStation < 0;
                 _candidates[count++] = new NotificationCandidate
                 {
                     Id = "repair:" + row.id,

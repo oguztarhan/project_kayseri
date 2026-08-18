@@ -158,15 +158,18 @@ namespace Game.Systems
         public string id;                 // island key: "coal", "copper", …
         public float[] station;           // 0..1 per IslandEconomy station index; 1 = as new
 
-        // ---- the repair in flight ----
+        // ---- the repairs in flight ----
         // A repair is a wall-clock deadline rather than a countdown, for the same reason a boost is:
         // the player will start one and immediately put the phone down, and a timer measured against
         // session uptime would still be waiting for them when they got back.
-        public float[] repairFrom;        // condition each station started this repair at, so the bar
+        //
+        // PER STATION, because several crews can be out at once. It used to be one deadline for the
+        // whole row, which meant tapping a second building did nothing until the first was finished —
+        // and on an island that has been left for a fortnight, every building wants seeing to.
+        public float[] repairFrom;        // condition each station started its repair at, so the bar
                                           // can climb from where it actually was
-        public int repairStation = -1;    // -1 = the whole island, otherwise the one station
-        public long repairEndUnix;        // 0 = nothing being repaired
-        public int repairSeconds;         // how long this repair was quoted at, for the progress ring
+        public long[] repairEnd;          // per station; 0 = nobody is on that one
+        public int[] repairSecs;          // per station, what each repair was quoted at, for the bar
         public long bonusEndUnix;         // the maintenance bonus won by putting the whole island right
     }
 

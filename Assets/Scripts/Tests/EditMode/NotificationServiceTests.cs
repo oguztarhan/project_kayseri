@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Core;
 using Game.Systems;
 using NUnit.Framework;
 
@@ -21,12 +22,13 @@ namespace Game.Tests.EditMode
         {
             var data = new SaveData();
             var time = new TimeService();
-            data.conditions.Add(new IslandCondition
-            {
-                id = "coal",
-                repairStation = -1,
-                repairEndUnix = time.NowUnix() + 4L * 3600L
-            });
+            var row = new IslandCondition { id = "coal", station = Maintenance.NewConditions() };
+            row.repairEnd = new long[Maintenance.Stations];
+            row.repairSecs = new int[Maintenance.Stations];
+            row.repairFrom = new float[Maintenance.Stations];
+            row.station[IslandEconomy.Mine] = 0.6f;
+            row.repairEnd[IslandEconomy.Mine] = time.NowUnix() + 4L * 3600L;
+            data.conditions.Add(row);
             var sink = new Sink();
             new NotificationService(data, null, time, sink).ScheduleAway();
 

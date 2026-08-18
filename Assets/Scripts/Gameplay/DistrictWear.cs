@@ -37,11 +37,21 @@ namespace Game.Gameplay
         private static readonly float[] TierGrime = { 0f, 0.35f, 0.70f, 1f };
 
         /// <summary>
-        /// Damage at which each tier takes over, as <c>Maintenance.Damage</c> reports it (0 = as new,
-        /// 1 = at the floor). The first band is deliberately wide: a station that is 5% worn should
-        /// look after itself, or the island would never once be seen clean.
+        /// Damage at which the FIRST speck of dirt shows, as <c>Maintenance.Damage</c> reports it
+        /// (0 = as new, 1 = at the floor). Below this a district draws its authored materials.
+        ///
+        /// Public because it is also the line at which the game is allowed to ask for a repair.
+        /// <see cref="Game.UI.RepairMarkers"/> reads it so a wrench never floats over a building
+        /// that looks perfectly clean: any wear at all used to raise one, which meant a badge over
+        /// a spotless mine an hour after the player had already fixed it.
         /// </summary>
-        private static readonly float[] TierFrom = { 0f, 0.18f, 0.45f, 0.75f };
+        public const float VisibleDamage = 0.18f;
+
+        /// <summary>
+        /// Damage at which each tier takes over. The first band is deliberately wide: a station that
+        /// is 5% worn should look after itself, or the island would never once be seen clean.
+        /// </summary>
+        private static readonly float[] TierFrom = { 0f, VisibleDamage, 0.45f, 0.75f };
 
         /// <summary>
         /// The districts that show neglect, and the station whose state of repair drives each.

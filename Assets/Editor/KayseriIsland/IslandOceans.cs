@@ -16,10 +16,18 @@ namespace Kayseri.IslandTools
     /// Three surfaces carry the theme, and they are swapped by MATERIAL rather than by object name
     /// so nothing has to know where the generator put them:
     ///
-    ///   sea    the ocean quad in Terrain          -> Kayseri/IslandOcean
-    ///   water  the river, where the island has one -> Kayseri/IslandOcean
+    ///   sea    the ocean quad in Terrain           -> IslandOceanWave or IslandOceanCrust
+    ///   water  the river, where the island has one -> the same shader as its sea
     ///   foam   shore surf, waterfall spray and every ship's wake (parts.wake)
     ///                                              -> Kayseri/IslandVertexLit
+    ///
+    /// TWO ocean shaders, because two genuinely different things are being drawn and one shader
+    /// doing both is what made the first attempt look like a lava lamp:
+    ///
+    ///   Wave    open liquid - tar, acid, rust slurry, mercury, algal bloom. Directional wave
+    ///           trains, a narrow colour range and sun glitter.
+    ///   Crust   a plated sheet - lava, molten gold, pack ice. Voronoi plates with the melt (or
+    ///           the open water) showing in the cracks between them.
     ///
     /// Sea and river are the same liquid, so the river is DERIVED from the sea rather than authored
     /// twice - a finer pattern and a faster flow, because it is a narrow channel with a current in
@@ -27,8 +35,8 @@ namespace Kayseri.IslandTools
     /// which is the whole reason the two are not two tables.
     ///
     /// Foam stays on the lit shader: it is a scatter of small spheres, not a surface, and putting
-    /// flowing noise on a 2-unit blob buys nothing. It only needs to stop being white, which on a
-    /// lava sea it very much has to be - hence `_EmissionAlways` on IslandVertexLit, so an ember
+    /// a wave field on a 2-unit blob buys nothing. It only needs to stop being white, which on a
+    /// lava shore it very much has to be - hence `_EmissionAlways` on IslandVertexLit, so an ember
     /// foam glows at noon like the sea it is breaking on.
     ///
     /// These materials live OUTSIDE Materials/ on purpose: "Toggle Flat Colours" rewrites
@@ -38,7 +46,8 @@ namespace Kayseri.IslandTools
     {
         private const string OceanRoot = "Assets/Art/KayseriIsland/Oceans";
         private const string PrefabRoot = "Assets/Prefabs/Island";
-        private const string OceanShader = "Kayseri/IslandOcean";
+        private const string WaveShader = "Kayseri/IslandOceanWave";
+        private const string CrustShader = "Kayseri/IslandOceanCrust";
         private const string LitShader = "Kayseri/IslandVertexLit";
         private const int PhaseCount = 3;
 
@@ -48,28 +57,43 @@ namespace Kayseri.IslandTools
         /// the near miss and it is neither "sea" nor "sea_".</summary>
         private static readonly string[] Liquids = { "sea", "foam", "water" };
 
+        private enum Kind { Wave, Crust }
+
         /// <summary>
-        /// One liquid surface, as Kayseri/IslandOcean draws it. Colours are authored in sRGB, the
-        /// way palette.json stores them, and converted on the way to the shader.
+        /// Open liquid, as Kayseri/IslandOceanWave draws it. Colours are authored in sRGB, the way
+        /// palette.json stores them, and converted on the way to the shader.
         ///
-        /// The three colours are the point: a sea is Deep AND Mid AND Hot at the same moment, in
-        /// moving patches, which is what the previous flat-tint pass was missing. Band/Sharp decide
-        /// how much of each is showing and how hard the edge between them is.
+        /// Body and Crest are deliberately CLOSE together on every one of these. A wide spread is
+        /// what made the previous pass read as poster paint: real liquid is one colour with light
+        /// moving on it, and the light is what the wave field and the two specular lobes supply.
         /// </summary>
-        private struct Surface
+        private struct Wave
         {
-            public Color Deep, Mid, Hot, Vein;
-            public float BandLow, BandHigh, BandSharp;
-            public float Scale, FlowSpeed, Warp, Stretch;
-            public Vector2 Flow;
-            public float VeinLevel, VeinWidth, VeinStrength;
-            public float Ripple, Smoothness, Specular;
-            public Color Glow;            // emission colour
-            public float GlowStrength;    // over the whole surface
-            public float GlowFloor;       // what the troughs keep - 0 reads as paint, not heat
-            public float VeinGlow;        // extra along the cracks
-            public float NightGlow;       // lava does not cool at sunset
-            public float ToonSteps, ToonSoft;
+            public Color Body, Crest, Cap;
+            public float CrestBlend, CapLevel, CapWidth, CapAmount;
+            public float Scale, Speed, Choppy, Bend, BendScale;
+            public Vector2 Dir;
+            public float Slope, Smoothness, Sheen, Glitter;
+            public Color Sky;
+            public float SkyAmount;
+            public Color Glow;
+            public float GlowStrength, NightGlow;
+            public float Wrap, Ambient;
+        }
+
+        /// <summary>A plated sheet, as Kayseri/IslandOceanCrust draws it. The three crack colours
+        /// run outward from the plate edge: shoulder, middle, core.</summary>
+        private struct Crust
+        {
+            public Color Plate, PlateAlt;
+            public float Variation, Grain;
+            public Color CrackCool, CrackMid, CrackHot;
+            public float CrackWidth;
+            public float Scale, Drift, Warp, WarpScale, Heat;
+            public Vector2 Dir;
+            public float Relief, Smoothness, Specular;
+            public float GlowStrength, NightGlow;
+            public float Wrap, Ambient;
         }
 
         /// <summary>Surf, spray and ship wakes: a colour and a sheen, on the lit shader.</summary>
@@ -85,7 +109,9 @@ namespace Kayseri.IslandTools
         {
             public string Island;
             public string Name;      // for the build log, and for whoever reads this table next
-            public Surface Sea;
+            public Kind Kind;
+            public Wave Wave;        // read when Kind is Wave
+            public Crust Crust;      // read when Kind is Crust
             public Spray Foam;
         }
 
@@ -94,227 +120,226 @@ namespace Kayseri.IslandTools
         // ─────────────────────────────────────────────────────────────────────── the eight oceans
         private static readonly Ocean[] Oceans =
         {
-            // Tar. Viscous, so the flow is the slowest of the eight and the swirl is high - thick
-            // liquid folds rather than ripples. Near-black, so the ONLY thing that reads on it is
-            // the sheen: smoothness 0.93 and a hard specular, with a petrol-iridescent vein.
+            // Crude oil. Almost no colour at all and almost no chop - it is viscous, so the swell
+            // is long and smooth and Choppy stays near the bottom of its range. Everything you see
+            // is the sheen: smoothness 0.96 with the hardest glitter of the five wave seas, and a
+            // break that is grey-purple film rather than white water.
             new Ocean
             {
-                Island = "Coal", Name = "tar",
-                Sea = new Surface
+                Island = "Coal", Name = "tar", Kind = Kind.Wave,
+                Wave = new Wave
                 {
-                    Deep = Rgb(0.020f, 0.019f, 0.025f),
-                    Mid  = Rgb(0.082f, 0.078f, 0.094f),
-                    Hot  = Rgb(0.310f, 0.305f, 0.365f),
-                    Vein = Rgb(0.370f, 0.220f, 0.430f),      // the rainbow film on standing oil
-                    BandLow = 0.24f, BandHigh = 0.55f, BandSharp = 0.30f,
-                    Scale = 0.013f, FlowSpeed = 0.14f, Warp = 0.42f, Stretch = 0.40f,
-                    Flow = new Vector2(1f, 0.40f),
-                    VeinLevel = 0.55f, VeinWidth = 0.12f, VeinStrength = 0.45f,
-                    Ripple = 1.6f, Smoothness = 0.93f, Specular = 1.30f,
-                    ToonSteps = 4f, ToonSoft = 0.70f,
+                    Body  = Rgb(0.090f, 0.086f, 0.115f),
+                    Crest = Rgb(0.225f, 0.212f, 0.275f),
+                    Cap   = Rgb(0.400f, 0.340f, 0.460f),
+                    CrestBlend = 1.0f, CapLevel = 0.84f, CapWidth = 0.15f, CapAmount = 0.40f,
+                    Scale = 0.045f, Speed = 0.30f, Choppy = 0.25f, Bend = 4.6f, BendScale = 0.170f,
+                    Dir = new Vector2(1f, 0.35f),
+                    Slope = 1.6f, Smoothness = 0.96f, Sheen = 0.70f, Glitter = 0.30f,
+                    Sky = Rgb(0.20f, 0.21f, 0.30f), SkyAmount = 0.10f,
+                    Wrap = 0.30f, Ambient = 0.45f,
                 },
                 Foam = new Spray
                 {
-                    Tint = Rgb(0.34f, 0.33f, 0.31f),
-                    Smoothness = 0.35f, Metallic = 0.05f, Specular = 0.35f, Saturation = 1.10f,
+                    Tint = Rgb(0.19f, 0.17f, 0.20f),
+                    Smoothness = 0.55f, Metallic = 0.05f, Specular = 0.45f, Saturation = 1.05f,
                 },
             },
 
-            // Acid. Yellow-green rather than the verdigris the leach ponds are: verdigris put this
-            // sea within a few degrees of emerald's, and those two are the pair most likely to be
-            // seen one after the other on the island select. Fast, thin, frothing.
+            // Sulphuric leach liquor, which is what the copper island's ponds are full of. Thin and
+            // fast, so the shortest wavelength and the highest speed of the five, with a milky
+            // yellow-green scum on the crests. Glows only faintly by day and is carried after dark
+            // by NightGlow - which is how a real chemical pond reads.
             new Ocean
             {
-                Island = "Copper", Name = "acid",
-                Sea = new Surface
+                Island = "Copper", Name = "acid", Kind = Kind.Wave,
+                Wave = new Wave
                 {
-                    Deep = Rgb(0.100f, 0.220f, 0.020f),
-                    Mid  = Rgb(0.340f, 0.550f, 0.040f),
-                    Hot  = Rgb(0.720f, 0.880f, 0.120f),
-                    Vein = Rgb(0.900f, 1.000f, 0.350f),      // froth streaks on the surface film
-                    BandLow = 0.28f, BandHigh = 0.58f, BandSharp = 0.20f,
-                    Scale = 0.016f, FlowSpeed = 0.34f, Warp = 0.52f, Stretch = 0.38f,
-                    Flow = new Vector2(1f, -0.30f),
-                    VeinLevel = 0.48f, VeinWidth = 0.07f, VeinStrength = 0.35f,
-                    Ripple = 1.9f, Smoothness = 0.82f, Specular = 0.55f,
-                    Glow = Rgb(0.55f, 1.00f, 0.10f),
-                    GlowStrength = 0.30f, GlowFloor = 0.25f, VeinGlow = 0.90f, NightGlow = 1.0f,
-                    ToonSteps = 4f, ToonSoft = 0.70f,
+                    Body  = Rgb(0.055f, 0.115f, 0.020f),
+                    Crest = Rgb(0.300f, 0.460f, 0.045f),
+                    Cap   = Rgb(0.720f, 0.820f, 0.220f),
+                    CrestBlend = 1.0f, CapLevel = 0.78f, CapWidth = 0.16f, CapAmount = 0.75f,
+                    Scale = 0.070f, Speed = 0.75f, Choppy = 0.45f, Bend = 4.4f, BendScale = 0.240f,
+                    Dir = new Vector2(1f, -0.30f),
+                    Slope = 2.2f, Smoothness = 0.82f, Sheen = 0.60f, Glitter = 0.22f,
+                    Sky = Rgb(0.35f, 0.45f, 0.30f), SkyAmount = 0.12f,
+                    Glow = Rgb(0.28f, 0.62f, 0.06f), GlowStrength = 0.12f, NightGlow = 1.6f,
+                    Wrap = 0.35f, Ambient = 0.55f,
                 },
                 Foam = new Spray
                 {
-                    Tint = Rgb(0.88f, 0.97f, 0.55f),
-                    Smoothness = 0.35f, Metallic = 0f, Specular = 0.35f, Saturation = 1.40f,
-                    Glow = Rgb(0.80f, 1.00f, 0.35f), GlowStrength = 0.30f,
+                    Tint = Rgb(0.72f, 0.82f, 0.22f),
+                    Smoothness = 0.35f, Metallic = 0f, Specular = 0.30f, Saturation = 1.30f,
+                    Glow = Rgb(0.45f, 0.75f, 0.12f), GlowStrength = 0.18f,
                 },
             },
 
-            // Rust. Iron oxide in suspension - thick, matte, opaque. Deliberately the least shiny
-            // of the eight: a crisp highlight is what makes a surface read as CLEAN water, which is
-            // the one thing this is not.
+            // Iron-oxide slurry: opaque, heavy and matte. The lowest sheen and glitter of the eight
+            // on purpose - a crisp highlight is the single thing that makes a surface read as CLEAN
+            // water, which is what this must not be. Its foam is dirty ochre, never white.
             new Ocean
             {
-                Island = "Iron", Name = "rust",
-                Sea = new Surface
+                Island = "Iron", Name = "rust", Kind = Kind.Wave,
+                Wave = new Wave
                 {
-                    Deep = Rgb(0.070f, 0.024f, 0.011f),
-                    Mid  = Rgb(0.360f, 0.145f, 0.058f),
-                    Hot  = Rgb(0.680f, 0.360f, 0.150f),
-                    Vein = Rgb(0.780f, 0.520f, 0.260f),      // scum lines where the sludge separates
-                    BandLow = 0.28f, BandHigh = 0.58f, BandSharp = 0.17f,
-                    Scale = 0.015f, FlowSpeed = 0.16f, Warp = 0.60f, Stretch = 0.44f,
-                    Flow = new Vector2(1f, 0.55f),
-                    VeinLevel = 0.53f, VeinWidth = 0.10f, VeinStrength = 0.32f,
-                    Ripple = 1.7f, Smoothness = 0.38f, Specular = 0.22f,
-                    ToonSteps = 4f, ToonSoft = 0.75f,
+                    Body  = Rgb(0.068f, 0.026f, 0.012f),
+                    Crest = Rgb(0.290f, 0.125f, 0.052f),
+                    Cap   = Rgb(0.420f, 0.260f, 0.130f),
+                    CrestBlend = 1.0f, CapLevel = 0.80f, CapWidth = 0.18f, CapAmount = 0.60f,
+                    Scale = 0.055f, Speed = 0.35f, Choppy = 0.40f, Bend = 3.6f, BendScale = 0.190f,
+                    Dir = new Vector2(1f, 0.55f),
+                    Slope = 1.8f, Smoothness = 0.30f, Sheen = 0.60f, Glitter = 0.10f,
+                    Sky = Rgb(0.30f, 0.26f, 0.22f), SkyAmount = 0.08f,
+                    Wrap = 0.40f, Ambient = 0.55f,
                 },
                 Foam = new Spray
                 {
-                    Tint = Rgb(0.70f, 0.48f, 0.32f),
-                    Smoothness = 0.25f, Metallic = 0f, Specular = 0.25f, Saturation = 1.25f,
+                    Tint = Rgb(0.42f, 0.26f, 0.13f),
+                    Smoothness = 0.20f, Metallic = 0f, Specular = 0.20f, Saturation = 1.20f,
                 },
             },
 
-            // Mercury. The only ocean that gets HARD bands: BandSharp 0.10 and six toon steps, so
-            // the ramp posterises into sheets of light instead of blending. That, plus a ripple and
-            // specular well above everything else, is how a metal reads without a reflection probe.
+            // Mercury. Low viscosity, so the shortest, choppiest wave set of the five, and its read
+            // comes almost entirely from two terms the others keep small: SkyAmount at 0.30, because
+            // a metal is mostly a reflection of what is above it, and a glitter of 4 that turns the
+            // sun into a hard broken path across the surface.
             new Ocean
             {
-                Island = "Silver", Name = "mercury",
-                Sea = new Surface
+                Island = "Silver", Name = "mercury", Kind = Kind.Wave,
+                Wave = new Wave
                 {
-                    Deep = Rgb(0.240f, 0.270f, 0.330f),
-                    Mid  = Rgb(0.620f, 0.660f, 0.720f),
-                    Hot  = Rgb(0.970f, 0.990f, 1.000f),
-                    Vein = Rgb(1.000f, 1.000f, 1.000f),
-                    BandLow = 0.26f, BandHigh = 0.50f, BandSharp = 0.13f,
-                    Scale = 0.014f, FlowSpeed = 0.24f, Warp = 0.34f, Stretch = 0.36f,
-                    Flow = new Vector2(1f, 0.20f),
-                    VeinLevel = 0.50f, VeinWidth = 0.06f, VeinStrength = 0.35f,
-                    Ripple = 2.6f, Smoothness = 0.96f, Specular = 1.90f,
-                    ToonSteps = 6f, ToonSoft = 0.25f,
+                    Body  = Rgb(0.115f, 0.125f, 0.145f),
+                    Crest = Rgb(0.620f, 0.650f, 0.700f),
+                    Cap   = Rgb(0.950f, 0.960f, 1.000f),
+                    CrestBlend = 1.0f, CapLevel = 0.82f, CapWidth = 0.10f, CapAmount = 0.70f,
+                    Scale = 0.085f, Speed = 0.55f, Choppy = 0.55f, Bend = 4.0f, BendScale = 0.290f,
+                    Dir = new Vector2(1f, 0.20f),
+                    Slope = 2.6f, Smoothness = 0.97f, Sheen = 1.00f, Glitter = 0.45f,
+                    Sky = Rgb(0.55f, 0.62f, 0.75f), SkyAmount = 0.30f,
+                    Wrap = 0.20f, Ambient = 0.50f,
                 },
                 Foam = new Spray
                 {
-                    Tint = Rgb(0.90f, 0.92f, 0.96f),
-                    Smoothness = 0.88f, Metallic = 0.70f, Specular = 0.90f, Saturation = 0.85f,
+                    Tint = Rgb(0.95f, 0.96f, 1.00f),
+                    Smoothness = 0.92f, Metallic = 0.75f, Specular = 1.00f, Saturation = 0.85f,
                 },
             },
 
-            // Molten gold. Metal that is glowing rather than burning: it keeps a real metallic
-            // highlight on top of the emission, where ruby has almost none. Cooler crust in the
-            // troughs, orange body, yellow crest.
+            // Algal bloom: turbid green water with pale scum gathering on the crests. Like the acid
+            // it is nearly unlit by day and lit at night, only more so - NightGlow 2.2 is the
+            // highest of the eight, because bioluminescence is a thing you only ever see after dark.
             new Ocean
             {
-                Island = "Gold", Name = "molten gold",
-                Sea = new Surface
+                Island = "Emerald", Name = "toxic bloom", Kind = Kind.Wave,
+                Wave = new Wave
                 {
-                    Deep = Rgb(0.220f, 0.090f, 0.010f),
-                    Mid  = Rgb(0.800f, 0.420f, 0.030f),
-                    Hot  = Rgb(1.000f, 0.850f, 0.300f),
-                    Vein = Rgb(1.000f, 0.950f, 0.600f),
-                    BandLow = 0.24f, BandHigh = 0.58f, BandSharp = 0.24f,
-                    Scale = 0.015f, FlowSpeed = 0.17f, Warp = 0.62f, Stretch = 0.85f,
-                    Flow = new Vector2(1f, 0.30f),
-                    VeinLevel = 0.50f, VeinWidth = 0.075f, VeinStrength = 0.80f,
-                    Ripple = 1.4f, Smoothness = 0.68f, Specular = 0.50f,
-                    Glow = Rgb(1.00f, 0.72f, 0.18f),
-                    GlowStrength = 1.10f, GlowFloor = 0.30f, VeinGlow = 2.20f, NightGlow = 0.9f,
-                    ToonSteps = 4f, ToonSoft = 0.70f,
+                    Body  = Rgb(0.020f, 0.085f, 0.055f),
+                    Crest = Rgb(0.075f, 0.300f, 0.175f),
+                    Cap   = Rgb(0.420f, 0.620f, 0.350f),
+                    CrestBlend = 1.0f, CapLevel = 0.76f, CapWidth = 0.18f, CapAmount = 0.70f,
+                    Scale = 0.065f, Speed = 0.45f, Choppy = 0.42f, Bend = 4.2f, BendScale = 0.220f,
+                    Dir = new Vector2(1f, -0.45f),
+                    Slope = 2.0f, Smoothness = 0.78f, Sheen = 0.58f, Glitter = 0.20f,
+                    Sky = Rgb(0.30f, 0.42f, 0.38f), SkyAmount = 0.12f,
+                    Glow = Rgb(0.05f, 0.55f, 0.28f), GlowStrength = 0.10f, NightGlow = 2.2f,
+                    Wrap = 0.38f, Ambient = 0.55f,
                 },
                 Foam = new Spray
                 {
-                    Tint = Rgb(1.00f, 0.90f, 0.48f),
-                    Smoothness = 0.60f, Metallic = 0.40f, Specular = 0.70f, Saturation = 1.40f,
-                    Glow = Rgb(1.00f, 0.88f, 0.38f), GlowStrength = 1.35f,
+                    Tint = Rgb(0.45f, 0.65f, 0.38f),
+                    Smoothness = 0.35f, Metallic = 0f, Specular = 0.30f, Saturation = 1.30f,
+                    Glow = Rgb(0.20f, 0.70f, 0.35f), GlowStrength = 0.16f,
                 },
             },
 
-            // Lava, and the reason the three-colour ramp exists at all: black crust in the troughs,
-            // RED through the body, ORANGE at the crest and a YELLOW vein burning between the
-            // plates - all four visible at once and trading places as the flow drags them. Slowest
-            // flow bar tar and the widest swirl, because magma folds rather than sloshes.
+            // Lava, and the whole reason the crust shader exists. Dark basalt plates about 60 units
+            // across, drifting at a crawl, with the melt showing only in the seams between them -
+            // and the seam runs red at the shoulder, orange through the middle and yellow-white in
+            // the core, which is the gradient that reads as heat rather than as a glowing line.
             //
             // Its foam is the opposite of foam: cooled black crust with embers in it. A white surf
             // line is what stops magma reading as magma.
             new Ocean
             {
-                Island = "Ruby", Name = "lava",
-                Sea = new Surface
+                Island = "Ruby", Name = "lava", Kind = Kind.Crust,
+                Crust = new Crust
                 {
-                    Deep = Rgb(0.090f, 0.012f, 0.006f),
-                    Mid  = Rgb(0.620f, 0.090f, 0.012f),
-                    Hot  = Rgb(1.000f, 0.420f, 0.030f),
-                    Vein = Rgb(1.000f, 0.820f, 0.220f),
-                    BandLow = 0.22f, BandHigh = 0.56f, BandSharp = 0.22f,
-                    Scale = 0.013f, FlowSpeed = 0.14f, Warp = 0.68f, Stretch = 0.90f,
-                    Flow = new Vector2(1f, 0.25f),
-                    VeinLevel = 0.50f, VeinWidth = 0.085f, VeinStrength = 1.00f,
-                    Ripple = 1.2f, Smoothness = 0.40f, Specular = 0.25f,
-                    Glow = Rgb(1.00f, 0.38f, 0.06f),
-                    GlowStrength = 1.50f, GlowFloor = 0.18f, VeinGlow = 3.00f, NightGlow = 1.2f,
-                    ToonSteps = 4f, ToonSoft = 0.75f,
+                    Plate     = Rgb(0.045f, 0.030f, 0.028f),
+                    PlateAlt  = Rgb(0.090f, 0.064f, 0.058f),
+                    Variation = 1.0f, Grain = 0.16f,
+                    CrackCool = Rgb(0.420f, 0.055f, 0.010f),
+                    CrackMid  = Rgb(0.950f, 0.300f, 0.020f),
+                    CrackHot  = Rgb(1.000f, 0.800f, 0.300f),
+                    CrackWidth = 0.30f,
+                    Scale = 0.017f, Drift = 0.05f, Warp = 1.15f, WarpScale = 0.22f, Heat = 0.40f,
+                    Dir = new Vector2(1f, 0.25f),
+                    Relief = 1.4f, Smoothness = 0.20f, Specular = 0.20f,
+                    GlowStrength = 2.4f, NightGlow = 0.8f,
+                    Wrap = 0.30f, Ambient = 0.45f,
                 },
                 Foam = new Spray
                 {
-                    Tint = Rgb(0.10f, 0.050f, 0.045f),
-                    Smoothness = 0.20f, Metallic = 0f, Specular = 0.20f, Saturation = 1.20f,
-                    Glow = Rgb(0.95f, 0.25f, 0.04f), GlowStrength = 0.45f,
+                    Tint = Rgb(0.075f, 0.048f, 0.045f),
+                    Smoothness = 0.20f, Metallic = 0f, Specular = 0.15f, Saturation = 1.15f,
+                    Glow = Rgb(0.95f, 0.28f, 0.05f), GlowStrength = 0.55f,
                 },
             },
 
-            // Toxic bloom. Algal, not molten: the glow comes off the whole surface rather than out
-            // of cracks in it, so GlowFloor is high and VeinGlow low - the reverse of lava. The
-            // highest NightGlow of the eight, because bioluminescence is a night thing.
+            // Molten gold: the same sheet much closer to fully liquid. Smaller plates and a crack
+            // half again as wide, so the melt is most of what you see and the crust is the minority
+            // - the reverse of lava - and it keeps a real metallic highlight on top of the glow.
             new Ocean
             {
-                Island = "Emerald", Name = "toxic bloom",
-                Sea = new Surface
+                Island = "Gold", Name = "molten gold", Kind = Kind.Crust,
+                Crust = new Crust
                 {
-                    Deep = Rgb(0.005f, 0.090f, 0.060f),
-                    Mid  = Rgb(0.030f, 0.340f, 0.200f),
-                    Hot  = Rgb(0.220f, 0.780f, 0.420f),
-                    Vein = Rgb(0.550f, 1.000f, 0.620f),
-                    BandLow = 0.26f, BandHigh = 0.60f, BandSharp = 0.24f,
-                    Scale = 0.018f, FlowSpeed = 0.28f, Warp = 0.50f, Stretch = 0.40f,
-                    Flow = new Vector2(1f, -0.45f),
-                    VeinLevel = 0.49f, VeinWidth = 0.08f, VeinStrength = 0.40f,
-                    Ripple = 1.8f, Smoothness = 0.74f, Specular = 0.45f,
-                    Glow = Rgb(0.10f, 0.95f, 0.45f),
-                    GlowStrength = 0.55f, GlowFloor = 0.55f, VeinGlow = 1.30f, NightGlow = 1.4f,
-                    ToonSteps = 4f, ToonSoft = 0.70f,
+                    Plate     = Rgb(0.115f, 0.070f, 0.022f),
+                    PlateAlt  = Rgb(0.175f, 0.115f, 0.040f),
+                    Variation = 0.85f, Grain = 0.14f,
+                    CrackCool = Rgb(0.620f, 0.280f, 0.020f),
+                    CrackMid  = Rgb(1.000f, 0.620f, 0.055f),
+                    CrackHot  = Rgb(1.000f, 0.940f, 0.620f),
+                    CrackWidth = 0.34f,
+                    Scale = 0.026f, Drift = 0.09f, Warp = 1.05f, WarpScale = 0.24f, Heat = 0.45f,
+                    Dir = new Vector2(1f, 0.30f),
+                    Relief = 1.0f, Smoothness = 0.55f, Specular = 0.55f,
+                    GlowStrength = 2.0f, NightGlow = 0.7f,
+                    Wrap = 0.30f, Ambient = 0.50f,
                 },
                 Foam = new Spray
                 {
-                    Tint = Rgb(0.60f, 1.00f, 0.80f),
-                    Smoothness = 0.35f, Metallic = 0f, Specular = 0.35f, Saturation = 1.45f,
-                    Glow = Rgb(0.30f, 1.00f, 0.68f), GlowStrength = 0.60f,
+                    Tint = Rgb(1.00f, 0.80f, 0.35f),
+                    Smoothness = 0.65f, Metallic = 0.45f, Specular = 0.75f, Saturation = 1.30f,
+                    Glow = Rgb(1.00f, 0.72f, 0.25f), GlowStrength = 0.90f,
                 },
             },
 
-            // Frozen. The one ocean that is not liquid, and it is built out of the same parts read
-            // backwards: near-zero flow, a narrow BandSharp so the ramp breaks into hard PLATES of
-            // pack ice, and a vein that is DARKER than the ice it cuts, because the crack between
-            // two floes is open water. Its foam is the only white one left; here it is snow.
+            // Pack ice - the same plated sheet at the other end of the thermometer. Big floes,
+            // barely drifting, and the three crack colours run the other way: the pale wet edge of
+            // a floe, then a shallow lead, then deep open water in the core. Emission is 0, so the
+            // whole glow term compiles down to nothing. Its foam is the only white one left, and
+            // here it is snow.
             new Ocean
             {
-                Island = "Diamond", Name = "frozen",
-                Sea = new Surface
+                Island = "Diamond", Name = "frozen", Kind = Kind.Crust,
+                Crust = new Crust
                 {
-                    Deep = Rgb(0.185f, 0.400f, 0.580f),      // meltwater between the floes
-                    Mid  = Rgb(0.615f, 0.815f, 0.900f),
-                    Hot  = Rgb(0.985f, 1.000f, 1.000f),      // snow lying on top of one
-                    Vein = Rgb(0.255f, 0.495f, 0.680f),      // a fissure, so it goes DOWN in value
-                    BandLow = 0.34f, BandHigh = 0.56f, BandSharp = 0.07f,
-                    Scale = 0.011f, FlowSpeed = 0.05f, Warp = 0.28f, Stretch = 0.75f,
-                    Flow = new Vector2(1f, 0.15f),
-                    VeinLevel = 0.47f, VeinWidth = 0.035f, VeinStrength = 0.80f,
-                    Ripple = 0.7f, Smoothness = 0.90f, Specular = 0.70f,
-                    ToonSteps = 5f, ToonSoft = 0.40f,
+                    Plate     = Rgb(0.880f, 0.925f, 0.960f),
+                    PlateAlt  = Rgb(0.970f, 0.990f, 1.000f),
+                    Variation = 1.0f, Grain = 0.12f,
+                    CrackCool = Rgb(0.620f, 0.780f, 0.860f),
+                    CrackMid  = Rgb(0.280f, 0.520f, 0.660f),
+                    CrackHot  = Rgb(0.085f, 0.235f, 0.400f),
+                    CrackWidth = 0.22f,
+                    Scale = 0.013f, Drift = 0.012f, Warp = 0.95f, WarpScale = 0.20f, Heat = 0.40f,
+                    Dir = new Vector2(1f, 0.15f),
+                    Relief = 0.9f, Smoothness = 0.75f, Specular = 0.75f,
+                    GlowStrength = 0f, NightGlow = 0f,
+                    Wrap = 0.35f, Ambient = 0.60f,
                 },
                 Foam = new Spray
                 {
-                    Tint = Rgb(0.98f, 0.99f, 1.00f),
+                    Tint = Rgb(0.97f, 0.99f, 1.00f),
                     Smoothness = 0.70f, Metallic = 0f, Specular = 0.60f, Saturation = 1.00f,
                 },
             },
@@ -324,9 +349,10 @@ namespace Kayseri.IslandTools
         [MenuItem("Kayseri/Island/Create Ocean Materials", false, 22)]
         public static void CreateMaterials()
         {
-            var ocean = Shader.Find(OceanShader);
+            var wave = Shader.Find(WaveShader);
+            var crust = Shader.Find(CrustShader);
             var lit = Shader.Find(LitShader);
-            if (ocean == null || lit == null)
+            if (wave == null || crust == null || lit == null)
             {
                 Debug.LogError("[Ocean] Island shaders not found - let Unity compile them first.");
                 return;
@@ -339,8 +365,16 @@ namespace Kayseri.IslandTools
                 AssetDatabase.StartAssetEditing();
                 foreach (var o in Oceans)
                 {
-                    WriteSurface(ocean, "sea", o.Island, o.Sea);
-                    WriteSurface(ocean, "water", o.Island, River(o.Sea));
+                    if (o.Kind == Kind.Wave)
+                    {
+                        WriteWave(wave, "sea", o.Island, o.Wave);
+                        WriteWave(wave, "water", o.Island, RiverWave(o.Wave));
+                    }
+                    else
+                    {
+                        WriteCrust(crust, "sea", o.Island, o.Crust);
+                        WriteCrust(crust, "water", o.Island, RiverCrust(o.Crust));
+                    }
                     WriteSpray(lit, "foam", o.Island, o.Foam);
                     written += 3;
                 }
@@ -356,63 +390,107 @@ namespace Kayseri.IslandTools
         }
 
         /// <summary>
-        /// The same liquid seen in a channel a few units wide instead of an open swell: the pattern
-        /// has to be finer or a river shows one flat patch of it, and it runs faster because a river
-        /// has a current. Derived rather than authored so retuning a sea retunes its river too.
+        /// The same liquid in a channel a few units wide instead of an open swell: shorter waves,
+        /// because a river shows one flat patch of an open-sea wavelength, and faster, because a
+        /// river has a current. Derived rather than authored so retuning a sea retunes its river.
         /// </summary>
-        private static Surface River(Surface sea)
+        private static Wave RiverWave(Wave sea)
         {
-            sea.Scale *= 3.2f;
-            sea.FlowSpeed = sea.FlowSpeed * 2.2f + 0.08f;   // the floor is for ice, which barely moves
-            sea.Ripple *= 1.3f;
-            sea.VeinWidth *= 0.8f;
+            sea.Scale *= 3.0f;
+            sea.Speed = sea.Speed * 1.8f + 0.15f;
+            sea.Slope *= 1.25f;
+            sea.CapLevel -= 0.06f;      // a river breaks more readily than open water
             return sea;
         }
 
-        private static void WriteSurface(Shader shader, string liquid, string island, Surface s)
+        /// <summary>A river of the same sheet: smaller plates, drifting faster, because a channel
+        /// wide enough for two plates has to show more than two.</summary>
+        private static Crust RiverCrust(Crust sea)
+        {
+            sea.Scale *= 3.4f;
+            sea.Drift = sea.Drift * 2.5f + 0.03f;
+            sea.CrackWidth = Mathf.Min(1f, sea.CrackWidth * 1.2f);
+            return sea;
+        }
+
+        private static void WriteWave(Shader shader, string liquid, string island, Wave w)
         {
             var mat = Load(shader, $"{OceanRoot}/{liquid}_{island}.mat");
 
-            mat.SetColor("_DeepColor", ToLinear(s.Deep, 1f));
-            mat.SetColor("_MidColor", ToLinear(s.Mid, 1f));
-            mat.SetColor("_HotColor", ToLinear(s.Hot, 1f));
-            mat.SetColor("_VeinColor", ToLinear(s.Vein, 1f));
-            mat.SetFloat("_BandLow", s.BandLow);
-            mat.SetFloat("_BandHigh", s.BandHigh);
-            mat.SetFloat("_BandSharp", s.BandSharp);
+            mat.SetColor("_DeepColor", ToLinear(w.Body, 1f));
+            mat.SetColor("_ShallowColor", ToLinear(w.Crest, 1f));
+            mat.SetColor("_FoamColor", ToLinear(w.Cap, 1f));
+            mat.SetFloat("_Depth", w.CrestBlend);
+            mat.SetFloat("_FoamLevel", w.CapLevel);
+            mat.SetFloat("_FoamWidth", w.CapWidth);
+            mat.SetFloat("_FoamAmount", w.CapAmount);
 
-            mat.SetFloat("_Scale", s.Scale);
-            mat.SetFloat("_FlowSpeed", s.FlowSpeed);
-            mat.SetFloat("_Warp", s.Warp);
-            mat.SetFloat("_Stretch", s.Stretch);
-            mat.SetVector("_FlowDir", new Vector4(s.Flow.x, s.Flow.y, 0f, 0f));
+            mat.SetFloat("_Scale", w.Scale);
+            mat.SetFloat("_WaveSpeed", w.Speed);
+            mat.SetFloat("_Choppy", w.Choppy);
+            mat.SetFloat("_Bend", w.Bend);
+            mat.SetFloat("_BendScale", w.BendScale);
+            mat.SetVector("_FlowDir", new Vector4(w.Dir.x, w.Dir.y, 0f, 0f));
 
-            mat.SetFloat("_VeinLevel", s.VeinLevel);
-            mat.SetFloat("_VeinWidth", s.VeinWidth);
-            mat.SetFloat("_VeinStrength", s.VeinStrength);
+            mat.SetFloat("_NormalStrength", w.Slope);
+            mat.SetFloat("_Smoothness", w.Smoothness);
+            mat.SetFloat("_SpecularStrength", w.Sheen);
+            mat.SetFloat("_GlitterStrength", w.Glitter);
+            mat.SetColor("_SkyTint", ToLinear(w.Sky, 1f));
+            mat.SetFloat("_SkyAmount", w.SkyAmount);
 
-            mat.SetFloat("_NormalStrength", s.Ripple);
-            mat.SetFloat("_Smoothness", s.Smoothness);
-            mat.SetFloat("_SpecularStrength", s.Specular);
+            mat.SetFloat("_Wrap", w.Wrap);
+            mat.SetFloat("_AmbientAmount", w.Ambient);
+            mat.SetColor("_SpecularTint", Color.white);
+            mat.SetColor("_ShadowTint", ToLinear(Rgb(0.30f, 0.38f, 0.55f), 1f));
 
-            mat.SetFloat("_ToonSteps", s.ToonSteps);
-            mat.SetFloat("_ToonSmoothness", s.ToonSoft);
+            SetGlow(mat, w.GlowStrength > 0f, ToLinear(w.Glow, 1f), w.GlowStrength, w.NightGlow);
 
-            if (s.GlowStrength > 0f || s.VeinGlow > 0f)
+            mat.renderQueue = 2000;
+            EditorUtility.SetDirty(mat);
+        }
+
+        private static void WriteCrust(Shader shader, string liquid, string island, Crust c)
+        {
+            var mat = Load(shader, $"{OceanRoot}/{liquid}_{island}.mat");
+
+            mat.SetColor("_CrustColor", ToLinear(c.Plate, 1f));
+            mat.SetColor("_CrustColor2", ToLinear(c.PlateAlt, 1f));
+            mat.SetFloat("_PlateVariation", c.Variation);
+            mat.SetFloat("_Grain", c.Grain);
+
+            mat.SetColor("_CrackCool", ToLinear(c.CrackCool, 1f));
+            mat.SetColor("_CrackMid", ToLinear(c.CrackMid, 1f));
+            mat.SetColor("_CrackHot", ToLinear(c.CrackHot, 1f));
+            mat.SetFloat("_CrackWidth", c.CrackWidth);
+
+            mat.SetFloat("_Scale", c.Scale);
+            mat.SetFloat("_DriftSpeed", c.Drift);
+            mat.SetFloat("_Warp", c.Warp);
+            mat.SetFloat("_WarpScale", c.WarpScale);
+            mat.SetFloat("_HeatAmount", c.Heat);
+            mat.SetVector("_FlowDir", new Vector4(c.Dir.x, c.Dir.y, 0f, 0f));
+
+            mat.SetFloat("_NormalStrength", c.Relief);
+            mat.SetFloat("_Smoothness", c.Smoothness);
+            mat.SetFloat("_SpecularStrength", c.Specular);
+
+            mat.SetFloat("_Wrap", c.Wrap);
+            mat.SetFloat("_AmbientAmount", c.Ambient);
+            mat.SetColor("_SpecularTint", Color.white);
+            mat.SetColor("_ShadowTint", ToLinear(Rgb(0.30f, 0.34f, 0.48f), 1f));
+
+            // The cracks emit in their own colour, so there is no emission colour to set here -
+            // only how much, and how much more of it after dark.
+            mat.SetFloat("_Emission", c.GlowStrength);
+            mat.SetFloat("_EmissionNight", c.NightGlow);
+            if (c.GlowStrength > 0f)
             {
-                mat.SetColor("_EmissionColor", ToLinear(s.Glow, 1f));
-                mat.SetFloat("_Emission", s.GlowStrength);
-                mat.SetFloat("_EmissionFloor", s.GlowFloor);
-                mat.SetFloat("_VeinEmission", s.VeinGlow);
-                mat.SetFloat("_EmissionNight", s.NightGlow);
                 mat.EnableKeyword("_EMISSION");
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             }
             else
             {
-                mat.SetColor("_EmissionColor", Color.black);
-                mat.SetFloat("_Emission", 0f);
-                mat.SetFloat("_VeinEmission", 0f);
                 mat.DisableKeyword("_EMISSION");
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
             }
@@ -454,6 +532,26 @@ namespace Kayseri.IslandTools
 
             mat.renderQueue = 2000;
             EditorUtility.SetDirty(mat);
+        }
+
+        private static void SetGlow(Material mat, bool on, Color glow, float strength, float night)
+        {
+            if (on)
+            {
+                mat.SetColor("_EmissionColor", glow);
+                mat.SetFloat("_Emission", strength);
+                mat.SetFloat("_EmissionNight", night);
+                mat.EnableKeyword("_EMISSION");
+                mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            }
+            else
+            {
+                mat.SetColor("_EmissionColor", Color.black);
+                mat.SetFloat("_Emission", 0f);
+                mat.SetFloat("_EmissionNight", 0f);
+                mat.DisableKeyword("_EMISSION");
+                mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+            }
         }
 
         private static Material Load(Shader shader, string path)
@@ -543,7 +641,9 @@ namespace Kayseri.IslandTools
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log($"[Ocean] Recoloured {renderers} renderers across {prefabs} phase prefabs.");
+            Debug.Log($"[Ocean] Recoloured {renderers} renderers across {prefabs} phase prefabs. "
+                    + "Zero is expected when only the materials changed - the prefabs already "
+                    + "point at them.");
         }
 
         // ─────────────────────────────────────────────────────────────────────────────── helpers

@@ -58,7 +58,7 @@ namespace Game.Core
             /// <summary>
             /// What one station's full repair costs, expressed in minutes of the island's own income.
             /// Eight stations at 1.25 is ten minutes of production to put a wholly neglected island
-            /// right — a real sink, and never a wall. Pricing it off measured income rather than off
+            /// right — the bill for a whole island is simply this summed over its stations — a real sink, and never a wall. Pricing it off measured income rather than off
             /// upgrade costs is deliberate: upgrade prices climb exponentially and income does not, so
             /// anything anchored to them turns into an unpayable bill by the third island.
             /// </summary>
@@ -193,16 +193,6 @@ namespace Game.Core
             return islandRatePerMinute * t.RepairIncomeMinutes * damage;
         }
 
-        /// <summary>The whole island at once — every station's bill, added up.</summary>
-        public static double RepairCostAll(float[] conditions, double islandRatePerMinute, Tuning t)
-        {
-            if (conditions == null) return 0d;
-            double total = 0d;
-            for (int s = 0; s < conditions.Length; s++)
-                total += RepairCost(conditions[s], islandRatePerMinute, t);
-            return total;
-        }
-
         /// <summary>
         /// How long the crew is on site. Scaled by damage so a quick tidy is a quick tidy: a fixed
         /// timer would make the trivial repairs the annoying ones.
@@ -213,10 +203,6 @@ namespace Game.Core
             if (damage <= 0f) return 0f;
             return t.RepairSecondsMin + (t.RepairSecondsMax - t.RepairSecondsMin) * damage;
         }
-
-        /// <summary>The whole island: the worst station sets the pace, since one crew does the round.</summary>
-        public static float RepairSecondsAll(float[] conditions, Tuning t)
-            => RepairSeconds(IslandCondition(conditions), t);
 
         private static float Clamp(float condition, Tuning t)
         {

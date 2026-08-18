@@ -1,4 +1,6 @@
+using Game.Gameplay;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Game.UI
 {
@@ -18,7 +20,7 @@ namespace Game.UI
     /// no logic and needs no teardown beyond destroying it. Lighting is deliberately not set up here
     /// either: the scene's own directional light reaches the studio, and matching the island exactly
     /// matters more than a flattering key light would, because the player is about to go and look at
-    /// the real thing.
+    /// the real thing. It matches the island's DAY, though — see <see cref="BeginPreviewCamera"/>.
     ///
     /// The camera renders only while the screen is open. Closed, this costs nothing at all.
     /// </summary>
@@ -61,6 +63,9 @@ namespace Game.UI
         private float _distance = 100f;
         private float _sway;
         private bool _built;
+        private DayNightCycle _clock;
+        private bool _clockSearched;
+        private bool _holdingDaylight;
 
         /// <summary>Bounding-sphere radius of whatever the camera is framing — the caller's animations
         /// are measured in it, so a market and a refinery sink and rise by their own size.</summary>
@@ -118,6 +123,58 @@ namespace Game.UI
         private void Awake()
         {
             Zoom = 1f;
+        }
+
+        private void OnEnable()
+        {
+            _clockSearched = false;
+            RenderPipelineManager.beginCameraRendering += BeginPreviewCamera;
+            RenderPipelineManager.endCameraRendering += EndPreviewCamera;
+        }
+
+        private void OnDisable()
+        {
+            RenderPipelineManager.beginCameraRendering -= BeginPreviewCamera;
+            RenderPipelineManager.endCameraRendering -= EndPreviewCamera;
+            ReleaseDaylight();
+        }
+
+        /// <summary>
+        /// The studio stands in the island's world and is lit by the island's sky, so after dark the
+        /// building the player is being asked to buy was being photographed by moonlight. There is no
+        /// second light to switch on — the island's shader reads the main light and the ambient probe
+        /// and nothing else — so the clock is turned back to noon for this camera's pass and handed
+        /// the night again the moment it is done. Everything outside the frame, the island behind the
+        /// panel included, is still at whatever time it actually is.
+        ///
+        /// This runs before URP culls, which is what makes it work at all: the sun's colour, angle
+        /// and intensity are read out of the cull results, and the shader globals are read at draw
+        /// time. Both are already daylight by then.
+        /// </summary>
+        private void BeginPreviewCamera(ScriptableRenderContext context, Camera cam)
+        {
+            if (cam != _cam || _holdingDaylight) return;
+            if (!_clockSearched)
+            {
+                _clockSearched = true;
+                _clock = FindAnyObjectByType<DayNightCycle>();
+            }
+            if (_clock == null) return;      // a scene with no clock in it is always daylight already
+            _holdingDaylight = true;
+            _clock.HoldDaylight(true);
+        }
+
+        private void EndPreviewCamera(ScriptableRenderContext context, Camera cam)
+        {
+            if (cam != _cam) return;
+            ReleaseDaylight();
+        }
+
+        private void ReleaseDaylight()
+        {
+            if (!_holdingDaylight) return;
+            _holdingDaylight = false;
+            if (_clock != null) _clock.HoldDaylight(false);
         }
 
         private void Build()
@@ -319,6 +376,10 @@ namespace Game.UI
 
         private void Update()
         {
+            // A pass that began and never ended — a camera whose render was skipped after the begin
+            // callback — would otherwise leave the whole island in daylight. Runs before rendering.
+            ReleaseDaylight();
+
             if (!_built || _cam == null || !_cam.enabled) return;
 
             _sway += Time.unscaledDeltaTime;

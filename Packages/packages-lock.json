@@ -17,6 +17,23 @@
       },
       "hash": "4ce7dd3cc54e37e2ed6dc59cb5a047f3dccb3f50"
     },
+    "com.google.ads.mobile": {
+      "version": "11.3.0",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.google.external-dependency-manager": "1.2.187",
+        "com.unity.modules.androidjni": "1.0.0"
+      },
+      "url": "https://package.openupm.com"
+    },
+    "com.google.external-dependency-manager": {
+      "version": "1.2.187",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://package.openupm.com"
+    },
     "com.unity.ai.navigation": {
       "version": "2.0.12",
       "depth": 0,

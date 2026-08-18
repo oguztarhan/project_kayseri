@@ -138,7 +138,8 @@ namespace Game.Tests
             var c = Maintenance.NewConditions();
             for (int s = 0; s < c.Length; s++) c[s] = T.Floor;
 
-            double bill = Maintenance.RepairCostAll(c, ratePerMin, T);
+            double bill = 0d;
+            for (int s = 0; s < c.Length; s++) bill += Maintenance.RepairCost(c[s], ratePerMin, T);
 
             // the whole balance of the mechanic in one number: enough to be a sink, never enough to
             // be a wall. Ten minutes of production to undo three days of neglect.

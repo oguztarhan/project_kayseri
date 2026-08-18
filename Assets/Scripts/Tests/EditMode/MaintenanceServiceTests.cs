@@ -129,11 +129,27 @@ namespace Game.Tests
             Assert.That(started, Is.True);
             Assert.That(wallet.Cash.ToDouble(), Is.LessThan(before));
             Assert.That(m.Repairing(Coal), Is.True);
-            Assert.That(m.RepairingStation(Coal), Is.EqualTo(IslandEconomy.Mine));
+            Assert.That(m.Repairing(Coal, IslandEconomy.Mine), Is.True);
+            Assert.That(m.Repairing(Coal, IslandEconomy.Smelter), Is.False);
         }
 
         [Test]
-        public void ASecondCrew_IsNotSentOut()
+        public void ASecondCrew_GoesOutOnADifferentBuilding()
+        {
+            SaveData data; WalletService wallet;
+            MaintenanceService m = Build(out data, out wallet);
+            m.Conditions(Coal);
+            Away(data, 40f);
+            m.Evaluate();
+            m.TryRepair(Coal, IslandEconomy.Mine, 5000d);
+
+            Assert.That(m.TryRepair(Coal, IslandEconomy.Smelter, 5000d), Is.True);
+            Assert.That(m.Repairing(Coal, IslandEconomy.Mine), Is.True);
+            Assert.That(m.Repairing(Coal, IslandEconomy.Smelter), Is.True);
+        }
+
+        [Test]
+        public void ABuildingAlreadyUnderRepair_IsNotStartedTwice()
         {
             SaveData data; WalletService wallet;
             MaintenanceService m = Build(out data, out wallet);
@@ -144,8 +160,28 @@ namespace Game.Tests
 
             double before = wallet.Cash.ToDouble();
 
-            Assert.That(m.TryRepair(Coal, IslandEconomy.Smelter, 5000d), Is.False);
+            Assert.That(m.TryRepair(Coal, IslandEconomy.Mine, 5000d), Is.False);
             Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(before));   // and charged nothing for the refusal
+        }
+
+        [Test]
+        public void RepairAll_DoesNotChargeForTheCrewsAlreadyOut()
+        {
+            SaveData data; WalletService wallet;
+            MaintenanceService m = Build(out data, out wallet);
+            m.Conditions(Coal);
+            Away(data, 200f);
+            m.Evaluate();
+
+            double whole = m.RepairCostAll(Coal, 5000d);
+            m.TryRepair(Coal, IslandEconomy.Mine, 5000d);
+            double rest = m.RepairCostAll(Coal, 5000d);
+
+            // the mine's share, and only the mine's share, has come off the quote
+            Assert.That(rest, Is.LessThan(whole));
+            Assert.That(whole - rest,
+                        Is.EqualTo(Maintenance.RepairCost(Maintenance.Tuning.Default.Floor, 5000d,
+                                                          Maintenance.Tuning.Default)).Within(1e-6d));
         }
 
         [Test]

@@ -43,7 +43,7 @@ Material:
     - _Vibrance: 1.02
     m_Colors:
     - _AmbientGround: {r: 0.54999995, g: 0.47999996, b: 0.39999998, a: 1}
-    - _BaseColor: {r: 0.95510465, g: 0.9774019, b: 1, a: 1}
+    - _BaseColor: {r: 0.9331069, g: 0.9774019, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GrimeColor: {r: 0.25999996, g: 0.20999995, b: 0.14999998, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}

@@ -117,10 +117,36 @@ namespace Game.Gameplay
         public float Night01 { get; private set; }
         public bool IsNight => Night01 >= 0.5f;
 
+        /// <summary>
+        /// Puts the island back into full daylight and then hands the night straight back — for the
+        /// upgrade screen's model studio, which sits in this scene and so was lit by this clock. A
+        /// building the player is about to buy has to be readable at three in the morning, and the
+        /// studio has no light of its own to reach for: the sun, the ambient probe and the shader
+        /// globals below are the only lighting on the island.
+        ///
+        /// Scoped around ONE camera's pass rather than left on, so the island behind the panel is
+        /// still dark. Cheap in daylight, where <see cref="Apply"/> sees no change and returns.
+        /// </summary>
+        public void HoldDaylight(bool held)
+        {
+            if (held == _daylightHeld) return;
+            if (held)
+            {
+                _heldNight = _applied < 0f ? Target() : _applied;
+                _daylightHeld = true;
+                Apply(0f);
+                return;
+            }
+            _daylightHeld = false;
+            Apply(_heldNight);
+        }
+
         private float _cycleSeconds;
         private float _nightSeconds;
         private float _transition;
         private float _applied = -1f;
+        private bool _daylightHeld;
+        private float _heldNight;
 
         // Daytime, read off the scene once so nothing here has to be kept in step by hand.
         private Color _daySunColor;
@@ -221,7 +247,13 @@ namespace Game.Gameplay
             Apply(Target());
         }
 
-        private void Update() => Apply(Target());
+        // Never inside a hold: the hold lives between one camera's begin and end callbacks, which is
+        // after this runs, but a frame the preview camera never finished would otherwise stick.
+        private void Update()
+        {
+            if (_daylightHeld) return;
+            Apply(Target());
+        }
 
         private float Target()
         {
@@ -238,6 +270,7 @@ namespace Game.Gameplay
         /// editor after play mode ends.</summary>
         private void OnDisable()
         {
+            _daylightHeld = false;
             Apply(0f);
 
             if (_waterInstance == null) return;

@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: sea_Gold
-  m_Shader: {fileID: 4800000, guid: 8a6b1bd75954f49dbab7dfd590976c02, type: 3}
+  m_Shader: {fileID: 4800000, guid: d7648d7c5335f4312862fb812222c607, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -26,27 +26,32 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _AmbientAmount: 0.4
+    - _AmbientAmount: 0.5
     - _AmbientHemi: 0.65
     - _BandHigh: 0.58
     - _BandLow: 0.24
     - _BandSharp: 0.24
+    - _CrackWidth: 0.34
     - _DetailScale: 0.6
     - _DetailStrength: 0.13
-    - _Emission: 1.1
+    - _DriftSpeed: 0.09
+    - _Emission: 2
     - _EmissionAlways: 1
     - _EmissionFloor: 0.3
-    - _EmissionNight: 0.9
+    - _EmissionNight: 0.7
     - _FlowSpeed: 0.17
+    - _Grain: 0.14
     - _Grime: 0
+    - _HeatAmount: 0.45
     - _Metallic: 0.55
-    - _NormalStrength: 1.4
+    - _NormalStrength: 1
+    - _PlateVariation: 0.85
     - _RimPower: 3
     - _RimStrength: 0.35
     - _Saturation: 1.5
-    - _Scale: 0.015
-    - _Smoothness: 0.68
-    - _SpecularStrength: 0.5
+    - _Scale: 0.026
+    - _Smoothness: 0.55
+    - _SpecularStrength: 0.55
     - _Stretch: 0.85
     - _ToonSmoothness: 0.7
     - _ToonSteps: 4
@@ -56,10 +61,17 @@ Material:
     - _VeinWidth: 0.075
     - _VertexColorAmount: 0
     - _Vibrance: 1.02
-    - _Warp: 0.62
+    - _Warp: 1.05
+    - _WarpScale: 0.24
+    - _Wrap: 0.3
     m_Colors:
     - _AmbientGround: {r: 0.54999995, g: 0.47999996, b: 0.39999998, a: 1}
     - _BaseColor: {r: 0.3546921, g: 0.15487249, b: 0.0035010155, a: 1}
+    - _CrackCool: {r: 0.34239164, g: 0.0637238, b: 0.0015479876, a: 1}
+    - _CrackHot: {r: 1, g: 0.86889946, b: 0.34239164, a: 1}
+    - _CrackMid: {r: 1, g: 0.34239164, b: 0.0044008493, a: 1}
+    - _CrustColor: {r: 0.012510408, g: 0.005981059, b: 0.0017027863, a: 1}
+    - _CrustColor2: {r: 0.025842873, g: 0.012510408, b: 0.0030959751, a: 1}
     - _DeepColor: {r: 0.039681915, g: 0.008540383, b: 0.0007739938, a: 1}
     - _EmissionColor: {r: 1, g: 0.47699985, b: 0.027211785, a: 1}
     - _FlowDir: {r: 1, g: 0.3, b: 0, a: 0}
@@ -67,7 +79,7 @@ Material:
     - _HotColor: {r: 1, g: 0.6920712, b: 0.07323897, a: 1}
     - _MidColor: {r: 0.6038274, g: 0.14731899, b: 0.0023219814, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
-    - _ShadowTint: {r: 0.41999996, g: 0.47999996, b: 0.68, a: 1}
+    - _ShadowTint: {r: 0.07323897, g: 0.09462964, b: 0.19599415, a: 1}
     - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}
     - _VeinColor: {r: 1, g: 0.89000547, b: 0.31854683, a: 1}
   m_BuildTextureStacks: []

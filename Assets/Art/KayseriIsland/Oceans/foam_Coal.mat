@@ -34,16 +34,16 @@ Material:
     - _Metallic: 0.05
     - _RimPower: 3
     - _RimStrength: 0.35
-    - _Saturation: 1.1
-    - _Smoothness: 0.35
-    - _SpecularStrength: 0.35
+    - _Saturation: 1.05
+    - _Smoothness: 0.55
+    - _SpecularStrength: 0.45
     - _ToonSmoothness: 0.1
     - _ToonSteps: 3
     - _VertexColorAmount: 0
     - _Vibrance: 1.02
     m_Colors:
     - _AmbientGround: {r: 0.54999995, g: 0.47999996, b: 0.39999998, a: 1}
-    - _BaseColor: {r: 0.09462964, g: 0.08898155, b: 0.078288324, a: 1}
+    - _BaseColor: {r: 0.030074105, g: 0.02451501, b: 0.033104762, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GrimeColor: {r: 0.25999996, g: 0.20999995, b: 0.14999998, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}

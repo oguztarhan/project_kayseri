@@ -7,6 +7,12 @@ namespace Game.Systems
     /// <summary>
     /// The state of repair of every island, and the only thing allowed to change it.
     ///
+    /// ONE CREW PER STATION, and as many as the player will pay for. Every station carries its own
+    /// deadline in the save, so tapping four dirty buildings puts four crews out at once and each
+    /// comes back on its own damage-scaled clock. A single row-wide deadline — which is what this
+    /// used to hold — meant the second tap silently did nothing, on exactly the islands where
+    /// everything needs seeing to at the same time.
+    ///
     /// Wear is charged per ABSENCE, not per second. <see cref="Evaluate"/> is called on launch, on
     /// coming back from the background, and on a slow tick while the game is open; each call measures
     /// the gap since the last one and hands it to <see cref="Maintenance.Decay"/>, which throws away
@@ -55,7 +61,7 @@ namespace Game.Systems
         /// <summary>Raised when an island's condition changes: island key. The art and the pins listen.</summary>
         public event Action<string> Changed;
 
-        /// <summary>Raised when a repair finishes: island key, station (-1 = the whole island).</summary>
+        /// <summary>Raised when one station's repair finishes: island key, that station.</summary>
         public event Action<string, int> Repaired;
 
         public MaintenanceService(SaveData data, TimeService time, WalletService wallet,
@@ -120,34 +126,63 @@ namespace Game.Systems
             return n;
         }
 
-        public bool Repairing(string island) => Get(island).save.repairEndUnix > 0L;
+        /// <summary>True while a crew is out anywhere on this island.</summary>
+        public bool Repairing(string island)
+        {
+            long[] end = Get(island).save.repairEnd;
+            for (int s = 0; s < end.Length; s++)
+                if (end[s] > 0L) return true;
+            return false;
+        }
 
-        /// <summary>Which station the crew is on; -1 while they are doing the whole island.</summary>
-        public int RepairingStation(string island) => Get(island).save.repairStation;
+        /// <summary>True while a crew is out on this one station.</summary>
+        public bool Repairing(string island, int station)
+        {
+            long[] end = Get(island).save.repairEnd;
+            return station >= 0 && station < end.Length && end[station] > 0L;
+        }
 
-        /// <summary>How far through the running repair, 0..1. Zero when nothing is being repaired.</summary>
-        public float RepairProgress(string island)
+        /// <summary>How far through one station's repair, 0..1. Zero when nobody is on it.</summary>
+        public float RepairProgress(string island, int station)
         {
             IslandCondition row = Get(island).save;
-            if (row.repairEndUnix <= 0L || row.repairSeconds <= 0) return 0f;
-            long left = row.repairEndUnix - _time.NowUnix();
+            if (station < 0 || station >= row.repairEnd.Length) return 0f;
+            if (row.repairEnd[station] <= 0L || row.repairSecs[station] <= 0) return 0f;
+
+            long left = row.repairEnd[station] - _time.NowUnix();
             if (left <= 0L) return 1f;
-            float p = 1f - left / (float)row.repairSeconds;
+            float p = 1f - left / (float)row.repairSecs[station];
             return p < 0f ? 0f : (p > 1f ? 1f : p);
         }
 
-        public float RepairSecondsLeft(string island)
+        public float RepairSecondsLeft(string island, int station)
         {
             IslandCondition row = Get(island).save;
-            long left = row.repairEndUnix - _time.NowUnix();
+            if (station < 0 || station >= row.repairEnd.Length) return 0f;
+            long left = row.repairEnd[station] - _time.NowUnix();
             return left > 0L ? left : 0f;
         }
 
         public double RepairCost(string island, int station, double islandRatePerMinute)
             => _enabled ? Maintenance.RepairCost(StateOfRepair(island, station), islandRatePerMinute, _tuning) : 0d;
 
+        /// <summary>
+        /// The bill for everything that is worn and NOT already being seen to — what HEPSİNİ ONAR
+        /// will actually start. Quoting for the buildings that already have a crew on them would be
+        /// a button lying about its own price, since it is not going to start them a second time.
+        /// </summary>
         public double RepairCostAll(string island, double islandRatePerMinute)
-            => _enabled ? Maintenance.RepairCostAll(Get(island).save.station, islandRatePerMinute, _tuning) : 0d;
+        {
+            if (!_enabled) return 0d;
+            IslandCondition row = Get(island).save;
+            double total = 0d;
+            for (int s = 0; s < row.station.Length; s++)
+            {
+                if (row.repairEnd[s] > 0L) continue;
+                total += Maintenance.RepairCost(row.station[s], islandRatePerMinute, _tuning);
+            }
+            return total;
+        }
 
         /// <summary>True while the island is running its post-repair maintenance bonus.</summary>
         public bool BonusActive(string island) => Get(island).save.bonusEndUnix > _time.NowUnix();
@@ -217,19 +252,17 @@ namespace Game.Systems
                 Row row = _order[i];
                 float[] state = row.save.station;
 
-                bool moved = row.save.repairEndUnix > 0L;
+                bool moved = false;
                 for (int st = 0; st < state.Length; st++)
                 {
+                    if (row.save.repairEnd[st] > 0L) moved = true;
                     if (state[st] >= 1f) continue;
                     state[st] = 1f;
                     moved = true;
                 }
                 if (!moved) continue;
 
-                row.save.repairEndUnix = 0L;
-                row.save.repairStation = -1;
-                row.save.repairSeconds = 0;
-                row.save.repairFrom = null;
+                Idle(row);
 
                 Refresh(row);
                 Changed?.Invoke(row.save.id);
@@ -274,15 +307,17 @@ namespace Game.Systems
             for (int i = 0; i < _order.Count; i++)
             {
                 Row row = _order[i];
-                // A crew that was on site when the player left finishes the job. The grace window is
-                // hours and a repair is minutes, so this only ever describes an absence that began
-                // mid-repair — and charging wear against a station that is being mended at that
-                // moment would show the player a bar going backwards for no reason they can see.
-                if (row.save.repairEndUnix > 0L) continue;
 
                 bool moved = false;
                 for (int s = 0; s < row.save.station.Length; s++)
                 {
+                    // A crew that was on site when the player left finishes the job. The grace window
+                    // is hours and a repair is minutes, so this only ever describes an absence that
+                    // began mid-repair — and charging wear against a station that is being mended at
+                    // that moment would show the player a bar going backwards for no reason they can
+                    // see. Per station now, so the four buildings nobody is on still wear.
+                    if (row.save.repairEnd[s] > 0L) continue;
+
                     float was = row.save.station[s];
                     float worn = Maintenance.Decay(was, elapsed, Wear(s), _tuning);
                     if (worn == was) continue;
@@ -300,55 +335,67 @@ namespace Game.Systems
         // ---- repairing -----------------------------------------------------------------------
 
         /// <summary>
-        /// Pays for a repair and puts the crew on site. <paramref name="station"/> below zero repairs
-        /// the whole island.
+        /// Pays for a repair and puts a crew on site. <paramref name="station"/> below zero takes on
+        /// every worn building at once.
         ///
-        /// The condition does not jump — it climbs to full over the crew's working time, so the
-        /// island visibly speeds up while they work rather than snapping fixed the moment the money
-        /// leaves the wallet.
+        /// Only work that is not already under way is quoted for or started, so tapping HEPSİNİ ONAR
+        /// while two crews are out prices and begins the OTHER six — the player is never charged
+        /// twice for the same building.
+        ///
+        /// Each station gets its own clock, scaled to its own damage, so a lightly scuffed depot is
+        /// back before the wrecked mine is. And the condition does not jump: it climbs to full over
+        /// the crew's working time, so the island visibly speeds up while they work rather than
+        /// snapping fixed the moment the money leaves the wallet.
         /// </summary>
         public bool TryRepair(string island, int station, double islandRatePerMinute)
         {
             if (!_enabled) return false;
 
             Row row = Get(island);
-            if (row.save.repairEndUnix > 0L) return false;   // a crew is already out
-
-            bool whole = station < 0;
             float[] state = row.save.station;
-            if (!whole && (station >= state.Length || state[station] >= 1f)) return false;
-            if (whole && !NeedsRepair(island)) return false;
+            long[] end = row.save.repairEnd;
+            bool whole = station < 0;
 
-            double cost = whole
-                ? Maintenance.RepairCostAll(state, islandRatePerMinute, _tuning)
-                : Maintenance.RepairCost(state[station], islandRatePerMinute, _tuning);
+            // Price what this call would actually start, and nothing else. An out-of-range station
+            // simply matches nothing and falls out at the jobs check below.
+            double cost = 0d;
+            int jobs = 0;
+            for (int s = 0; s < state.Length; s++)
+            {
+                if (!whole && s != station) continue;
+                if (end[s] > 0L || state[s] >= 1f) continue;
+                cost += Maintenance.RepairCost(state[s], islandRatePerMinute, _tuning);
+                jobs++;
+            }
+            if (jobs == 0) return false;
             if (cost > 0d && !_wallet.TrySpendCash(new BigDouble(cost))) return false;
 
-            float seconds = whole
-                ? Maintenance.RepairSecondsAll(state, _tuning)
-                : Maintenance.RepairSeconds(state[station], _tuning);
+            long now = _time.NowUnix();
+            for (int s = 0; s < state.Length; s++)
+            {
+                if (!whole && s != station) continue;
+                if (end[s] > 0L || state[s] >= 1f) continue;
 
-            if (row.save.repairFrom == null || row.save.repairFrom.Length != state.Length)
-                row.save.repairFrom = new float[state.Length];
-            for (int s = 0; s < state.Length; s++) row.save.repairFrom[s] = state[s];
-
-            row.save.repairStation = whole ? -1 : station;
-            row.save.repairSeconds = (int)(seconds < 1f ? 1f : seconds);
-            row.save.repairEndUnix = _time.NowUnix() + row.save.repairSeconds;
+                float seconds = Maintenance.RepairSeconds(state[s], _tuning);
+                row.save.repairFrom[s] = state[s];
+                row.save.repairSecs[s] = (int)(seconds < 1f ? 1f : seconds);
+                end[s] = now + row.save.repairSecs[s];
+            }
 
             Changed?.Invoke(island);
             return true;
         }
 
         /// <summary>
-        /// Finishes the running repair on the spot — what the rewarded ad and the gem skip buy. Does
-        /// not touch the wallet: whoever sold the skip has already collected for it.
+        /// Finishes every running repair on the island on the spot — what the rewarded ad and the gem
+        /// skip buy. Does not touch the wallet: whoever sold the skip has already collected for it.
         /// </summary>
         public void SkipRepair(string island)
         {
             Row row = Get(island);
-            if (row.save.repairEndUnix <= 0L) return;
-            Complete(row);
+            long[] end = row.save.repairEnd;
+            for (int s = 0; s < end.Length; s++)
+                if (end[s] > 0L) Complete(row, s);
         }
 
         /// <summary>
@@ -360,10 +407,8 @@ namespace Game.Systems
         {
             Row row = Get(island);
             for (int s = 0; s < row.save.station.Length; s++) row.save.station[s] = 1f;
-            row.save.repairEndUnix = 0L;
-            row.save.repairStation = -1;
-            row.save.repairSeconds = 0;
             row.save.bonusEndUnix = 0L;
+            Idle(row);
             Refresh(row);
             Changed?.Invoke(island);
         }
@@ -400,58 +445,67 @@ namespace Game.Systems
                     Changed?.Invoke(row.save.id);
                 }
 
-                if (row.save.repairEndUnix <= 0L) continue;
-                if (now >= row.save.repairEndUnix) { Complete(row); continue; }
-                Advance(row, now);
+                long[] end = row.save.repairEnd;
+                bool moved = false;
+                for (int s = 0; s < end.Length; s++)
+                {
+                    if (end[s] <= 0L) continue;
+                    if (now >= end[s]) { Complete(row, s); continue; }   // raises its own events
+                    Advance(row, s, now);
+                    moved = true;
+                }
+                // One rebuild and one event for the row, however many crews are out on it. Four
+                // buildings climbing at once is still one change to what the island runs at.
+                if (moved)
+                {
+                    Refresh(row);
+                    Changed?.Invoke(row.save.id);
+                }
             }
         }
 
-        /// <summary>One step of a running repair: every station under the crew climbs toward new.</summary>
-        private void Advance(Row row, long now)
+        /// <summary>One step of one station's repair: it climbs from where the crew found it.</summary>
+        private void Advance(Row row, int station, long now)
         {
-            long left = row.save.repairEndUnix - now;
-            float p = 1f - left / (float)row.save.repairSeconds;
+            long left = row.save.repairEnd[station] - now;
+            float p = 1f - left / (float)row.save.repairSecs[station];
             if (p < 0f) p = 0f;
 
-            float[] state = row.save.station;
-            float[] from = row.save.repairFrom;
-            int only = row.save.repairStation;
-
-            for (int s = 0; s < state.Length; s++)
-            {
-                if (only >= 0 && s != only) continue;
-                float start = from != null && s < from.Length ? from[s] : state[s];
-                state[s] = start + (1f - start) * p;
-            }
-            Refresh(row);
-            Changed?.Invoke(row.save.id);
+            float start = row.save.repairFrom[station];
+            row.save.station[station] = start + (1f - start) * p;
         }
 
-        private void Complete(Row row)
+        private void Complete(Row row, int station)
         {
             float[] state = row.save.station;
-            int only = row.save.repairStation;
-            for (int s = 0; s < state.Length; s++)
-                if (only < 0 || s == only) state[s] = 1f;
+            state[station] = 1f;
+            row.save.repairEnd[station] = 0L;
+            row.save.repairSecs[station] = 0;
 
-            // The bonus is for putting the WHOLE island right. Awarded on a station repair that
-            // happens to leave nothing else worn too, because the player who fixes their last dirty
-            // building one at a time has done the same job as the one who tapped Hepsini Onar, and
-            // being paid less for the tidier habit would be a strange thing to teach.
+            // The bonus is for putting the WHOLE island right. Awarded on the station repair that
+            // happens to leave nothing else worn, because the player who fixes their buildings one
+            // at a time has done the same job as the one who tapped HEPSİNİ ONAR, and being paid
+            // less for the tidier habit would be a strange thing to teach.
             bool whole = true;
             for (int s = 0; s < state.Length; s++)
                 if (state[s] < 1f) { whole = false; break; }
             if (whole && _tuning.BonusMultiplier > 1f && _tuning.BonusMinutes > 0f)
                 row.save.bonusEndUnix = _time.NowUnix() + (long)(_tuning.BonusMinutes * 60f);
 
-            row.save.repairEndUnix = 0L;
-            row.save.repairSeconds = 0;
-            row.save.repairFrom = null;
-
             Refresh(row);
             Changed?.Invoke(row.save.id);
-            Repaired?.Invoke(row.save.id, only);
-            row.save.repairStation = -1;
+            Repaired?.Invoke(row.save.id, station);
+        }
+
+        /// <summary>Sends every crew home without finishing the job. For a wipe, a shield or a reset.</summary>
+        private static void Idle(Row row)
+        {
+            for (int s = 0; s < row.save.repairEnd.Length; s++)
+            {
+                row.save.repairEnd[s] = 0L;
+                row.save.repairSecs[s] = 0;
+                row.save.repairFrom[s] = row.save.station[s];
+            }
         }
 
         // ---- rows ----------------------------------------------------------------------------
@@ -486,6 +540,15 @@ namespace Game.Systems
         {
             if (save.station == null || save.station.Length != Maintenance.Stations)
                 save.station = Maintenance.NewConditions();
+            // Sized here and never again, so every read below can index them without a guard. A save
+            // written before repairs were per-station arrives with these null and simply starts idle:
+            // whatever one crew was halfway through is lost, which costs the player minutes.
+            if (save.repairEnd == null || save.repairEnd.Length != Maintenance.Stations)
+                save.repairEnd = new long[Maintenance.Stations];
+            if (save.repairSecs == null || save.repairSecs.Length != Maintenance.Stations)
+                save.repairSecs = new int[Maintenance.Stations];
+            if (save.repairFrom == null || save.repairFrom.Length != Maintenance.Stations)
+                save.repairFrom = new float[Maintenance.Stations];
 
             var row = new Row { save = save, effective = new float[Maintenance.Stations] };
             Refresh(row);

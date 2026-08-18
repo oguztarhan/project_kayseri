@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: water_Silver
-  m_Shader: {fileID: 4800000, guid: 8a6b1bd75954f49dbab7dfd590976c02, type: 3}
+  m_Shader: {fileID: 4800000, guid: dbbf108a4bb9a4a7b9514d8bca64c5bd, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -25,27 +25,38 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _AmbientAmount: 0.4
+    - _AmbientAmount: 0.5
     - _AmbientHemi: 0.65
     - _BandHigh: 0.5
     - _BandLow: 0.26
     - _BandSharp: 0.13
+    - _Bend: 4
+    - _BendScale: 0.29
+    - _Choppy: 0.55
+    - _Depth: 1
     - _DetailScale: 0.5
     - _DetailStrength: 0.09
     - _Emission: 0
     - _EmissionAlways: 0
     - _EmissionFloor: 0.3
-    - _EmissionNight: 0.6
+    - _EmissionNight: 0
     - _FlowSpeed: 0.608
+    - _FoamAmount: 0.7
+    - _FoamLevel: 0.76
+    - _FoamWidth: 0.1
+    - _GlitterStrength: 0.45
     - _Grime: 0
+    - _Jitter: 0.34
+    - _JitterScale: 0.24
     - _Metallic: 0.9
-    - _NormalStrength: 3.3799996
+    - _NormalStrength: 3.25
     - _RimPower: 3
     - _RimStrength: 0.35
     - _Saturation: 0.85
-    - _Scale: 0.044800002
-    - _Smoothness: 0.96
-    - _SpecularStrength: 1.9
+    - _Scale: 0.255
+    - _SkyAmount: 0.3
+    - _Smoothness: 0.97
+    - _SpecularStrength: 1
     - _Stretch: 0.36
     - _ToonSmoothness: 0.25
     - _ToonSteps: 6
@@ -56,17 +67,22 @@ Material:
     - _VertexColorAmount: 0
     - _Vibrance: 1.02
     - _Warp: 0.34
+    - _WaveSpeed: 1.14
+    - _Wrap: 0.2
     m_Colors:
     - _AmbientGround: {r: 0.54999995, g: 0.47999996, b: 0.39999998, a: 1}
     - _BaseColor: {r: 0.27383846, g: 0.30699936, b: 0.3672465, a: 1}
-    - _DeepColor: {r: 0.046964195, g: 0.059253525, b: 0.08898155, a: 1}
+    - _DeepColor: {r: 0.012510408, g: 0.014349877, b: 0.018478468, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FlowDir: {r: 1, g: 0.2, b: 0, a: 0}
+    - _FoamColor: {r: 0.89000547, g: 0.91140765, b: 1, a: 1}
     - _GrimeColor: {r: 0.25999996, g: 0.20999995, b: 0.14999998, a: 1}
     - _HotColor: {r: 0.9331069, g: 0.9774019, b: 1, a: 1}
     - _MidColor: {r: 0.34239164, g: 0.3931232, b: 0.47699985, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
-    - _ShadowTint: {r: 0.41999996, g: 0.47999996, b: 0.68, a: 1}
+    - _ShadowTint: {r: 0.07323897, g: 0.11928018, b: 0.26327342, a: 1}
+    - _ShallowColor: {r: 0.34239164, g: 0.38005632, b: 0.44798842, a: 1}
+    - _SkyTint: {r: 0.26327342, g: 0.34239164, b: 0.5225216, a: 1}
     - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}
     - _VeinColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

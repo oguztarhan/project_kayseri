@@ -57,6 +57,50 @@ Shader "Kayseri/IslandVertexLit"
         _AmbientGround("Ambient Ground Tint", Color) = (0.55,0.48,0.40,1)
         _AmbientHemi("Hemisphere Amount", Range(0,1)) = 0.65
 
+        // Per-island colour. The bake carries one set of colours for all eight maps, so this
+        // shifts the HUE of what was baked while keeping its luminance exactly - every blotch,
+        // grain and corrugation in the vertex colour survives, which is the whole reason this is a
+        // tint and not a _BaseColor override the way the sea uses. _Tint is pre-divided by its own
+        // luminance on the C# side, so multiplying it by the pixel's luminance lands on the target
+        // hue at the original brightness; folding a value scale into it is what lets an island go
+        // darker as well as greener. Amount 0 on every stock material.
+        [Header(Island Tint)]
+        _Tint("Tint", Color) = (1,1,1,1)
+        _TintAmount("Tint Amount", Range(0,1)) = 0
+
+        // Lava mountains. The bake already has crevices in it - dark pixels are the cracks and
+        // hollows of the rock - so making the DARKEST part of the bake glow lights those cracks
+        // without a single new sample or any new geometry. Strength 0 everywhere but Ruby and Gold.
+        [Header(Embers)]
+        [HDR]_EmberColor("Ember Colour", Color) = (1,0.35,0.06,1)
+        _EmberStrength("Ember Strength", Range(0,8)) = 0
+        _EmberLevel("Ember Level", Range(0,1)) = 0.18
+        _EmberSoft("Ember Softness", Range(0.01,0.5)) = 0.12
+        _EmberNight("Ember Night Boost", Range(0,3)) = 0.8
+
+        // Ground fissures. A web of glowing splits in the ground, for an island with magma under
+        // it. Behind a shader_feature because this is the MAIN island shader - 1600 renderers -
+        // and only a handful of open-ground submeshes should ever pay for a cellular lookup. Off,
+        // it compiles to nothing.
+        //
+        // Districts are excluded structurally rather than by a mask: pads, roads and yards are
+        // their own geometry on concrete, asphalt and kerb, so enabling this only on the open
+        // ground submeshes already means no fissure ever crosses a building.
+        [Header(Ground Fissures)]
+        [Toggle(_ISLANDCRACKS)] _Cracks("Ground Fissures", Float) = 0
+        [HDR]_CrackColor("Fissure Colour", Color) = (1,0.30,0.04,1)
+        _CrackStrength("Fissure Strength", Range(0,8)) = 2.0
+        // 1/_CrackScale is roughly the spacing between fissures in world units.
+        _CrackScale("Fissure Scale", Range(0.002,0.2)) = 0.022
+        _CrackWidth("Fissure Width", Range(0.01,0.6)) = 0.13
+        _CrackWarp("Fissure Warp", Range(0,3)) = 1.1
+        // How much of the ground splits at all. At 1 the entire map is a lava field, which reads
+        // as a texture; leaving clean stretches between the runs is what makes it look like ground
+        // that has opened up in places.
+        _CrackCoverage("Fissure Coverage", Range(0,1)) = 0.45
+        _CrackSpeed("Fissure Drift", Range(0,2)) = 0.25
+        _CrackNight("Fissure Night Boost", Range(0,6)) = 1.6
+
         // Neglect. Zero on all 78 authored materials, so nothing on the island changes until
         // DistrictWear swaps a district onto a worn variant of the same material. It lives in
         // UnityPerMaterial with everything else, which is what lets the worn and the clean variants
@@ -104,6 +148,21 @@ Shader "Kayseri/IslandVertexLit"
             half _AmbientHemi;
             half _Grime;
             half4 _GrimeColor;
+            half4 _Tint;
+            half _TintAmount;
+            half4 _EmberColor;
+            half _EmberStrength;
+            half _EmberLevel;
+            half _EmberSoft;
+            half _EmberNight;
+            half4 _CrackColor;
+            half _CrackStrength;
+            half _CrackScale;
+            half _CrackWidth;
+            half _CrackWarp;
+            half _CrackCoverage;
+            half _CrackSpeed;
+            half _CrackNight;
         CBUFFER_END
 
         // Time of day, written once per frame by DayNightCycle through Shader.SetGlobal*.
@@ -142,6 +201,52 @@ Shader "Kayseri/IslandVertexLit"
             half c = Hash21(cell + float2(0, 1));
             half d = Hash21(cell + float2(1, 1));
             return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+        }
+
+        /// A web of glowing fissures across the ground, from the same cellular field the ocean's
+        /// crust shader uses: F2 - F1 is zero exactly on a cell boundary, so the result is a
+        /// CONNECTED network of splits rather than a field of separate spots.
+        ///
+        /// The coverage mask and the domain warp share one noise sample. They want to correlate
+        /// anyway - ground splits where it is already deformed - and it saves four hashes.
+        half3 IslandFissures(float3 positionWS)
+        {
+            float t = _Time.y * _CrackSpeed;
+            float2 uv = positionWS.xz * _CrackScale;
+
+            half w = ValueNoise(uv * 0.42h + float2(t * 0.04h, -t * 0.03h));
+            float2 p = uv + (w - 0.5h) * _CrackWarp;
+
+            float2 cell = floor(p);
+            float2 f = frac(p);
+            half d1 = 8.0h, d2 = 8.0h, id = 0.0h;
+            [unroll]
+            for (int j = -1; j <= 1; j++)
+            {
+                [unroll]
+                for (int i = -1; i <= 1; i++)
+                {
+                    float2 g = float2(i, j);
+                    float2 c = cell + g;
+                    float2 o = float2(Hash21(c), Hash21(c + 71.3));
+                    half d = length(g + o - f);
+                    id = lerp(id, (half)o.x, step(d, d1));
+                    d2 = min(d2, max(d1, d));
+                    d1 = min(d1, d);
+                }
+            }
+
+            half crack = 1.0h - smoothstep(0.0h, _CrackWidth, d2 - d1);
+            crack *= crack;
+
+            // Clean ground between the runs, so they read as splits and not as a pattern.
+            crack *= smoothstep(_CrackCoverage - 0.18h, _CrackCoverage + 0.18h, w);
+
+            // Each run breathes on its own clock, off its cell id, so the field is never uniform.
+            crack *= 0.72h + 0.28h * sin(_Time.y * 0.7h + id * 24.0h);
+
+            return _CrackColor.rgb * crack * _CrackStrength
+                 * (1.0h + _KayseriNight * _CrackNight);
         }
 
         /// Three octaves of grain in world space, projected top-down on flat ground and from the
@@ -184,6 +289,9 @@ Shader "Kayseri/IslandVertexLit"
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
+            // shader_feature, not multi_compile: the variant is only built if a material asks for
+            // it, so the 78 materials that do not are untouched in both build size and cost.
+            #pragma shader_feature_local_fragment _ _ISLANDCRACKS
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
@@ -240,6 +348,12 @@ Shader "Kayseri/IslandVertexLit"
                 //   amount 1 = baked colour + all its procedural detail
                 //   amount 0 = flat _BaseColor fallback
                 half3 albedo = IslandGrade(lerp(_BaseColor.rgb, IN.color.rgb, _VertexColorAmount));
+
+                // Luminance is what carries the baked detail, so it is the one thing the tint must
+                // not touch. Taken before the grain and the grime below, which then go on doing
+                // their work on this island's colour rather than on the shared bake's.
+                half bakeLum = dot(albedo, half3(0.2126h, 0.7152h, 0.0722h));
+                albedo = lerp(albedo, _Tint.rgb * bakeLum, _TintAmount);
 
                 InputData inputData = (InputData)0;
                 inputData.positionWS = IN.positionWS;
@@ -334,8 +448,18 @@ Shader "Kayseri/IslandVertexLit"
                                      lerp(inputData.bakedGI * _AmbientGround.rgb, inputData.bakedGI, up),
                                      _AmbientHemi);
 
+                // The dark end of the bake, which on rock is its cracks and hollows. Ungated by
+                // _KayseriLightsOn - molten rock is not a street lamp - and brighter after dark.
+                half ember = (1.0h - smoothstep(_EmberLevel - _EmberSoft, _EmberLevel + _EmberSoft, bakeLum))
+                           * _EmberStrength * (1.0h + _KayseriNight * _EmberNight);
+
                 half3 lit3 = albedo * (ramp + ambient * _AmbientAmount)
-                           + specular + rim + _EmissionColor.rgb * max(_EmissionAlways, _KayseriLightsOn);
+                           + specular + rim + _EmissionColor.rgb * max(_EmissionAlways, _KayseriLightsOn)
+                           + _EmberColor.rgb * ember;
+
+            #if defined(_ISLANDCRACKS)
+                lit3 += IslandFissures(IN.positionWS);
+            #endif
 
                 half4 color = half4(lit3, _BaseColor.a);
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);

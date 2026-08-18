@@ -25,6 +25,9 @@ namespace Game.Systems
         [SerializeField] private AudioConfig audioConfig;
         [SerializeField] private JuiceConfig juiceConfig;
         [SerializeField] private AccessibilityConfig accessibilityConfig;
+        [Tooltip("Ödüllü reklam kimlikleri. Boş bırakılırsa cihazda reklam hiç açılmaz " +
+                 "(editörde zaten anında ödül veren taklit servis çalışır).")]
+        [SerializeField] private AdsConfig adsConfig;
         [SerializeField] private string mainSceneName = "Main";
         [SerializeField] private bool loadMainOnStart = true;
         [Tooltip("Boşsa Main tek karede yüklenir ve açılış görseli görünmez.")]
@@ -46,6 +49,9 @@ namespace Game.Systems
 
         private TimeService _time;
         private NotificationService _notifications;
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
+        private AdMobService _ads;
+#endif
 
         private void Awake()
         {
@@ -87,7 +93,14 @@ namespace Game.Systems
             ServiceLocator.Register<IConsent>(new DevConsentService());
             ServiceLocator.Register<IRemoteConfig>(new LocalRemoteConfigService());
             ServiceLocator.Register<ICloudSave>(new LocalCloudSaveStub());
+            // Gerçek reklam yalnız cihazda. GMA'nın editör karşılığı yok, o yüzden editörde IAP ile
+            // aynı yolu izleyip anında ödül veren taklit servis kalır.
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
+            _ads = new AdMobService(adsConfig);
+            ServiceLocator.Register<IAdService>(_ads);
+#else
             ServiceLocator.Register<IAdService>(new StubAdService());
+#endif
             // Gerçek kasa yalnız Android/iOS cihazda. Editörde Billing/StoreKit yok; oradaki test yolu mağazanın kendi
             // devFreeIAP anahtarı. Kuralı gevşetip editörde de açarsak, UGS bağlantısı olmadığı her
             // oturumda konsol bir başlatma hatası yazar.
@@ -256,6 +269,10 @@ namespace Game.Systems
             // Same reason: a repair the player started before sailing away has to keep running while
             // they are somewhere else, and it is the crew's own clock that finishes it.
             Maintenance?.Tick(dt);
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
+            // The rewarded ad's load backoff, and the timeout on a tap that landed before one was ready.
+            _ads?.Tick(dt);
+#endif
         }
 
         /// <summary>

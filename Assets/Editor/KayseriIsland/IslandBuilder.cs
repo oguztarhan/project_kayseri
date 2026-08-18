@@ -139,6 +139,9 @@ namespace Kayseri.IslandTools
             // Same rule one step further out: BuildPhasePrefabs points the water at these, and a
             // missing ocean material there means the island quietly keeps the shared blue sea.
             IslandOceans.CreateMaterials();
+            // After CreateMaterials on purpose: the theme variants are COPIED from the palette
+            // materials, so those have to exist and be current first.
+            IslandTerrainTheme.CreateMaterials();
             ConfigureModelImports(island);
             BuildPhasePrefabs(island);
             BuildScene(island);
@@ -474,6 +477,13 @@ namespace Kayseri.IslandTools
                 int recoloured = IslandOceans.Apply(root, island);
                 if (recoloured > 0)
                     Debug.Log($"[Island] {island} phase {phase}: {recoloured} water renderers recoloured.");
+
+                // And the land that sea breaks on. Here for the same reason as the oceans above:
+                // the bake carries one temperate coast for all eight maps, so without this a lava
+                // sea washes up onto green grass.
+                int themed = IslandTerrainTheme.Apply(root, island);
+                if (themed > 0)
+                    Debug.Log($"[Island] {island} phase {phase}: {themed} terrain renderers themed.");
 
                 string prefabPath = $"{prefabRoot}/Island_Phase{phase}.prefab";
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath);

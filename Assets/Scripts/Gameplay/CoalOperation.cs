@@ -666,6 +666,15 @@ namespace Game.Gameplay
         private readonly FlowMeter _refinedFlow = new FlowMeter();
         private readonly FlowMeter _deliveredFlow = new FlowMeter();
 
+        // The same trailing minute, pointed at the BUFFERS instead of the goods. A pile sitting at
+        // its ceiling is what gives a bottleneck away, and asking one how full it is the instant the
+        // report refreshes misses it: every buffer here is a sawtooth, held at the ceiling until a
+        // truck takes a load out of it, and the upgrade screen samples four times a second. These
+        // count the seconds each one spent backed up, which no truck arriving can hide.
+        private readonly FlowMeter _yardFullFlow = new FlowMeter();
+        private readonly FlowMeter _furnaceQueueFlow = new FlowMeter();
+        private readonly FlowMeter _barStoreFullFlow = new FlowMeter();
+
         /// <summary>Ore a minute the trains tip into the yard.</summary>
         public double OreMinedPerMinute => _minedFlow.PerMinute;
         /// <summary>Ore a minute the ore trucks carry from the yard to the furnace.</summary>
@@ -677,12 +686,28 @@ namespace Game.Gameplay
         /// <summary>Whether the four meters have run long enough to be worth reading.</summary>
         public bool FlowReady => _minedFlow.Ready;
 
+        /// <summary>Seconds of the last minute the ore yard sat at its ceiling, which parks the trains.</summary>
+        public double YardFullSeconds => _yardFullFlow.PerMinute;
+        /// <summary>Seconds of the last minute more ore was queued at the furnace than it can chew in six.</summary>
+        public double FurnaceQueueSeconds => _furnaceQueueFlow.PerMinute;
+        /// <summary>Seconds of the last minute the bar store was full, which stops the furnace dead.</summary>
+        public double BarStoreFullSeconds => _barStoreFullFlow.PerMinute;
+
         private void TickFlowMeters(float dt)
         {
             _minedFlow.Tick(dt);
             _hauledFlow.Tick(dt);
             _refinedFlow.Tick(dt);
             _deliveredFlow.Tick(dt);
+
+            // Six seconds of work is the furnace's own yardstick: less than that in front of it is a
+            // truck that has just tipped, more than that is ore it cannot keep up with.
+            if (_storeOre >= EffStorageFull - 0.01d) _yardFullFlow.Add(dt);
+            if (_refOre >= EffSmelt * 6f) _furnaceQueueFlow.Add(dt);
+            if (_bars >= EffBarCap - 0.01d) _barStoreFullFlow.Add(dt);
+            _yardFullFlow.Tick(dt);
+            _furnaceQueueFlow.Tick(dt);
+            _barStoreFullFlow.Tick(dt);
         }
 
         /// <summary>
