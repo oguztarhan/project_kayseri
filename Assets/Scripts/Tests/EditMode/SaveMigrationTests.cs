@@ -32,6 +32,7 @@ namespace Game.Tests
             // ...and a wallet's worth of real purchases behind it
             d.adsRemoved = true;
             d.purchasedOffers.AddRange(new[] { "remove_ads", "gece_vardiyasi" });
+            d.stationSpeedMultiplier = 2d;
             d.offlineEfficiencyBonus = 0.2d;
             d.offlineCapBonusSeconds = 7200L;
             d.dailyRewardBonusMult = 1d;
@@ -100,6 +101,7 @@ namespace Game.Tests
             Assert.AreEqual(640L, fresh.wallet.gems);
             Assert.IsTrue(fresh.adsRemoved);
             CollectionAssert.AreEquivalent(new[] { "remove_ads", "gece_vardiyasi" }, fresh.purchasedOffers);
+            Assert.AreEqual(2d, fresh.stationSpeedMultiplier, 1e-9);
             Assert.AreEqual(0.2d, fresh.offlineEfficiencyBonus, 1e-9);
             Assert.AreEqual(7200L, fresh.offlineCapBonusSeconds);
             Assert.AreEqual(1d, fresh.dailyRewardBonusMult, 1e-9);

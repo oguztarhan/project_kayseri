@@ -186,12 +186,14 @@ namespace Game.Tests
         /// island's clock is running twice as fast, so twice as many bars arrive per real second.
         /// </summary>
         private static void RunLiveIsland(double boostMult, double simSpeed,
-                                          out double cash, out double savedRate)
+                                          out double cash, out double savedRate,
+                                          double permanentMult = 1d)
         {
             var data = new SaveData();
+            data.stationSpeedMultiplier = permanentMult;
             var wallet = new WalletService(data.wallet);
             BoostService boost = null;
-            if (boostMult > 1d)
+            if (boostMult > 1d || permanentMult > 1d)
             {
                 boost = new BoostService(data, new TimeService());
                 boost.AddBoost(boostMult, 3600d);     // far longer than the minute below takes to run
@@ -248,6 +250,20 @@ namespace Game.Tests
             Assert.That(plainRate, Is.EqualTo(120d).Within(1d), "the control measured the wrong thing");
             Assert.That(boostRate, Is.EqualTo(120d).Within(1d),
                         "the persisted delivery rate must describe an unboosted island");
+        }
+
+        [Test]
+        public void PermanentStationSpeed_DoublesIncomeButKeepsTheDeliveryRateClean()
+        {
+            double plainCash, plainRate;
+            RunLiveIsland(1d, 1d, out plainCash, out plainRate);
+
+            double patronCash, patronRate;
+            RunLiveIsland(1d, 2d, out patronCash, out patronRate, 2d);
+
+            Assert.That(patronCash, Is.EqualTo(plainCash * 2d).Within(plainCash * 0.02d));
+            Assert.That(patronRate, Is.EqualTo(plainRate).Within(1d),
+                        "permanent speed belongs in income, not in the stored physical delivery baseline");
         }
 
         // ---- what an absence does ---------------------------------------------------------------

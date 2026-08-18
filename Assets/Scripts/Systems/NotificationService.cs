@@ -29,16 +29,23 @@ namespace Game.Systems
         private readonly OfflineConfig _config;
         private readonly TimeService _time;
         private readonly INotifications _sink;
+        private readonly ContractService _contract;
         private readonly int _testSpacing;
         private readonly NotificationSlot[] _slots = new NotificationSlot[NotificationPlan.MaxSlots];
+        private readonly NotificationCandidate[] _candidates =
+            new NotificationCandidate[NotificationSchedulePlanner.MaxCandidates];
+        private readonly NotificationCandidate[] _planned =
+            new NotificationCandidate[NotificationSchedulePlanner.MaxScheduled];
 
         public NotificationService(SaveData data, OfflineConfig config, TimeService time,
-                                   INotifications sink, int testSpacingSeconds = 0)
+                                   INotifications sink, ContractService contract = null,
+                                   int testSpacingSeconds = 0)
         {
             _data = data;
             _config = config;
             _time = time;
             _sink = sink;
+            _contract = contract;
             _testSpacing = testSpacingSeconds;
         }
 
@@ -59,13 +66,15 @@ namespace Game.Systems
             bool pays = _config != null && _config.Enabled && efficiency > 0d && _data.incomeRatePerSec > 0d;
             long boostLeft = _data.boostEndUnix - _time.NowUnix();
 
-            int count = NotificationPlan.Build(DateTime.Now, cap, _slots, _testSpacing);
+            DateTime leaveLocal = DateTime.Now;
+            int count = NotificationPlan.Build(leaveLocal, cap, _slots, _testSpacing);
             if (_testSpacing > 0)
                 UnityEngine.Debug.LogWarning($"[Bildirim] TEST MODU acik: {count} bildirim " +
                                              $"{_testSpacing} saniye arayla gidecek. Yayina cikmadan " +
                                              "GameBootstrap'taki test araligini 0 yap.");
 
-            for (int i = 0; i < count; i++)
+            int candidateCount = 0;
+            for (int i = 0; i < count && candidateCount < _candidates.Length; i++)
             {
                 NotificationKind kind = _slots[i].Kind;
 
@@ -82,7 +91,31 @@ namespace Game.Systems
                     if (total.Mantissa > 0d) money = "$" + NumberFormatter.Format(total);
                 }
 
-                _sink.Schedule(Loc.T(TitleKey(kind)), Body(kind, money), _slots[i].AfterSeconds);
+                _candidates[candidateCount++] = new NotificationCandidate
+                {
+                    Id = "away:" + kind,
+                    Title = Loc.T(TitleKey(kind)),
+                    Message = Body(kind, money),
+                    Target = string.Empty,
+                    AfterSeconds = _slots[i].AfterSeconds,
+                    Priority = 10
+                };
+            }
+
+            if (_testSpacing > 0)
+            {
+                for (int i = 0; i < candidateCount; i++) Schedule(_candidates[i]);
+                return;
+            }
+
+            AddRepairCandidates(ref candidateCount);
+            AddContractCandidates(ref candidateCount);
+
+            int planned = NotificationSchedulePlanner.Build(leaveLocal, _candidates, candidateCount, _planned);
+            for (int i = 0; i < planned; i++)
+            {
+                NotificationCandidate n = _planned[i];
+                Schedule(n);
             }
         }
 
@@ -96,6 +129,79 @@ namespace Game.Systems
         public void RequestPermission()
         {
             if (_sink != null) _sink.RequestPermission();
+        }
+
+        public void RefreshOpenedTarget()
+        {
+            if (_sink != null) _sink.RefreshOpenedTarget();
+        }
+
+        public string PollOpenedTarget() => _sink != null ? _sink.PollOpenedTarget() : null;
+
+        private void Schedule(NotificationCandidate n)
+        {
+            _sink.Schedule(new LocalNotificationRequest
+            {
+                Id = n.Id,
+                Title = n.Title,
+                Message = n.Message,
+                Target = n.Target,
+                AfterSeconds = n.AfterSeconds
+            });
+        }
+
+        private void AddRepairCandidates(ref int count)
+        {
+            if (_data.conditions == null) return;
+            long now = _time.NowUnix();
+            for (int i = 0; i < _data.conditions.Count && count < _candidates.Length; i++)
+            {
+                IslandCondition row = _data.conditions[i];
+                if (row == null || string.IsNullOrEmpty(row.id) || row.repairEndUnix <= now) continue;
+                long left = row.repairEndUnix - now;
+                if (left > int.MaxValue) continue;
+                string island = Loc.Id("ada", row.id);
+                bool whole = row.repairStation < 0;
+                _candidates[count++] = new NotificationCandidate
+                {
+                    Id = "repair:" + row.id,
+                    Title = Loc.T(whole ? "bildirim.onarim_tam_baslik" : "bildirim.onarim_baslik"),
+                    Message = string.Format(Loc.T(whole ? "bildirim.onarim_tam" : "bildirim.onarim"), island),
+                    Target = "island:" + row.id,
+                    AfterSeconds = (int)left,
+                    Priority = 100
+                };
+            }
+        }
+
+        private void AddContractCandidates(ref int count)
+        {
+            if (_contract == null || count >= _candidates.Length) return;
+            if (_contract.Claimable)
+            {
+                _candidates[count++] = new NotificationCandidate
+                {
+                    Id = "contract:reward",
+                    Title = Loc.T("bildirim.kontrat_odul_baslik"),
+                    Message = Loc.T("bildirim.kontrat_odul"),
+                    Target = "contract",
+                    AfterSeconds = 30 * 60,
+                    Priority = 90
+                };
+                return;
+            }
+
+            int untilOffers = (int)_contract.SecondsUntilOffers;
+            if (untilOffers < 10 * 60 || count >= _candidates.Length) return;
+            _candidates[count++] = new NotificationCandidate
+            {
+                Id = "contract:offers",
+                Title = Loc.T("bildirim.kontrat_geldi_baslik"),
+                Message = Loc.T("bildirim.kontrat_geldi"),
+                Target = "contract",
+                AfterSeconds = untilOffers,
+                Priority = 80
+            };
         }
 
         private static string TitleKey(NotificationKind kind)

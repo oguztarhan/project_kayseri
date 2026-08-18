@@ -78,7 +78,7 @@ namespace Game.Systems
         private string _activeIsland;    // the one whose trucks are really driving; null in the market scene
         private string _simulatedYard;   // the one being acted out on screen; null when nobody is in the hall
         private float _accum;
-        private double _prestigeMult = 1d, _boostMult = 1d, _simSpeed = 1d;
+        private double _prestigeMult = 1d, _boostMult = 1d, _permanentSpeed = 1d, _simSpeed = 1d;
 
         /// <summary>
         /// Raised when a yard actually sells: which island, and what the wallet was paid. The floating
@@ -119,7 +119,8 @@ namespace Game.Systems
         public string ActiveIsland => _activeIsland;
 
         /// <summary>
-        /// How fast the island being simulated should run its clock. 1 unless a boost is up.
+        /// How fast the island being simulated should run its clock. Permanent station speed and any
+        /// temporary boost are combined here so trains, lorries and stations visibly run at that speed.
         ///
         /// A ×2 that only ever landed on the price was invisible exactly where the player was looking:
         /// the trains kept their pace, the lorries kept theirs, and a boosted island was indistinguishable
@@ -346,10 +347,11 @@ namespace Game.Systems
             // Once a second, off the sale path — the same cadence the island meter used.
             _prestigeMult = _prestige != null ? _prestige.IncomeMultiplier : 1d;
             _boostMult = _boost != null ? _boost.ActiveMultiplier : 1d;
+            _permanentSpeed = _boost != null ? _boost.PermanentMultiplier : 1d;
             // Spent on the live island's clock when there is one running, and on price otherwise. The
             // guard is what stops a boost going nowhere while the player stands in a market hall: no
             // island is simulating there, so there is nothing to speed up and the price keeps it.
-            _simSpeed = string.IsNullOrEmpty(_activeIsland) ? 1d : _boostMult;
+            _simSpeed = string.IsNullOrEmpty(_activeIsland) ? 1d : _permanentSpeed * _boostMult;
 
             double totalPerMin = 0d;
             for (int i = 0; i < _order.Count; i++)
@@ -421,11 +423,10 @@ namespace Game.Systems
         {
             if (y.terms == null) return 0d;
 
-            // The boost is spent on exactly one of these, never both: on the island being simulated it
-            // bought TIME, so twice the bars are already standing here and the price stays clean; every
-            // other yard has no clock to speed up and takes it on the price. <see cref="IslandTimeScale"/>.
+            // The live island has both multipliers in its clock, so divide the delivered bars back to a
+            // clean base first. Permanent speed then belongs in the saved income rate; the temporary
+            // boost is put back only in the payout and can never leak into the next offline session.
             double speed = SpeedFor(y);
-            double price = speed > 1d ? 1d : _boostMult;
 
             // Everything from here to the return is in CLEAN money — what this yard would be making on an
             // unboosted clock — because that is the denomination both the ceiling and the meter need. It
@@ -433,16 +434,16 @@ namespace Game.Systems
             // the same place either way, and the income meter (which feeds SaveData.incomeRatePerSec, and
             // through it the NEXT session's offline grant) never banks a rate that only existed while an
             // ad was running.
-            double sale = bars * y.terms.BarPriceRaw * _prestigeMult / speed;
+            double sale = bars * y.terms.BarPriceRaw * _prestigeMult / speed * _permanentSpeed;
             if (sale <= 0d) return 0d;
 
-            double cap = y.terms.IncomeCapPerMinuteRaw * _prestigeMult;
+            double cap = y.terms.IncomeCapPerMinuteRaw * _prestigeMult * _permanentSpeed;
             double headroom = cap - (y.earnTrailing + y.earnedThisTick);
             if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
             if (sale <= 0d) return 0d;
 
             y.earnedThisTick += sale;
-            return sale * speed * price;
+            return sale * _boostMult;
         }
 
         /// <summary>What the hires sold this tick, banked on the spot — a hired collector picks it up.</summary>
@@ -516,7 +517,9 @@ namespace Game.Systems
             y.earnIndex = (y.earnIndex + 1) % y.earnBuckets.Length;
             if (y.earnFilled < y.earnBuckets.Length) y.earnFilled++;
 
-            double cap = y.terms != null ? y.terms.IncomeCapPerMinuteRaw * _prestigeMult : double.MaxValue;
+            double cap = y.terms != null
+                ? y.terms.IncomeCapPerMinuteRaw * _prestigeMult * _permanentSpeed
+                : double.MaxValue;
             // Clamp the extrapolation rather than the buckets: while the window is still filling, one
             // good second scaled up by 60/filled reads far above anything the yard can sustain.
             double measured = y.earnTrailing * (60d / y.earnFilled);

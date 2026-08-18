@@ -158,6 +158,7 @@ namespace Game.UI
 
         public void Open()
         {
+            if (_contract == null) _contract = ServiceLocator.Get<ContractService>();
             if (_contract == null || panelRoot == null) return;
             Refresh();
             panelRoot.SetActive(true);
@@ -222,9 +223,10 @@ namespace Game.UI
         private void OnClaim()
         {
             if (_contract == null || !_contract.Claimable) return;
-            _contract.Claim();
+            if (!_contract.Claim()) return;
             var audio = ServiceLocator.Get<AudioService>();
             if (audio != null) audio.Play(SoundId.Coin);
+            ServiceLocator.Get<RatingPromptService>()?.RecordContractSuccess();
             Refresh();
         }
 

@@ -7,46 +7,59 @@ using UnityEngine.Purchasing;
 namespace Game.Systems
 {
     /// <summary>
-    /// The real till, behind the same one-method facade the stub used (<see cref="IIAPService"/>) — so
-    /// the store, the offer popup and the gem grid did not have to change a line.
+    /// Android ve iOS'un ortak gerçek kasası. Unity IAP platforma göre Google Play Billing veya
+    /// StoreKit'i seçer; oyun tarafında ürün kimlikleri ve hak geri yükleme akışı tek yerde kalır.
     ///
     /// Unity IAP v5 is event-driven and store-wide: there is ONE OnPurchasePending for every purchase,
     /// whoever started it and whenever it lands. The callback the store hands us is per-tap. The gap
     /// between those two shapes is what this class is: the in-flight sku is remembered, and the order is
     /// matched against it when it arrives.
     /// </summary>
-    public sealed class GooglePlayIAPService : IIAPService
+    public sealed class MobileIAPService : IIAPService
     {
         /// <summary>
-        /// Play Console ürün kimlikleri. Mağaza kartlarındaki sku'larla BİREBİR aynı olmalı — eşleşmeyen
+        /// Play Console / App Store Connect ürün kimlikleri. Mağaza kartlarındaki sku'larla BİREBİR aynı olmalı — eşleşmeyen
         /// bir kimlik satın alma anında "ürün yok" diye geri döner, kart da sessizce çalışmaz görünür.
         /// </summary>
         private static readonly string[] Consumables =
         {
-            "gold_2500", "gold_8000", "gold_25000", "gold_75000", "gold_250000", "gold_1000000",
             "gems_80", "gems_250", "gems_700", "gems_1800", "gems_4500", "gems_12000",
             "teklif_kucuk", "teklif_orta", "teklif_buyuk",
-            "offer_madenpatronu",
         };
 
         /// <summary>
-        /// Kalıcı hak satan üç ürün. Tüketilir olarak açılırlarsa oyuncu telefon değiştirdiğinde
-        /// reklamsızlığını kaybeder ve bu geri alınamaz — Play Console'da da tüketilmez olmalılar.
+        /// Kalıcı hak satan ürünler. Store panellerinde de tüketilmez olmalılar; böylece cihaz değişimi
+        /// veya yeniden kurulumdan sonra FetchPurchases ile hakları tekrar uygulanabilir.
         /// </summary>
         private static readonly string[] NonConsumables =
         {
-            "offer_baslangic", "offer_hazine", "offer_gecevardiyasi",
+            "offer_baslangic", "offer_hazine", "offer_gecevardiyasi", "offer_madenpatronu",
         };
 
         private StoreController _store;
         private Action<bool> _waiting;   // the tap still owed an answer
         private string _waitingSku;
         private bool _ready;
+        private readonly List<string> _entitlements = new List<string>();
+        private readonly List<PendingOrder> _unfinishedOrders = new List<PendingOrder>();
+        private Action<string> _unfinishedPurchase;
 
         /// <summary>True once the store is connected and the catalogue has arrived.</summary>
         public bool Ready => _ready;
+        public IReadOnlyList<string> Entitlements => _entitlements;
+        public event Action ProductsUpdated;
+        public event Action<IReadOnlyList<string>> EntitlementsUpdated;
+        public event Action<string> UnfinishedPurchase
+        {
+            add
+            {
+                _unfinishedPurchase += value;
+                FlushUnfinishedPurchases();
+            }
+            remove { _unfinishedPurchase -= value; }
+        }
 
-        public GooglePlayIAPService() => Boot();
+        public MobileIAPService() => Boot();
 
         private async void Boot()
         {
@@ -58,6 +71,8 @@ namespace Game.Systems
                 _store.OnStoreConnected += OnConnected;
                 _store.OnProductsFetched += OnFetched;
                 _store.OnProductsFetchFailed += OnFetchFailed;
+                _store.OnPurchasesFetched += OnPurchasesFetched;
+                _store.OnPurchasesFetchFailed += OnPurchasesFetchFailed;
                 _store.OnPurchasePending += OnPending;
                 _store.OnPurchaseFailed += OnFailed;
 
@@ -86,6 +101,8 @@ namespace Game.Systems
         {
             _ready = true;
             Debug.Log("[IAP] mağaza hazır — " + products.Count + " ürün.");
+            ProductsUpdated?.Invoke();
+            _store.FetchPurchases();
         }
 
         private void OnFetchFailed(ProductFetchFailed fail)
@@ -107,8 +124,33 @@ namespace Game.Systems
             _store.PurchaseProduct(product);
         }
 
+        public string LocalizedPrice(string sku, string fallback)
+        {
+            Product product = Find(sku);
+            string localized = product != null && product.metadata != null
+                ? product.metadata.localizedPriceString
+                : null;
+            return string.IsNullOrEmpty(localized) ? fallback : localized;
+        }
+
+        public void RestorePurchases(Action<bool, string> onDone)
+        {
+            if (!_ready || _store == null)
+            {
+                onDone?.Invoke(false, "Mağaza hazır değil.");
+                return;
+            }
+
+            _store.RestoreTransactions((success, error) =>
+            {
+                if (!success) Debug.LogWarning("[IAP] geri yükleme başarısız: " + error);
+                onDone?.Invoke(success, error);
+            });
+        }
+
         private Product Find(string sku)
         {
+            if (_store == null || string.IsNullOrEmpty(sku)) return null;
             var all = _store.GetProducts();
             for (int i = 0; i < all.Count; i++)
             {
@@ -116,6 +158,34 @@ namespace Game.Systems
                 if (p != null && p.definition != null && p.definition.id == sku) return p;
             }
             return null;
+        }
+
+        private void OnPurchasesFetched(Orders orders)
+        {
+            _entitlements.Clear();
+            if (orders != null && orders.ConfirmedOrders != null)
+                for (int i = 0; i < orders.ConfirmedOrders.Count; i++)
+                {
+                    string sku = SkuOf(orders.ConfirmedOrders[i]);
+                    if (IsNonConsumable(sku) && !_entitlements.Contains(sku))
+                        _entitlements.Add(sku);
+                }
+
+            Debug.Log("[IAP] " + _entitlements.Count + " kalıcı hak eşitlendi.");
+            EntitlementsUpdated?.Invoke(_entitlements);
+        }
+
+        private static void OnPurchasesFetchFailed(PurchasesFetchFailureDescription failure)
+        {
+            Debug.LogWarning("[IAP] satın alma geçmişi alınamadı: " + failure);
+        }
+
+        private static bool IsNonConsumable(string sku)
+        {
+            if (string.IsNullOrEmpty(sku)) return false;
+            for (int i = 0; i < NonConsumables.Length; i++)
+                if (NonConsumables[i] == sku) return true;
+            return false;
         }
 
         private void OnPending(PendingOrder order)
@@ -127,6 +197,15 @@ namespace Game.Systems
             // Google üç gün sonra kendisi iade eder — ikisi arasında doğru olan ikincisi.
             if (_waiting == null || sku != _waitingSku)
             {
+                // Kalıcı ürün yarıda kaldıysa iade kuyruğuna bırakmak hakkı sonsuza kadar kilitler.
+                // UI hazır olana kadar siparişi tut; kayda ödül yazıldıktan sonra onayla. UI satın alma
+                // öncesi çökerse ödülü ilk kez, ödül sonrası çökerse owned kontrolüyle sıfır kez daha verir.
+                if (IsNonConsumable(sku))
+                {
+                    _unfinishedOrders.Add(order);
+                    FlushUnfinishedPurchases();
+                    return;
+                }
                 Debug.LogWarning("[IAP] sahipsiz sipariş bekletiliyor (iadeye bırakıldı): " + sku);
                 return;
             }
@@ -139,6 +218,27 @@ namespace Game.Systems
             // verilmiş olur ve sipariş bekleyip iade edilir. Ters sırada oyuncu parayı kaybederdi.
             done(true);
             _store.ConfirmPurchase(order);
+        }
+
+        private void FlushUnfinishedPurchases()
+        {
+            if (_unfinishedPurchase == null || _store == null) return;
+            for (int i = _unfinishedOrders.Count - 1; i >= 0; i--)
+            {
+                PendingOrder order = _unfinishedOrders[i];
+                string sku = SkuOf(order);
+                try
+                {
+                    _unfinishedPurchase(sku);
+                    _store.ConfirmPurchase(order);
+                    _unfinishedOrders.RemoveAt(i);
+                }
+                catch (Exception e)
+                {
+                    // Hak kayda yazılamadıysa siparişi tüketme; sonraki açılışta tekrar teslim edilir.
+                    Debug.LogError("[IAP] yarım satın alma tamamlanamadı (" + sku + "): " + e.Message);
+                }
+            }
         }
 
         private void OnFailed(FailedOrder order)

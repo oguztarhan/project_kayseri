@@ -88,11 +88,11 @@ namespace Game.Systems
             ServiceLocator.Register<IRemoteConfig>(new LocalRemoteConfigService());
             ServiceLocator.Register<ICloudSave>(new LocalCloudSaveStub());
             ServiceLocator.Register<IAdService>(new StubAdService());
-            // Gerçek kasa yalnız cihazda. Editörde Play Billing yok; oradaki test yolu mağazanın kendi
+            // Gerçek kasa yalnız Android/iOS cihazda. Editörde Billing/StoreKit yok; oradaki test yolu mağazanın kendi
             // devFreeIAP anahtarı. Kuralı gevşetip editörde de açarsak, UGS bağlantısı olmadığı her
             // oturumda konsol bir başlatma hatası yazar.
-#if UNITY_ANDROID && !UNITY_EDITOR
-            ServiceLocator.Register<IIAPService>(new GooglePlayIAPService());
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
+            ServiceLocator.Register<IIAPService>(new MobileIAPService());
 #else
             ServiceLocator.Register<IIAPService>(new StubIAPService());
 #endif
@@ -100,6 +100,8 @@ namespace Game.Systems
             // register a channel with, so play mode keeps the stub the same way IAP does.
 #if UNITY_ANDROID && !UNITY_EDITOR
             ServiceLocator.Register<INotifications>(new AndroidNotifications());
+#elif UNITY_IOS && !UNITY_EDITOR
+            ServiceLocator.Register<INotifications>(new IOSNotifications());
 #else
             ServiceLocator.Register<INotifications>(new StubNotifications());
 #endif
@@ -150,6 +152,7 @@ namespace Game.Systems
 
             _time = new TimeService();
             ServiceLocator.Register(_time);
+            ServiceLocator.Register(new RatingPromptService(_time, ServiceLocator.Get<IAnalytics>()));
 
             var boost = new BoostService(Data, _time);
             ServiceLocator.Register(boost);
@@ -175,7 +178,7 @@ namespace Game.Systems
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
-            var contract = new ContractService(Wallet, contractConfig);
+            var contract = new ContractService(Wallet, contractConfig, Data, _time);
             ServiceLocator.Register(contract);
 
             Offline = new OfflineReport();
@@ -189,9 +192,10 @@ namespace Game.Systems
             // Nothing is queued here — a notification only makes sense once the player has left, so the
             // queue is built in OnApplicationPause and torn down again on the way back.
             _notifications = new NotificationService(Data, offlineConfig, _time,
-                                                     ServiceLocator.Get<INotifications>(),
+                                                     ServiceLocator.Get<INotifications>(), contract,
                                                      notificationTestSpacingSeconds);
             ServiceLocator.Register(_notifications);
+            _notifications.RefreshOpenedTarget();
 
             ServiceLocator.Get<IAnalytics>()?.Log("session_start");
         }
@@ -271,6 +275,8 @@ namespace Game.Systems
             else
             {
                 _notifications?.Cancel();   // the absence it described is over
+                _notifications?.RefreshOpenedTarget();
+                ServiceLocator.Get<ContractService>()?.ResumeWallClock();
                 // An Android app is backgrounded far more often than it is relaunched, so most
                 // absences end HERE rather than in Awake. Without this, a player who left the game
                 // in the background over a weekend would come back to a spotless island.

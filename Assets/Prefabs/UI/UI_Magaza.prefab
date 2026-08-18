@@ -3023,7 +3023,7 @@ RectTransform:
   m_Father: {fileID: 3744234017217544805}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -4394,51 +4394,57 @@ MonoBehaviour:
   - title: 2.5K
     kind: 1
     icon: {fileID: 21300000, guid: 7fb5c7504fefa6949b1035a2eda090fd, type: 3}
-    priceLabel: "\u20BA14,99"
+    priceLabel: 60
     sku: gold_2500
     cashAmount: 290000
     incomeMinutes: 15
     gemAmount: 0
+    gemCost: 60
   - title: 8K
     kind: 1
     icon: {fileID: 21300000, guid: d94c16c77545a7a41a92eaf1141781ae, type: 3}
-    priceLabel: "\u20BA39,99"
+    priceLabel: 180
     sku: gold_8000
     cashAmount: 930000
     incomeMinutes: 48
     gemAmount: 0
+    gemCost: 180
   - title: 25K
     kind: 1
     icon: {fileID: 21300000, guid: fdf929e07b0688d4eb1731c709db7e39, type: 3}
-    priceLabel: "\u20BA89,99"
+    priceLabel: 500
     sku: gold_25000
     cashAmount: 2900000
     incomeMinutes: 150
     gemAmount: 0
+    gemCost: 500
   - title: 75K
     kind: 1
     icon: {fileID: 21300000, guid: 1546777dac247f44897de2569c359529, type: 3}
-    priceLabel: "\u20BA199,99"
+    priceLabel: 1200
     sku: gold_75000
     cashAmount: 8700000
     incomeMinutes: 450
     gemAmount: 0
+    gemCost: 1200
   - title: 250K
     kind: 1
     icon: {fileID: 21300000, guid: 86e105618abf5e04ebe40f0465742eb9, type: 3}
-    priceLabel: "\u20BA429,99"
+    priceLabel: 3000
     sku: gold_250000
     cashAmount: 29000000
     incomeMinutes: 1500
     gemAmount: 0
+    gemCost: 3000
   - title: 1M
     kind: 1
     icon: {fileID: 21300000, guid: 19a9912d0954e9d41acaa1d54b17950e, type: 3}
-    priceLabel: "\u20BA999,99"
+    priceLabel: 8000
     sku: gold_1000000
     cashAmount: 116000000
     incomeMinutes: 6000
     gemAmount: 0
+    gemCost: 8000
   - title: 80
     kind: 0
     icon: {fileID: 21300000, guid: 654a03aa21aebe549bdcd3d68e6de416, type: 3}
@@ -4447,6 +4453,7 @@ MonoBehaviour:
     cashAmount: 0
     incomeMinutes: 0
     gemAmount: 80
+    gemCost: 0
   - title: 250
     kind: 0
     icon: {fileID: 21300000, guid: defb91960aa8f374bae1cff03a9ab953, type: 3}
@@ -4455,6 +4462,7 @@ MonoBehaviour:
     cashAmount: 0
     incomeMinutes: 0
     gemAmount: 250
+    gemCost: 0
   - title: 700
     kind: 0
     icon: {fileID: 21300000, guid: 7413cda2cdd9ff8469af10ceb5f70d20, type: 3}
@@ -4463,6 +4471,7 @@ MonoBehaviour:
     cashAmount: 0
     incomeMinutes: 0
     gemAmount: 700
+    gemCost: 0
   - title: 1.8K
     kind: 0
     icon: {fileID: 21300000, guid: 76f4c38e9e490ae4c8e29c703c2a6a3e, type: 3}
@@ -4471,6 +4480,7 @@ MonoBehaviour:
     cashAmount: 0
     incomeMinutes: 0
     gemAmount: 1800
+    gemCost: 0
   - title: 4.5K
     kind: 0
     icon: {fileID: 21300000, guid: ea0101b33bff133499f4451e597d8c79, type: 3}
@@ -4479,6 +4489,7 @@ MonoBehaviour:
     cashAmount: 0
     incomeMinutes: 0
     gemAmount: 4500
+    gemCost: 0
   - title: 12K
     kind: 0
     icon: {fileID: 21300000, guid: 82fd8ef4de4e69644a299c4d91d8791c, type: 3}
@@ -4487,6 +4498,7 @@ MonoBehaviour:
     cashAmount: 0
     incomeMinutes: 0
     gemAmount: 12000
+    gemCost: 0
   offers:
   - name: "Ba\u015Flang\u0131\xE7 Paketi"
     button: {fileID: 5808807268847988884}
@@ -4502,6 +4514,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 1
     gemPrice: 0
     icon: {fileID: 0}
@@ -4525,6 +4538,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 1
     freeRewardBonusCharges: 1
     dailyGemStipend: 25
+    permanentStationSpeedMultiplier: 1
     oneTime: 1
     gemPrice: 0
     icon: {fileID: 0}
@@ -4548,6 +4562,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 1
     gemPrice: 0
     icon: {fileID: 0}
@@ -4571,7 +4586,8 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
-    oneTime: 0
+    permanentStationSpeedMultiplier: 2
+    oneTime: 1
     gemPrice: 0
     icon: {fileID: 0}
     hero: {fileID: 0}
@@ -4595,6 +4611,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 35
     icon: {fileID: 21300000, guid: 89e5de4b9a691a442b582ef45ddde515, type: 3}
@@ -4618,6 +4635,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 130
     icon: {fileID: 21300000, guid: 89e5de4b9a691a442b582ef45ddde515, type: 3}
@@ -4641,6 +4659,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 350
     icon: {fileID: 21300000, guid: 89e5de4b9a691a442b582ef45ddde515, type: 3}
@@ -4664,11 +4683,12 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 60
     icon: {fileID: 21300000, guid: 211253b264b288141b16e56873bf2bed, type: 3}
-    hero: {fileID: 0}
-    heroMotion: 0
+    hero: {fileID: 21300000, guid: 274f35999871a5b4e88e45f35a8affcc, type: 3}
+    heroMotion: 2
     title: 8 SAAT
     description: Binalar %100 saglikta kalir
     incomeMinutes: 0
@@ -4687,11 +4707,12 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 80
     icon: {fileID: 21300000, guid: 211253b264b288141b16e56873bf2bed, type: 3}
-    hero: {fileID: 0}
-    heroMotion: 0
+    hero: {fileID: 21300000, guid: 274f35999871a5b4e88e45f35a8affcc, type: 3}
+    heroMotion: 2
     title: 12 SAAT
     description: Binalar %100 saglikta kalir
     incomeMinutes: 0
@@ -4710,11 +4731,12 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 140
     icon: {fileID: 21300000, guid: 211253b264b288141b16e56873bf2bed, type: 3}
-    hero: {fileID: 0}
-    heroMotion: 0
+    hero: {fileID: 21300000, guid: 274f35999871a5b4e88e45f35a8affcc, type: 3}
+    heroMotion: 2
     title: 24 SAAT
     description: Binalar %100 saglikta kalir
     incomeMinutes: 0
@@ -4733,6 +4755,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 15
     icon: {fileID: 21300000, guid: cd09ff5451509844ba64d0bc52794fbf, type: 3}
@@ -4756,6 +4779,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 55
     icon: {fileID: 21300000, guid: cd09ff5451509844ba64d0bc52794fbf, type: 3}
@@ -4779,6 +4803,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 200
     icon: {fileID: 21300000, guid: cd09ff5451509844ba64d0bc52794fbf, type: 3}
@@ -4802,6 +4827,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 1
     gemPrice: 500
     icon: {fileID: 21300000, guid: 211253b264b288141b16e56873bf2bed, type: 3}
@@ -4825,6 +4851,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 1
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 1
     gemPrice: 400
     icon: {fileID: 21300000, guid: 4cff34b3ac9403d48a0941191e22a038, type: 3}
@@ -4848,6 +4875,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 1
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 1
     gemPrice: 450
     icon: {fileID: 21300000, guid: 95bc2de0792b5bb41b2803a441fc8f7e, type: 3}
@@ -4871,6 +4899,7 @@ MonoBehaviour:
     dailyRewardBonusMult: 0
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
+    permanentStationSpeedMultiplier: 1
     oneTime: 0
     gemPrice: 600
     icon: {fileID: 21300000, guid: d7c377d99a93e0f44b0967b47f66fd9d, type: 3}

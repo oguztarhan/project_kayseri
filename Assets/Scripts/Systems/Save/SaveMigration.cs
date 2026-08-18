@@ -16,8 +16,8 @@ namespace Game.Systems
     /// progress — which is what a normal content patch should do. Nothing else needs changing.
     ///
     /// What survives is what the player PAID for, not what they played for: gems, the remove-ads
-    /// purchase, and the permanent perks bought in the store. There is no receipt-based restore
-    /// in this build (<c>StubIAPService</c>), so a wipe of those would be unrecoverable, and none
+    /// purchase, and the permanent perks bought in the store. Device builds also restore store
+    /// entitlements, but keeping the local copy prevents a migration from briefly removing them, and none
     /// of them shortcut the progression this reset exists to re-test. A running gem boost is not
     /// kept — it is a time-limited effect mid-flight, and starting a fresh economy already
     /// multiplied would misreport the pacing.
@@ -55,6 +55,9 @@ namespace Game.Systems
             if (old.wallet != null) fresh.wallet.gems = old.wallet.gems;
             fresh.adsRemoved = old.adsRemoved;
             if (old.purchasedOffers != null) fresh.purchasedOffers.AddRange(old.purchasedOffers);
+            fresh.stationSpeedMultiplier = old.stationSpeedMultiplier > 1d
+                ? old.stationSpeedMultiplier
+                : 1d;
             fresh.offlineEfficiencyBonus = old.offlineEfficiencyBonus;
             fresh.offlineCapBonusSeconds = old.offlineCapBonusSeconds;
             fresh.dailyRewardBonusMult = old.dailyRewardBonusMult;

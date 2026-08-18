@@ -682,6 +682,20 @@ namespace Game.UI
             TravelProgress(0f);
         }
 
+        /// <summary>Notification deep-link entry: sail directly to the island carried by the alert.</summary>
+        public bool TravelToIsland(string islandKey)
+        {
+            if (_world == null) _world = FindAnyObjectByType<WorldIslands>();
+            if (_world == null || string.IsNullOrEmpty(islandKey) || _busy || _sailing) return false;
+            for (int i = 0; i < _world.Count; i++)
+            {
+                if (_world.IslandKey(i) != islandKey || !_world.IsOwned(i)) continue;
+                if (i != _world.ActiveIndex) StartCoroutine(Travel(i));
+                return true;
+            }
+            return false;
+        }
+
         private void RaiseTravelOverlay()
         {
             if (fadeGroup == null) return;

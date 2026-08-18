@@ -1,7 +1,9 @@
+using System.Collections;
 using Game.Core;
 using Game.Data;
 using Game.Gameplay;
 using Game.Systems;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,14 +11,13 @@ namespace Game.UI
 {
     /// <summary>
     /// The settings panel (panel_ayarlar + serit_ayarlar + satir_ayar from the Figma set): SFX and
-    /// music sliders, a vibration switch, and the language / privacy / restore-purchases rows.
+    /// music sliders, a vibration switch, and the language / rate / privacy / restore-purchases rows.
     /// Editor-authored — the whole hierarchy lives in the UI_Ayarlar prefab and every reference is
     /// wired in the Inspector, so rows, icons and spacing are all tunable from the hierarchy.
     ///
     /// Values apply to <see cref="AudioService"/> / <see cref="HapticService"/> immediately and are
     /// persisted in PlayerPrefs (options are device preferences, not save-game state). The language
-    /// and restore rows are wired but inert until their systems exist; privacy opens
-    /// <see cref="privacyUrl"/> once it is filled in.
+    /// restore row talks to Unity IAP on mobile; privacy opens <see cref="privacyUrl"/> once filled.
     /// </summary>
     public sealed class SettingsUI : MonoBehaviour
     {
@@ -40,8 +41,11 @@ namespace Game.UI
 
         [Header("Liste satırları")]
         [SerializeField] private Button languageButton;
+        [SerializeField] private Button rateButton;
         [SerializeField] private Button privacyButton;
-        [SerializeField] private Button restoreButton;    // gerçek IAP SDK'sı gelince bağlanacak
+        [SerializeField] private Button restoreButton;
+        [Tooltip("App Store Connect'teki sayısal Apple ID. Boşken uygulama adına göre App Store araması açılır.")]
+        [SerializeField] private string iosAppStoreId = "";
         [Tooltip("Gizlilik politikası adresi — boşken satır hiçbir şey yapmaz.")]
         [SerializeField] private string privacyUrl = "";
 
@@ -54,6 +58,9 @@ namespace Game.UI
 
         private AudioService _audio;
         private HapticService _haptic;
+        private IIAPService _iap;
+        private TMP_Text _restoreLabel;
+        private Coroutine _restoreFeedback;
         private bool _hapticOn;
         private float _nextPreview;
 
@@ -61,6 +68,7 @@ namespace Game.UI
         {
             _audio = ServiceLocator.Get<AudioService>();
             _haptic = ServiceLocator.Get<HapticService>();
+            _iap = ServiceLocator.Get<IIAPService>();
 
             // kayıtlı tercihleri yükle; ilk açılışta servislerin mevcut değerleri varsayılan olur
             float sfx = PlayerPrefs.GetFloat(KeySfx, _audio != null ? _audio.Sfx : 0.8f);
@@ -72,8 +80,14 @@ namespace Game.UI
             if (musicSlider != null) { musicSlider.SetValueWithoutNotify(music); musicSlider.onValueChanged.AddListener(OnMusic); }
             if (hapticButton != null) hapticButton.onClick.AddListener(OnHaptic);
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
+            if (rateButton != null) rateButton.onClick.AddListener(OnRate);
             if (privacyButton != null) privacyButton.onClick.AddListener(OnPrivacy);
             if (languageButton != null) languageButton.onClick.AddListener(OnLanguage);
+            if (restoreButton != null)
+            {
+                restoreButton.onClick.AddListener(OnRestorePurchases);
+                _restoreLabel = restoreButton.GetComponentInChildren<TMP_Text>(true);
+            }
             RefreshSwitch();
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -156,6 +170,46 @@ namespace Game.UI
         private void OnPrivacy()
         {
             if (!string.IsNullOrEmpty(privacyUrl)) Application.OpenURL(privacyUrl);
+        }
+
+        public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
+
+        private void OnRate() => OpenStorePage();
+
+        public void OpenStorePage()
+        {
+            ServiceLocator.Get<IAnalytics>()?.Log("rate_store_opened");
+            StorePage.Open(iosAppStoreId);
+        }
+
+        private void OnRestorePurchases()
+        {
+            if (_iap == null)
+            {
+                RestoreFinished(false, "Mağaza kullanılamıyor.");
+                return;
+            }
+
+            if (restoreButton != null) restoreButton.interactable = false;
+            if (_restoreLabel != null) _restoreLabel.text = Loc.T("ayarlar.geri_yukleniyor");
+            _iap.RestorePurchases(RestoreFinished);
+        }
+
+        private void RestoreFinished(bool success, string error)
+        {
+            if (restoreButton != null) restoreButton.interactable = true;
+            if (_restoreLabel == null) return;
+            _restoreLabel.text = Loc.T(success ? "ayarlar.geri_basarili" : "ayarlar.geri_basarisiz");
+            if (!success && !string.IsNullOrEmpty(error)) Debug.LogWarning("[IAP] " + error);
+            if (_restoreFeedback != null) StopCoroutine(_restoreFeedback);
+            _restoreFeedback = StartCoroutine(ResetRestoreLabel());
+        }
+
+        private IEnumerator ResetRestoreLabel()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            if (_restoreLabel != null) _restoreLabel.text = Loc.T("ayarlar.geri_yukle");
+            _restoreFeedback = null;
         }
 
         /// <summary>

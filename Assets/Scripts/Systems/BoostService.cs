@@ -57,6 +57,10 @@ namespace Game.Systems
         }
 
         public double ActiveMultiplier => _time.NowUnix() < _data.boostEndUnix ? _data.boostMultiplier : 1d;
+        public double PermanentMultiplier => _data.stationSpeedMultiplier > 1d
+            ? _data.stationSpeedMultiplier
+            : 1d;
+        public double EffectiveMultiplier => PermanentMultiplier * ActiveMultiplier;
         public bool IsActive => ActiveMultiplier > 1d;
         public float SecondsLeft
         {

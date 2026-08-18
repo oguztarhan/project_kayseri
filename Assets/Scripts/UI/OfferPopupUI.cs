@@ -146,6 +146,7 @@ namespace Game.UI
         private int _island = -1;                       // last island seen, to notice a move
         private int _paintedSecond = -1;
         private bool _autoOpened;                       // a hand-opened window must not count as a refusal
+        private IIAPService _iap;
 
         private void Awake()
         {
@@ -177,7 +178,9 @@ namespace Game.UI
             _data = ServiceLocator.Get<SaveData>();
             _save = ServiceLocator.Get<SaveService>();
             _time = ServiceLocator.Get<TimeService>();
+            _iap = ServiceLocator.Get<IIAPService>();
             _world = FindAnyObjectByType<WorldIslands>();
+            if (_iap != null) _iap.ProductsUpdated += OnProductsUpdated;
 
             if (buyButton != null) buyButton.onClick.AddListener(Buy);
             if (closeButton != null) closeButton.onClick.AddListener(Dismiss);
@@ -188,6 +191,16 @@ namespace Game.UI
                 panelRoot.SetActive(false);
                 UiPanelSound.Attach(panelRoot);   // after the switch-off, or boot plays open+close
             }
+        }
+
+        private void OnDestroy()
+        {
+            if (_iap != null) _iap.ProductsUpdated -= OnProductsUpdated;
+        }
+
+        private void OnProductsUpdated()
+        {
+            if (panelRoot != null && panelRoot.activeInHierarchy && _data != null) Paint();
         }
 
         /// <summary>
@@ -558,7 +571,10 @@ namespace Game.UI
             int island = IslandOf(_data.offerLiveKey);
             if (islandTitle != null && island >= 0) islandTitle.text = _world.IslandName(island);
             if (tierTitle != null) tierTitle.text = Loc.T(pack.nameKey);
-            if (priceLabel != null) priceLabel.text = pack.priceLabel;
+            if (priceLabel != null)
+                priceLabel.text = store != null
+                    ? store.LocalizedPrice(pack.sku, pack.priceLabel)
+                    : pack.priceLabel;
             if (oreTint != null && island >= 0)
                 // The ore colours are the map's, and coal's is nearly black — lift it, or the ribbon
                 // reads as a hole in the card.

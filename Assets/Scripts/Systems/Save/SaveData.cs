@@ -28,6 +28,7 @@ namespace Game.Systems
         public List<FreeRewardState> freeRewards = new List<FreeRewardState>();  // rewarded-ad slots (GDD §10)
         public bool adsRemoved;                      // the remove-ads purchase, so it survives a restart
         public List<string> purchasedOffers = new List<string>();  // one-time offer skus already owned
+        public double stationSpeedMultiplier = 1d;  // Maden Patronu: permanent station clock multiplier
         public double offlineEfficiencyBonus;        // permanent offline perks bought from the store, added
         public long offlineCapBonusSeconds;          // on top of OfflineConfig's base efficiency and cap
         public long starterOfferSeenUnix;            // first time the store was opened; starts the starter
@@ -43,6 +44,11 @@ namespace Game.Systems
         public int tutorialStep;                     // 0 = the opening has never been played, 100 = it has
         public List<string> tutorialTipsSeen = new List<string>();  // one-shot hints already fired, by id
         public bool firstSaleSeen;                   // the one-off celebration when the chain first pays out
+
+        // ---- liman kontratı ------------------------------------------------------------------
+        // Offers/reward survive a restart. Active jobs keep their remaining play-time while the game
+        // is closed; ship travel/cooldown uses the wall clock so a waiting ship can arrive while away.
+        public ContractSaveData contract = new ContractSaveData();
 
         // ---- pop-up teklifler (OfferPopupUI) --------------------------------------------------
         // The IAP skus are consumable and shared by all eight islands, so purchasedOffers cannot
@@ -84,6 +90,36 @@ namespace Game.Systems
         public int marketCarryLevel;                 // the stack the player carries on his back. One body,
                                                      // one upgrade — deliberately outside MarketYard, which
                                                      // is per island
+    }
+
+    [Serializable]
+    public class ContractSaveData
+    {
+        public bool initialized;
+        public int state;
+        public int lastResult;
+        public int streak;
+        public double difficulty = 1d;
+        public double target;
+        public double done;
+        public double rewardCash;
+        public long rewardGems;
+        public float secondsLeft;
+        public float stateSpan;
+        public long stateEndUnix;
+        public string unitWord = "COAL";
+        public double processingPerMinute;
+        public double cashPerMinute;
+        public List<ContractOfferSave> offers = new List<ContractOfferSave>();
+    }
+
+    [Serializable]
+    public class ContractOfferSave
+    {
+        public double units;
+        public float seconds;
+        public double cash;
+        public long gems;
     }
 
     /// <summary>

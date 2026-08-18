@@ -26,7 +26,7 @@ namespace Game.UI
         public enum StoreItemKind
         {
             GemPackIAP,     // 0 - IAP grants gemAmount gems (green card)
-            GoldPackIAP     // 1 - IAP grants cashAmount cash (blue card)
+            GoldPackGems    // 1 - gemCost gems grants cashAmount cash (blue card)
         }
 
         /// <summary>One pack cell. Edit the list on the component to retune amounts and prices.</summary>
@@ -34,14 +34,14 @@ namespace Game.UI
         public sealed class StoreItem
         {
             public string title = "2.5K";
-            public StoreItemKind kind = StoreItemKind.GoldPackIAP;
+            public StoreItemKind kind = StoreItemKind.GoldPackGems;
             [Tooltip("Full card sprite (gold_2500, gems_80, ...) — becomes the cell background.")]
             public Sprite icon;
-            [Tooltip("Real-money price shown on the card, e.g. \"₺14,99\".")]
+            [Tooltip("IAP fallback price. Device builds replace it with the store's localized price.")]
             public string priceLabel = "";
             [Tooltip("IAP product id.")]
             public string sku = "";
-            [Tooltip("Cash granted — GoldPackIAP. Taban görevi görür: incomeMinutes daha azını " +
+            [Tooltip("Cash granted — GoldPackGems. Taban görevi görür: incomeMinutes daha azını " +
                      "hesaplarsa bu ödenir, yani hiçbir kart bu rakamın altına inmez.")]
             public double cashAmount = 0d;
             [Tooltip("Kaç dakikalık imparatorluk geliri versin. 0'dan büyükse kart oyuncunun kendi " +
@@ -51,6 +51,8 @@ namespace Game.UI
             public float incomeMinutes = 0f;
             [Tooltip("Gems granted — GemPackIAP.")]
             public long gemAmount = 0;
+            [Tooltip("GoldPackGems için cüzdandan düşülecek elmas.")]
+            public long gemCost = 0;
         }
 
         /// <summary>
@@ -88,6 +90,8 @@ namespace Game.UI
             [Tooltip("Her günlük ödül alışına eklenen sabit elmas. Çarpandan bağımsızdır — kart ikisini " +
                      "ayrı satırlarda sattığı için bunu da katlamak gizli bir fazladan olurdu.")]
             public long dailyGemStipend = 0;
+            [Tooltip("Bütün istasyonların kalıcı çalışma hızı. 2 = sonsuza kadar 2×.")]
+            public double permanentStationSpeedMultiplier = 1d;
             [Tooltip("Yalnızca bir kez satın alınır. Kalıcı bir şey veren her teklif bunu işaretlemeli — " +
                      "yoksa oyuncu aynı kalıcı yükseltmeyi üst üste alıp istifler.")]
             public bool oneTime = false;
@@ -124,7 +128,7 @@ namespace Game.UI
         [SerializeField, Min(80f)] private float awningHeight = 185f;
 
         [Header("Paket ızgaraları")]
-        [Tooltip("GoldPackIAP hücrelerinin eklendiği ızgara.")]
+        [Tooltip("GoldPackGems hücrelerinin eklendiği ızgara.")]
         [SerializeField] private RectTransform goldGrid;
         [Tooltip("GemPackIAP hücrelerinin eklendiği ızgara.")]
         [SerializeField] private RectTransform diamondGrid;
@@ -161,6 +165,7 @@ namespace Game.UI
         private Game.Gameplay.WorldIslands _world;
         private bool _built;
         private RawImage _awning;
+        private IIAPService _boundIap;
 
         /// <summary>
         /// The remove-ads entitlement lives in the save (via <see cref="FreeRewardService"/>) rather than
@@ -186,6 +191,7 @@ namespace Game.UI
             }
 
             BuildCells();
+            RefreshStorePrices();
             RefreshOffers();
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
@@ -202,6 +208,31 @@ namespace Game.UI
             if (_prestige == null) _prestige = ServiceLocator.Get<PrestigeService>();
             if (_maintenance == null) _maintenance = ServiceLocator.Get<MaintenanceService>();
             if (_world == null) _world = FindAnyObjectByType<Game.Gameplay.WorldIslands>();
+            BindIap();
+        }
+
+        private void BindIap()
+        {
+            if (_iap == null || ReferenceEquals(_boundIap, _iap)) return;
+            if (_boundIap != null)
+            {
+                _boundIap.ProductsUpdated -= RefreshStorePrices;
+                _boundIap.EntitlementsUpdated -= RestoreEntitlements;
+                _boundIap.UnfinishedPurchase -= CompleteUnfinishedPurchase;
+            }
+            _boundIap = _iap;
+            _boundIap.ProductsUpdated += RefreshStorePrices;
+            _boundIap.EntitlementsUpdated += RestoreEntitlements;
+            _boundIap.UnfinishedPurchase += CompleteUnfinishedPurchase;
+            RestoreEntitlements(_boundIap.Entitlements);
+        }
+
+        private void OnDestroy()
+        {
+            if (_boundIap == null) return;
+            _boundIap.ProductsUpdated -= RefreshStorePrices;
+            _boundIap.EntitlementsUpdated -= RestoreEntitlements;
+            _boundIap.UnfinishedPurchase -= CompleteUnfinishedPurchase;
         }
 
         /// <summary>
@@ -360,8 +391,11 @@ namespace Game.UI
             Clear(goldGrid);
             Clear(diamondGrid);
             Clear(gemSpendGrid);
+            _cashLabels.Clear();
+            _iapLabels.Clear();
             _built = false;
             BuildCells();
+            RefreshStorePrices();
             RefreshOffers();
         }
 
@@ -392,7 +426,7 @@ namespace Game.UI
             {
                 StoreItem item = items[i];
                 if (item == null) continue;
-                RectTransform parent = item.kind == StoreItemKind.GoldPackIAP ? goldGrid : diamondGrid;
+                RectTransform parent = item.kind == StoreItemKind.GoldPackGems ? goldGrid : diamondGrid;
                 if (parent == null) continue;
 
                 GameObject go = Instantiate(cellTemplate, parent);
@@ -409,7 +443,7 @@ namespace Game.UI
                     if (amountTxt != null) amountTxt.text = item.title;
                     // Gelire bağlı altın kartlarının rakamı sabit değil; her açılışta yeniden yazılsın
                     // diye etiketi burada tutuyoruz. Elmas kartları sert para, onlar yazıldığı gibi kalır.
-                    if (amountTxt != null && item.kind == StoreItemKind.GoldPackIAP && item.incomeMinutes > 0f)
+                    if (amountTxt != null && item.kind == StoreItemKind.GoldPackGems && item.incomeMinutes > 0f)
                         _cashLabels.Add(new CashLabel
                         {
                             label = amountTxt, floor = item.cashAmount, minutes = item.incomeMinutes
@@ -420,7 +454,19 @@ namespace Game.UI
                 if (priceT != null)
                 {
                     TMP_Text priceTxt = priceT.GetComponent<TMP_Text>();
-                    if (priceTxt != null) priceTxt.text = item.priceLabel;
+                    if (priceTxt != null)
+                    {
+                        if (item.kind == StoreItemKind.GoldPackGems)
+                        {
+                            priceTxt.text = item.gemCost.ToString();
+                            GemMark(priceTxt);
+                        }
+                        else
+                        {
+                            priceTxt.text = item.priceLabel;
+                            TrackIapPrice(priceTxt, item.sku, item.priceLabel);
+                        }
+                    }
                 }
 
                 Button btn = go.GetComponent<Button>();
@@ -618,35 +664,68 @@ namespace Game.UI
 
         private readonly List<CashLabel> _cashLabels = new List<CashLabel>();
 
+        private struct IapLabel
+        {
+            public TMP_Text label;
+            public string sku;
+            public string fallback;
+        }
+
+        private readonly List<IapLabel> _iapLabels = new List<IapLabel>();
+
+        private void TrackIapPrice(TMP_Text label, string sku, string fallback)
+        {
+            if (label == null || string.IsNullOrEmpty(sku)) return;
+            _iapLabels.Add(new IapLabel { label = label, sku = sku, fallback = fallback });
+        }
+
+        public string LocalizedPrice(string sku, string fallback)
+            => _iap != null ? _iap.LocalizedPrice(sku, fallback) : fallback;
+
+        private void RefreshStorePrices()
+        {
+            for (int i = 0; i < _iapLabels.Count; i++)
+            {
+                IapLabel row = _iapLabels[i];
+                if (row.label != null) row.label.text = LocalizedPrice(row.sku, row.fallback);
+            }
+        }
+
         /// <summary>Finds the amount label authored on each hierarchy offer card. Runs once, at build.</summary>
         private void CollectOfferLabels()
         {
             for (int i = 0; i < offers.Count; i++)
             {
                 OfferBinding offer = offers[i];
-                if (offer == null || offer.button == null || offer.incomeMinutes <= 0f) continue;
+                if (offer == null || offer.button == null) continue;
                 var found = offer.button.GetComponentsInChildren<TMP_Text>(true);
                 for (int t = 0; t < found.Length; t++)
-                    if (found[t].name == "DegerAltin")
+                {
+                    if (found[t].name == "DegerAltin" && offer.incomeMinutes > 0f)
                     {
                         _cashLabels.Add(new CashLabel
                         {
                             label = found[t], floor = offer.cashAmount, minutes = offer.incomeMinutes
                         });
-                        break;
                     }
+                    else if (found[t].name == "Fiyat" && offer.gemPrice <= 0)
+                        TrackIapPrice(found[t], offer.sku, found[t].text);
+                }
             }
         }
 
         private void Buy(StoreItem item, RectTransform card)
         {
-            if (item.kind == StoreItemKind.GoldPackIAP)
-                PurchaseFlow(item.sku, ok =>
-                {
-                    if (!ok) return;
-                    if (_wallet != null) _wallet.AddCash(new BigDouble(CashGrant(item.cashAmount, item.incomeMinutes)));
-                    if (purchaseFx != null) purchaseFx.PlayCash(card);
-                });
+            ResolveServices();
+            if (item.kind == StoreItemKind.GoldPackGems)
+            {
+                if (_wallet == null || item.gemCost <= 0 || !_wallet.TrySpendGems(item.gemCost)) return;
+                _wallet.AddCash(new BigDouble(CashGrant(item.cashAmount, item.incomeMinutes)));
+                if (purchaseFx != null) purchaseFx.PlayCash(card);
+                ServiceLocator.Get<AudioService>()?.Play(SoundId.Purchase);
+                ServiceLocator.Get<HapticService>()?.Medium();
+                RefreshOffers();
+            }
             else
                 PurchaseFlow(item.sku, ok =>
                 {
@@ -695,7 +774,6 @@ namespace Game.UI
                 _boost.AddBoost(offer.boostMultiplier, offer.boostSeconds);
             if (_prestige != null && offer.investorShare > 0f) _prestige.TakeInvestorShare(offer.investorShare);
             if (_maintenance != null && offer.shieldHours > 0f) _maintenance.AddShield(offer.shieldHours);
-            if (offer.removeAds) AdsRemoved = true;
             GrantPermanent(offer);
             RefreshOffers();
 
@@ -720,13 +798,52 @@ namespace Game.UI
         private void GrantPermanent(OfferBinding offer)
         {
             if (_data == null) return;
+            if (offer.oneTime && Owned(offer)) return;
+            if (offer.removeAds) AdsRemoved = true;
             if (offer.offlineEfficiencyBonus > 0d) _data.offlineEfficiencyBonus += offer.offlineEfficiencyBonus;
             if (offer.offlineCapBonusHours > 0f) _data.offlineCapBonusSeconds += (long)(offer.offlineCapBonusHours * 3600f);
             if (offer.dailyRewardBonusMult > 0d) _data.dailyRewardBonusMult += offer.dailyRewardBonusMult;
             if (offer.freeRewardBonusCharges > 0) _data.freeRewardBonusCharges += offer.freeRewardBonusCharges;
             if (offer.dailyGemStipend > 0) _data.dailyGemStipend += offer.dailyGemStipend;
+            if (offer.permanentStationSpeedMultiplier > 1d)
+                _data.stationSpeedMultiplier = Math.Max(
+                    Math.Max(1d, _data.stationSpeedMultiplier), offer.permanentStationSpeedMultiplier);
             if (offer.oneTime && !string.IsNullOrEmpty(offer.sku)) _data.purchasedOffers.Add(offer.sku);
             if (_save != null) _save.Save(_data);
+        }
+
+        /// <summary>
+        /// StoreKit / Play Billing kalıcı ürünleri tekrar bildirdiğinde yalnız kalıcı hakkı uygular.
+        /// Paketin ilk alımdaki nakit, elmas veya süreli hız ödülünü tekrar vermek restore açığı olurdu.
+        /// </summary>
+        private void RestoreEntitlements(IReadOnlyList<string> skus)
+        {
+            if (skus == null || skus.Count == 0 || _data == null) return;
+            for (int s = 0; s < skus.Count; s++)
+                for (int i = 0; i < offers.Count; i++)
+                {
+                    OfferBinding offer = offers[i];
+                    if (offer != null && offer.oneTime && offer.sku == skus[s])
+                    {
+                        GrantPermanent(offer);
+                        break;
+                    }
+                }
+            RefreshOffers();
+        }
+
+        /// <summary>Uygulama ödeme ile ödül arasında kapandıysa yeni satın alımı tam olarak bir kez bitirir.</summary>
+        private void CompleteUnfinishedPurchase(string sku)
+        {
+            for (int i = 0; i < offers.Count; i++)
+            {
+                OfferBinding offer = offers[i];
+                if (offer == null || offer.sku != sku) continue;
+                if (!Owned(offer)) Grant(offer);
+                else GrantPermanent(offer);
+                return;
+            }
+            throw new InvalidOperationException("Kalıcı IAP katalogda bulunamadı: " + sku);
         }
 
         /// <summary>

@@ -729,17 +729,23 @@ namespace Game.UI
         private int Bottleneck()
         {
             IslandEconomy e = _op.Economy;
-            if (e == null || !_op.FlowReady) return -1;
+            if (e == null) return ProductionBottleneck.Unknown;
 
             if (_market == null) _market = ServiceLocator.Get<MarketService>();
-            // The pads spilling is the one signal that outranks the island: bars are being thrown
-            // away at the counter, and no amount of extra production upstream survives that.
-            if (_market != null && _market.OverflowSeconds(_op.IslandKey) > 3d) return 5;
+            double storageFraction = e.StorageFull > 0f ? _op.StorageOre / e.StorageFull : 0d;
+            double barFraction = e.BarCap > 0f ? _op.Bars / e.BarCap : 0d;
 
-            if (_op.Bars >= e.BarCap * 0.9f) return 4;
-            if (_op.RefineQueue >= e.SmeltRate * 6f) return 3;
-            if (_op.StorageOre >= e.StorageFull * 0.9f) return 2;
-            return 0;
+            return ProductionBottleneck.Find(
+                _op.FlowReady,
+                _op.OreMinedPerMinute,
+                _op.OreHauledPerMinute,
+                _op.BarsRefinedPerMinute,
+                _op.BarsDeliveredPerMinute,
+                storageFraction,
+                _op.RefineQueue,
+                e.SmeltRate * 6f,
+                barFraction,
+                _market != null ? _market.OverflowSeconds(_op.IslandKey) : 0d);
         }
 
         /// <summary>Bars waiting on the market's pads to be sold, or 0 before the yard has a reading.</summary>
@@ -760,12 +766,19 @@ namespace Game.UI
             if (_boost == null) _boost = ServiceLocator.Get<BoostService>();
 
             double investors = _prestige != null ? _prestige.IncomeMultiplier : 1d;
+            double permanent = _boost != null ? _boost.PermanentMultiplier : 1d;
             double boost = _boost != null && _boost.IsActive ? _boost.ActiveMultiplier : 1d;
-            if (investors <= 1.0001d && boost <= 1.0001d) return Loc.T("rapor.carpan_yok");
+            if (investors <= 1.0001d && permanent <= 1.0001d && boost <= 1.0001d)
+                return Loc.T("rapor.carpan_yok");
 
             string line = "";
             if (investors > 1.0001d)
                 line = string.Format(Loc.T("rapor.yatirimci"), investors.ToString("0.00", Culture));
+            if (permanent > 1.0001d)
+            {
+                if (line.Length > 0) line += "  ·  ";
+                line += string.Format(Loc.T("rapor.kalici_hiz"), permanent.ToString("0.#", Culture));
+            }
             if (boost > 1.0001d)
             {
                 if (line.Length > 0) line += "  ·  ";

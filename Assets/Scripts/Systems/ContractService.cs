@@ -62,6 +62,9 @@ namespace Game.Systems
         private const double SampleBlend = 0.5d;
 
         private readonly WalletService _wallet;
+        private readonly SaveData _data;
+        private readonly ContractSaveData _save;
+        private readonly TimeService _time;
 
         private readonly double _floorUnits, _rewardFloor, _rewardFraction;
         private readonly long _rewardGems;
@@ -90,9 +93,14 @@ namespace Game.Systems
         private long _activeGems;
         private float _left;
 
-        public ContractService(WalletService wallet, ContractConfig config)
+        public ContractService(WalletService wallet, ContractConfig config, SaveData data = null,
+                               TimeService time = null)
         {
             _wallet = wallet;
+            _data = data;
+            _time = time;
+            if (_data != null && _data.contract == null) _data.contract = new ContractSaveData();
+            _save = _data != null ? _data.contract : new ContractSaveData();
 
             _floorUnits = config != null && config.FloorUnits > 0d ? config.FloorUnits : 50d;
             _normalMinutes = config != null && config.NormalMinutes > 0.1f ? config.NormalMinutes : 10f;
@@ -122,7 +130,7 @@ namespace Game.Systems
             // The session opens with the horizon empty and a ship on its way in. That minute is also what
             // fills the processing meter, so the first three offers are sized off a real number instead
             // of the floor.
-            Enter(PortState.Away, _cooldownSeconds);
+            RestoreOrBegin();
         }
 
         public PortState State => _state;
@@ -138,6 +146,10 @@ namespace Game.Systems
         public float SecondsLeft => _left;
         /// <summary>Seconds until the next ship appears on the horizon. 0 unless it is away.</summary>
         public float SecondsToShip => _state == PortState.Away ? _stateLeft : 0f;
+        public float SecondsUntilOffers
+            => _state == PortState.Away ? _stateLeft + _arriveSeconds
+             : _state == PortState.Arriving ? _stateLeft
+             : 0f;
 
         public double TargetUnits => _target;
         public double DoneUnits => _done;
@@ -193,6 +205,7 @@ namespace Game.Systems
         public void Seed(double incomePerMinute)
         {
             if (incomePerMinute > _cashPerMinute) _cashPerMinute = incomePerMinute;
+            Sync();
         }
 
         /// <summary>
@@ -262,6 +275,7 @@ namespace Game.Systems
                     if (_stateLeft <= 0f) Enter(PortState.Away, _cooldownSeconds);
                     break;
             }
+            Sync();
         }
 
         /// <summary>
@@ -283,6 +297,7 @@ namespace Game.Systems
             if (!string.IsNullOrEmpty(unitWord)) UnitWord = unitWord;
             LastResult = Result.None;
             Enter(PortState.Active, 0f);
+            Sync();
             return true;
         }
 
@@ -297,6 +312,7 @@ namespace Game.Systems
             _difficulty *= StreakStep;
             if (_difficulty > StreakCap) _difficulty = StreakCap;
             Enter(PortState.Departing, _departSeconds);
+            Sync();
             return true;
         }
 
@@ -305,7 +321,126 @@ namespace Game.Systems
             _state = state;
             _stateSpan = seconds;
             _stateLeft = seconds;
+            _save.stateEndUnix = IsWallClockState(state) && seconds > 0f
+                ? NowUnix() + (long)System.Math.Ceiling(seconds)
+                : 0L;
+            Sync();
         }
+
+        /// <summary>Reconciles ship travel/cooldown after the app returns from the background.</summary>
+        public void ResumeWallClock()
+        {
+            RestoreWallClockState();
+            Sync();
+        }
+
+        private void RestoreOrBegin()
+        {
+            if (!_save.initialized)
+            {
+                Enter(PortState.Away, _cooldownSeconds);
+                return;
+            }
+
+            _state = ValidState(_save.state) ? (PortState)_save.state : PortState.Away;
+            LastResult = ValidResult(_save.lastResult) ? (Result)_save.lastResult : Result.None;
+            Streak = _save.streak < 0 ? 0 : _save.streak;
+            _difficulty = _save.difficulty > 0d ? _save.difficulty : 1d;
+            _target = _save.target;
+            _done = _save.done;
+            _activeCash = _save.rewardCash;
+            _activeGems = _save.rewardGems;
+            _left = _save.secondsLeft;
+            _stateSpan = _save.stateSpan;
+            UnitWord = string.IsNullOrEmpty(_save.unitWord) ? "COAL" : _save.unitWord;
+            _procPerMinute = _save.processingPerMinute;
+            _cashPerMinute = _save.cashPerMinute;
+
+            if (_save.offers != null)
+                for (int i = 0; i < TierCount && i < _save.offers.Count; i++)
+                {
+                    ContractOfferSave o = _save.offers[i];
+                    if (o == null) continue;
+                    _offers[i] = new Offer { Units = o.units, Seconds = o.seconds, Cash = o.cash, Gems = o.gems };
+                }
+
+            RestoreWallClockState();
+            Sync();
+        }
+
+        private void RestoreWallClockState()
+        {
+            if (!IsWallClockState(_state)) return;
+            long now = NowUnix();
+            long left = _save.stateEndUnix - now;
+            if (left > 0L)
+            {
+                _stateLeft = left > int.MaxValue ? int.MaxValue : (float)left;
+                return;
+            }
+
+            if (_state == PortState.Departing)
+            {
+                long awayEnd = _save.stateEndUnix + (long)System.Math.Ceiling(_cooldownSeconds);
+                if (awayEnd > now)
+                {
+                    _state = PortState.Away;
+                    _stateSpan = _cooldownSeconds;
+                    _stateLeft = (float)(awayEnd - now);
+                    _save.stateEndUnix = awayEnd;
+                    return;
+                }
+            }
+
+            RollOffers();
+            _state = PortState.Offering;
+            _stateLeft = 0f;
+            _stateSpan = 0f;
+            _save.stateEndUnix = 0L;
+        }
+
+        private void Sync()
+        {
+            if (_save == null) return;
+            _save.initialized = true;
+            _save.state = (int)_state;
+            _save.lastResult = (int)LastResult;
+            _save.streak = Streak;
+            _save.difficulty = _difficulty;
+            _save.target = _target;
+            _save.done = _done;
+            _save.rewardCash = _activeCash;
+            _save.rewardGems = _activeGems;
+            _save.secondsLeft = _left;
+            _save.stateSpan = _stateSpan;
+            _save.unitWord = UnitWord;
+            _save.processingPerMinute = _procPerMinute;
+            _save.cashPerMinute = _cashPerMinute;
+            if (_save.offers == null) _save.offers = new System.Collections.Generic.List<ContractOfferSave>();
+            while (_save.offers.Count < TierCount) _save.offers.Add(new ContractOfferSave());
+            for (int i = 0; i < TierCount; i++)
+            {
+                ContractOfferSave o = _save.offers[i];
+                Offer source = _offers[i];
+                o.units = source.Units;
+                o.seconds = source.Seconds;
+                o.cash = source.Cash;
+                o.gems = source.Gems;
+            }
+        }
+
+        private long NowUnix() => _time != null
+            ? _time.NowUnix()
+            : System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        private static bool IsWallClockState(PortState state)
+            => state == PortState.Away || state == PortState.Arriving || state == PortState.Departing;
+
+        private static bool ValidState(int value)
+            => value >= (int)PortState.Away && value <= (int)PortState.Departing;
+
+        private static bool ValidResult(int value)
+            => value >= (int)Result.None && value <= (int)Result.Failed;
 
         /// <summary>
         /// Folds the units reported since the last sample into a per-minute figure. Blended rather than

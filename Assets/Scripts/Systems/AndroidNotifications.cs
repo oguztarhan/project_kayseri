@@ -7,7 +7,7 @@ namespace Game.Systems
     /// <summary>
     /// The real <see cref="INotifications"/>: local Android notifications through
     /// com.unity.mobile.notifications. Registered only in a device build — the editor keeps
-    /// <see cref="StubNotifications"/>, the same split GooglePlayIAPService uses, so play mode never
+    /// <see cref="StubNotifications"/>, the same split MobileIAPService uses, so play mode never
     /// depends on a channel the editor has no notification manager to create.
     ///
     /// Everything here is LOCAL. There is no server, no push token and no network call: the OS is
@@ -49,6 +49,7 @@ namespace Game.Systems
 
         private readonly bool _ready;
         private bool _permissionAsked;
+        private int _consumedIntentId = int.MinValue;
 
         public AndroidNotifications()
         {
@@ -129,11 +130,12 @@ namespace Game.Systems
             }
         }
 
-        public void Schedule(string title, string message, int afterSeconds)
+        public void Schedule(LocalNotificationRequest request)
         {
-            if (!_ready || afterSeconds <= 0) return;
+            if (!_ready || request.AfterSeconds <= 0) return;
 
-            var n = new AndroidNotification(title, message, System.DateTime.Now.AddSeconds(afterSeconds))
+            var n = new AndroidNotification(request.Title, request.Message,
+                                            System.DateTime.Now.AddSeconds(request.AfterSeconds))
             {
                 SmallIcon = SmallIcon,
                 LargeIcon = LargeIcon,
@@ -141,9 +143,10 @@ namespace Game.Systems
                 // The game cancels the whole queue when it comes to the foreground, but a notification
                 // can still fire in the gap before that runs. Suppressing it there stops the player
                 // being told to come back to a game they are looking at.
-                ShowInForeground = false
+                ShowInForeground = false,
+                IntentData = request.Target ?? string.Empty
             };
-            AndroidNotificationCenter.SendNotification(n, ChannelId);
+            AndroidNotificationCenter.SendNotificationWithExplicitID(n, ChannelId, StableId(request.Id));
         }
 
         public void CancelAll()
@@ -169,6 +172,29 @@ namespace Game.Systems
             _permissionAsked = true;
             if (AndroidNotificationCenter.UserPermissionToPost != PermissionStatus.NotRequested) return;
             _ = new PermissionRequest();
+        }
+
+        public void RefreshOpenedTarget() { }
+
+        public string PollOpenedTarget()
+        {
+            if (!_ready) return null;
+            AndroidNotificationIntentData intent = AndroidNotificationCenter.GetLastNotificationIntent();
+            if (intent == null || intent.Id == _consumedIntentId) return null;
+            _consumedIntentId = intent.Id;
+            string target = intent.Notification.IntentData;
+            return string.IsNullOrEmpty(target) ? null : target;
+        }
+
+        private static int StableId(string value)
+        {
+            unchecked
+            {
+                int hash = 17;
+                string s = value ?? string.Empty;
+                for (int i = 0; i < s.Length; i++) hash = hash * 31 + s[i];
+                return hash == int.MinValue ? int.MaxValue : System.Math.Abs(hash);
+            }
         }
     }
 }

@@ -8,6 +8,7 @@
         "Unity.Purchasing",
         "Unity.Services.Core",
         "Unity.Notifications.Android",
+        "Unity.Notifications.iOS",
         "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [],

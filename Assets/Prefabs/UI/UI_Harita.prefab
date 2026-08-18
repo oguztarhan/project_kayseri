@@ -55,7 +55,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -150,6 +150,7 @@ GameObject:
   - component: {fileID: 2436899516186233316}
   - component: {fileID: 4902902876608458397}
   - component: {fileID: 2727488861423994077}
+  - component: {fileID: 2493552227093237570}
   m_Layer: 5
   m_Name: UI_Harita
   m_TagString: Untagged
@@ -323,6 +324,18 @@ MonoBehaviour:
   auraPulseSeconds: 2.6
   sparkleSpin: 14
   refreshInterval: 0.5
+--- !u!114 &2493552227093237570
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 297797211272367375}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5584fe0c6f1f56d44812c4e0b9dfd703, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Game.UI::Game.UI.NotificationNavigationUI
 --- !u!1 &514562812348791955
 GameObject:
   m_ObjectHideFlags: 0

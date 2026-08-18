@@ -70,6 +70,8 @@ namespace Game.UI
         private float _delay;
         private bool _shown;
 
+        public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
+
         private void Start()
         {
             _report = ServiceLocator.Get<OfflineReport>();
