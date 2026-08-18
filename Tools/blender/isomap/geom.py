@@ -4,7 +4,7 @@ Pure functions only - no island state lives here. Each isle_*.py imports these
 and adds its own coordinates on top, so the two islands cannot drift apart on
 the maths while differing on the map.
 """
-from math import atan2, cos, hypot, pi, sin
+from math import atan2, cos, floor, hypot, pi, sin
 
 SQ2 = 0.7071067811865476
 
@@ -549,6 +549,143 @@ def island_fns(coast):
         return -best if inside else best
 
     return sea_depth
+
+
+# ---------------------------------------------------------------- coastlines
+# A coastline is a distance field, not a polyline: everything downstream - the
+# landform falloff, the beach material, the tree and boulder scatter - asks
+# sea_depth(x, y) how far out to sea it is. So the way to make a coast look
+# like a coast is to bend that field, once, here. Bending it in 02_terrain
+# instead is what left the LANDFORM running dead straight behind a waterline
+# that wobbled: the ground fell away to the sea along a ruled line and only the
+# last two metres of beach were ragged.
+
+
+def _lattice(xi, yi, seed):
+    """Deterministic value in [-1, 1] at an integer lattice point.
+
+    Written out rather than taken from mathutils.noise because geom is imported
+    outside Blender (gen.py's argument checks, and any bare-python measuring of
+    a map), and because a hash that lives here cannot drift between the eight
+    islands the way a Blender version bump could.
+    """
+    h = (xi * 374761393 + yi * 668265263 + seed * 2147483647) & 0xFFFFFFFF
+    h = (h ^ (h >> 13)) * 1274126177 & 0xFFFFFFFF
+    h ^= h >> 16
+    return (h & 0xFFFFFF) / 8388607.5 - 1.0
+
+
+def _value(x, y, seed):
+    xi, yi = int(floor(x)), int(floor(y))
+    fx, fy = x - xi, y - yi
+    ux = fx * fx * (3.0 - 2.0 * fx)
+    uy = fy * fy * (3.0 - 2.0 * fy)
+    a = _lattice(xi, yi, seed)
+    b = _lattice(xi + 1, yi, seed)
+    c = _lattice(xi, yi + 1, seed)
+    d = _lattice(xi + 1, yi + 1, seed)
+    lo = a + (b - a) * ux
+    return lo + ((c + (d - c) * ux) - lo) * uy
+
+
+def fbm(x, y, wavelength, seed=0, octaves=4, gain=0.6, lac=2.3, spread=2.5):
+    """Fractal value noise on [-1, 1], coarsest octave at `wavelength`.
+
+    Wavelength rather than frequency because every caller here is thinking in
+    metres of coastline: "bays about 300 across" is the shape being asked for.
+
+    `spread` is what makes the callers' amplitudes mean something. Summed
+    octaves divided by the sum of their weights is mathematically on [-1, 1],
+    but it does not go there: measured over 32k samples the mean magnitude was
+    0.16 and the 95th percentile 0.38. A coast asked for at 28 metres of relief
+    got four, which is why the gold island's south shore still read as a ruled
+    line after the first pass. Scaled so the typical excursion is around 0.4 of
+    the amplitude asked for and the 95th percentile near all of it; the few per
+    cent past that clamp, which costs a short flat stretch of coast now and
+    then and is no worse than what a cliff line looks like anyway.
+    """
+    amp, freq, total, norm = 1.0, 1.0 / wavelength, 0.0, 0.0
+    for k in range(octaves):
+        total += amp * _value(x * freq, y * freq, seed + k * 101)
+        norm += amp
+        amp *= gain
+        freq *= lac
+    return max(-1.0, min(1.0, total / norm * spread))
+
+
+def ragged(sea_depth, amp=28.0, wavelength=150.0, seed=31, land_bias=0.22,
+           calm=(), calm_r=88.0):
+    """Break a straight coast into headlands, spits and coves.
+
+    The authored SHORE of every map is a near-constant band - gold's is a
+    horizontal line across the screen - because it is placed to put the quay
+    and the districts where the frame wants them, not to look like geology.
+    This is what turns it back into a coast, at four scales down to the 2.6
+    metre pitch of the ground grid.
+
+    Pushed SEAWARD at full amplitude and landward at `land_bias` of it, which is
+    what makes this safe to drop under an already-built map. Every district and
+    site was placed against the straight line, and three of them sit within five
+    metres of it (gold's market and refinery, coal's quarry); eroding the coast
+    the same distance it is allowed to grow would put the waterline inside their
+    pads. Growing is free - the sea it takes is empty.
+
+    `calm` are the points that must keep the straight shore they were built
+    against: the port, above all. A quay is a dredged face, so a smooth coast
+    there is also the truer picture. The taper has to clear the apron, not just
+    the quay - it is a 76-wide rectangle offset landward of PORT - so it holds
+    the coast dead straight inside 0.55 * calm_r and is only at full amplitude
+    a whole calm_r out.
+
+    Wrap this INSIDE enclose, not outside it. The ring is what keeps the coast
+    clear of the edge of the ground grid, and it can only do that if it has the
+    last word: run the other way round, a spit growing seaward off the back
+    coast lands in the 22 units of shelf the ring leaves and the island is cut
+    square again in patches.
+    """
+    def ragged_depth(x, y):
+        a = amp
+        for cx, cy in calm:
+            a *= smoothstep(calm_r * 0.55, calm_r, hypot(x - cx, y - cy))
+        if a <= 0.0:
+            return sea_depth(x, y)
+        f = fbm(x, y, wavelength, seed, 4, 0.6, 2.35)
+        return sea_depth(x, y) + a * (f if f < 0.0 else f * land_bias)
+
+    return ragged_depth
+
+
+def enclose(sea_depth, r0=279.0, amp=17.0, wavelength=300.0, seed=7,
+            keep=258.0):
+    """Close a one-sided coast into an island.
+
+    shore_fns gives a HALF-PLANE: sea on one side of the authored line, land
+    forever on the other. Three of a map's four sides therefore never meet
+    water at all - the ground simply runs to the edge of the GROUND_SIZE grid
+    and is cut off square, which is what read as a square island.
+
+    This intersects that half-plane with the inside of an irregular ring, so
+    the land closes and the sea goes all the way round. Being an INTERSECTION
+    it can only ever take land away, never add it: no district, rail corridor,
+    quay or shipping lane can find itself on new ground because of this. What
+    it does eat is the outer skirt of the backdrop mountain rings, which is the
+    point - a range that walks into the sea is what tells you it is an island.
+
+    `keep` is the radius the ring is never allowed inside. The furthest built
+    thing on any of the four maps is the copper island's rail loop at 250.
+    """
+    def enclosed(x, y):
+        # Five octaves, and weighted towards the fine end (gain 0.72). At four
+        # and 0.65 the finest was +/-2.2 over a 22-metre wavelength, which on a
+        # 2.6-metre ground grid is smooth: close up the back coast came out as
+        # a clean arc with an even sand band, and read as a cut rather than a
+        # shore. The last octave here is under the grid pitch on purpose - it
+        # aliases into per-quad ragged, which is what a flat-shaded coastline
+        # has instead of a curve.
+        r = max(keep, r0 + amp * fbm(x, y, wavelength, seed, 5, 0.72, 2.5))
+        return max(sea_depth(x, y), hypot(x, y) - r)
+
+    return enclosed
 
 
 def site_filters(sites):

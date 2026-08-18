@@ -120,29 +120,49 @@ namespace Kayseri.IslandTools
         // ─────────────────────────────────────────────────────────────────────── the eight oceans
         private static readonly Ocean[] Oceans =
         {
-            // Crude oil. Almost no colour at all and almost no chop - it is viscous, so the swell
-            // is long and smooth and Choppy stays near the bottom of its range. Everything you see
-            // is the sheen: smoothness 0.96 with the hardest glitter of the five wave seas, and a
-            // break that is grey-purple film rather than white water.
+            // Ordinary sea, and deliberately so. Coal is the FIRST map a player ever sees, and a
+            // first impression has a different job from a theme: it has to look like somewhere
+            // worth being rather than announce what the island mines. The other seven carry the
+            // strangeness; this one is blue-green water with the sun on it.
+            //
+            // The tar sea this replaced was a good idea in the wrong place - it read as polluted
+            // and dead at exactly the moment the game is trying to sell itself. Everything that
+            // makes it feel alive here is motion and light rather than colour: real whitecaps at
+            // 0.85, the highest glitter of the wave seas after mercury, and a fifth of the sky in
+            // the flat water.
             new Ocean
             {
-                Island = "Coal", Name = "tar", Kind = Kind.Wave,
+                Island = "Coal", Name = "blue-green", Kind = Kind.Wave,
                 Wave = new Wave
                 {
-                    Body  = Rgb(0.090f, 0.086f, 0.115f),
-                    Crest = Rgb(0.225f, 0.212f, 0.275f),
-                    Cap   = Rgb(0.400f, 0.340f, 0.460f),
-                    CrestBlend = 1.0f, CapLevel = 0.84f, CapWidth = 0.15f, CapAmount = 0.40f,
-                    Scale = 0.045f, Speed = 0.30f, Choppy = 0.25f, Bend = 4.6f, BendScale = 0.170f,
+                    // Far lighter than the themed seas, and it has to be: these are sRGB and the
+                    // conversion to linear is brutal at the bottom of the range. 0.02 sRGB is
+                    // 0.0015 linear, which is the right order for Ruby's basalt and pure black for
+                    // water. A sea that reads blue needs to start well up the curve.
+                    Body  = Rgb(0.075f, 0.400f, 0.500f),
+                    Crest = Rgb(0.280f, 0.680f, 0.700f),
+                    Cap   = Rgb(0.900f, 0.960f, 0.980f),      // genuine white water
+                    // 0.88, not the 0.78 the themed seas use. Those break in their own colour, so
+                    // a wide band reads as texture; this one breaks WHITE, and at 0.78 the foam
+                    // covered most of the surface and turned the sea silver. Whitecaps are meant to
+                    // be the top few percent of the water, not the water.
+                    CrestBlend = 1.0f, CapLevel = 0.900f, CapWidth = 0.055f, CapAmount = 0.60f,
+                    Scale = 0.055f, Speed = 0.55f, Choppy = 0.55f, Bend = 4.2f, BendScale = 0.200f,
                     Dir = new Vector2(1f, 0.35f),
-                    Slope = 1.6f, Smoothness = 0.96f, Sheen = 0.70f, Glitter = 0.30f,
-                    Sky = Rgb(0.20f, 0.21f, 0.30f), SkyAmount = 0.10f,
-                    Wrap = 0.30f, Ambient = 0.45f,
+                    // Tuned against the REAL island camera, which is yawed -45 degrees against a
+                    // sun at yaw 128. At that angle the half-vector sits far closer to the wave
+                    // normals than it does head-on, so the same specular that reads as a pleasant
+                    // sheen on a flat swatch turns the whole sea into a sheet of silver in game.
+                    // Gentler slope than the themed seas: heavy chop shades half the surface away
+                    // from the sun and reads as a storm, and this one is meant to look inviting.
+                    Slope = 1.0f, Smoothness = 0.88f, Sheen = 0.30f, Glitter = 0.28f,
+                    Sky = Rgb(0.45f, 0.62f, 0.82f), SkyAmount = 0.18f,
+                    Wrap = 0.35f, Ambient = 0.70f,
                 },
                 Foam = new Spray
                 {
-                    Tint = Rgb(0.19f, 0.17f, 0.20f),
-                    Smoothness = 0.55f, Metallic = 0.05f, Specular = 0.45f, Saturation = 1.05f,
+                    Tint = Rgb(0.93f, 0.97f, 1.00f),
+                    Smoothness = 0.40f, Metallic = 0f, Specular = 0.35f, Saturation = 1.00f,
                 },
             },
 

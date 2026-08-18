@@ -30,9 +30,9 @@ everything on the east.
 from math import hypot
 
 from geom import (SQ2, axis_meets, band, circuit, crossings, dist_to_path,
-                  fence_gaps, gate_point, gates, island_fns, offset_closed,
-                  offset_open, rect_mask, shore_fns, site_filters, smoothstep,
-                  straight, trim_arterial, trim_zones)
+                  enclose, fence_gaps, gate_point, gates, island_fns,
+                  offset_closed, offset_open, ragged, rect_mask, shore_fns,
+                  site_filters, smoothstep, straight, trim_arterial, trim_zones)
 
 NAME = "iron"
 # 460, not coal's 380. This island carries three more roads and four more pads
@@ -294,9 +294,10 @@ SEA_AXIS = (-SQ2, -SQ2)          # unit vector pointing out to sea
 SEA_Z = -3.0
 SEA_DEEP = -17.0
 
-# One coast, down the screen left, same as the other two maps. geom.island_fns
-# and a closed SHORE will make this water go all the way round if it is ever
-# wanted again - the ring version of this coastline is a straight swap.
+# One AUTHORED coast, down the screen left, same as the other three maps. The
+# water does go all the way round now, but not from a closed SHORE - see the
+# geom.enclose wrap further down, which closes the other three sides against a
+# noise ring rather than against fourteen more hand-placed points per island.
 sea_depth = shore_fns(SHORE, SEA_AXIS[0], SEA_AXIS[1])
 
 # Port in the bay down-shore of the market, 92 clear of the market pad so the
@@ -318,6 +319,16 @@ PORT_APRON = (12.0, 9.0)
 # other.
 SHIP_OUT = (-206.0, -86.0)
 SHIP_LANE = [(-206, -86), (-236, -116), (-266, -146), (-296, -176)]
+
+# The island's real edge. shore_fns above is only the authored coast - the one
+# side the port and the districts were placed against. `enclose` closes the
+# other three, which until now ran off the side of the ground grid and were cut
+# off square, and `ragged` breaks what is otherwise a ruled line into headlands
+# and coves. Both live in geom so all eight islands get the same coast; only
+# the calm points are the map's own: the quay, and the water the ship stands
+# out into - a headland grown across the harbour approach put the iron island's
+# hull within six metres of the waterline.
+sea_depth = enclose(ragged(sea_depth, calm=(PORT, SHIP_OUT)))
 
 GROUND_SIZE = 640.0
 GROUND_SEGS = 250

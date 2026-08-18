@@ -49,7 +49,7 @@ Material:
     - _Saturation: 1.7
     - _Smoothness: 0.05
     - _SpecularStrength: 0.45
-    - _TintAmount: 0.95
+    - _TintAmount: 0.55
     - _ToonSmoothness: 0.1
     - _ToonSteps: 3
     - _VertexColorAmount: 1
@@ -64,6 +64,6 @@ Material:
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowTint: {r: 0.41999996, g: 0.47999996, b: 0.68, a: 1}
     - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}
-    - _Tint: {r: 0.55952793, g: 0.5462059, b: 0.55952793, a: 1}
+    - _Tint: {r: 1.1812766, g: 1.0785568, b: 0.79607767, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

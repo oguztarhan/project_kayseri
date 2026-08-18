@@ -30,9 +30,9 @@ Shared scripts untouched, same as iron: the ring is a measured PATH, the sea
 side is data (SEA_AXIS), and the extra tunnel is just a second span in TUNNEL.
 """
 from geom import (SQ2, axis_meets, band, circuit, crossings, dist_to_path,
-                  fence_gaps, gate_point, gates, island_fns, offset_closed,
-                  offset_open, rect_mask, shore_fns, site_filters, smoothstep,
-                  straight, trim_arterial, trim_zones)
+                  enclose, fence_gaps, gate_point, gates, island_fns,
+                  offset_closed, offset_open, ragged, rect_mask, shore_fns,
+                  site_filters, smoothstep, straight, trim_arterial, trim_zones)
 
 NAME = "gold"
 # Between coal's 380 and iron's 460: the map is compact but the rail arc over
@@ -222,6 +222,16 @@ PORT_APRON = (-9.0, 9.0)         # landward along the quay's normal
 # quay, and the first spot here read -10 on the audit - inside one.
 SHIP_OUT = (284.0, -52.0)
 SHIP_LANE = [(284, -52), (300, -92), (314, -134), (326, -176)]
+
+# The island's real edge. shore_fns above is only the authored coast - the one
+# side the port and the districts were placed against. `enclose` closes the
+# other three, which until now ran off the side of the ground grid and were cut
+# off square, and `ragged` breaks what is otherwise a ruled line into headlands
+# and coves. Both live in geom so all eight islands get the same coast; only
+# the calm points are the map's own: the quay, and the water the ship stands
+# out into - a headland grown across the harbour approach put the iron island's
+# hull within six metres of the waterline.
+sea_depth = enclose(ragged(sea_depth, calm=(PORT, SHIP_OUT)))
 
 GROUND_SIZE = 640.0
 GROUND_SEGS = 250

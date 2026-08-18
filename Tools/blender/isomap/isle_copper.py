@@ -33,8 +33,8 @@ modelled facing -X, so the massif has to stay west of it.
 """
 from math import exp, hypot
 
-from geom import (SQ2, band, crossings, dist_to_path, fence_gaps, gate_point, gates, offset_open,
-                  rect_mask, ring,
+from geom import (SQ2, band, crossings, dist_to_path, enclose, fence_gaps,
+                  gate_point, gates, offset_open, ragged, rect_mask, ring,
                   shore_fns, site_filters, smoothstep, straight, trim_arterial,
                   trim_zones)
 
@@ -305,6 +305,16 @@ PORT_APRON = (-13.0, -9.0)       # landward along the quay's normal
 # still lands inside the frame (screen_x 213 against a 220 half-width).
 SHIP_OUT = (37.0, 264.0)
 SHIP_LANE = [(37, 264), (71, 298), (105, 332), (139, 366)]
+
+# The island's real edge. shore_fns above is only the authored coast - the one
+# side the port and the districts were placed against. `enclose` closes the
+# other three, which until now ran off the side of the ground grid and were cut
+# off square, and `ragged` breaks what is otherwise a ruled line into headlands
+# and coves. Both live in geom so all eight islands get the same coast; only
+# the calm points are the map's own: the quay, and the water the ship stands
+# out into - a headland grown across the harbour approach put the iron island's
+# hull within six metres of the waterline.
+sea_depth = enclose(ragged(sea_depth, calm=(PORT, SHIP_OUT)))
 
 GROUND_SIZE = 640.0
 GROUND_SEGS = 250

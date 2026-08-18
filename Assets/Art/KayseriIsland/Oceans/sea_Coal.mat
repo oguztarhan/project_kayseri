@@ -25,14 +25,14 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _AmbientAmount: 0.45
+    - _AmbientAmount: 0.7
     - _AmbientHemi: 0.65
     - _BandHigh: 0.55
     - _BandLow: 0.24
     - _BandSharp: 0.3
-    - _Bend: 4.6
-    - _BendScale: 0.17
-    - _Choppy: 0.25
+    - _Bend: 4.2
+    - _BendScale: 0.2
+    - _Choppy: 0.55
     - _Depth: 1
     - _DetailScale: 0.7
     - _DetailStrength: 0.1
@@ -41,22 +41,22 @@ Material:
     - _EmissionFloor: 0.3
     - _EmissionNight: 0
     - _FlowSpeed: 0.14
-    - _FoamAmount: 0.4
-    - _FoamLevel: 0.84
-    - _FoamWidth: 0.15
-    - _GlitterStrength: 0.3
+    - _FoamAmount: 0.6
+    - _FoamLevel: 0.9
+    - _FoamWidth: 0.055
+    - _GlitterStrength: 0.28
     - _Grime: 0
     - _Jitter: 0.3
     - _JitterScale: 0.16
     - _Metallic: 0.3
-    - _NormalStrength: 1.6
+    - _NormalStrength: 1
     - _RimPower: 3
     - _RimStrength: 0.35
     - _Saturation: 1.15
-    - _Scale: 0.045
-    - _SkyAmount: 0.1
-    - _Smoothness: 0.96
-    - _SpecularStrength: 0.7
+    - _Scale: 0.055
+    - _SkyAmount: 0.18
+    - _Smoothness: 0.88
+    - _SpecularStrength: 0.3
     - _Stretch: 0.4
     - _ToonSmoothness: 0.7
     - _ToonSteps: 4
@@ -67,22 +67,22 @@ Material:
     - _VertexColorAmount: 0
     - _Vibrance: 1.02
     - _Warp: 0.42
-    - _WaveSpeed: 0.3
-    - _Wrap: 0.3
+    - _WaveSpeed: 0.55
+    - _Wrap: 0.35
     m_Colors:
     - _AmbientGround: {r: 0.54999995, g: 0.47999996, b: 0.39999998, a: 1}
     - _BaseColor: {r: 0.0044008493, g: 0.0041182726, b: 0.005315043, a: 1}
-    - _DeepColor: {r: 0.008540383, g: 0.007985829, b: 0.012510408, a: 1}
+    - _DeepColor: {r: 0.006571403, g: 0.13286833, b: 0.21404114, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FlowDir: {r: 1, g: 0.35, b: 0, a: 0}
-    - _FoamColor: {r: 0.13286833, g: 0.09462964, b: 0.1788675, a: 1}
+    - _FoamColor: {r: 0.78741235, g: 0.91140765, b: 0.95510465, a: 1}
     - _GrimeColor: {r: 0.25999996, g: 0.20999995, b: 0.14999998, a: 1}
     - _HotColor: {r: 0.078288324, g: 0.07573911, b: 0.10964592, a: 1}
     - _MidColor: {r: 0.0074528675, g: 0.006941255, b: 0.009116771, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowTint: {r: 0.07323897, g: 0.11928018, b: 0.26327342, a: 1}
-    - _ShallowColor: {r: 0.041435573, g: 0.036967587, b: 0.061464958, a: 1}
-    - _SkyTint: {r: 0.033104762, g: 0.036306474, b: 0.07323897, a: 1}
+    - _ShallowColor: {r: 0.0637238, g: 0.42003334, b: 0.44798842, a: 1}
+    - _SkyTint: {r: 0.17064494, g: 0.34239164, b: 0.63828325, a: 1}
     - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}
     - _VeinColor: {r: 0.11280479, g: 0.039681915, b: 0.15487249, a: 1}
   m_BuildTextureStacks: []

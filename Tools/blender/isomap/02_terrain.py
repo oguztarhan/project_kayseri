@@ -1,5 +1,9 @@
 """Step 2: heightfield island - mountains, river gorge, ocean, beach, rocks."""
 import importlib
+# island is never reloaded on purpose (see island.py) - the sea sheet only needs
+# it for a per-island stagger, so that no two of the eight oceans in Main.unity
+# are exactly coplanar where they lap over each other.
+import island
 import layout
 importlib.reload(layout)
 L = layout
@@ -188,13 +192,23 @@ def height(x, y):
     h = land_height(x, y)
     if depth <= -26.0:
         return h
-    wob = nz(x, y, 0.020, 11.0) * 5.0  # ragged, non-straight coastline
-    d = depth + wob
+    # The ragged, non-straight coastline used to be added here - one octave of
+    # +/-5 on the depth, and only here, so the LANDFORM behind it still fell
+    # away to the sea along the ruled line the map authors. It lives in
+    # geom.ragged now, wrapped round the island's own sea_depth, so the falloff
+    # at the top of land_height, the beach material, the trees and the boulders
+    # all read the same coast the waterline does.
+    d = depth
     if d <= 0.0:
         # beach shelf: flatten the last few metres down to the waterline, but
         # not where the map is built on. The quay sits right at the water, and
         # ungated this dragged the port apron from its graded height down to 0.
-        f = L.smoothstep(-22.0, 0.0, d) * (1.0 - flat_mask(x, y))
+        # How far inland the beach flattens is itself a landscape: 12 metres of
+        # sand under a headland, 32 in the back of a bay. At a constant 22 the
+        # sand came out as a ribbon of even width all the way round the island,
+        # which is what a contour looks like and not what a beach does.
+        reach = -22.0 - 10.0 * nz(x, y, 0.008, 33.0)
+        f = L.smoothstep(reach, 0.0, d) * (1.0 - flat_mask(x, y))
         return h * (1.0 - f) + (0.9 * (1.0 - f)) * f
     # underwater: shelve off, then drop to the deep
     prof = L.smoothstep(0.0, 58.0, d)
@@ -372,25 +386,116 @@ def ground_colour(x, y, z, vi, fi):
 paint(ground, ground_colour)
 
 # ------------------------------------------------------------------------ sea
-bs = B().use("sea")
-bs.box((L.GROUND_SIZE * 1.15, L.GROUND_SIZE * 1.15, 0.4),
-       (0, 0, L.SEA_Z - 0.2))
-sea = bs.make("Sea", collection=CT)
+# A ROUND, SLOPED, IRREGULAR sheet - not a square quad.
+#
+# The eight islands stand on a 700 x 700 grid in Main.unity, and every one of
+# them carries its own ocean in its own colour (IslandOceans.cs). A square sea
+# on a grid like that tiles into a patchwork: whichever quad is drawn on top
+# ends in a dead straight line across its neighbour's water, and since all
+# eight sit at exactly the same height they z-fight along it too. That straight
+# line is what reads as "the island edge is one line" from the play camera, and
+# it is the sea, not the land.
+#
+# Three things fix it, and all three are geometry:
+#
+#   ROUND    A disc has no straight edge to show anywhere.
+#   SLOPED   A disc big enough to close the gap at the middle of four islands
+#            (495 = 700/sqrt(2)) necessarily laps 290 units over its neighbours.
+#            Flat, the higher one would paint its colour over the other's
+#            beach. Falling away from its own island means the nearer sea is
+#            always the higher one, so every coast keeps its own water and the
+#            handover happens out at the halfway line where nothing is built.
+#   NOISY    Two identical cones cross on a plane, so a smooth slope would put
+#            the handover on a dead straight line again - the same fault one
+#            layer down. Noise on the height moves the crossing by about thirty
+#            metres either way, and the boundary between two oceans wanders.
+# 1400, not the island's own 296. Only ONE island is ever switched on in play -
+# WorldIslands.Awake keeps exactly one alive - so the sheet is never seen next to
+# another island's, and the only edge that matters is its own. The play camera
+# pitches 52 degrees at a 30 degree field of view and dollies out to 0.44 of its
+# survey distance, which puts roughly 900 units of sea floor in frame; a rim at
+# 530 sat inside that, and a hard line of water against empty sky is exactly the
+# "island edge is one line" this was meant to cure.
+SEA_R = 1400.0           # rim, before noise: well past anything the camera frames
+SEA_RIM_WOB = 110.0      # rim wander, so it is not a circle either if it does show
+SEA_FALL = 1.2           # how far the sheet drops from the coast to the rim
+SEA_WOB = 0.45           # height noise - bends the handover where sheets do meet
+SEA_FLAT = 300.0         # dead level out to here, which is past every coast
+SEA_RINGS, SEA_SEGS = 7, 96
+# Islands are staggered four millimetres each so two sheets can never be exactly
+# coplanar. Kept this small on purpose: it is the SLOPE that decides which ocean
+# owns a coast, and the stagger works against it. At the tightest pairing on the
+# grid - the last island next to the first - the neighbour's sheet is still 8 cm
+# below this one's coast, and the stagger eats none of that margin worth caring
+# about.
+SEA_STAGGER = 0.004 * island.ISLANDS.index(L.ISLAND)
 
-# surf line along the shore
+
+def sea_z(x, y):
+    r = hypot(x, y)
+    t = L.smoothstep(SEA_FLAT, SEA_R, r)
+    return (L.SEA_Z - SEA_STAGGER - SEA_FALL * t
+            + SEA_WOB * t * nz(x, y, 0.0085, 77.0))
+
+
+bsm = bmesh.new()
+hub = bsm.verts.new((0.0, 0.0, sea_z(0.0, 0.0)))
+prev = None
+for ri in range(1, SEA_RINGS + 1):
+    f = ri / SEA_RINGS
+    row = []
+    for si in range(SEA_SEGS):
+        a = 2.0 * pi * si / SEA_SEGS
+        rad = (SEA_R + SEA_RIM_WOB * nz(cos(a) * 90.0, sin(a) * 90.0, 1.0, 5.0)) * f
+        px, py = cos(a) * rad, sin(a) * rad
+        row.append(bsm.verts.new((px, py, sea_z(px, py))))
+    for si in range(SEA_SEGS):
+        nx = (si + 1) % SEA_SEGS
+        if prev is None:
+            bsm.faces.new([hub, row[si], row[nx]])
+        else:
+            bsm.faces.new([prev[si], row[si], row[nx], prev[nx]])
+    prev = row
+msea = bpy.data.meshes.new("Sea")
+bsm.to_mesh(msea)
+bsm.free()
+msea.materials.append(mat("sea"))
+sea = bpy.data.objects.new("Sea", msea)
+CT.objects.link(sea)
+
+# ---------------------------------------------------------------------- surf
+# Traced off the depth field rather than scattered along the SHORE polyline.
+# SHORE is only the authored coast - one side of the map - and since geom.ragged
+# bends that line and geom.enclose closes the other three, it is no longer where
+# the water actually meets the land. Sampling the field puts surf on every
+# metre of coast the island turns out to have, including the new back coast and
+# every cove and spit the noise cuts into the front one.
+#
+# 4-unit sample lattice, roughly 26k sea_depth calls - a fifth of what the
+# ground grid itself costs, and it buys a shoreline that cannot drift from the
+# terrain the way a hand-followed polyline does.
 bf = B().use("foam")
-for pos, yaw in scatter_along([(p[0], p[1], 0.0) for p in L.SHORE], 6.0):
-    for k in range(3):
-        off = -2.0 - k * 3.4
-        nx, ny = -sin(yaw), cos(yaw)
-        # push seaward - which of the two shore normals that is depends on
-        # which half-plane the island's ocean occupies
-        sgn = 1.0 if (nx * L.SEA_AXIS[0] + ny * L.SEA_AXIS[1]) > 0 else -1.0
-        fx = pos.x + nx * off * sgn + RNG.uniform(-2, 2)
-        fy = pos.y + ny * off * sgn + RNG.uniform(-2, 2)
-        # only break in the shallows, never out over deep water
-        if not (-1.0 < L.sea_depth(fx, fy) < 13.0):
+SURF_STEP = 4.0
+_n = int(L.GROUND_SIZE / SURF_STEP)
+for _j in range(_n):
+    _y = -half + _j * SURF_STEP
+    for _i in range(_n):
+        _x = -half + _i * SURF_STEP
+        # The breaking band: from just inside the waterline out to where the
+        # shelf is still shallow. Never out over deep water.
+        if not (-1.2 < L.sea_depth(_x, _y) < 4.8):
             continue
+        # Surf does not run as an unbroken bead all the way round an island: it
+        # breaks white on the exposed stretches and the sheltered coves are
+        # quiet. The old scatter ran one short authored shore and could ignore
+        # this; on a closed coast four times as long, an unconditional band came
+        # out as a pebble necklace round the whole map.
+        if nz(_x, _y, 0.011, 55.0) < 0.15:
+            continue
+        if RNG.random() > 0.75:
+            continue
+        fx = _x + RNG.uniform(-2.0, 2.0)
+        fy = _y + RNG.uniform(-2.0, 2.0)
         bf.sphere(RNG.uniform(1.5, 3.0), (fx, fy, L.SEA_Z + RNG.uniform(-0.2, 0.3)),
                   1, scale=(1.5, 1.5, 0.26))
 bf.make("Surf", collection=CT, smooth=True)
@@ -511,7 +616,12 @@ while placed < 470 and tries < 9000:
         continue
     dr = L.dist_to_path(x, y, L.RIVER)[0] if L.RIVER else 1e9
     steep = abs(height(x + 2, y) - z) + abs(height(x, y + 2) - z)
-    coastal = -10.0 < L.sea_depth(x, y) < 6.0
+    # Rocky foreshore in stretches, for the same reason the surf is: the coast
+    # closes now, so this clause covers four times the ground it was written
+    # for, and unconditional it was spending a third of the island's boulders
+    # on one continuous line of them.
+    coastal = (-9.0 < L.sea_depth(x, y) < 5.0
+               and nz(x, y, 0.009, 71.0) > 0.10)
     rel = z - grade.road_z(x, y)          # above the graded surface, as above
     if not (rel > 7.0 or steep > 1.8 or dr < 22.0 or coastal):
         continue

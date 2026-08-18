@@ -1084,8 +1084,8 @@ MonoBehaviour:
     Model: ShipOut
     Island: 0
     Phase: 0
-    Replacement: {fileID: 919132149155446097, guid: bad504d467a2b4abb850a293081b2a21, type: 3}
-    Hide: 0
+    Replacement: {fileID: 0}
+    Hide: 1
     SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
@@ -1096,7 +1096,7 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
-    Hide: 0
+    Hide: 1
     SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1
@@ -1118,7 +1118,7 @@ MonoBehaviour:
     Island: 0
     Phase: 0
     Replacement: {fileID: 0}
-    Hide: 0
+    Hide: 1
     SkipOverBuildings: 0
     FitToOriginal: 1
     Scale: 1

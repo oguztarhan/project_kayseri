@@ -14,8 +14,8 @@ The ocean fills the screen-left / bottom-left, i.e. the world SW half-plane
 """
 from math import hypot
 
-from geom import (SQ2, band, crossings, dist_to_path, fence_gaps, gate_point, gates, offset_open,
-                  rect_mask, ring,
+from geom import (SQ2, band, crossings, dist_to_path, enclose, fence_gaps,
+                  gate_point, gates, offset_open, ragged, rect_mask, ring,
                   shore_fns, site_filters, smoothstep, straight, trim_arterial,
                   trim_zones)
 
@@ -207,6 +207,16 @@ PORT_APRON = (12.0, 9.0)         # apron centre, offset landward of the quay
 # along the quay, past the harbour mouth.
 SHIP_OUT = (-143.0, -111.0)
 SHIP_LANE = [(-143, -111), (-177, -137), (-211, -163), (-245, -189)]
+
+# The island's real edge. shore_fns above is only the authored coast - the one
+# side the port and the districts were placed against. `enclose` closes the
+# other three, which until now ran off the side of the ground grid and were cut
+# off square, and `ragged` breaks what is otherwise a ruled line into headlands
+# and coves. Both live in geom so all eight islands get the same coast; only
+# the calm points are the map's own: the quay, and the water the ship stands
+# out into - a headland grown across the harbour approach put the iron island's
+# hull within six metres of the waterline.
+sea_depth = enclose(ragged(sea_depth, calm=(PORT, SHIP_OUT)))
 
 GROUND_SIZE = 640.0
 GROUND_SEGS = 250

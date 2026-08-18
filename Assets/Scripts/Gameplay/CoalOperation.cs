@@ -6234,6 +6234,10 @@ namespace Game.Gameplay
                     foreach (Transform obj in group)
                     {
                         string n = obj.name;
+                        // The outbound ship's funnel marker is not a chimney. It is authored at the berth
+                        // the contract ship departs from, and the ship sails away from it, so smoking it
+                        // put a plume over open water for the rest of the session.
+                        if (n.IndexOf("ShipSmoke", System.StringComparison.Ordinal) >= 0) continue;
                         // The things that burn. Smoke, Steam and Flare are the map's own effect markers;
                         // Stack, CoolingTowers and CokeOvens are the structures themselves.
                         if (n.IndexOf("Stack", System.StringComparison.Ordinal) < 0 &&

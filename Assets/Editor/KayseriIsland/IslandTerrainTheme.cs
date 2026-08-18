@@ -169,18 +169,36 @@ namespace Kayseri.IslandTools
             // rather than as an ordinary coast at dusk.
             new Theme
             {
-                Island = "Coal", Name = "blighted",
-                Ground = T(0.62f, 0.60f, 0.58f, 0.80f, 0.85f),
+                Island = "Coal", Name = "temperate",
+                // The lightest touch of the eight, on purpose and for two reasons.
+                //
+                // First, this is the first island a player sees, so it has to look alive rather
+                // than themed - the blighted grey it replaced was the right idea for a coal map and
+                // exactly the wrong first impression.
+                //
+                // Second, Coal is one of the two BASE maps in the generator: unlike iron, gold,
+                // ruby and the rest it declares no GROUND_ROCK or GROUND_SAND override, so what
+                // Blender baked into it already IS a temperate coast. The job here is mostly to
+                // stay out of the bake's way and lift it, which is why every Amount is low and the
+                // stone is left almost exactly as authored.
+                Ground = T(0.55f, 0.70f, 0.46f, 1.02f, 0.25f),
                 Overrides = new Dictionary<string, Tint>
                 {
-                    { "grass",     T(0.58f, 0.56f, 0.48f, 0.70f, 0.95f) },   // dead, not green
-                    { "grass_dry", T(0.60f, 0.56f, 0.46f, 0.75f, 0.95f) },
-                    { "bush",      T(0.55f, 0.52f, 0.46f, 0.65f, 0.95f) },
-                    { "pine",      T(0.48f, 0.47f, 0.44f, 0.60f, 0.95f) },   // ashen, leafless read
-                    { "pine_lt",   T(0.54f, 0.52f, 0.48f, 0.65f, 0.95f) },
-                    { "sand",      T(0.42f, 0.41f, 0.42f, 0.55f, 0.95f) },   // black slag beach
+                    { "grass",     T(0.42f, 0.78f, 0.34f, 1.06f, 0.45f) },   // lush, not neon
+                    { "grass_dry", T(0.62f, 0.74f, 0.36f, 1.03f, 0.35f) },
+                    { "bush",      T(0.38f, 0.74f, 0.36f, 1.02f, 0.40f) },
+                    { "pine",      T(0.30f, 0.66f, 0.34f, 0.98f, 0.35f) },
+                    { "pine_lt",   T(0.40f, 0.76f, 0.40f, 1.03f, 0.35f) },
+                    { "sand",      T(0.92f, 0.84f, 0.62f, 1.08f, 0.55f) },   // golden beach
+                    // Stone stays the granite Blender authored - a green cast on the cliffs is the
+                    // quickest way to make a temperate island look like a filter was applied to it.
+                    { "rock",      T(0.72f, 0.72f, 0.70f, 1.00f, 0.10f) },
+                    { "rock_dark", T(0.70f, 0.70f, 0.70f, 1.00f, 0.10f) },
+                    { "cliff",     T(0.72f, 0.72f, 0.70f, 1.00f, 0.10f) },
                 },
-                Foliage = new Color(0.55f, 0.53f, 0.50f, 1f),
+                // Near white: the imported atlas is already the right green, and this is a multiply,
+                // so anything below 1 only takes life out of it.
+                Foliage = new Color(0.98f, 1.00f, 0.94f, 1f),
             },
 
             // Chemical scarring around an acid sea. The ground goes sickly yellow-green and the
