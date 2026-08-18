@@ -47,18 +47,18 @@ namespace Game.Gameplay
 
         [Header("Gece")]
         [SerializeField] private Color _nightSunColor = new Color(0.34f, 0.44f, 0.84f);
-        [SerializeField] private float _nightSunIntensity = 0.28f;
+        [SerializeField] private float _nightSunIntensity = 0.4f;
         [Tooltip("Ayın geldiği yön (Euler). Güneşin gündüz yönü sahneden okunur, geçişte buraya süzülür.")]
         [SerializeField] private Vector3 _nightSunAngles = new Vector3(38f, 205f, 0f);
-        [SerializeField] private Color _nightSkyColor = new Color(0.03f, 0.042f, 0.10f);
+        [SerializeField] private Color _nightSkyColor = new Color(0.05f, 0.068f, 0.15f);
         [Tooltip("Gece ortam ışığı ve yansımalarının gündüze oranı.")]
-        [Range(0f, 1f)][SerializeField] private float _nightAmbient = 0.15f;
+        [Range(0f, 1f)][SerializeField] private float _nightAmbient = 0.22f;
         [Tooltip("Gece ortam ışığına karışan ay mavisi; kanal başına çarpan. Beyaz = eski davranış.")]
         [SerializeField] private Color _nightAmbientTint = new Color(0.75f, 0.85f, 1.3f);
         [Tooltip("Materyallerdeki sabit gölge ve rim renklerinin gecede düştüğü ton.")]
-        [SerializeField] private Color _nightTint = new Color(0.24f, 0.29f, 0.52f);
+        [SerializeField] private Color _nightTint = new Color(0.31f, 0.37f, 0.6f);
         [Tooltip("Gece pozlaması, EV cinsinden. Gündüz değeri sahnedeki Volume'dan okunur.")]
-        [SerializeField] private float _nightExposure = -1.4f;
+        [SerializeField] private float _nightExposure = -1f;
 
         // Dusk is not the midpoint between day and night: the real sky detours through orange
         // before it gets anywhere near blue. These are that detour, blended on a weight that peaks
@@ -86,7 +86,7 @@ namespace Game.Gameplay
         // Raised, not lowered, now that the island itself goes properly dark: a low threshold on a
         // dark scene blooms the ground as well as the lamps and puts the haze straight back.
         [Tooltip("Gece bloom eşiği. Düşürmek küçük ışıkların hâle yapmasını sağlar.")]
-        [SerializeField] private float _nightBloomThreshold = 0.7f;
+        [SerializeField] private float _nightBloomThreshold = 0.8f;
         // Lamps do not fade up with the sky. A town's lights come on across a band in the middle
         // of dusk — none while the sun is still setting, all of them well before full dark.
         [Tooltip("Lambaların yandığı gece aralığı: x'te sönük, y'de tam yanık.")]
@@ -96,7 +96,7 @@ namespace Game.Gameplay
         [Tooltip("Suyun shader adı. Bu shader güneşi hiç okumadığı için renkleri elle karartılır.")]
         [SerializeField] private string _unlitWaterShader = "WaterUnlit";
         [Tooltip("Gece su renklerinin gündüze oranı.")]
-        [Range(0f, 1f)][SerializeField] private float _nightWater = 0.11f;
+        [Range(0f, 1f)][SerializeField] private float _nightWater = 0.17f;
 
         /// <summary>Saati ezme modu. <see cref="TimeOverride.Auto"/> cihaz saatini takip eder.</summary>
         public enum TimeOverride { Auto, Day, Night }

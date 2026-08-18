@@ -24,3 +24,11 @@ importlib.reload(_mod)
 globals().update({k: v for k, v in vars(_mod).items() if not k.startswith("_")})
 
 ISLAND = island.NAME
+
+# Which of the four AUTHORED maps this island is drawn from. A derived island
+# (isle_silver and friends) sets DESIGN to the base it re-exports, so the
+# build steps that branch on a map's land - country rock in 01_setup, the
+# painted ground in 02_terrain, the trees in 11_dressing - follow the map
+# rather than the ore. Branching those on ISLAND would give the silver island
+# the copper map with the coal island's grey granite on it.
+DESIGN = getattr(_mod, "DESIGN", island.NAME)

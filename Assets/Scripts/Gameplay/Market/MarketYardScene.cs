@@ -30,6 +30,7 @@ namespace Game.Gameplay
         private readonly YardWorker[] _staff = new YardWorker[3];   // indexed by YardWorker.Job
         private Vector3 _padSpot, _counterSpot, _cashSpot;
         private Transform _roof;
+        private Transform _dressing;
         /// <summary>False out of the gate: a yard is shut until the hall walks the player into it.</summary>
         private bool _live;
 
@@ -62,8 +63,12 @@ namespace Game.Gameplay
             _prefabs = prefabs;
             IslandKey = islandKey;
 
-            Vector3[] spots = MarketYardBuild.Build(transform, tint, westWall, eastDoorway);
+            MarketTheme.Palette theme = MarketTheme.For(islandKey);
+            Vector3[] spots = MarketYardBuild.Build(transform, theme, tint, westWall, eastDoorway);
             _roof = transform.Find(MarketYardBuild.RoofName);
+            // Last, so the props are laid over a yard that is already standing — the dressing measures
+            // nothing and fits into the corners the layout above leaves empty.
+            _dressing = MarketYardDressing.Dress(transform, theme);
             PlayerStart = transform.TransformPoint(spots[(int)MarketYardBuild.Anchor.PlayerStart]);
             _padSpot = spots[(int)MarketYardBuild.Anchor.StockPad];
             _counterSpot = spots[(int)MarketYardBuild.Anchor.Counter];
@@ -102,6 +107,10 @@ namespace Game.Gameplay
             // goes rather than just its renderer: switched off it costs no draw call, casts no shadow
             // into its own room, and cannot occlude anything.
             if (_roof != null) _roof.gameObject.SetActive(!live);
+            // Off with the yard. Dressing is the one thing in here that is pure geometry — no component
+            // to disable — so a parked yard would go on paying for eight props nobody can see through
+            // the roof that just went back on.
+            if (_dressing != null) _dressing.gameObject.SetActive(live);
             if (_pad != null) _pad.enabled = live;
             if (_counter != null) _counter.enabled = live;
             if (_queue != null) _queue.enabled = live;

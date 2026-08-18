@@ -49,7 +49,7 @@ namespace Game.Systems
             public MarketYard save;
             public IIslandSaleTerms terms;
 
-            // delivery meter — bars per minute arriving from the island
+            // delivery meter — bars per minute arriving from the island, on an unboosted clock
             public readonly double[] deliverBuckets = new double[WindowSeconds];
             public int deliverIndex, deliverFilled;
             public double deliverTrailing, deliveredThisTick;
@@ -70,6 +70,7 @@ namespace Game.Systems
         private readonly WalletService _wallet;
         private readonly PrestigeService _prestige;
         private readonly BoostService _boost;
+        private readonly MaintenanceService _maintenance;   // null in tests: everything reads as new
 
         private readonly Dictionary<string, Yard> _yards = new Dictionary<string, Yard>();
         private readonly List<Yard> _order = new List<Yard>();   // stable iteration without allocating
@@ -77,7 +78,7 @@ namespace Game.Systems
         private string _activeIsland;    // the one whose trucks are really driving; null in the market scene
         private string _simulatedYard;   // the one being acted out on screen; null when nobody is in the hall
         private float _accum;
-        private double _prestigeMult = 1d, _boostMult = 1d;
+        private double _prestigeMult = 1d, _boostMult = 1d, _simSpeed = 1d;
 
         /// <summary>
         /// Raised when a yard actually sells: which island, and what the wallet was paid. The floating
@@ -86,12 +87,14 @@ namespace Game.Systems
         /// </summary>
         public event Action<string, double> Sold;
 
-        public MarketService(SaveData data, WalletService wallet, PrestigeService prestige, BoostService boost)
+        public MarketService(SaveData data, WalletService wallet, PrestigeService prestige, BoostService boost,
+                             MaintenanceService maintenance = null)
         {
             _data = data;
             _wallet = wallet;
             _prestige = prestige;
             _boost = boost;
+            _maintenance = maintenance;
         }
 
         // ------------------------------------------------------------------ wiring
@@ -114,6 +117,25 @@ namespace Game.Systems
         /// whose yard it just opened: the island scene is gone by then, but this object outlives it.
         /// </summary>
         public string ActiveIsland => _activeIsland;
+
+        /// <summary>
+        /// How fast the island being simulated should run its clock. 1 unless a boost is up.
+        ///
+        /// A ×2 that only ever landed on the price was invisible exactly where the player was looking:
+        /// the trains kept their pace, the lorries kept theirs, and a boosted island was indistinguishable
+        /// from an unboosted one except for a number on the top bar. So on the island being simulated the
+        /// boost is spent on TIME rather than on price — the whole chain runs at ×2, delivers twice the
+        /// bars, and earns the same ×2 it always did, except now it can be watched.
+        ///
+        /// Only that island. Every other yard is fed by a rate rather than by lorries, and a number has no
+        /// clock to speed up, so those keep taking their boost on the price. <see cref="Earn"/> applies
+        /// exactly one of the two, and this is what tells it which.
+        ///
+        /// Latched once a second alongside the multipliers rather than read live, so the speed the island
+        /// ticked at and the speed <see cref="Earn"/> divides back out can never disagree mid-second — the
+        /// bars from a boost that expired half a second ago still have to be priced as boosted bars.
+        /// </summary>
+        public double IslandTimeScale => _simSpeed;
 
         /// <summary>
         /// The yard the player is standing in, whose sales are being acted out rather than calculated.
@@ -170,7 +192,14 @@ namespace Game.Systems
         {
             if (bars <= 0d || string.IsNullOrEmpty(islandKey)) return;
             Yard y = Get(islandKey);
-            y.deliveredThisTick += bars;
+            // The pads get the real load; the METER gets it clean, the same way deliveredPerMin is
+            // stored clean of wear. A boosted island is running its clock at ×2, so twice the lorries
+            // arrive per real second — and none of that is a rate it can sustain once the ad expires.
+            // Divided out here rather than at the meter because a boost starts and stops abruptly:
+            // scaling a whole 60-second window by whatever the speed happened to be at the end of it
+            // would leave the saved rate reading up to double for a minute after every boost, and that
+            // rate is what the next launch's offline grant is paid from.
+            y.deliveredThisTick += bars / SpeedFor(y);
 
             double supply = SupplyPerSecond(y);
             double capacity = MarketFlow.StockCapacity(supply, y.save.depositSlots);
@@ -317,6 +346,10 @@ namespace Game.Systems
             // Once a second, off the sale path — the same cadence the island meter used.
             _prestigeMult = _prestige != null ? _prestige.IncomeMultiplier : 1d;
             _boostMult = _boost != null ? _boost.ActiveMultiplier : 1d;
+            // Spent on the live island's clock when there is one running, and on price otherwise. The
+            // guard is what stops a boost going nowhere while the player stands in a market hall: no
+            // island is simulating there, so there is nothing to speed up and the price keeps it.
+            _simSpeed = string.IsNullOrEmpty(_activeIsland) ? 1d : _boostMult;
 
             double totalPerMin = 0d;
             for (int i = 0; i < _order.Count; i++)
@@ -387,7 +420,20 @@ namespace Game.Systems
         private double Earn(Yard y, double bars)
         {
             if (y.terms == null) return 0d;
-            double sale = bars * y.terms.BarPriceRaw * _prestigeMult;
+
+            // The boost is spent on exactly one of these, never both: on the island being simulated it
+            // bought TIME, so twice the bars are already standing here and the price stays clean; every
+            // other yard has no clock to speed up and takes it on the price. <see cref="IslandTimeScale"/>.
+            double speed = SpeedFor(y);
+            double price = speed > 1d ? 1d : _boostMult;
+
+            // Everything from here to the return is in CLEAN money — what this yard would be making on an
+            // unboosted clock — because that is the denomination both the ceiling and the meter need. It
+            // is what keeps the paragraph above true whichever way the boost was spent: the cap bites at
+            // the same place either way, and the income meter (which feeds SaveData.incomeRatePerSec, and
+            // through it the NEXT session's offline grant) never banks a rate that only existed while an
+            // ad was running.
+            double sale = bars * y.terms.BarPriceRaw * _prestigeMult / speed;
             if (sale <= 0d) return 0d;
 
             double cap = y.terms.IncomeCapPerMinuteRaw * _prestigeMult;
@@ -396,7 +442,7 @@ namespace Game.Systems
             if (sale <= 0d) return 0d;
 
             y.earnedThisTick += sale;
-            return sale * _boostMult;
+            return sale * speed * price;
         }
 
         /// <summary>What the hires sold this tick, banked on the spot — a hired collector picks it up.</summary>
@@ -450,7 +496,16 @@ namespace Game.Systems
             // Only a live island measures its own delivery rate — an idle yard is being fed BY this
             // number, so letting it re-measure itself would feed it back into itself and drift.
             if (y.save.id != _activeIsland || y.deliverFilled < MinTrustedSeconds) return;
-            y.save.deliveredPerMin = y.deliverTrailing * (60d / y.deliverFilled);
+
+            // Stored CLEAN — what this island WOULD send if it were in good repair. The lorries that
+            // were just counted were already running slow, so their state of repair is divided back
+            // out here and multiplied in again by SupplyPerSecond, which is the only reader. Skipping
+            // that would bake one moment's damage into the save and then apply the damage a second
+            // time on every read: an island neglected for a week would end up crediting a fraction of
+            // a fraction, and the deeper the neglect the worse the double-count.
+            float condition = Condition(y.save.id);
+            double measured = y.deliverTrailing * (60d / y.deliverFilled);
+            y.save.deliveredPerMin = condition > 0.01f ? measured / condition : measured;
         }
 
         private void AdvanceIncomeMeter(Yard y)
@@ -512,7 +567,40 @@ namespace Game.Systems
             return y.hires;
         }
 
-        private static double SupplyPerSecond(Yard y) => y.save.deliveredPerMin / 60d;
+        /// <summary>
+        /// What an island is sending its yard, right now, in bars a second.
+        ///
+        /// <see cref="MarketYard.deliveredPerMin"/> is stored CLEAN — measured while the island was
+        /// running worn, then divided back out by the state of repair it was measured under, so the
+        /// number on disk describes a healthy island. The wear is put back here, at the point of use.
+        ///
+        /// That split is the whole reason wear works while the player is elsewhere. An idle island
+        /// keeps feeding its yard from this number for days, and it goes on decaying the whole time; a
+        /// rate stored WITH the damage baked in would freeze it at whatever state of repair the island
+        /// happened to be in the moment the player sailed off, and a fortnight of neglect would cost
+        /// nothing anywhere except the one island being looked at.
+        ///
+        /// A running boost is divided out and put back the same way, and for a sharper reason: every
+        /// capacity in this yard is a multiple of THIS number — how fast the counter can move, how much
+        /// the pads hold. Leave the boost out of it and a ×2 island sends twice the bars into a yard
+        /// still sized for half of them, so the counter sells what it always sold and the surplus spills
+        /// off the pads and is destroyed. The ad would have bought nothing but a fuller-looking yard.
+        /// </summary>
+        private double SupplyPerSecond(Yard y)
+            => y.save.deliveredPerMin / 60d * Condition(y.save.id) * SpeedFor(y);
+
+        /// <summary>
+        /// The clock this yard's supply is being produced at. Only the island whose lorries are really
+        /// driving can run fast — see <see cref="IslandTimeScale"/> — so this is 1 everywhere else.
+        /// </summary>
+        private double SpeedFor(Yard y) => y.save.id == _activeIsland ? _simSpeed : 1d;
+
+        /// <summary>
+        /// How well an island is running, or 1 when nothing is tracking it. The worst station, because
+        /// the chain is serial — see <see cref="Game.Core.Maintenance.IslandCondition"/>.
+        /// </summary>
+        private float Condition(string islandKey)
+            => _maintenance != null ? _maintenance.IslandCondition(islandKey) : 1f;
 
         /// <summary>
         /// Whether the player owns this island, and therefore whether its yard exists at all. The hall

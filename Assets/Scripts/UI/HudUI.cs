@@ -55,6 +55,12 @@ namespace Game.UI
         [SerializeField] private GameObject boostIndicator;
         [SerializeField] private TMP_Text boostValue;
 
+        [Header("Bakım kalkanı göstergesi")]
+        [Tooltip("Sadece mağazadan alınan bakım kalkanı çalışırken açılır. Hızlandırıcı hapının " +
+                 "eşi — ikisi aynı anda görünebilir.")]
+        [SerializeField] private GameObject shieldIndicator;
+        [SerializeField] private TMP_Text shieldValue;
+
         [Header("Alt")]
         [SerializeField] private Button upgradeButton;
         [SerializeField] private Button prestigeButton;
@@ -92,6 +98,7 @@ namespace Game.UI
         private WalletService _wallet;
         private ContractService _contract;
         private BoostService _boost;
+        private MaintenanceService _maintenance;
         private WorldIslands _world;
         private CoalOperation _op;
         private float _timer;
@@ -102,13 +109,20 @@ namespace Game.UI
         private bool _haveShownGems;
         private float _goldPunch;         // seconds left on the pop
         private float _gemPunch;
+        private Vector2 _shieldSlot;      // where the shield chip was authored — beside the boost chip
+        private Vector2 _boostSlot;       // and the boost chip's own slot, which it borrows when empty
 
         private void Start()
         {
             _wallet = ServiceLocator.Get<WalletService>();
             _contract = ServiceLocator.Get<ContractService>();
             _boost = ServiceLocator.Get<BoostService>();
+            _maintenance = ServiceLocator.Get<MaintenanceService>();
             _world = FindAnyObjectByType<WorldIslands>();
+            if (shieldIndicator != null)
+                _shieldSlot = ((RectTransform)shieldIndicator.transform).anchoredPosition;
+            if (boostIndicator != null)
+                _boostSlot = ((RectTransform)boostIndicator.transform).anchoredPosition;
             BindEnabledOp();
 
             if (storeButton != null) storeButton.onClick.AddListener(OnStore);
@@ -256,6 +270,36 @@ namespace Game.UI
                         + "  " + ContractUI.ClockText(_boost.SecondsLeft);
             }
             RefreshBoostButton(boosted);
+
+            bool shielded = _maintenance != null && _maintenance.ShieldActive;
+            if (shieldIndicator != null)
+            {
+                if (shieldIndicator.activeSelf != shielded) shieldIndicator.SetActive(shielded);
+                if (shielded)
+                {
+                    if (shieldValue != null)
+                        shieldValue.text = Loc.T("hud.kalkan") + "  " + LongClock(_maintenance.ShieldSecondsLeft);
+                    // The two chips are authored side by side, which only looks deliberate while both
+                    // are up. A shield running on its own slides into the boost's slot rather than
+                    // hanging off to the right of a gap.
+                    ((RectTransform)shieldIndicator.transform).anchoredPosition =
+                        boosted ? _shieldSlot : _boostSlot;
+                }
+            }
+        }
+
+        /// <summary>
+        /// A countdown that can run for a day. <see cref="ContractUI.ClockText"/> counts in minutes
+        /// and seconds, which is right for a contract and reads as "1440:00" on a 24-hour shield —
+        /// so anything past the hour mark gets an hour field of its own here.
+        /// </summary>
+        private static string LongClock(float seconds)
+        {
+            if (seconds < 3600f) return ContractUI.ClockText(seconds);
+            int total = Mathf.CeilToInt(seconds);
+            int h = total / 3600;
+            int m = (total - h * 3600) / 60;
+            return h + ":" + (m < 10 ? "0" + m : m.ToString());
         }
 
         /// <summary>

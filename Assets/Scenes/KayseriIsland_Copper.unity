@@ -449,16 +449,24 @@ MonoBehaviour:
   _sun: {fileID: 546180387}
   _sky: {fileID: 2143324279}
   _nightSunColor: {r: 0.34, g: 0.44, b: 0.84, a: 1}
-  _nightSunIntensity: 0.28
-  _nightSkyColor: {r: 0.03, g: 0.042, b: 0.1, a: 1}
-  _nightAmbient: 0.15
-  _nightTint: {r: 0.24, g: 0.29, b: 0.52, a: 1}
-  _nightExposure: -1.4
+  _nightSunIntensity: 0.4
+  _nightSunAngles: {x: 38, y: 205, z: 0}
+  _nightSkyColor: {r: 0.05, g: 0.068, b: 0.15, a: 1}
+  _nightAmbient: 0.22
+  _nightAmbientTint: {r: 0.75, g: 0.85, b: 1.3, a: 1}
+  _nightTint: {r: 0.31, g: 0.37, b: 0.6, a: 1}
+  _nightExposure: -1
+  _duskSunColor: {r: 1, g: 0.55, b: 0.24, a: 1}
+  _duskSunIntensity: 0.95
+  _duskSkyColor: {r: 0.95, g: 0.56, b: 0.36, a: 1}
+  _duskTint: {r: 1, g: 0.74, b: 0.55, a: 1}
+  _duskSunDip: 24
   _nightEmissionBoost: 4
   _nightBloomIntensity: 1.9
-  _nightBloomThreshold: 0.7
+  _nightBloomThreshold: 0.8
+  _lampSwitchOn: {x: 0.12, y: 0.55}
   _unlitWaterShader: WaterUnlit
-  _nightWater: 0.11
+  _nightWater: 0.17
   _timeOverride: 0
 --- !u!4 &1503412779
 Transform:
@@ -565,6 +573,8 @@ MonoBehaviour:
   _dayText: {r: 0.16, g: 0.15, b: 0.19, a: 1}
   _nightPlate: {r: 0.09, g: 0.08, b: 0.12, a: 0.92}
   _nightText: {r: 1, g: 0.83, b: 0.5, a: 1}
+  _modernStyle: 1
+  _borderColor: {r: 1, g: 0.66, b: 0.12, a: 1}
   _rebindSeconds: 0.5
 --- !u!114 &1503412783
 MonoBehaviour:

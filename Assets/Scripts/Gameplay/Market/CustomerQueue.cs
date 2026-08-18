@@ -33,7 +33,12 @@ namespace Game.Gameplay
         [SerializeField, Min(1)] private int maxPurchase = 4;
 
         [Tooltip("Müşterinin yürüme hızı.")]
-        [SerializeField, Min(0.5f)] private float walkSpeed = 4.5f;
+        [SerializeField, Min(0.5f)] private float walkSpeed = 6.5f;
+
+        [Tooltip("Satın alınan sıra yerinden bağımsız olarak avluda her zaman duran en az müşteri " +
+                 "sayısı. Bir dükkânın kalabalık görünmesi ile o kalabalığın ne kadar sattığı ayrı " +
+                 "iki şey; bu, birincisini ikincisini beklemeden verir.")]
+        [SerializeField, Min(1)] private int minLineSlots = 4;
 
         [Tooltip("Kapıdaki iki şeridin ortadan uzaklığı. Girenler bir yandan, çıkanlar öbür yandan " +
                  "geçer. Kapı boşluğu altı birim, kasaları çıkınca beş buçuk: 1.8 iki şeridi de " +
@@ -53,13 +58,13 @@ namespace Game.Gameplay
         [SerializeField, Min(0f)] private float stepAside = 2.4f;
 
         [Tooltip("Tezgâhın başındaki müşterinin külçeyi alması süresi.")]
-        [SerializeField, Min(0.05f)] private float serveSeconds = 0.55f;
+        [SerializeField, Min(0.05f)] private float serveSeconds = 0.32f;
 
         [Tooltip("Sıra doluyken bile yeni müşteri arası en kısa süre, tam dolu sırada.")]
-        [SerializeField, Min(0.2f)] private float arrivalSecondsAtFullQueue = 1.1f;
+        [SerializeField, Min(0.2f)] private float arrivalSecondsAtFullQueue = 0.4f;
 
         [Tooltip("Tek sıralı avluda müşteri arası süre. Sıra yeri aldıkça bu süre kısalır.")]
-        [SerializeField, Min(0.3f)] private float arrivalSecondsAtOneSlot = 3.4f;
+        [SerializeField, Min(0.3f)] private float arrivalSecondsAtOneSlot = 1.1f;
 
         /// <summary>
         /// Arriving and leaving are routes, not straight lines, and they are two DIFFERENT routes.
@@ -115,6 +120,13 @@ namespace Game.Gameplay
         private float _inAlong, _outAlong;      // those two lanes, measured down the line from the head
         private float _arrivalIn;
 
+        /// <summary>
+        /// Set every time the yard is switched on, cleared by <see cref="Prime"/>. The queue is enabled
+        /// before <see cref="Configure"/> has run on the first build, so the fill cannot happen in
+        /// <c>OnEnable</c> itself — it waits for the first tick that has a market to read.
+        /// </summary>
+        private bool _needsPrime = true;
+
         public void Configure(MarketService market, string yardKey, SellCounter counter, CashFloor cash,
                               Vector3 head, Vector3 along, Vector3 door, Vector3 outside)
         {
@@ -149,12 +161,23 @@ namespace Game.Gameplay
             if (_material.HasProperty("_BaseColor")) _material.SetColor("_BaseColor", colour);
         }
 
+        /// <summary>
+        /// How many people stand in the line. The queue-slot upgrade raises it, but it never drops
+        /// below <see cref="minLineSlots"/>.
+        ///
+        /// The floor is the difference between a shop and a waiting room. A yard on its first slot had
+        /// exactly one customer in it, and one customer is not a queue — the body walked in, was served,
+        /// walked out, and the room stood empty for the whole of the next walk. What the upgrade buys is
+        /// still real: it is <see cref="Game.Core.MarketFlow.SellCapacityPerSecond"/> that turns queue
+        /// length into money, and that reads the save row, not this. This is only how many bodies the
+        /// camera can see, and there is no reason for the camera to be shown an empty shop.
+        /// </summary>
         private int Slots
         {
             get
             {
-                if (_market == null) return 1;
-                int slots = _market.Row(_yardKey).queueSlots;
+                int slots = _market != null ? _market.Row(_yardKey).queueSlots : 1;
+                if (slots < minLineSlots) slots = minLineSlots;
                 return Mathf.Clamp(slots, 1, Game.Core.MarketFlow.MaxQueueSlots);
             }
         }
@@ -164,11 +187,61 @@ namespace Game.Gameplay
         /// <summary>A point on one of the two lanes, measured down the line and out to the side.</summary>
         private Vector3 LanePoint(float along, float side) => _head + _along * along + _side * side;
 
+        private void OnEnable() => _needsPrime = true;
+
         private void Update()
         {
             float dt = Time.deltaTime;
+            if (_needsPrime && _market != null) Prime();
             Arrivals(dt);
             for (int i = _live.Count - 1; i >= 0; i--) Step_(_live[i], i, dt);
+        }
+
+        /// <summary>
+        /// Fills the line the instant the yard opens, with the bodies standing in their places rather
+        /// than walking in from the door.
+        ///
+        /// Walking them in would be the honest thing and it is the wrong thing. The roof comes off as
+        /// the player arrives, and the first thing they would see is an empty shop slowly filling —
+        /// which is the whole of the boredom, just moved to the top of every visit. A queue that is
+        /// already standing there says the shop was busy before you walked in, which is what a market
+        /// is meant to say. Only free places are filled, so re-entering a yard tops the line up rather
+        /// than doubling it.
+        /// </summary>
+        private void Prime()
+        {
+            _needsPrime = false;
+            int slots = Slots;
+            for (int slot = 0; slot < slots; slot++)
+            {
+                if (Taken(slot)) continue;
+                Customer c = Take();
+                c.slot = slot;
+                c.step = Step.Waiting;
+                c.body.position = SlotPosition(slot);
+                // Facing the counter, like everyone who walked here the long way round.
+                c.body.rotation = Quaternion.LookRotation(-_along);
+                c.anim.Set(PersonAnimator.Idle);
+                _live.Add(c);
+            }
+        }
+
+        /// <summary>A pooled body, switched on and ready to be placed. Both spawn paths go through this.</summary>
+        private Customer Take()
+        {
+            Customer c = _spare.Count > 0 ? _spare.Pop() : NewCustomer();
+            c.body.gameObject.SetActive(true);
+            // Random, unlike the looks: a shop where everyone buys exactly one is a counter, not a
+            // shop, and the varying order size is what makes the shelf worth stocking deep.
+            c.wants = Random.Range(minPurchase, Mathf.Max(minPurchase, maxPurchase) + 1);
+            return c;
+        }
+
+        private bool Taken(int slot)
+        {
+            for (int i = 0; i < _live.Count; i++)
+                if (_live[i].slot == slot) return true;
+            return false;
         }
 
         private void Arrivals(float dt)
@@ -185,8 +258,7 @@ namespace Game.Gameplay
             int free = FirstFreeSlot(slots);
             if (free < 0) return;
 
-            Customer c = _spare.Count > 0 ? _spare.Pop() : NewCustomer();
-            c.body.gameObject.SetActive(true);
+            Customer c = Take();
             // Outside the wall, so the first thing they do on screen is come through the door.
             c.body.position = _inOutside;
             c.slot = free;
@@ -199,21 +271,13 @@ namespace Game.Gameplay
             c.path[2] = LanePoint(spacing * free, approachLane);
             c.legs = 3;
             c.leg = 0;
-            // Random, unlike the looks: a shop where everyone buys exactly one is a counter, not a
-            // shop, and the varying order size is what makes the shelf worth stocking deep.
-            c.wants = Random.Range(minPurchase, Mathf.Max(minPurchase, maxPurchase) + 1);
             _live.Add(c);
         }
 
         private int FirstFreeSlot(int slots)
         {
             for (int slot = 0; slot < slots; slot++)
-            {
-                bool taken = false;
-                for (int i = 0; i < _live.Count; i++)
-                    if (_live[i].slot == slot) { taken = true; break; }
-                if (!taken) return slot;
-            }
+                if (!Taken(slot)) return slot;
             return -1;
         }
 
@@ -293,12 +357,7 @@ namespace Game.Gameplay
         private void Shuffle(Customer c)
         {
             for (int ahead = 0; ahead < c.slot; ahead++)
-            {
-                bool taken = false;
-                for (int i = 0; i < _live.Count; i++)
-                    if (_live[i].slot == ahead) { taken = true; break; }
-                if (!taken) { c.slot = ahead; return; }
-            }
+                if (!Taken(ahead)) { c.slot = ahead; return; }
         }
 
         /// <summary>True once the body has arrived. Also decides whether they are walking or standing.</summary>

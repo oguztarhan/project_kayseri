@@ -63,6 +63,22 @@ namespace Game.Systems
                                                      // offerLiveKey so the button can stay lit for an offer
                                                      // the player has already been asked about once
 
+        // ---- bakım (MaintenanceService) --------------------------------------------------------
+        // One row per island the player has actually stood on, made on demand. An island with no row
+        // is a perfect island, which is what a save written before this feature existed describes.
+        public List<IslandCondition> conditions = new List<IslandCondition>();
+        public long conditionStampUnix;              // when the empire's wear was last worked out. The
+                                                     // whole archipelago decays off this one clock: it
+                                                     // is the player who was away, not each island
+                                                     // separately (0 = never evaluated, so the first
+                                                     // launch after the update wears nothing)
+        public long shieldEndUnix;                   // the maintenance shield bought in the store: while
+                                                     // this is in the future no island wears at all. A
+                                                     // wall-clock deadline rather than a countdown, for
+                                                     // the same reason a boost is one — the whole point
+                                                     // of the product is that it runs while the game is
+                                                     // shut. Empire-wide, like the stamp above it
+
         // ---- market yards (MarketService) ------------------------------------------------------
         public List<MarketYard> marketYards = new List<MarketYard>();  // one row per island, made on demand
         public int marketCarryLevel;                 // the stack the player carries on his back. One body,
@@ -89,6 +105,33 @@ namespace Game.Systems
         public double stock;              // bars on the pads, waiting to be sold
         public double deliveredPerMin;    // measured delivery rate, kept so the yard keeps filling while
                                           // nobody is simulating the island that feeds it
+    }
+
+    /// <summary>
+    /// One island's state of repair: how worn each of its eight stations is, and whatever repair is
+    /// running on it right now.
+    ///
+    /// <see cref="station"/> is handed straight to that island's <see cref="Game.Core.IslandEconomy"/>
+    /// and read from the simulation every frame, so it is SHARED rather than copied — the same trick
+    /// the level arrays already use, and for the same reason: two copies of what the player owns is
+    /// two things that can disagree.
+    /// </summary>
+    [Serializable]
+    public class IslandCondition
+    {
+        public string id;                 // island key: "coal", "copper", …
+        public float[] station;           // 0..1 per IslandEconomy station index; 1 = as new
+
+        // ---- the repair in flight ----
+        // A repair is a wall-clock deadline rather than a countdown, for the same reason a boost is:
+        // the player will start one and immediately put the phone down, and a timer measured against
+        // session uptime would still be waiting for them when they got back.
+        public float[] repairFrom;        // condition each station started this repair at, so the bar
+                                          // can climb from where it actually was
+        public int repairStation = -1;    // -1 = the whole island, otherwise the one station
+        public long repairEndUnix;        // 0 = nothing being repaired
+        public int repairSeconds;         // how long this repair was quoted at, for the progress ring
+        public long bonusEndUnix;         // the maintenance bonus won by putting the whole island right
     }
 
     /// <summary>

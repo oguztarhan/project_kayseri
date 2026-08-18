@@ -19,6 +19,7 @@ namespace Game.Gameplay
         private sealed class Walker
         {
             public Transform t;
+            public PersonAnimator anim;
             public Vector3 a, b;      // the leg this worker paces
             public float u;           // 0..1 along the leg
             public float dir;         // +1 / -1
@@ -61,11 +62,16 @@ namespace Game.Gameplay
         private float _spawnTimer;
         private int _nextStack;
 
+        /// <param name="workerPrefabs">
+        /// The bodies to build the crew from, dealt round-robin. More than one on purpose: eight copies
+        /// of one model pacing the same pavement reads as a cloning glitch, and the people pack costs
+        /// nothing extra for the variety since they all share one palette texture.
+        /// </param>
         /// <param name="chimneys">
         /// Every stack on the island, not just the smelter's. One smoking chimney on a map of a dozen
         /// reads as a fault rather than a detail — the cold ones look shut down.
         /// </param>
-        public SiteLife(Transform parent, GameObject workerPrefab, GameObject puffPrefab, Material puffMat,
+        public SiteLife(Transform parent, GameObject[] workerPrefabs, GameObject puffPrefab, Material puffMat,
                         Vector3[] patrol, Vector3[] chimneys, float deckY, float workerScale,
                         int maxWorkers, int maxPuffs, float puffLife, float puffRise, float puffSpread)
         {
@@ -76,10 +82,12 @@ namespace Game.Gameplay
             _puffSpread = puffSpread;
 
             // ---- crew ----
-            _walkers = new Walker[workerPrefab != null && patrol != null && patrol.Length >= 2 ? maxWorkers : 0];
+            bool haveBodies = workerPrefabs != null && workerPrefabs.Length > 0 && workerPrefabs[0] != null;
+            _walkers = new Walker[haveBodies && patrol != null && patrol.Length >= 2 ? maxWorkers : 0];
             for (int i = 0; i < _walkers.Length; i++)
             {
-                var go = Object.Instantiate(workerPrefab, parent);
+                GameObject body = workerPrefabs[i % workerPrefabs.Length] ?? workerPrefabs[0];
+                var go = Object.Instantiate(body, parent);
                 go.name = "OpWorker" + i;
                 go.transform.localScale = Vector3.one * workerScale;
 
@@ -95,6 +103,7 @@ namespace Game.Gameplay
                 var w = new Walker
                 {
                     t = go.transform,
+                    anim = new PersonAnimator(go.transform),
                     a = patrol[leg],
                     b = patrol[leg + 1],
                     u = (i * 0.37f) % 1f,
@@ -143,6 +152,15 @@ namespace Game.Gameplay
             _crew = n;
         }
 
+        /// <summary>
+        /// The clock the island is being ticked at, so the walk cycles keep up with the ground the crew
+        /// covers. Called on change, not per frame — see <c>CoalOperation.TimeScale</c>.
+        /// </summary>
+        public void SetTimeScale(float scale)
+        {
+            for (int i = 0; i < _walkers.Length; i++) _walkers[i].anim.SetSpeed(scale);
+        }
+
         /// <param name="puffsPerSecond">Smelter output, so a faster smelter visibly smokes harder.</param>
         public void Tick(float dt, float puffsPerSecond)
         {
@@ -155,7 +173,7 @@ namespace Game.Gameplay
             for (int i = 0; i < _crew; i++)
             {
                 Walker w = _walkers[i];
-                if (w.wait > 0f) { w.wait -= dt; continue; }
+                if (w.wait > 0f) { w.wait -= dt; w.anim.Set(PersonAnimator.Idle); continue; }
 
                 // Look where the next step lands before taking it. The ring pavement crosses
                 // both arterials, so a worker who never checked walked straight through the
@@ -164,9 +182,11 @@ namespace Game.Gameplay
                 if (Hazard != null && w.held < MaxHold && Hazard(Vector3.Lerp(w.a, w.b, next)))
                 {
                     w.held += dt;
+                    w.anim.Set(PersonAnimator.Idle);
                     continue;                      // stand at the kerb and let it pass
                 }
                 w.held = 0f;
+                w.anim.Set(PersonAnimator.Walk);
 
                 w.u = next;
                 if (w.u >= 1f) { w.u = 1f; w.dir = -1f; w.wait = 0.6f + (i % 4) * 0.35f; }
@@ -175,8 +195,10 @@ namespace Game.Gameplay
                 Vector3 p = Vector3.Lerp(w.a, w.b, w.u);
                 // Height comes from the leg being walked, not from one island-wide deck value:
                 // the pavement climbs with the ground now, and _deckY is a single sample of one
-                // building's pivot. A small vertical bob on top sells "walking" without a rig.
-                p.y += Mathf.Abs(Mathf.Sin(Time.time * 6f + w.bob)) * 0.16f;
+                // building's pivot. A small vertical bob on top sells "walking" without a rig —
+                // but ONLY without a rig: on a body that has a walk cycle the clip already moves
+                // the hips, and adding this on top double-bounces it into a limp.
+                if (!w.anim.HasAnimator) p.y += Mathf.Abs(Mathf.Sin(Time.time * 6f + w.bob)) * 0.16f;
                 w.t.position = p;
 
                 Vector3 face = (w.b - w.a) * w.dir;

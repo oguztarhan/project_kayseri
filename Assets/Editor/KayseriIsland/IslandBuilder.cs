@@ -30,8 +30,18 @@ namespace Kayseri.IslandTools
         private const string PalettePath = ArtRoot + "/palette.json";
         private const string PrefabRoot = "Assets/Prefabs/Island";
 
-        /// <summary>Folder name per island, matching isle_&lt;name&gt;.py in the generator.</summary>
-        private static readonly string[] Islands = { "Coal", "Copper", "Iron", "Gold" };
+        /// <summary>
+        /// Folder name per island, matching isle_&lt;name&gt;.py in the generator.
+        ///
+        /// Eight islands, four maps. Silver re-exports the copper map, ruby the iron, emerald the
+        /// coal and diamond the gold, each with its own ore and its own ground tint - see
+        /// isle_silver.py. Nothing here knows or cares: a derived island exports the same sixteen
+        /// group FBX under its own name, so it imports exactly like an authored one.
+        /// </summary>
+        private static readonly string[] Islands =
+        {
+            "Coal", "Copper", "Iron", "Silver", "Gold", "Ruby", "Emerald", "Diamond"
+        };
 
         private static string ModelsFor(string island) => $"{ModelsRoot}/{island}";
         private static string PrefabsFor(string island) => $"{PrefabRoot}/{island}";
@@ -78,6 +88,12 @@ namespace Kayseri.IslandTools
                 { "Copper", 126.7f },    // isle_copper.ORTHO 380
                 { "Iron", 153.3f },      // isle_iron.ORTHO   460
                 { "Gold", 146.7f },      // isle_gold.ORTHO   440
+                // The derived islands frame exactly like the map they re-export - same land,
+                // same districts, same extent - so each takes its base island's value.
+                { "Silver", 126.7f },    // = Copper
+                { "Ruby", 153.3f },      // = Iron
+                { "Emerald", 126.7f },   // = Coal
+                { "Diamond", 146.7f },   // = Gold
             };
 
         private static float OrthoSizeFor(string island) =>
@@ -96,7 +112,19 @@ namespace Kayseri.IslandTools
         [MenuItem("Kayseri/Island/Build All (Gold)", false, 3)]
         public static void BuildAllGold() { BuildAll("Gold"); }
 
-        [MenuItem("Kayseri/Island/Build All (every island)", false, 4)]
+        [MenuItem("Kayseri/Island/Build All (Silver)", false, 4)]
+        public static void BuildAllSilver() { BuildAll("Silver"); }
+
+        [MenuItem("Kayseri/Island/Build All (Ruby)", false, 5)]
+        public static void BuildAllRuby() { BuildAll("Ruby"); }
+
+        [MenuItem("Kayseri/Island/Build All (Emerald)", false, 6)]
+        public static void BuildAllEmerald() { BuildAll("Emerald"); }
+
+        [MenuItem("Kayseri/Island/Build All (Diamond)", false, 7)]
+        public static void BuildAllDiamond() { BuildAll("Diamond"); }
+
+        [MenuItem("Kayseri/Island/Build All (every island)", false, 8)]
         public static void BuildAllIslands()
         {
             foreach (var island in Islands) BuildAll(island);
@@ -108,6 +136,9 @@ namespace Kayseri.IslandTools
             // remaps FBX materials onto them, and an empty lookup silently
             // remaps nothing (leaving every mesh on the default grey material).
             CreateMaterials();
+            // Same rule one step further out: BuildPhasePrefabs points the water at these, and a
+            // missing ocean material there means the island quietly keeps the shared blue sea.
+            IslandOceans.CreateMaterials();
             ConfigureModelImports(island);
             BuildPhasePrefabs(island);
             BuildScene(island);
@@ -435,6 +466,14 @@ namespace Kayseri.IslandTools
                     if (swapped > 0)
                         Debug.Log($"[Island] {island} phase {phase}: {swapped} models replaced from overrides.");
                 }
+
+                // The island's own sea, surf and river. Here for the same reason as the overrides
+                // above - the palette is one file and its `sea` is one blue, so without this every
+                // map in the archipelago is ringed by the same water. Last, so it also catches the
+                // ship wakes that came in with a swapped-in port model.
+                int recoloured = IslandOceans.Apply(root, island);
+                if (recoloured > 0)
+                    Debug.Log($"[Island] {island} phase {phase}: {recoloured} water renderers recoloured.");
 
                 string prefabPath = $"{prefabRoot}/Island_Phase{phase}.prefab";
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath);

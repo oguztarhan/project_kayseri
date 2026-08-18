@@ -13,6 +13,10 @@ Shader "Kayseri/IslandVertexLit"
         _Metallic("Metallic", Range(0,1)) = 0.0
         _Smoothness("Smoothness", Range(0,1)) = 0.15
         [HDR]_EmissionColor("Emission Color", Color) = (0,0,0,0)
+        // Emission on this shader is a LAMP: multiplied by _KayseriLightsOn below, so it is
+        // black in daylight. A lava or acid sea is not a lamp - it glows at noon too - so this
+        // floors that gate. 0 on every authored material, which is exactly the old behaviour.
+        _EmissionAlways("Emission In Daylight", Range(0,1)) = 0
 
         // The bake carries Blender's procedural colour through faithfully, which reads
         // muted once URP lights it. These push it back toward the toy-bright look the
@@ -52,6 +56,15 @@ Shader "Kayseri/IslandVertexLit"
         [Header(Ambient)]
         _AmbientGround("Ambient Ground Tint", Color) = (0.55,0.48,0.40,1)
         _AmbientHemi("Hemisphere Amount", Range(0,1)) = 0.65
+
+        // Neglect. Zero on all 78 authored materials, so nothing on the island changes until
+        // DistrictWear swaps a district onto a worn variant of the same material. It lives in
+        // UnityPerMaterial with everything else, which is what lets the worn and the clean variants
+        // of a material sit in the SAME SRP Batcher batch - the batcher keys on the shader, not on
+        // the material, so dirtying a district costs no extra draw calls.
+        [Header(Wear)]
+        _Grime("Grime", Range(0,1)) = 0
+        _GrimeColor("Grime Colour", Color) = (0.26,0.21,0.15,1)
     }
 
     SubShader
@@ -70,6 +83,7 @@ Shader "Kayseri/IslandVertexLit"
         CBUFFER_START(UnityPerMaterial)
             half4 _BaseColor;
             half4 _EmissionColor;
+            half _EmissionAlways;
             half _VertexColorAmount;
             half _Metallic;
             half _Smoothness;
@@ -88,6 +102,8 @@ Shader "Kayseri/IslandVertexLit"
             half4 _SpecularTint;
             half4 _AmbientGround;
             half _AmbientHemi;
+            half _Grime;
+            half4 _GrimeColor;
         CBUFFER_END
 
         // Time of day, written once per frame by DayNightCycle through Shader.SetGlobal*.
@@ -243,7 +259,21 @@ Shader "Kayseri/IslandVertexLit"
                 // The bake is per vertex, so on the coarse parts of the terrain the eye is reading
                 // the mesh itself - flat patches with stair-stepped edges. This puts detail back
                 // at a frequency no vertex count here could carry.
-                albedo *= 1.0h + IslandGrain(IN.positionWS, inputData.normalWS) * _DetailStrength;
+                half grain = IslandGrain(IN.positionWS, inputData.normalWS);
+                albedo *= 1.0h + grain * _DetailStrength;
+
+                // Neglect. Three things together are what make this read as DIRT rather than as a
+                // brown tint: it collects on upward faces (roofs, decks, the tops of walls) and
+                // leaves the undersides alone, it is blotchy rather than even, and it takes the
+                // colour down as well as toward brown, because grime absorbs light.
+                //
+                // The blotches ride the SAME grain the line above uses. A second noise would have
+                // looked marginally better and cost a second set of hashes on every island pixel of
+                // every frame, which on a 1600-renderer mobile scene is not a trade worth making.
+                half dirt = _Grime
+                          * saturate(0.35h + 0.65h * inputData.normalWS.y)   // settles on top
+                          * saturate(0.70h + 0.90h * grain);                 // in patches
+                albedo = lerp(albedo, lerp(albedo, _GrimeColor.rgb, 0.75h) * 0.58h, saturate(dirt));
 
                 Light mainLight = GetMainLight(inputData.shadowCoord);
                 half ndl = saturate(dot(inputData.normalWS, mainLight.direction));
@@ -305,7 +335,7 @@ Shader "Kayseri/IslandVertexLit"
                                      _AmbientHemi);
 
                 half3 lit3 = albedo * (ramp + ambient * _AmbientAmount)
-                           + specular + rim + _EmissionColor.rgb * _KayseriLightsOn;
+                           + specular + rim + _EmissionColor.rgb * max(_EmissionAlways, _KayseriLightsOn);
 
                 half4 color = half4(lit3, _BaseColor.a);
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);

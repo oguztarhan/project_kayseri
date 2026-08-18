@@ -15,6 +15,10 @@ namespace Game.Systems
         [SerializeField, Min(1f)] private float ticksPerSecond = 8f;
         [SerializeField] private EconomyConfig economyConfig;
         [SerializeField] private OfflineConfig offlineConfig;
+        [Tooltip("Bakım/yıpranma ayarları. Boş bırakılırsa varsayılan değerlerle ÇALIŞIR " +
+                 "(8 saat tolerans, 72 saatte tabana iner) — kapatmak için bir config asset'i " +
+                 "bağlayıp Enabled'ı kapat.")]
+        [SerializeField] private MaintenanceConfig maintenanceConfig;
         [SerializeField] private PrestigeConfig prestigeConfig;
         [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
@@ -38,6 +42,7 @@ namespace Game.Systems
         public EconomyService Economy { get; private set; }
         public OfflineReport Offline { get; private set; }
         public MarketService Market { get; private set; }
+        public MaintenanceService Maintenance { get; private set; }
 
         private TimeService _time;
         private NotificationService _notifications;
@@ -149,10 +154,23 @@ namespace Game.Systems
             var boost = new BoostService(Data, _time);
             ServiceLocator.Register(boost);
 
+            // Wear, and the crews that put it right. Registered before the islands and the yards
+            // because both of them read an island's state of repair to know how fast it runs, and
+            // evaluated immediately below so the absence that just ended is charged for BEFORE any
+            // of that is asked — an island that spent the launch frame at full speed and dropped to
+            // 60% a moment later would read as the game breaking rather than as neglect.
+            // Game.Core.Maintenance spelled out: the property below is also called Maintenance, and
+            // inside this class the name resolves to it rather than to the type.
+            Maintenance = new MaintenanceService(Data, _time, Wallet,
+                maintenanceConfig != null ? maintenanceConfig.Tuning : Game.Core.Maintenance.Tuning.Default,
+                maintenanceConfig == null || maintenanceConfig.Enabled);
+            ServiceLocator.Register(Maintenance);
+            Maintenance.Evaluate();
+
             // The yards, and with them the only path cash takes into the wallet. Registered before the
             // offline grant so the pads can be advanced for the absence in the same breath as paying
             // for it, and driven from Update below so it keeps settling across a scene load.
-            Market = new MarketService(Data, Wallet, prestige, boost);
+            Market = new MarketService(Data, Wallet, prestige, boost, Maintenance);
             ServiceLocator.Register(Market);
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
@@ -231,6 +249,9 @@ namespace Game.Systems
             // Here rather than on any scene object: the yards have to keep settling while the player is
             // on an island, in the market, or watching a loading screen between the two.
             Market?.Tick(dt);
+            // Same reason: a repair the player started before sailing away has to keep running while
+            // they are somewhere else, and it is the crew's own clock that finishes it.
+            Maintenance?.Tick(dt);
         }
 
         /// <summary>
@@ -247,7 +268,14 @@ namespace Game.Systems
                 Save?.Save(Data);
                 _notifications?.ScheduleAway();
             }
-            else _notifications?.Cancel();   // the absence it described is over
+            else
+            {
+                _notifications?.Cancel();   // the absence it described is over
+                // An Android app is backgrounded far more often than it is relaunched, so most
+                // absences end HERE rather than in Awake. Without this, a player who left the game
+                // in the background over a weekend would come back to a spotless island.
+                Maintenance?.Evaluate();
+            }
         }
 
         private void OnApplicationQuit()

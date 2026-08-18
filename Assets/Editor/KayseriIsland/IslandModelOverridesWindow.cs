@@ -8,14 +8,21 @@ namespace Kayseri.IslandTools
     /// The window you swap models from: every model the generator makes, listed by district and by
     /// name, each with a slot to drop a replacement into.
     ///
-    /// Scan reads the twelve phase prefabs and fills the list in, so the catalogue is never typed by
+    /// Scan reads the twenty-four phase prefabs and fills the list in, so the catalogue is never typed by
     /// hand and never goes stale when the map changes. Apply writes the swaps into the prefabs; the
     /// same pass runs automatically at the end of a rebuild, so a re-export from Blender keeps them.
     /// </summary>
     public sealed class IslandModelOverridesWindow : EditorWindow
     {
         private const string AssetPath = "Assets/Art/KayseriIsland/IslandModelOverrides.asset";
-        private static readonly string[] Islands = { "Coal", "Copper", "Iron", "Gold" };
+        // All eight. The four derived islands (silver, ruby, emerald, diamond) re-export one of
+        // the four authored maps, so they carry the SAME district/model names and add nothing new
+        // to the catalogue - but Apply still has to walk their prefabs, or a swap authored against
+        // the copper map would land on copper and not on silver.
+        private static readonly string[] Islands =
+        {
+            "Coal", "Copper", "Iron", "Silver", "Gold", "Ruby", "Emerald", "Diamond"
+        };
         private const int Phases = 3;
 
         private IslandModelOverrides _catalogue;

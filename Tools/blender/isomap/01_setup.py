@@ -204,6 +204,85 @@ T("sluice_wood", [(0.22, (0.150, 0.128, 0.100)), (0.60, (0.235, 0.205, 0.162)),
                   (0.88, (0.320, 0.285, 0.230))],
   rough=0.9, scale=0.8, detail=5.0, bump=0.2, bump_dist=0.08)
 
+# ---- the derived islands' ores ------------------------------------------------
+# Four maps carry eight islands: silver re-exports the copper map, ruby the
+# iron, emerald the coal, diamond the gold (see isle_silver.py). The land is
+# identical, so THIS is what has to carry the difference - every stockpile,
+# wagon load, truck load and theme pile on those islands asks the island for
+# ORE and gets one of these.
+#
+# All four keep the coal/ore voronoi at scale 0.34 (and 0.9 for the shiny
+# variant), because the heap geometry is shared and a different grain size on
+# the same cone reads as a modelling mistake rather than a different mineral.
+
+# Silver: argentite and galena. Lead-grey metal in a pale gangue, with the
+# bright flash silver is actually recognised by at the top of the ramp. Against
+# the copper island's rust-stained country rock this is the coolest thing on
+# the map, which is the whole job.
+T("ore_ag", [(0.10, (0.062, 0.066, 0.078)), (0.42, (0.140, 0.148, 0.168)),
+             (0.70, (0.285, 0.298, 0.325)), (0.90, (0.480, 0.495, 0.520))],
+  rough=0.62, rough_hi=0.40, kind="voronoi", scale=0.34, bump=0.32,
+  bump_dist=0.22, spec=0.55, metal=0.20)
+T("ore_ag_shiny", [(0.12, (0.128, 0.134, 0.152)), (0.46, (0.275, 0.288, 0.318)),
+                   (0.74, (0.510, 0.528, 0.560)), (0.92, (0.780, 0.800, 0.835))],
+  rough=0.32, rough_hi=0.22, kind="voronoi", scale=0.9, bump=0.16,
+  bump_dist=0.07, spec=0.65, metal=0.55)
+
+# Ruby: corundum. Crimson crystal faces in a dark host, cut with the pink of
+# the marble it grows in. Deliberately DEEPER and more saturated than iron's
+# haematite, which is a rusty orange-brown - ruby #5 follows iron #2 on the
+# ladder and they share a map, so the two reds have to be told apart.
+T("ore_rb", [(0.10, (0.075, 0.020, 0.030)), (0.42, (0.185, 0.032, 0.052)),
+             (0.70, (0.360, 0.055, 0.082)), (0.90, (0.245, 0.175, 0.190))],
+  rough=0.60, rough_hi=0.40, kind="voronoi", scale=0.34, bump=0.32,
+  bump_dist=0.22, spec=0.55)
+T("ore_rb_shiny", [(0.12, (0.130, 0.028, 0.045)), (0.46, (0.300, 0.045, 0.070)),
+                   (0.74, (0.545, 0.075, 0.110)), (0.92, (0.760, 0.240, 0.290))],
+  rough=0.30, rough_hi=0.20, kind="voronoi", scale=0.9, bump=0.16,
+  bump_dist=0.07, spec=0.7)
+
+# Emerald: beryl in schist. Deep green crystal IN a near-black host rock -
+# which is what keeps it off the copper island's malachite, an ore that is
+# green all the way through. The dark bottom of the ramp is doing that work,
+# so do not lift it.
+T("ore_em", [(0.10, (0.020, 0.038, 0.030)), (0.42, (0.028, 0.098, 0.062)),
+             (0.70, (0.040, 0.215, 0.115)), (0.90, (0.130, 0.145, 0.135))],
+  rough=0.64, rough_hi=0.44, kind="voronoi", scale=0.34, bump=0.32,
+  bump_dist=0.22, spec=0.50)
+T("ore_em_shiny", [(0.12, (0.030, 0.075, 0.052)), (0.46, (0.045, 0.170, 0.100)),
+                   (0.74, (0.070, 0.330, 0.175)), (0.92, (0.230, 0.560, 0.340))],
+  rough=0.30, rough_hi=0.20, kind="voronoi", scale=0.9, bump=0.16,
+  bump_dist=0.07, spec=0.7)
+
+# Diamond: kimberlite. Blue-grey host rock with the icy flash of the stones in
+# it. Raw diamond ore is rock the same way gold ore is quartz - the sparkle is
+# the accent at the top of the ramp, not the body of the heap.
+T("ore_dm", [(0.10, (0.072, 0.082, 0.098)), (0.42, (0.150, 0.172, 0.200)),
+             (0.70, (0.265, 0.300, 0.340)), (0.90, (0.420, 0.490, 0.545))],
+  rough=0.66, rough_hi=0.46, kind="voronoi", scale=0.34, bump=0.32,
+  bump_dist=0.22, spec=0.55)
+T("ore_dm_shiny", [(0.12, (0.150, 0.180, 0.215)), (0.46, (0.300, 0.355, 0.410)),
+                   (0.74, (0.540, 0.620, 0.690)), (0.92, (0.850, 0.920, 0.980))],
+  rough=0.22, rough_hi=0.14, kind="voronoi", scale=0.9, bump=0.16,
+  bump_dist=0.07, spec=0.85)
+
+# The silver works, for the copper map's theme props (16_theme.py). Cathode
+# plate and pond liquor are the two pieces of that theme that are about the ore
+# rather than the land, so without these the silver island stacks COPPER
+# cathode beside a malachite-green pond - on the one landmark whose whole job
+# is saying which ore is mined here.
+T("plate_ag", [(0.25, (0.480, 0.492, 0.512)), (0.62, (0.660, 0.678, 0.702)),
+               (0.90, (0.840, 0.860, 0.888))],
+  rough=0.30, rough_hi=0.40, metal=0.70, scale=1.3, bump=0.06, bump_dist=0.03)
+# Cyanide liquor: silver really is leached this way, so the ponds stay - they
+# just stop being malachite green and go the pale blue-grey of the real thing.
+#
+# F() and not T(), matching "leach" exactly. A ramped roughness (rough != 
+# rough_hi) LINKS the Principled roughness socket, and 13_export cannot read a
+# linked socket - it writes the 0.5 fallback into palette.json, so the pond
+# came out matte where copper's is wet. Same construction, hue only.
+F("leach_ag", (0.135, 0.200, 0.215), rough=0.20, spec=0.75)
+
 # ---- island signature ---------------------------------------------------------
 # Materials that exist only to make one island read as ITSELF - see 16_theme.py.
 # They are in the shared palette rather than per-island because 13_export.py
@@ -331,7 +410,7 @@ T("trunk", [(0.20, (0.072, 0.045, 0.026)), (0.70, (0.115, 0.072, 0.042))],
 # Redefining a material by name re-uses the same datablock (tex._fresh), so an
 # override here changes every mesh already asking for "rock" without touching a
 # single district script.
-if L.ISLAND == "copper":
+if L.DESIGN == "copper":
     # Copper country rock is iron-stained rather than grey, and the weathered
     # outcrops carry the same green bloom as the ore they sit on. This is what
     # keeps the two islands telling apart at a glance from the terrain alone.
@@ -349,7 +428,7 @@ if L.ISLAND == "copper":
                (0.88, (0.565, 0.462, 0.312))],
       rough=0.95, scale=0.24, detail=5.0, bump=0.22, bump_dist=0.2)
 
-if L.ISLAND == "iron":
+if L.DESIGN == "iron":
     # THIS ISLAND IS NOT GREEN. isle_iron sets GROUND_RAMP, which paints the
     # terrain's vertex colours red - but those only show once 13_export has
     # baked them, so in Blender the map still came up green and read as the
@@ -381,7 +460,7 @@ if L.ISLAND == "iron":
                   (0.88, (0.318, 0.300, 0.146))],
       rough=0.92, scale=0.5, detail=4.0, bump=0.25, bump_dist=0.2)
 
-if L.ISLAND == "gold":
+if L.DESIGN == "gold":
     # DRY COUNTRY, not green and not iron's red: sun-cured straw over pale
     # quartz-bearing rock. Same reasoning as the iron block above - the vertex
     # bake only shows in Unity, so the Blender materials have to say "arid"
@@ -411,6 +490,99 @@ if L.ISLAND == "gold":
     T("bush", [(0.20, (0.140, 0.125, 0.050)), (0.65, (0.215, 0.195, 0.082)),
                (0.92, (0.300, 0.270, 0.120))],
       rough=0.90, scale=1.4, detail=4.0, bump=0.20, bump_dist=0.08)
+
+# ------------------------------------------- derived-island ground tints
+# These run AFTER the four design blocks above and redefine the same names, so
+# each derived island gets its base map's country rock and then a shift off it.
+# Ordering is load-bearing: T() reuses the datablock by name (tex._fresh), so
+# last one wins, and moving these above the design blocks would silently undo
+# them.
+#
+# The ore alone was not enough. A derived island IS the base island - same
+# land, same roads, same buildings - so with only the heaps recoloured the two
+# read as one map at the play camera's distance, where the ground is most of
+# what you can see. These blocks are small on purpose: enough to separate the
+# pair, not so much that the island stops looking like the one it re-exports.
+# Every one of them keeps its base block's rough/scale/bump; only colour moves.
+
+if L.ISLAND == "silver":
+    # Copper's country rock is iron-stained warm brown. Silver country is the
+    # cold end of the same range: grey granite with a blue cast, the way a
+    # galena district reads against a copper one.
+    T("rock", [(0.18, (0.135, 0.142, 0.158)), (0.50, (0.238, 0.248, 0.272)),
+               (0.82, (0.352, 0.365, 0.395))],
+      rough=0.88, scale=0.30, detail=7.0, bump=0.45, bump_dist=0.30)
+    T("rock_dark", [(0.20, (0.076, 0.080, 0.094)), (0.55, (0.128, 0.135, 0.155)),
+                    (0.85, (0.192, 0.202, 0.228))],
+      rough=0.90, scale=0.32, detail=7.0, bump=0.45, bump_dist=0.30)
+    T("cliff", [(0.18, (0.196, 0.205, 0.228)), (0.52, (0.308, 0.320, 0.350)),
+                (0.85, (0.428, 0.442, 0.478))],
+      rough=0.90, scale=0.26, detail=7.0, bump=0.42, bump_dist=0.30)
+    # Beaches below a grey range are grey sand, not the red the copper island
+    # gets from its iron-stained hills.
+    T("sand", [(0.22, (0.298, 0.302, 0.312)), (0.60, (0.408, 0.412, 0.428)),
+               (0.88, (0.518, 0.525, 0.545))],
+      rough=0.95, scale=0.24, detail=5.0, bump=0.22, bump_dist=0.2)
+
+if L.ISLAND == "ruby":
+    # The one pair that genuinely needed this. Iron is red ore on red ground;
+    # so is ruby if nothing moves, and they share the iron map. Corundum forms
+    # in MARBLE, so the ground goes pale violet-grey and the ore stays deep
+    # red - which puts the contrast the other way round from iron, where the
+    # ore is the lighter of the two.
+    T("rock", [(0.18, (0.238, 0.222, 0.238)), (0.50, (0.352, 0.332, 0.352)),
+               (0.82, (0.472, 0.452, 0.478))],
+      rough=0.90, scale=0.30, detail=7.0, bump=0.46, bump_dist=0.30)
+    T("cliff", [(0.18, (0.318, 0.292, 0.312)), (0.52, (0.442, 0.412, 0.438)),
+                (0.85, (0.575, 0.548, 0.575))],
+      rough=0.92, scale=0.26, detail=7.0, bump=0.44, bump_dist=0.30)
+    # Dry upland over marble: dusty rose rather than iron's rust laterite.
+    T("grass", [(0.20, (0.132, 0.098, 0.098)), (0.48, (0.238, 0.180, 0.180)),
+                (0.80, (0.352, 0.278, 0.282))],
+      rough=0.92, scale=0.26, detail=6.0, bump=0.30, bump_dist=0.25)
+    T("grass_dry", [(0.22, (0.288, 0.232, 0.222)), (0.60, (0.402, 0.338, 0.328)),
+                    (0.88, (0.508, 0.442, 0.436))],
+      rough=0.94, scale=0.24, detail=5.0, bump=0.26, bump_dist=0.22)
+    T("sand", [(0.22, (0.408, 0.360, 0.348)), (0.60, (0.512, 0.462, 0.452)),
+               (0.88, (0.610, 0.562, 0.556))],
+      rough=0.95, scale=0.24, detail=5.0, bump=0.22, bump_dist=0.2)
+
+if L.ISLAND == "emerald":
+    # The coal map has no design block at all - it is the default green coast,
+    # and grey granite. Emerald country is the same wet coast over SCHIST, so
+    # the rock goes green-black and the hillsides deepen to match. Nothing else
+    # moves: the coke ovens and the pine coast are what say "this is the coal
+    # map", and they should keep saying it.
+    T("rock", [(0.18, (0.092, 0.118, 0.098)), (0.50, (0.170, 0.208, 0.176)),
+               (0.82, (0.262, 0.310, 0.268))],
+      rough=0.88, scale=0.30, detail=7.0, bump=0.45, bump_dist=0.30)
+    T("rock_dark", [(0.20, (0.048, 0.065, 0.054)), (0.55, (0.086, 0.112, 0.092)),
+                    (0.85, (0.135, 0.170, 0.142))],
+      rough=0.90, scale=0.32, detail=7.0, bump=0.45, bump_dist=0.30)
+    T("cliff", [(0.18, (0.148, 0.182, 0.152)), (0.52, (0.238, 0.282, 0.242)),
+                (0.85, (0.342, 0.392, 0.345))],
+      rough=0.90, scale=0.26, detail=7.0, bump=0.42, bump_dist=0.30)
+    T("grass", [(0.20, (0.048, 0.096, 0.046)), (0.48, (0.088, 0.170, 0.082)),
+                (0.80, (0.148, 0.262, 0.132))],
+      rough=0.92, scale=0.26, detail=6.0, bump=0.30, bump_dist=0.25)
+
+if L.ISLAND == "diamond":
+    # Gold's arid straw over pale quartz, cooled onto a kimberlite pipe:
+    # blue-grey rock, grey-tan sand, and the dry grass left alone apart from
+    # the warmth taken out of it. The eucalypt scrub stays exactly as the gold
+    # island has it - the vegetation is the map's, not the ore's.
+    T("rock", [(0.18, (0.198, 0.212, 0.232)), (0.50, (0.302, 0.320, 0.345)),
+               (0.82, (0.412, 0.432, 0.462))],
+      rough=0.90, scale=0.30, detail=7.0, bump=0.46, bump_dist=0.30)
+    T("cliff", [(0.18, (0.252, 0.268, 0.292)), (0.52, (0.362, 0.382, 0.412)),
+                (0.85, (0.478, 0.500, 0.535))],
+      rough=0.92, scale=0.26, detail=7.0, bump=0.44, bump_dist=0.30)
+    T("sand", [(0.22, (0.392, 0.372, 0.350)), (0.60, (0.495, 0.478, 0.458)),
+               (0.88, (0.592, 0.578, 0.562))],
+      rough=0.95, scale=0.24, detail=5.0, bump=0.22, bump_dist=0.2)
+    T("grass_dry", [(0.22, (0.272, 0.248, 0.185)), (0.60, (0.392, 0.362, 0.278)),
+                    (0.88, (0.498, 0.468, 0.372))],
+      rough=0.94, scale=0.24, detail=5.0, bump=0.26, bump_dist=0.22)
 
 # ------------------------------------------------------------------ collections
 for c in ("Terrain", "Roads", "Rail", "Mine", "Depot", "Refinery", "Market",

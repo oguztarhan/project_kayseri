@@ -91,6 +91,8 @@ namespace Game.UI
             // başka bir yerden açılmış olabilir — etiketler açılışta doğru olsun
             RefreshTestButton();
             RefreshTimeButton();
+            RefreshMaxButton();
+            RefreshMaintenanceButtons();
 #endif
         }
 
@@ -203,7 +205,46 @@ namespace Game.UI
             var time = BuildStrip("TestZaman", 140f, out _timeImage, out _timeLabel);
             time.onClick.AddListener(OnTimeMode);
             RefreshTimeButton();
+
+            var max = BuildStrip("TestMaks", 240f, out _maxImage, out _maxLabel);
+            max.onClick.AddListener(OnMaxIsland);
+            RefreshMaxButton();
+
+            var wear = BuildStrip("TestBakim", 340f, out _wearImage, out _wearLabel);
+            wear.onClick.AddListener(OnWear);
+            RefreshWearButton();
+
+            var repair = BuildStrip("TestOnar", 440f, out _repairImage, out _repairLabel);
+            repair.onClick.AddListener(OnRepair);
+            RefreshRepairButton();
+
+            var grime = BuildStrip("TestKir", 540f, out _grimeImage, out _grimeLabel);
+            grime.onClick.AddListener(OnGrime);
+            RefreshGrimeButton();
         }
+
+        /// <summary>Every test strip's label at once — state one of them changes is state another shows.</summary>
+        private void RefreshMaintenanceButtons()
+        {
+            RefreshWearButton();
+            RefreshRepairButton();
+            RefreshGrimeButton();
+        }
+
+        /// <summary>
+        /// The island the player is standing on. The two strips below both act on it, and neither can
+        /// be wired in the Inspector: this panel is in a UI prefab and the operations are in the island
+        /// scene. Looked up through <see cref="WorldIslands"/> rather than by
+        /// <c>FindAnyObjectByType</c>, because all eight operations exist at once and seven of them are
+        /// disabled — the first one found is not the live one.
+        /// </summary>
+        private CoalOperation LiveOperation()
+        {
+            if (_world == null) _world = FindAnyObjectByType<WorldIslands>();
+            return _world != null ? _world.Operation(_world.ActiveIndex) : null;
+        }
+
+        private WorldIslands _world;
 
         /// <summary>One full-width strip under the artist's panel. Two of these now, and each is
         /// twenty-odd lines of the same RectTransform setup, so they share one builder.</summary>
@@ -323,6 +364,224 @@ namespace Game.UI
                     if (_timeImage != null) _timeImage.color = TimeAutoColor;
                     break;
             }
+        }
+
+        // ---------------- adayı tek dokunuşta maksimuma çıkar ----------------
+
+        // Faz 3 sanatını, tam hızlı zinciri ve bakım hasarının gerçekten ne kadara mal olduğunu görmek
+        // için adanın maksimum hâli gerekiyor; elle almak yüzlerce dokunuş. Bu şerit her ekseni tavana,
+        // her hayalet binayı ayakta ve pazar avlusunu tam kadroya çıkarır.
+        //
+        // Satın almalar oyunun KENDİ yollarından geçiyor (TryUnlock / TryUpgrade / pazar satırı), yani
+        // faz geçişleri, filo uyanmaları ve kayıt yazımı gerçekte olduğu gibi işliyor. Kısayol yalnızca
+        // parada: cüzdan bu iş boyunca bedava moda alınıp eski hâline bırakılıyor.
+        private const string MaxLabel = "ADAYI MAKS YÜKSELT";
+        private const string MaxedLabel = "ADA ZATEN MAKSİMUM";
+        private static readonly Color MaxColor = new Color(0.20f, 0.45f, 0.30f, 0.92f);
+        private static readonly Color MaxedColor = new Color(0.24f, 0.27f, 0.32f, 0.92f);
+
+        private Image _maxImage;
+        private TMPro.TextMeshProUGUI _maxLabel;
+
+        private void OnMaxIsland()
+        {
+            CoalOperation op = LiveOperation();
+            if (op == null) return;
+
+            var wallet = ServiceLocator.Get<WalletService>();
+            bool wasFree = wallet != null && wallet.FreePurchases;
+            if (wallet != null) wallet.FreePurchases = true;
+
+            // Kilitler önce: POWER PLANT'in eksenleri santral açılana kadar kilitli, sonra alınırsa
+            // o istasyon seviye 0'da kalırdı.
+            for (int u = 0; u < op.UnlockCount; u++)
+                if (!op.IsUnlocked(u)) op.TryUnlock(u);
+
+            for (int s = 0; s < op.StationCount; s++)
+                for (int a = 0; a < op.AxisCount(s); a++)
+                {
+                    // Tavan eksen başına 50, ama sayı buradan okunmuyor: TryUpgrade false dönene kadar
+                    // alıyor. Sayaç yalnızca bir gün kural değişirse diye duran sonsuz döngü freni.
+                    int guard = 0;
+                    while (!op.AxisMaxed(s, a) && guard++ < 500)
+                        if (!op.TryUpgrade(s, a)) break;
+                }
+
+            // Pazar avlusu adanın gelirinin geçtiği tek kapı, ve kadrosuz bir avlu tam yüklü bir adayı
+            // bile boğar. Satırı doğrudan tavana yazıyor: MarketService.TryBuy henüz ölçülmemiş bir
+            // gelir tavanına karşı fiyat bulamayıp "satılık bir şey yok" diyebiliyor, ki bu da tam
+            // olarak yeni maksimuma çıkarılmış bir adanın ilk saniyelerindeki durum.
+            var market = ServiceLocator.Get<MarketService>();
+            if (market != null)
+            {
+                MarketYard yard = market.Row(op.IslandKey);
+                yard.depositSlots = MarketPrices.MaxLevel(YardUpgrade.DepositSlot);
+                yard.queueSlots = MarketPrices.MaxLevel(YardUpgrade.QueueSlot);
+                yard.hireCarry = yard.hireServe = yard.hireCollect = MarketFlow.MaxHireLevel;
+                var data = ServiceLocator.Get<SaveData>();
+                if (data != null) data.marketCarryLevel = MarketPrices.MaxCarryLevel;
+            }
+
+            if (wallet != null) wallet.FreePurchases = wasFree;
+            if (_haptic != null) _haptic.Light();
+            RefreshMaxButton();
+            RefreshMaintenanceButtons();   // onarım faturası adanın gelirinden çıkıyor, bu onu da değiştirdi
+        }
+
+        private void RefreshMaxButton()
+        {
+            if (_maxLabel == null) return;
+            CoalOperation op = LiveOperation();
+            bool maxed = op != null && op.FullyMaxed;
+            _maxLabel.text = maxed ? MaxedLabel : MaxLabel;
+            if (_maxImage != null) _maxImage.color = maxed ? MaxedColor : MaxColor;
+        }
+
+        // ---------------- binaları eskit (bakım testi) ----------------
+
+        // Yıpranma gerçek zamanla ölçülüyor, yani hasarlı hâli görmek normalde telefonu bir gün kenara
+        // bırakmak demek. Bu şerit bunun yerine SAATİ geri alıp servisin kendi Evaluate'ini çağırıyor:
+        // kısayol yok, hasarı üreten kod tam olarak oyuncunun başına gelecek kod. Her dokunuş bir günlük
+        // yokluk ekliyor ve üst üste biniyor; ada tabana oturduğunda aynı düğme onu sıfırlıyor.
+        private const float TestWearHours = 24f;
+        private static readonly Color WearCleanColor = new Color(0.24f, 0.27f, 0.32f, 0.92f);
+        private static readonly Color WearWornColor = new Color(0.55f, 0.35f, 0.12f, 0.92f);
+        private static readonly Color WearFloorColor = new Color(0.75f, 0.20f, 0.20f, 0.92f);
+
+        private Image _wearImage;
+        private TMPro.TextMeshProUGUI _wearLabel;
+
+        private void OnWear()
+        {
+            var maintenance = ServiceLocator.Get<MaintenanceService>();
+            var data = ServiceLocator.Get<SaveData>();
+            CoalOperation op = LiveOperation();
+            if (maintenance == null || data == null || op == null || !maintenance.Enabled) return;
+
+            if (AtFloor(maintenance, op.IslandKey)) maintenance.Reset(op.IslandKey);
+            else
+            {
+                // İki damga birden: Evaluate ikisinin GEÇ olanını referans alıyor, yani yalnızca birini
+                // geri almak hiçbir şey yapmaz.
+                long back = (long)(TestWearHours * 3600f);
+                data.conditionStampUnix -= back;
+                data.savedUnixSeconds -= back;
+                maintenance.Evaluate();
+            }
+
+            if (op.Wear != null) op.Wear.Refresh();   // kir taramayı beklemeden görünsün
+
+            if (_haptic != null) _haptic.Light();
+            RefreshMaintenanceButtons();
+        }
+
+        private static bool AtFloor(MaintenanceService maintenance, string island)
+            => maintenance.IslandCondition(island) <= maintenance.Tuning.Floor + 0.0001f;
+
+        private void RefreshWearButton()
+        {
+            if (_wearLabel == null) return;
+
+            var maintenance = ServiceLocator.Get<MaintenanceService>();
+            CoalOperation op = LiveOperation();
+            if (maintenance == null || op == null || !maintenance.Enabled)
+            {
+                _wearLabel.text = "BAKIM: KAPALI";
+                if (_wearImage != null) _wearImage.color = WearCleanColor;
+                return;
+            }
+
+            string island = op.IslandKey;
+            float condition = maintenance.IslandCondition(island);
+            int percent = Mathf.RoundToInt(condition * 100f);
+
+            if (AtFloor(maintenance, island))
+            {
+                _wearLabel.text = "BAKIM %" + percent + " — SIFIRLA";
+                if (_wearImage != null) _wearImage.color = WearFloorColor;
+                return;
+            }
+
+            _wearLabel.text = "BAKIM %" + percent + " — +1 GÜN ESKİT";
+            if (_wearImage != null) _wearImage.color = condition < 1f ? WearWornColor : WearCleanColor;
+        }
+
+        // ---------------- anında onar ----------------
+
+        // Gerçek onarım para alır ve ekibi dakikalarca sahada tutar; ikisi de hasarın GERİ alınışını
+        // kontrol etmek isteyen birinin işine yaramaz. Bu şerit servisin kendi yollarından geçiyor
+        // ama faturayı sıfır dakikalık gelire karşı kesip (yani bedava) ardından reklamın satın aldığı
+        // atlama yolunu çağırıyor: onarım kodu gerçek, yalnızca bekleme ve ücret yok.
+        private static readonly Color RepairReadyColor = new Color(0.20f, 0.45f, 0.30f, 0.92f);
+        private static readonly Color RepairIdleColor = new Color(0.24f, 0.27f, 0.32f, 0.92f);
+
+        private Image _repairImage;
+        private TMPro.TextMeshProUGUI _repairLabel;
+
+        private void OnRepair()
+        {
+            var maintenance = ServiceLocator.Get<MaintenanceService>();
+            CoalOperation op = LiveOperation();
+            if (maintenance == null || op == null || !maintenance.Enabled) return;
+
+            if (maintenance.Repairing(op.IslandKey)) maintenance.SkipRepair(op.IslandKey);
+            else if (maintenance.TryRepair(op.IslandKey, -1, 0d)) maintenance.SkipRepair(op.IslandKey);
+
+            // Kir kendi yavaş taramasında zaten kalkacak, ama düğmeye basan biri sonucu ŞİMDİ görmeli.
+            if (op.Wear != null) op.Wear.Refresh();
+
+            if (_haptic != null) _haptic.Light();
+            RefreshMaintenanceButtons();
+        }
+
+        private void RefreshRepairButton()
+        {
+            if (_repairLabel == null) return;
+
+            var maintenance = ServiceLocator.Get<MaintenanceService>();
+            CoalOperation op = LiveOperation();
+            bool needs = maintenance != null && op != null && maintenance.Enabled
+                         && (maintenance.NeedsRepair(op.IslandKey) || maintenance.Repairing(op.IslandKey));
+
+            _repairLabel.text = needs ? "ONAR (BEDAVA, ANINDA)" : "ONARACAK BİR ŞEY YOK";
+            if (_repairImage != null) _repairImage.color = needs ? RepairReadyColor : RepairIdleColor;
+        }
+
+        // ---------------- kir kademesini zorla ----------------
+
+        // Kirin dört kademesi var ve bir adanın bunların arasında kendi başına dolaşması günler sürer.
+        // Bu şerit kademeyi doğrudan dayatıyor, hasardan bağımsız olarak: görünümün tamamı, ada
+        // gerçekten yıpranmayı beklemeden tek tek gözden geçirilebilsin diye. OTO'ya dönünce
+        // gerçek bakım durumu neyi gerektiriyorsa ona geri düşer.
+        private static readonly Color GrimeAutoColor = new Color(0.24f, 0.27f, 0.32f, 0.92f);
+        private static readonly Color GrimeForcedColor = new Color(0.45f, 0.33f, 0.16f, 0.92f);
+
+        private Image _grimeImage;
+        private TMPro.TextMeshProUGUI _grimeLabel;
+
+        private void OnGrime()
+        {
+            CoalOperation op = LiveOperation();
+            if (op == null || op.Wear == null) return;
+
+            int tier = op.Wear.ForcedTier + 1;      // -1 OTO -> 0 temiz -> 1 -> 2 -> 3 -> OTO
+            if (tier > 3) tier = -1;
+            op.Wear.ForcedTier = tier;
+            op.Wear.Refresh();
+
+            if (_haptic != null) _haptic.Light();
+            RefreshGrimeButton();
+        }
+
+        private void RefreshGrimeButton()
+        {
+            if (_grimeLabel == null) return;
+
+            CoalOperation op = LiveOperation();
+            int tier = op != null && op.Wear != null ? op.Wear.ForcedTier : -1;
+
+            _grimeLabel.text = tier < 0 ? "KİR: OTOMATİK" : "KİR KADEMESİ: " + tier + " / 3";
+            if (_grimeImage != null) _grimeImage.color = tier < 0 ? GrimeAutoColor : GrimeForcedColor;
         }
 #endif
     }

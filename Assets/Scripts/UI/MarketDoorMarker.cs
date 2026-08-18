@@ -17,6 +17,15 @@ namespace Game.UI
     /// Deliberately separate from the MARKET upgrade panel rather than a button inside it. Walking into
     /// the yard and buying a price upgrade are different intentions, and burying the first one two taps
     /// deep inside the second is how a whole mode goes unnoticed.
+    ///
+    /// It STANDS STILL. It used to glide up and down and breathe in and out, which is the treatment every
+    /// other floating badge in the game gets and the wrong one here: this is the largest thing on the
+    /// island, it sits over the one building the player is trying to look at, and a thing that size
+    /// moving on its own does not read as "tap me", it reads as the building shifting. Static, and one
+    /// size smaller, it is a sign over a door.
+    ///
+    /// It also has the space above the market to itself now — <see cref="UpgradeReadyMarkers"/> skips
+    /// that station. Two badges were stacked over one roof, and between them the roof was gone.
     /// </summary>
     public sealed class MarketDoorMarker : MonoBehaviour
     {
@@ -27,30 +36,25 @@ namespace Game.UI
         [SerializeField] private string marketSceneName = "Market";
 
         [Header("Görsel")]
-        [Tooltip("Düğmenin genişliği ve yüksekliği, referans çözünürlükte piksel.")]
-        [SerializeField] private Vector2 size = new Vector2(330f, 112f);
+        [Tooltip("Düğmenin genişliği ve yüksekliği, referans çözünürlükte piksel. Binayı kapatmayacak " +
+                 "kadar küçük, başparmakla ıskalanmayacak kadar büyük olmalı.")]
+        [SerializeField] private Vector2 buttonSize = new Vector2(250f, 84f);
 
-        [Tooltip("Yazı boyu. Kit sarısı üzerinde beyaz kalın yazı, oyunun geri kalanıyla aynı.")]
-        [SerializeField, Min(10)] private int fontSize = 40;
+        [Tooltip("Yazı boyu. Düğme genişliğiyle birlikte düşün: yazı taşarsa Fransızca ve Rusça " +
+                 "düğmenin dışına çıkar.")]
+        [SerializeField, Min(10)] private int labelSize = 30;
 
-        [Tooltip("Nefes alma miktarı. 0,04 = %4 büyüyüp küçülür. Sıfır yaparsan düğme cansız durur.")]
-        [SerializeField, Range(0f, 0.2f)] private float pulseAmount = 0.045f;
-        [Tooltip("Binanın tepesinden ne kadar yukarıda durduğu, dünya birimi.")]
-        [SerializeField] private float worldLift = 4f;
+        [Tooltip("Binanın tepesinden ne kadar yukarıda durduğu, dünya birimi. MARKET'in kaldırılan " +
+                 "yükseltme rozetiyle aynı yükseklik.")]
+        [SerializeField] private float buildingLift = 10f;
 
         [Tooltip("Dünya noktasından sonra uygulanan ekran kayması, piksel. Negatif Y aşağı iter.\n\n" +
-                 "Sıfır bırakırsan bu düğme MARKET'in yükseltme rozetiyle üst üste biner: ikisi de aynı " +
-                 "binanın tepesine tutunuyor. Rozet yukarıda kalsın, kapı aşağıda dursun diye var.")]
-        [SerializeField] private Vector2 screenOffset = new Vector2(0f, -150f);
+                 "Rozetin durduğu yerin biraz altına indirir; binanın üstünde durur, binanın önünde " +
+                 "durmaz.")]
+        [SerializeField] private Vector2 buildingOffset = new Vector2(0f, -90f);
         [Tooltip("HUD 100, satış yazıları 95, yükseltme rozetleri 92. Kapı rozetlerle aynı katta.")]
         [SerializeField] private int sortingOrder = 92;
         [SerializeField] private Color tint = new Color(0.16f, 0.18f, 0.24f, 0.94f);
-
-        [Header("Hareket")]
-        [Tooltip("Süzülme genliği, piksel.")]
-        [SerializeField] private float bobPixels = 6f;
-        [Tooltip("Bir süzülme turunun süresi.")]
-        [SerializeField, Min(0.1f)] private float bobSeconds = 2.6f;
 
         // MARKET's index in IslandEconomy.Stations. Named here rather than reached for through the
         // simulation because this assembly has no business knowing the station order beyond this one.
@@ -72,8 +76,9 @@ namespace Game.UI
             go.transform.SetParent(transform, false);
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            // The button sits just above the bottom HUD row. It must also be above that row in the
-            // raycast stack, otherwise a transparent edge of a HUD button can steal the tap.
+            // Above the HUD in the raycast stack, whatever the sorting order says. The button floats over
+            // the island and the HUD is drawn over the whole screen, so a transparent edge of a HUD
+            // button can sit on top of this one and quietly eat the tap.
             canvas.sortingOrder = Mathf.Max(sortingOrder, 102);
             var sc = go.GetComponent<CanvasScaler>();
             sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -89,7 +94,7 @@ namespace Game.UI
             Sprite marketArt = Resources.Load<Sprite>(MarketButtonResource);
             Button button = UiBuild.Btn(_canvasRect, "MarketeGir", Loc.T("market.gir"),
                                         marketArt != null ? marketArt : UiSkin.ButtonYellow,
-                                        tint, fontSize, Open);
+                                        tint, labelSize, Open);
             Image buttonImage = button.GetComponent<Image>();
             if (buttonImage != null && marketArt != null)
             {
@@ -101,7 +106,7 @@ namespace Game.UI
             _rect = (RectTransform)button.transform;
             _rect.anchorMin = _rect.anchorMax = new Vector2(0.5f, 0.5f);
             _rect.pivot = new Vector2(0.5f, 0.5f);
-            _rect.sizeDelta = size;
+            _rect.sizeDelta = buttonSize;
             _root = button.gameObject;
             _root.SetActive(false);
         }
@@ -159,7 +164,7 @@ namespace Game.UI
             Vector3 world;
             if (!_op.StationAnchor(MarketStation, out world)) { Hide(); return; }
 
-            world.y += worldLift;
+            world.y += buildingLift;
             Vector3 screen = _cam.WorldToScreenPoint(world);
             if (screen.z <= 0f) { Hide(); return; }      // behind the camera
 
@@ -167,17 +172,9 @@ namespace Game.UI
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 _canvasRect, new Vector2(screen.x, screen.y), null, out local);
 
-            float cycle = Time.unscaledTime / bobSeconds * Mathf.PI * 2f;
-            float bob = Mathf.Sin(cycle) * bobPixels;
-            // The upgrade badge owns the space above the building; this sits below it, so the two can
-            // both be pointing at the market without landing on top of each other.
-            _rect.anchoredPosition = new Vector2(local.x + screenOffset.x, local.y + screenOffset.y + bob);
-
-            // A quarter-cycle behind the bob, the same offset the upgrade badges breathe on: widest as
-            // it passes through the middle of its rise rather than at the top, which is what stops it
-            // reading as a mechanical pump.
-            float breath = 1f + Mathf.Sin(cycle - Mathf.PI * 0.5f) * pulseAmount;
-            _rect.localScale = new Vector3(breath, breath, 1f);
+            // Straight onto the point, with no bob and no breath added to it. See the class summary:
+            // the movement was what made this thing hard to look past.
+            _rect.anchoredPosition = new Vector2(local.x + buildingOffset.x, local.y + buildingOffset.y);
 
             if (!_root.activeSelf) _root.SetActive(true);
         }

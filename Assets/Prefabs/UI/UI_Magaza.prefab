@@ -4495,6 +4495,7 @@ MonoBehaviour:
     gemAmount: 250
     boostMultiplier: 2
     boostSeconds: 345600
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4517,6 +4518,7 @@ MonoBehaviour:
     gemAmount: 500
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4539,6 +4541,7 @@ MonoBehaviour:
     gemAmount: 750
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 1
     offlineEfficiencyBonus: 0.25
     offlineCapBonusHours: 6
@@ -4561,6 +4564,7 @@ MonoBehaviour:
     gemAmount: 1400
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4584,6 +4588,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 2
     boostSeconds: 7200
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4606,6 +4611,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 2
     boostSeconds: 28800
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4628,6 +4634,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 2
     boostSeconds: 86400
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4643,6 +4650,75 @@ MonoBehaviour:
     description: 
     incomeMinutes: 0
     investorShare: 0
+  - name: gem_shield_8h
+    button: {fileID: 0}
+    sku: gem_shield_8h
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    shieldHours: 8
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 60
+    icon: {fileID: 21300000, guid: 211253b264b288141b16e56873bf2bed, type: 3}
+    hero: {fileID: 0}
+    heroMotion: 0
+    title: 8 SAAT
+    description: Binalar %100 saglikta kalir
+    incomeMinutes: 0
+    investorShare: 0
+  - name: gem_shield_12h
+    button: {fileID: 0}
+    sku: gem_shield_12h
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    shieldHours: 12
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 80
+    icon: {fileID: 21300000, guid: 211253b264b288141b16e56873bf2bed, type: 3}
+    hero: {fileID: 0}
+    heroMotion: 0
+    title: 12 SAAT
+    description: Binalar %100 saglikta kalir
+    incomeMinutes: 0
+    investorShare: 0
+  - name: gem_shield_24h
+    button: {fileID: 0}
+    sku: gem_shield_24h
+    cashAmount: 0
+    gemAmount: 0
+    boostMultiplier: 1
+    boostSeconds: 0
+    shieldHours: 24
+    removeAds: 0
+    offlineEfficiencyBonus: 0
+    offlineCapBonusHours: 0
+    dailyRewardBonusMult: 0
+    freeRewardBonusCharges: 0
+    dailyGemStipend: 0
+    oneTime: 0
+    gemPrice: 140
+    icon: {fileID: 21300000, guid: 211253b264b288141b16e56873bf2bed, type: 3}
+    hero: {fileID: 0}
+    heroMotion: 0
+    title: 24 SAAT
+    description: Binalar %100 saglikta kalir
+    incomeMinutes: 0
+    investorShare: 0
   - name: gem_cash_30m
     button: {fileID: 0}
     sku: gem_cash_30m
@@ -4650,6 +4726,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4672,6 +4749,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4694,6 +4772,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4716,6 +4795,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 4
@@ -4738,6 +4818,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4760,6 +4841,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0
@@ -4782,6 +4864,7 @@ MonoBehaviour:
     gemAmount: 0
     boostMultiplier: 1
     boostSeconds: 0
+    shieldHours: 0
     removeAds: 0
     offlineEfficiencyBonus: 0
     offlineCapBonusHours: 0

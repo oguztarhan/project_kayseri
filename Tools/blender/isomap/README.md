@@ -7,9 +7,9 @@ from code at any of three upgrade phases and exports it to
 Needs Blender 5.x with the Blender MCP addon (the `blender` MCP server is
 user-scoped, so it's available from any Claude Code session).
 
-## Two islands
+## Eight islands, four maps
 
-There are two maps. They share every building, vehicle, prop and material - only
+There are four authored maps. They share every building, vehicle, prop and material - only
 the land, the water, the road/rail routing and the ore differ.
 
 | | coal | copper |
@@ -26,6 +26,34 @@ The depot and market swap ends of the north-south arterial on the copper island
 because the market has to be the coastal district - it is the one that feeds the
 port. Both are axis-aligned around their own centre and the arterial runs
 through them either way, so their models are untouched.
+
+The other four islands are **derived**: each re-exports one of the authored maps
+unchanged and swaps the ore, so the eight-island ladder never shows the same map
+twice in a row.
+
+| ladder | island | map | ore |
+|---|---|---|---|
+| 0 | coal | coal | `coal` |
+| 1 | copper | copper | `ore_cu` |
+| 2 | iron | iron | `ore_fe` |
+| 3 | **silver** | copper | `ore_ag` |
+| 4 | gold | gold | `ore_au` |
+| 5 | **ruby** | iron | `ore_rb` |
+| 6 | **emerald** | coal | `ore_em` |
+| 7 | **diamond** | gold | `ore_dm` |
+
+A derived `isle_` module is about twenty lines: reload the base, star-import it,
+then set `NAME`, `DESIGN`, `ORE`/`ORE_SHINY` and the `GROUND_*` palette. Every
+stockpile, wagon load and theme pile asks the island for `ORE`, so recolouring
+the map is those two names - and `DESIGN` is what the build steps branch on for
+the land, so the silver island gets the copper map's country rock and not the
+coal island's grey granite.
+
+The ground tint matters as much as the ore. With only the heaps recoloured the
+pair reads as one map at the play camera's distance, where the ground is most of
+what is on screen. The per-island blocks at the end of `01_setup.py` and the
+`GROUND_*` values in each derived module are what separate them; they are small
+on purpose, because the island still has to look like the one it re-exports.
 
 ## Rebuild + re-export everything
 
@@ -89,11 +117,17 @@ grey Lit material — which does not read vertex colour at all.
 | `13_export.py` | vehicle strip + vertex-colour bake + FBX export |
 | `shot.py` | `shot()` renders the iso view, `zoom()` renders a close-up |
 
-## Adding a third island
+## Adding an island
 
-Write `isle_<name>.py` exporting the same names as `isle_coal.py`, and add the
-name to `island.ISLANDS`. Nothing else needs to change - no step imports an
-`isle_` module directly.
+A **new map**: write `isle_<name>.py` exporting the same names as `isle_coal.py`,
+and add the name to `island.ISLANDS`. Nothing else needs to change - no step
+imports an `isle_` module directly.
+
+A **derived island** off an existing map: copy `isle_silver.py`, point it at the
+base, give it an ore pair in `01_setup.py` and a ground tint, and add the name to
+`island.ISLANDS`. Then add the folder name to `IslandBuilder.Islands`,
+`RouteHeightFitter.Islands`, `IslandModelOverridesWindow.Islands` and
+`fit_rail_routes.ISLANDS` on the Unity side.
 
 ## Phases
 

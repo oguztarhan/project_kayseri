@@ -173,6 +173,83 @@ namespace Game.Tests
             Assert.That(market.RatePerMin(Coal), Is.EqualTo(1200d).Within(60d));
         }
 
+        // ---- the boost, spent on the island's clock ----------------------------------------------
+        //
+        //  A rewarded x2 on the island being simulated buys TIME rather than price: the whole chain
+        //  runs at x2 and delivers twice the bars, so the player can watch the ad working instead of
+        //  reading about it on the top bar. MarketService.IslandTimeScale is the contract, and these
+        //  two tests are the two ways it can go wrong — paying the boost twice, and banking it.
+
+        /// <summary>
+        /// Runs a live island's yard for a minute and reports what it earned and what it persisted.
+        /// <paramref name="simSpeed"/> is what the island's lorries do about the boost: at x2 the
+        /// island's clock is running twice as fast, so twice as many bars arrive per real second.
+        /// </summary>
+        private static void RunLiveIsland(double boostMult, double simSpeed,
+                                          out double cash, out double savedRate)
+        {
+            var data = new SaveData();
+            var wallet = new WalletService(data.wallet);
+            BoostService boost = null;
+            if (boostMult > 1d)
+            {
+                boost = new BoostService(data, new TimeService());
+                boost.AddBoost(boostMult, 3600d);     // far longer than the minute below takes to run
+            }
+            var market = new MarketService(data, wallet, null, boost);
+            market.Register(Coal, new Terms { BarPriceRaw = Price, IncomeCapPerMinuteRaw = NoCeiling });
+            market.SetActiveIsland(Coal);             // its lorries are running, so Deliver is the supply
+            Staff(market, MarketFlow.MaxHireLevel);   // a yard that keeps up, so the counter is not the wall
+
+            // One tick before the lorries start, because the speed is latched once a second: the island
+            // reads it and this ledger divides it back out, and they have to be looking at the same value.
+            market.Tick(1f);
+            for (int second = 0; second < 120; second++)
+            {
+                market.Deliver(Coal, 2d * simSpeed);  // 2 bars a second, doubled when the clock is
+                market.Tick(1f);
+            }
+
+            cash = wallet.Cash.ToDouble();
+            savedRate = market.Row(Coal).deliveredPerMin;
+        }
+
+        [Test]
+        public void BoostedIsland_IsWorthExactlyTwice_NotFourTimes()
+        {
+            double plainCash, plainRate;
+            RunLiveIsland(1d, 1d, out plainCash, out plainRate);
+
+            double boostCash, boostRate;
+            RunLiveIsland(2d, 2d, out boostCash, out boostRate);
+
+            // The failure this guards is the obvious one: leaving the price multiplier on while the
+            // island's clock also runs at x2 pays for the same ad twice and quadruples the reward.
+            Assert.That(boostCash, Is.EqualTo(plainCash * 2d).Within(plainCash * 0.02d),
+                        "a x2 must be worth x2 whether it is spent on price or on time");
+            Assert.Greater(plainCash, 0d, "the control has to have earned something to be a control");
+        }
+
+        [Test]
+        public void BoostedIsland_NeverBanksItsBoostedRate()
+        {
+            double plainCash, plainRate;
+            RunLiveIsland(1d, 1d, out plainCash, out plainRate);
+
+            double boostCash, boostRate;
+            RunLiveIsland(2d, 2d, out boostCash, out boostRate);
+
+            // deliveredPerMin is what feeds this island's yard once the player sails away, and the rate
+            // beside it is what the NEXT launch's offline grant is paid from. A five-minute ad that left
+            // either of them reading double would go on paying double for as long as the player stayed
+            // off the island — which is a rewarded ad that rewards forever.
+            // Pinned to the arithmetic rather than to each other: two rates that were both silently zero
+            // would agree perfectly and prove nothing. 2 bars a second is 120 a minute, boost or no boost.
+            Assert.That(plainRate, Is.EqualTo(120d).Within(1d), "the control measured the wrong thing");
+            Assert.That(boostRate, Is.EqualTo(120d).Within(1d),
+                        "the persisted delivery rate must describe an unboosted island");
+        }
+
         // ---- what an absence does ---------------------------------------------------------------
 
         [Test]

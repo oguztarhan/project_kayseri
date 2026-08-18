@@ -96,6 +96,7 @@ hud.magaza	MAĞAZA	SHOP	SHOP	BOUTIQUE	TIENDA	LOJA	NEGOZIO	SKLEP	МАГАЗИН	T
 hud.yukselt	YÜKSELT	UPGRADE	AUSBAU	AMÉLIORER	MEJORAR	MELHORAR	POTENZIA	ULEPSZ	УЛУЧШИТЬ	TINGKATKAN	NÂNG CẤP
 hud.bedava	BEDAVA	FREE	GRATIS	GRATUIT	GRATIS	GRÁTIS	GRATIS	GRATIS	БЕСПЛАТНО	GRATIS	MIỄN PHÍ
 hud.teklif	TEKLİF	OFFER	ANGEBOT	OFFRE	OFERTA	OFERTA	OFFERTA	OFERTA	АКЦИЯ	PENAWARAN	ƯU ĐÃI
+hud.kalkan	KALKAN	SHIELD	SCHILD	BOUCLIER	ESCUDO	ESCUDO	SCUDO	TARCZA	ЩИТ	PERISAI	KHIÊN
 # istasyon ekrani
 istasyon_ekrani.faz	FAZ {0} / 3	PHASE {0} / 3	PHASE {0} / 3	PHASE {0} / 3	FASE {0} / 3	FASE {0} / 3	FASE {0} / 3	FAZA {0} / 3	ФАЗА {0} / 3	FASE {0} / 3	GIAI ĐOẠN {0} / 3
 istasyon_ekrani.faz_bant	FAZ {0}	PHASE {0}	PHASE {0}	PHASE {0}	FASE {0}	FASE {0}	FASE {0}	FAZA {0}	ФАЗА {0}	FASE {0}	GIAI ĐOẠN {0}
@@ -204,10 +205,16 @@ magaza.gem_cash_8h	8 SAAT	8 HOURS	8 STUNDEN	8 HEURES	8 HORAS	8 HORAS	8 ORE	8 GOD
 magaza.gem_offline_2h	+4 SAAT	+4 HOURS	+4 STUNDEN	+4 HEURES	+4 HORAS	+4 HORAS	+4 ORE	+4 GODZINY	+4 ЧАСА	+4 JAM	+4 GIỜ
 magaza.gem_ad_charge	+1 HAK	+1 CHARGE	+1 LADUNG	+1 CHARGE	+1 CARGA	+1 CARGA	+1 CARICA	+1 ŁADUNEK	+1 ПОПЫТКА	+1 PELUANG	+1 LƯỢT
 magaza.gem_investor	%50	50%	50%	50%	50%	50%	50%	50%	50%	50%	50%
+magaza.gem_shield_8h	8 SAAT	8 HOURS	8 STUNDEN	8 HEURES	8 HORAS	8 HORAS	8 ORE	8 GODZIN	8 ЧАСОВ	8 JAM	8 GIỜ
+magaza.gem_shield_12h	12 SAAT	12 HOURS	12 STUNDEN	12 HEURES	12 HORAS	12 HORAS	12 ORE	12 GODZIN	12 ЧАСОВ	12 JAM	12 GIỜ
+magaza.gem_shield_24h	24 SAAT	24 HOURS	24 STUNDEN	24 HEURES	24 HORAS	24 HORAS	24 ORE	24 GODZINY	24 ЧАСА	24 JAM	24 GIỜ
 magaza.gem_offline_2h.aciklama	Çevrimdışı kazanç 4 saat uzar	4 more hours of offline earnings	4 Stunden mehr Offline-Ertrag	4 h de gains hors ligne en plus	4 h más de ganancias sin conexión	Mais 4 h de ganhos offline	4 ore in più di guadagni offline	4 godziny dłuższy zarobek offline	Ещё 4 часа офлайн-дохода	4 jam penghasilan offline lagi	Thêm 4 giờ thu nhập ngoại tuyến
 magaza.gem_ad_charge.aciklama	Her reklama günde +1 hak	One extra ad charge a day	Täglich eine Ladung mehr	Une charge de plus par jour	Una carga más al día	Mais uma carga por dia	Una carica in più al giorno	Jeden ładunek więcej dziennie	Ещё одна попытка в день	Satu kesempatan ekstra/hari	Thêm một lượt mỗi ngày
 magaza.gem_daily_x2.aciklama	Günlük ödüller kalıcı ×2	Daily rewards doubled forever	Tagesbelohnungen dauerhaft ×2	Bonus du jour doublé à vie	Premio diario doblado siempre	Prêmio diário dobrado sempre	Premio giornaliero sempre ×2	Nagrody dzienne trwale ×2	Награда дня навсегда ×2	Hadiah harian permanen ×2	Thưởng ngày nhân đôi vĩnh viễn
 magaza.gem_investor.aciklama	Prestij yarısı, adalar kalır	Half prestige, keep islands	Halbes Prestige, Inseln bleiben	Moitié prestige, îles gardées	Mitad de prestigio, islas fijas	Metade do prestígio, ilhas ficam	Metà prestigio, isole restano	Pół prestiżu, wyspy zostają	Половина престижа, острова целы	Setengah prestise, pulau tetap	Nửa danh vọng, giữ đảo
+magaza.gem_shield_8h.aciklama	Binalar %100 sağlıkta kalır	Buildings stay at 100% health	Gebäude bleiben bei 100%	Bâtiments à 100% garantis	Edificios siempre al 100%	Prédios sempre a 100%	Edifici sempre al 100%	Budynki stale w 100%	Здания остаются на 100%	Bangunan tetap 100%	Công trình luôn 100%
+magaza.gem_shield_12h.aciklama	Binalar %100 sağlıkta kalır	Buildings stay at 100% health	Gebäude bleiben bei 100%	Bâtiments à 100% garantis	Edificios siempre al 100%	Prédios sempre a 100%	Edifici sempre al 100%	Budynki stale w 100%	Здания остаются на 100%	Bangunan tetap 100%	Công trình luôn 100%
+magaza.gem_shield_24h.aciklama	Binalar %100 sağlıkta kalır	Buildings stay at 100% health	Gebäude bleiben bei 100%	Bâtiments à 100% garantis	Edificios siempre al 100%	Prédios sempre a 100%	Edifici sempre al 100%	Budynki stale w 100%	Здания остаются на 100%	Bangunan tetap 100%	Công trình luôn 100%
 # egitim
 egitim.atla	ATLA	SKIP	ÜBERSPRINGEN	PASSER	SALTAR	PULAR	SALTA	POMIŃ	ПРОПУСТИТЬ	LEWATI	BỎ QUA
 egitim.devam	DEVAM	CONTINUE	WEITER	CONTINUER	CONTINUAR	CONTINUAR	CONTINUA	DALEJ	ДАЛЕЕ	LANJUT	TIẾP TỤC

@@ -65,7 +65,8 @@ namespace Game.Gameplay
 
         /// <summary>
         /// Builds the yard under <paramref name="root"/> and reports where the named spots landed.
-        /// The tint is the island's ore colour, so a copper yard reads as copper without a second layout.
+        /// The tint is the island's ore colour and <paramref name="theme"/> is that island's palette, so
+        /// a copper yard reads as copper — inside and out — without a second layout.
         ///
         /// Yards stand shoulder to shoulder, exactly <see cref="Width"/> apart, so one yard's east wall
         /// is the next one's west wall — which is why only the first in the row builds a west wall at
@@ -78,14 +79,18 @@ namespace Game.Gameplay
         /// the way now is paint on the floor, which cannot argue with anything at head height. See
         /// <see cref="FloorArrow"/>.
         /// </summary>
-        public static Vector3[] Build(Transform root, Color oreTint, bool westWall, bool eastDoorway)
+        public static Vector3[] Build(Transform root, MarketTheme.Palette theme, Color oreTint,
+                                      bool westWall, bool eastDoorway)
         {
-            Material floor = Mat(new Color(0.55f, 0.42f, 0.34f));
-            Material wall = Mat(new Color(0.29f, 0.32f, 0.39f));
-            Material slab = Mat(new Color(0.78f, 0.77f, 0.72f));
-            Material steel = Mat(new Color(0.36f, 0.39f, 0.45f));
-            Material timber = Mat(new Color(0.67f, 0.45f, 0.25f));
-            Material ore = Mat(oreTint);
+            // Five colours, and every one of them comes from the island rather than from here. The five
+            // greys that used to be hard-coded on these lines built the same room eight times: the ore
+            // tint reached the roof and nothing else, so the moment the player was under that roof the
+            // hall stopped telling him which market he was in. See <see cref="MarketTheme"/>.
+            Material floor = Mat(theme.Floor);
+            Material wall = Mat(theme.Wall);
+            Material slab = Mat(theme.Slab);
+            Material steel = Mat(theme.Metal);
+            Material timber = Mat(theme.Trim);
 
             Box(root, "Zemin", new Vector3(0f, -0.5f, 0f), new Vector3(Width, 1f, Depth), floor);
 
@@ -210,8 +215,9 @@ namespace Game.Gameplay
             // The stock pad: where the bars land and pile up.
             var pad = new Vector3(10f, 0f, 2f);
             Box(root, "StokPedi", pad + new Vector3(0f, 0.08f, 0f), new Vector3(17f, 0.16f, 15f), slab);
-            // A token heap so the pad is not an empty slab before PileStack moves in at the next step.
-            Box(root, "StokOrnek", pad + new Vector3(0f, 0.55f, 0f), new Vector3(6f, 0.9f, 5f), ore);
+            // No token heap on it any more. There was a plain ore-coloured box here to stop the slab
+            // looking empty before PileStack existed; PileStack now draws a shallow pool barely half a
+            // unit deep, and a 0.9-tall box stood in the middle of it like a plinth in a puddle.
 
             // The counter, and the lane the queue stands in behind it.
             var counter = new Vector3(-9f, 0f, -8f);

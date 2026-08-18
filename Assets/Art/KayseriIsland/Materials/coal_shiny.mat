@@ -29,6 +29,7 @@ Material:
     - _AmbientHemi: 0.65
     - _DetailScale: 0.35
     - _DetailStrength: 0.13
+    - _Grime: 0
     - _Metallic: 0
     - _RimPower: 3
     - _RimStrength: 0.35
@@ -43,6 +44,7 @@ Material:
     - _AmbientGround: {r: 0.55, g: 0.48, b: 0.4, a: 1}
     - _BaseColor: {r: 0.02005026, g: 0.02005026, b: 0.023240497, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _GrimeColor: {r: 0.25999996, g: 0.20999995, b: 0.14999998, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowTint: {r: 0.41999996, g: 0.47999996, b: 0.68, a: 1}
     - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}

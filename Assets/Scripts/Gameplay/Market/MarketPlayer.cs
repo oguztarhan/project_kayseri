@@ -21,19 +21,19 @@ namespace Game.Gameplay
     {
         [Header("Yürüyüş")]
         [Tooltip("Tam itilmiş kolda saniyedeki hız, dünya birimi.")]
-        [SerializeField, Min(0.1f)] private float moveSpeed = 7f;
+        [SerializeField, Min(0.1f)] private float moveSpeed = 11f;
 
         [Tooltip("Hıza yaklaşma süresi. Büyüdükçe hareket yumuşar, küçüldükçe sertleşir.")]
-        [SerializeField, Min(0.01f)] private float accelerationSeconds = 0.14f;
+        [SerializeField, Min(0.01f)] private float accelerationSeconds = 0.10f;
 
         [Tooltip("Durma süresi. Kalkıştan kısa olmalı — yavaş duran bir gövde kaygan hissettirir.")]
-        [SerializeField, Min(0.01f)] private float brakingSeconds = 0.09f;
+        [SerializeField, Min(0.01f)] private float brakingSeconds = 0.07f;
 
         [Tooltip("Kolun kendi yumuşaması. Başparmak sıçradığında gövde sıçramasın diye.")]
-        [SerializeField, Min(0.01f)] private float inputSmoothingSeconds = 0.07f;
+        [SerializeField, Min(0.01f)] private float inputSmoothingSeconds = 0.05f;
 
         [Tooltip("Dönüş hızı, saniyedeki derece. Yürüdüğü yöne bu hızla döner.")]
-        [SerializeField, Min(1f)] private float turnDegreesPerSecond = 900f;
+        [SerializeField, Min(1f)] private float turnDegreesPerSecond = 1200f;
 
         [Tooltip("Yere yapıştıran sabit kuvvet. Zemin tam düz olmadığında basamaklarda zıplamasın diye.")]
         [SerializeField] private float gravity = -22f;

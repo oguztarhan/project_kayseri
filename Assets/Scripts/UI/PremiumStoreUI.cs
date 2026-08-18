@@ -70,6 +70,9 @@ namespace Game.UI
             [Tooltip("Income boost applied on purchase; skipped while multiplier ≤ 1 or seconds ≤ 0.")]
             public double boostMultiplier = 1d;
             public double boostSeconds = 0d;
+            [Tooltip("Bakım kalkanı, saat. 0'dan büyükse satın alma anında bütün adalar %100'e çıkar " +
+                     "ve bu süre boyunca hiçbir şey yıpranmaz. Üst üste alınırsa süreler eklenir.")]
+            public float shieldHours = 0f;
             [Tooltip("Purchase also removes forced ads (offer_2 / offer_3).")]
             public bool removeAds = false;
             [Tooltip("Kalıcı çevrimdışı verim artışı, puan olarak (0.25 = %50'den %75'e). Temel değer OfflineConfig'te.")]
@@ -154,6 +157,7 @@ namespace Game.UI
         private SaveData _data;
         private SaveService _save;
         private PrestigeService _prestige;
+        private MaintenanceService _maintenance;
         private Game.Gameplay.WorldIslands _world;
         private bool _built;
         private RawImage _awning;
@@ -196,6 +200,7 @@ namespace Game.UI
             if (_data == null) _data = ServiceLocator.Get<SaveData>();
             if (_save == null) _save = ServiceLocator.Get<SaveService>();
             if (_prestige == null) _prestige = ServiceLocator.Get<PrestigeService>();
+            if (_maintenance == null) _maintenance = ServiceLocator.Get<MaintenanceService>();
             if (_world == null) _world = FindAnyObjectByType<Game.Gameplay.WorldIslands>();
         }
 
@@ -689,6 +694,7 @@ namespace Game.UI
             if (_boost != null && offer.boostMultiplier > 1d && offer.boostSeconds > 0d)
                 _boost.AddBoost(offer.boostMultiplier, offer.boostSeconds);
             if (_prestige != null && offer.investorShare > 0f) _prestige.TakeInvestorShare(offer.investorShare);
+            if (_maintenance != null && offer.shieldHours > 0f) _maintenance.AddShield(offer.shieldHours);
             if (offer.removeAds) AdsRemoved = true;
             GrantPermanent(offer);
             RefreshOffers();

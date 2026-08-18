@@ -25,6 +25,33 @@ namespace Game.Gameplay
         public PersonAnimator(Transform body)
         {
             _animator = body != null ? body.GetComponentInChildren<Animator>() : null;
+            if (_animator == null) return;
+
+            // The people packs ship their prefabs on AlwaysAnimate, which evaluates the rig every frame
+            // whether or not the body is on screen. That is the whole cost of a crowd on a phone: a
+            // couple of dozen skinned characters, most of them behind the camera, all being posed for
+            // nobody. Culled completely they cost nothing until they are actually visible.
+            //
+            // Safe for everyone who goes through here because none of them use root motion — bodies are
+            // moved by hand — so a skipped update loses nothing but the pose, which is recomputed the
+            // frame they come back into view.
+            _animator.cullingMode = AnimatorCullingMode.CullCompletely;
+        }
+
+        /// <summary>
+        /// Whether the body actually has a rig. Callers that fake motion on unrigged art — the island
+        /// crew's vertical bob — ask this so they don't stack their fake on top of a real walk cycle.
+        /// </summary>
+        public bool HasAnimator => _animator != null;
+
+        /// <summary>
+        /// Plays the clips at the caller's clock rather than the game's. A body moved by hand along a
+        /// sped-up simulation covers twice the ground per stride, and a walk cycle that does not speed up
+        /// with it reads as skating; this is the only thing that keeps the feet under the body.
+        /// </summary>
+        public void SetSpeed(float speed)
+        {
+            if (_animator != null) _animator.speed = speed;
         }
 
         /// <summary>Asks for a state. Repeats are free — only a change reaches the Animator.</summary>

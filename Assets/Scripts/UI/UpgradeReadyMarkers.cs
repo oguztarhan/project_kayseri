@@ -19,6 +19,12 @@ namespace Game.UI
     /// Only stations with a body get one — TRAIN, ORE TRUCKS and CARGO TRUCKS are fleets that own no
     /// structure, so a badge for them would hang over open grass. Their upgrades live in the panel.
     ///
+    /// MARKET is skipped too, and for the opposite reason: it has a body and something else is already
+    /// standing on it. <see cref="MarketDoorMarker"/> hangs the ENTER MARKET button over that roof, and
+    /// two badges stacked on one building covered the building. The way IN to a mode beats a reminder
+    /// that a price upgrade is affordable, so the door keeps the spot; MARKET's upgrades are still one
+    /// tap away through the HUD's upgrade panel, which is where the fleets' have always lived.
+    ///
     /// One screen-space canvas holds every badge rather than a world-space canvas each. That keeps the
     /// badges one batch, and it keeps them a constant size on screen: pinned to the world they would
     /// shrink to nothing at the far end of the zoom range, which is exactly when the player is looking
@@ -55,6 +61,9 @@ namespace Game.UI
 
         // easeOutBack's overshoot constant, the standard 1.70158.
         private const float PopOvershoot = 1.70158f;
+
+        /// <summary>MARKET's index in IslandEconomy.Stations — the one station that gets no badge.</summary>
+        private const int MarketStation = 6;
 
         private Camera _cam;
         private CoalOperation _op;
@@ -128,6 +137,7 @@ namespace Game.UI
 
             for (int s = 0; s < total; s++)
             {
+                if (s == MarketStation) continue;      // the door button owns that roof; see the summary
                 if (!_op.StationHasBody(s)) continue;
                 _stations[_count] = s;
                 _roots[_count] = BuildBadge(s, out _rects[_count]);

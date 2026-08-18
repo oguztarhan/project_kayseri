@@ -124,6 +124,16 @@ def copper_theme():
     wx, wy = L.THEME_SPOTS["works"]
     wz = ground_z(wx, wy)
 
+    # The three pieces of this theme that are about the ORE rather than the map,
+    # asked of the island the same way parts.py asks for L.ORE. The copper
+    # island itself sets none of them and gets these defaults; the silver
+    # island, which re-exports this map, sets all three - a silver works is
+    # cyanide-leached and casts silver cathode, and verdigris is copper's
+    # corrosion product, not silver's.
+    LIQUOR = getattr(L, "LIQUOR", "leach")
+    PATINA = getattr(L, "PATINA", "verdigris")
+    PLATE = getattr(L, "PLATE", "copper_plate")
+
     # ---- leach ponds: the green liquor is the loudest colour on the island
     b = B().use("concrete")
     slab(b, wx, wy, 38.0, 25.0, wz)
@@ -132,7 +142,7 @@ def copper_theme():
         # The rim is four bunds, not a slab under the liquid: as a slab its top
         # face landed at exactly the pond's surface height and won the depth
         # test, so all three ponds rendered as flat grey rectangles.
-        b.use("leach")
+        b.use(LIQUOR)
         b.boxz((9.6, 7.0, 0.75), (px, wy - 1.0, wz + 0.3))
         b.use("crust")
         for sx, sy, w, d in ((0, 3.9, 11.0, 1.2), (0, -3.9, 11.0, 1.2),
@@ -150,7 +160,7 @@ def copper_theme():
     # pump house, the one verdigris roof on the map
     ph = B().use("clad")
     ph.boxz((8.0, 6.5, 4.6), (wx - 14.0, wy + 8.5, wz + 0.3))
-    ph.use("verdigris")
+    ph.use(PATINA)
     ph.roof((7.2, 8.8, 1.9), (wx - 14.0, wy + 8.5, wz + 4.9), (0, 0, radians(90)))
     ph.make("Theme.PumpHouse", collection=C)
 
@@ -164,7 +174,7 @@ def copper_theme():
         by = yy - 4.0 + (s // 2) * 8.0
         t.use("wood")                                      # pallet
         t.boxz((5.2, 3.6, 0.5), (bx, by, yz + 0.3))
-        t.use("copper_plate")
+        t.use(PLATE)
         for k in range(PK(6, 9, 12)):                      # plate bundle
             t.boxz((4.6, 3.0, 0.14), (bx, by, yz + 0.8 + k * 0.22))
     t.use("steel_dk")                                      # lifting frame
@@ -365,7 +375,11 @@ def gold_theme():
     v.box((7.6, 5.8, 0.5), (yx + 8.0, yy - 3.0, yz + 4.8))
     v.use("wood")                                      # pallet
     v.boxz((5.2, 3.6, 0.5), (yx + 8.0, yy - 3.0, yz + 0.3))
-    v.use("bullion")                                   # the poured bars
+    # Same hook as the copper theme's PLATE: what this island's refinery turns
+    # out. Gold pours bars; the diamond island, which re-exports this map, has
+    # nothing to pour and stacks sorted parcels of its own ore in the cage
+    # instead.
+    v.use(getattr(L, "PLATE", "bullion"))              # the poured bars
     for k in range(PK(4, 7, 10)):
         v.boxz((3.2 - (k % 3) * 0.3, 2.2, 0.5),
                (yx + 8.0, yy - 3.0, yz + 0.85 + k * 0.55))

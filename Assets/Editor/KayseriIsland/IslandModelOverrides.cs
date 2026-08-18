@@ -7,7 +7,7 @@ namespace Kayseri.IslandTools
     /// <summary>
     /// Which model stands in for each generated one, per island and per phase.
     ///
-    /// The twelve phase prefabs are BUILT, not authored — <see cref="IslandBuilder.BuildPhasePrefabs"/>
+    /// The twenty-four phase prefabs are BUILT, not authored — <see cref="IslandBuilder.BuildPhasePrefabs"/>
     /// throws them away and remakes them from the Blender FBX every time the map is re-exported. So a
     /// model swapped by hand inside one of those prefabs survives exactly until the next export. This
     /// asset is where a swap lives instead: the rebuild reads it and re-applies everything, so the work

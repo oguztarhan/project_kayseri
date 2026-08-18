@@ -80,6 +80,7 @@ Material:
     - _DetailScale: 0.35
     - _DetailStrength: 0.13
     - _GradientRefractionScale: 10
+    - _Grime: 0
     - _HorizonDistance: 149
     - _Hue: 1
     - _IntersectionFoamCutoff: 1
@@ -148,6 +149,7 @@ Material:
     - _DistTiling: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _FoamUVsOffset: {r: 1, g: 1, b: 0, a: 0}
+    - _GrimeColor: {r: 0.25999996, g: 0.20999995, b: 0.14999998, a: 1}
     - _HorizonColor: {r: 1.1780438, g: 0, b: 0.55142486, a: 0}
     - _IntersectionFoamColor: {r: 0, g: 0.593867, b: 2.491031, a: 0.6862745}
     - _MoveDirection: {r: 0, g: 0, b: 0, a: 0}

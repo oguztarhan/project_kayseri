@@ -182,6 +182,32 @@ namespace Game.Core
         public int[][] Levels => _lv;
         public bool[] Unlocked => _un;
 
+        // ------------------------------------------------------------ state of repair
+        /// <summary>
+        /// How well each station is running, 0..1-and-a-bit, or null for a perfect island.
+        ///
+        /// Shared with <c>MaintenanceService</c> rather than copied, the same way the level vectors are
+        /// shared with the operation: wear is applied to this array between frames and the simulation
+        /// has to read the new value the moment it lands, not at the next time somebody remembers to
+        /// push it. It can sit slightly ABOVE 1 — that is the maintenance bonus, and it is deliberately
+        /// not clamped here, because clamping it would silently delete the reward for tending an island.
+        /// </summary>
+        private float[] _condition;
+
+        /// <summary>Hands over the live array. Null puts the island back to running as new.</summary>
+        public void SetConditions(float[] conditions) => _condition = conditions;
+
+        /// <summary>
+        /// One station's multiplier. Floored well above zero: three of the eight rates below DIVIDE by
+        /// this, and a zero would not slow the island down, it would stop time on it.
+        /// </summary>
+        public float Condition(int station)
+        {
+            if (_condition == null || station < 0 || station >= _condition.Length) return 1f;
+            float c = _condition[station];
+            return c < 0.05f ? 0.05f : c;
+        }
+
         // ------------------------------------------------------------------ cost
         public double AxisCost(int s, int a)
             => BaseCost[s][a] * _t.CostMultiplier * Math.Pow(_t.CostGrowth, _lv[s][a]);
@@ -236,12 +262,22 @@ namespace Game.Core
         /// <summary>The shared shape: base × (1 + coefficient × scale × level).</summary>
         private float Ax(int s, int a, float coeff) => 1f + coeff * _t.AxisEffectScale * _lv[s][a];
 
-        // POWER PLANT - the only station that touches everything else.
-        public float PowerIncome => Ax(Power, 0, PowerGenerators);
-        public float PowerSpeed => Ax(Power, 1, PowerTurbines);
+        //  WEAR. Each station's state of repair scales the ONE rate that station governs — its pause,
+        //  its speed, its burn. Never a capacity, never a price, never a truck count: a neglected yard
+        //  works slower, it does not shrink, and its bars are worth what bars are worth. Since the
+        //  chain is serial, a single worn station throttles everything downstream of it, which is the
+        //  behaviour Maintenance.IslandCondition promises when it reports the WORST station rather
+        //  than the average.
 
-        // MINE. Dwell values DIVIDE, so a higher level means a shorter pause.
-        public float MineDwell => _t.DwellSeconds / Ax(Mine, 1, MineDwellC);
+        // POWER PLANT - the only station that touches everything else, so its own state of repair
+        // reaches the train and both fleets through PowerSpeed. PowerIncome is deliberately clean:
+        // it multiplies the bar PRICE, and what a bar fetches is not a thing that rusts.
+        public float PowerIncome => Ax(Power, 0, PowerGenerators);
+        public float PowerSpeed => Ax(Power, 1, PowerTurbines) * Condition(Power);
+
+        // MINE. Dwell values DIVIDE, so a higher level means a shorter pause - and a worse state of
+        // repair means a longer one.
+        public float MineDwell => _t.DwellSeconds / (Ax(Mine, 1, MineDwellC) * Condition(Mine));
         public float TrainOre => _t.TrainOrePerTrip
             * Ax(Mine, 0, MineRichness)
             * (ActiveWagons / (float)BaseWagons)
@@ -250,33 +286,33 @@ namespace Game.Core
 
         // TRAIN. The rake follows the station's own phase - 3, then 5, then 7.
         public float TrainSpeed => _t.TrainSpeed * Ax(Train, 0, TrainSpeedC)
-            * (_un[UnlockDepot] ? _t.DepotBonus : 1f) * PowerSpeed;
+            * (_un[UnlockDepot] ? _t.DepotBonus : 1f) * PowerSpeed * Condition(Train);
         public int ActiveWagons => Math.Min(BaseWagons + (PhaseForStation(Train) - 1) * 2, MaxWagons);
 
         // STORAGE - the ore yard, and the size of the visible pile.
         public float StorageFull => _t.StorageFull * Ax(Storage, 0, StorageCapacity)
             * (_un[UnlockWarehouse] ? _t.WarehouseBonus : 1f);
-        public float StorageDwell => _t.DwellSeconds / Ax(Storage, 1, StorageDwellC);
+        public float StorageDwell => _t.DwellSeconds / (Ax(Storage, 1, StorageDwellC) * Condition(Storage));
 
         // ORE TRUCKS - storage to smelter.
         public int OreTruckCount => OreBaseTrucks + _lv[OreTrucks][0];
-        public float OreTruckSpeed => _t.TruckSpeed * Ax(OreTrucks, 1, OreSpeed) * PowerSpeed;
+        public float OreTruckSpeed => _t.TruckSpeed * Ax(OreTrucks, 1, OreSpeed) * PowerSpeed * Condition(OreTrucks);
         public float OreTruckLoad => _t.OreTruckCapacity * Ax(OreTrucks, 2, OreCapacity);
 
         // SMELTER. If bar storage fills, smelting STOPS until cargo clears it.
         public float SmeltRate => _t.SmeltPerSecond * Ax(Smelter, 0, SmeltSpeed)
-            * (_un[UnlockSecondSmelter] ? _t.SecondSmelterBonus : 1f);
+            * (_un[UnlockSecondSmelter] ? _t.SecondSmelterBonus : 1f) * Condition(Smelter);
         public float BarCap => _t.BarCapacity * Ax(Smelter, 1, BarStorage);
 
         // CARGO TRUCKS - smelter to market, or to the dock on the export route.
         public int CargoTruckCount => CargoBaseTrucks + _lv[CargoTrucks][0];
-        public float CargoTruckSpeed => _t.TruckSpeed * Ax(CargoTrucks, 1, CargoSpeed) * PowerSpeed;
+        public float CargoTruckSpeed => _t.TruckSpeed * Ax(CargoTrucks, 1, CargoSpeed) * PowerSpeed * Condition(CargoTrucks);
         public float CargoTruckLoad => _t.CargoTruckCapacity * Ax(CargoTrucks, 2, CargoCapacity);
 
         // MARKET - where cash is actually made.
         public float BarPrice => _t.BarPrice * _t.ValueMultiplier * Ax(Market, 0, MarketPrice)
             * (_un[UnlockTradePost] ? _t.TradePostBonus : 1f) * PowerIncome;
-        public float MarketDwell => _t.DwellSeconds / Ax(Market, 1, MarketDwellC);
+        public float MarketDwell => _t.DwellSeconds / (Ax(Market, 1, MarketDwellC) * Condition(Market));
 
         // -------------------------------------------------------------- readouts
         //

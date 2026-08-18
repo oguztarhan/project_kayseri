@@ -528,6 +528,23 @@
    ]
   },
   {
+   "name": "leach_ag",
+   "color": [
+    0.40303,
+    0.48453,
+    0.50103
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.8,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
    "name": "linepaint",
    "color": [
     0.90355,
@@ -630,6 +647,40 @@
    ]
   },
   {
+   "name": "ore_ag",
+   "color": [
+    0.46306,
+    0.47411,
+    0.49872
+   ],
+   "metallic": 0.2,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_ag_shiny",
+   "color": [
+    0.59137,
+    0.60319,
+    0.62829
+   ],
+   "metallic": 0.55,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
    "name": "ore_au",
    "color": [
     0.62621,
@@ -698,6 +749,74 @@
    ]
   },
   {
+   "name": "ore_dm",
+   "color": [
+    0.46476,
+    0.49405,
+    0.52711
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_dm_shiny",
+   "color": [
+    0.6133,
+    0.6598,
+    0.70141
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_em",
+   "color": [
+    0.19454,
+    0.39794,
+    0.30777
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_em_shiny",
+   "color": [
+    0.24417,
+    0.47642,
+    0.3667
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
    "name": "ore_fe",
    "color": [
     0.44476,
@@ -720,6 +839,40 @@
     0.48932,
     0.30438,
     0.23441
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_rb",
+   "color": [
+    0.52203,
+    0.21677,
+    0.27299
+   ],
+   "metallic": 0.0,
+   "smoothness": 0.5,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ore_rb_shiny",
+   "color": [
+    0.61389,
+    0.24599,
+    0.30495
    ],
    "metallic": 0.0,
    "smoothness": 0.5,
@@ -757,6 +910,23 @@
    ],
    "metallic": 0.0,
    "smoothness": 0.12,
+   "alpha": 1.0,
+   "emission": 0.0,
+   "emissionColor": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "plate_ag",
+   "color": [
+    0.7987,
+    0.80812,
+    0.8212
+   ],
+   "metallic": 0.7,
+   "smoothness": 0.5,
    "alpha": 1.0,
    "emission": 0.0,
    "emissionColor": [

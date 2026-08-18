@@ -29,7 +29,14 @@ namespace Kayseri.IslandTools
     /// </summary>
     public static class RouteHeightFitter
     {
-        private static readonly string[] Islands = { "Coal", "Copper", "Iron", "Gold" };
+        // All eight, including the four derived islands (silver on the copper map, ruby on the
+        // iron, emerald on the coal, diamond on the gold). A derived island's routes are exported
+        // from its own build and drift off its own tarmac exactly like an authored one's, so there
+        // is nothing to skip here.
+        private static readonly string[] Islands =
+        {
+            "Coal", "Copper", "Iron", "Silver", "Gold", "Ruby", "Emerald", "Diamond"
+        };
         private const int Phases = 3;
 
         private const string RouteFolder = "Assets/Art/KayseriIsland/Routes";

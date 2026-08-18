@@ -70,7 +70,7 @@ namespace Kayseri.IslandTools
         }
 
         /// <summary>
-        /// Every distinct district/model pair across all four islands and all three phases, so the
+        /// Every distinct district/model pair across all eight islands and all three phases, so the
         /// window can offer the whole map as a list without anyone typing a name.
         /// </summary>
         public static SortedDictionary<string, SortedSet<string>> Scan(string[] islands, int phases)

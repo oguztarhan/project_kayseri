@@ -142,9 +142,25 @@ RAIL = [(-186, -6), (-176, 14), (-170, 42), (-138, 52), (-118, 70),
         (-96, 88), (-72, 104), (-46, 116), (-20, 122), (4, 118), (18, 108)]
 
 # ---------------------------------------------------------------------- water
-# Rises in the massif, skirts SOUTH of the mine pad, and drains into the sea.
-RIVER = [(-176, 20), (-170, -20), (-158, -52), (-142, -76), (-126, -92),
-         (-112, -104)]
+# NO RIVER on this island. It used to rise in the massif and drain to the sea,
+# and the course below is the one it ran:
+#
+#     [(-176, 20), (-170, -20), (-158, -52), (-142, -76), (-126, -92),
+#      (-112, -104)]
+#
+# That put it in the 20-unit gap between the mine pad's west edge and the foot
+# of the massif, with a 24-unit gorge. Even held off the yard itself, the gorge
+# floor there is cut to the bed profile below - -3 to -9, at or under SEA_Z -
+# so the sea plane rendered straight through it and the strip immediately
+# behind the mine read as open water separating the works from its own
+# mountain. There is nowhere else on this map for it to go: west is the massif,
+# east is the town. Dropping it leaves the ground continuous from the mine yard
+# up into the peaks, which is what a pithead cut into a hillside should look
+# like, and the island keeps its coast either way.
+#
+# The constants below stay: 02_terrain and 11_dressing skip the river when
+# RIVER is empty, but river_w/river_carve/bed_z are still imported by name.
+RIVER = []
 RIVER_W = 13.0
 RIVER_CARVE = 24.0
 FALLS = (0.30, 0.66)

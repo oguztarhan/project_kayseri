@@ -8,14 +8,14 @@ namespace Game.Core
     /// Prices are quoted in MINUTES OF THE ISLAND'S CAPPED INCOME, never in currency. The ore ladder
     /// multiplies what an island earns by 3.2 a tier, so an absolute price would be a fortune on coal
     /// and a rounding error by diamond, and every new island would need its own table. A price in
-    /// minutes is the same sentence on all eight: "this costs about six minutes of a finished
+    /// minutes is the same sentence on all eight: "this costs about two minutes of a finished
     /// island's takings", and it stays true when the economy is re-solved around it.
     ///
     /// It reads against the CAP rather than against what the yard is actually earning on purpose. A
-    /// bare yard makes 15% of its ceiling, so a pad priced at six capped minutes is forty real ones —
-    /// steep, and meant to be: it is the wall that makes the first hire feel like relief. Pricing off
-    /// live income instead would make upgrades cheapest exactly when the yard is worst, which is the
-    /// wrong way round.
+    /// bare yard makes 15% of its ceiling, so a pad priced at two capped minutes is thirteen real
+    /// ones — enough to feel like a decision, short enough that the first hire is reachable in one
+    /// visit rather than one evening. Pricing off live income instead would make upgrades cheapest
+    /// exactly when the yard is worst, which is the wrong way round.
     ///
     /// THE NUMBERS BELOW ARE A FIRST PASS. They are shaped right — hires dominate, slots are cheap
     /// early, everything compounds — but they have not been through the ladder solver the island
@@ -51,23 +51,23 @@ namespace Game.Core
         /// </summary>
         private static readonly double[] FirstStepMinutes =
         {
-            6.0d,    // DepositSlot   — buys buffer, so it matters most to a player who leaves
-            3.0d,    // QueueSlot     — the cheapest way to make a yard feel busier
-            4.0d,    // HireCarry     — the job the player does most of, so the first one to want gone
-            5.0d,    // HireServe
-            4.5d,    // HireCollect
-            2.0d,    // CarryCapacity — bought early and often; it is the one that makes running fun
+            2.5d,    // DepositSlot   — buys buffer, so it matters most to a player who leaves
+            1.2d,    // QueueSlot     — the cheapest way to make a yard feel busier
+            1.8d,    // HireCarry     — the job the player does most of, so the first one to want gone
+            2.2d,    // HireServe
+            2.0d,    // HireCollect
+            0.8d,    // CarryCapacity — bought early and often; it is the one that makes running fun
         };
 
         /// <summary>What each further step multiplies the last one by.</summary>
         private static readonly double[] Growth =
         {
-            2.20d,   // DepositSlot   — only three ever bought, so it may climb steeply
-            1.80d,   // QueueSlot
-            1.90d,   // HireCarry
-            1.90d,   // HireServe
-            1.90d,   // HireCollect
-            1.70d,   // CarryCapacity — eight steps, so the gentlest curve of the six
+            1.75d,   // DepositSlot   — only three ever bought, so it may climb steeply
+            1.55d,   // QueueSlot
+            1.60d,   // HireCarry
+            1.60d,   // HireServe
+            1.60d,   // HireCollect
+            1.45d,   // CarryCapacity — eight steps, so the gentlest curve of the six
         };
 
         /// <summary>

@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: sea_Iron
+  m_Shader: {fileID: 4800000, guid: 8a6b1bd75954f49dbab7dfd590976c02, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2000
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _AmbientAmount: 0.4
+    - _AmbientHemi: 0.65
+    - _BandHigh: 0.58
+    - _BandLow: 0.28
+    - _BandSharp: 0.17
+    - _DetailScale: 0.6
+    - _DetailStrength: 0.14
+    - _Emission: 0
+    - _EmissionAlways: 0
+    - _EmissionFloor: 0.3
+    - _EmissionNight: 0.6
+    - _FlowSpeed: 0.16
+    - _Grime: 0
+    - _Metallic: 0.1
+    - _NormalStrength: 1.7
+    - _RimPower: 3
+    - _RimStrength: 0.35
+    - _Saturation: 1.45
+    - _Scale: 0.015
+    - _Smoothness: 0.38
+    - _SpecularStrength: 0.22
+    - _Stretch: 0.44
+    - _ToonSmoothness: 0.75
+    - _ToonSteps: 4
+    - _VeinEmission: 0
+    - _VeinLevel: 0.53
+    - _VeinStrength: 0.32
+    - _VeinWidth: 0.1
+    - _VertexColorAmount: 0
+    - _Vibrance: 1.02
+    - _Warp: 0.6
+    m_Colors:
+    - _AmbientGround: {r: 0.54999995, g: 0.47999996, b: 0.39999998, a: 1}
+    - _BaseColor: {r: 0.10653924, g: 0.020774016, b: 0.006571403, a: 1}
+    - _DeepColor: {r: 0.005981059, g: 0.0018575852, b: 0.00085139315, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _FlowDir: {r: 1, g: 0.55, b: 0, a: 0}
+    - _GrimeColor: {r: 0.25999996, g: 0.20999995, b: 0.14999998, a: 1}
+    - _HotColor: {r: 0.42003334, g: 0.10653924, b: 0.01960665, a: 1}
+    - _MidColor: {r: 0.10653924, g: 0.018478468, b: 0.004694424, a: 1}
+    - _RimColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShadowTint: {r: 0.41999996, g: 0.47999996, b: 0.68, a: 1}
+    - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}
+    - _VeinColor: {r: 0.5704816, g: 0.23302203, b: 0.05497173, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

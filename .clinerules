@@ -1,0 +1,35 @@
+# Project rules — Unity 6.4.9f1 · URP · Android
+
+These are the same hard rules as CLAUDE.md. Read CLAUDE.md before doing anything non-trivial.
+
+## Never break these
+
+- NEVER hand-edit `.unity`, `.prefab`, `.asset`, or `.meta` files. Ask instead.
+- NEVER touch `Library/`, `Temp/`, `Logs/`, `obj/`, `Build/`, `*.keystore`, `*.csproj`, `*.sln`, `*.slnx`.
+- Expose tunable values as `[SerializeField] private` fields. References get wired in the Inspector by hand.
+- Do not refactor, rename, or clean up code you were not asked to touch.
+- Do not add packages or Asset Store dependencies without asking.
+- Never `git push`, `git reset --hard`, or force-push.
+
+## Workflow
+
+1. Plan first for anything non-trivial, wait for approval, then implement.
+2. After editing C#: wait for Unity to recompile and check the Unity console. Do not report success while errors or new warnings exist.
+3. "It compiles" is not "it works" — say what you actually checked.
+4. One task at a time. Finish and confirm before starting the next.
+
+## Code conventions
+
+- `PascalCase` methods/properties, `_camelCase` private fields, `PascalCase` public fields.
+- Cache component references in `Awake()`. Never `GetComponent` or `Find` in `Update()`.
+- No LINQ or allocations in per-frame code paths — mobile game, 60fps target on mid-range Android.
+- Object pooling for anything spawned repeatedly.
+- No premature abstraction. Abstract at 3+ real use cases.
+- Deleting means deleting — no `_unused` renames, no commented-out code, no compat shims.
+- One class per file, filename matches the class name.
+
+## URP / mobile
+
+- URP only, no Built-in pipeline shaders. Shader Graph or URP Lit/Unlit.
+- Keep the SRP Batcher happy: no per-renderer `MaterialPropertyBlock` unless justified.
+- UI: split canvases — dynamic elements never share a canvas with static ones.

@@ -69,6 +69,31 @@ def road_mask(x, y):
     return min(1.0, m)
 
 
+def pad_mask(x, y):
+    """1 on the YARDS - the ground a district, site, town block or the quay
+    apron actually stands a slab on.
+
+    Kept apart from flat_mask because the river carve has to be held off these
+    and only these. Gating it by the whole flat mask would stop a river cutting
+    across a carriageway, and the copper map's river crosses six of them.
+    """
+    m = 0.0
+    for cx, cy in L.DISTRICTS:
+        m = max(m, L.rect_mask(x - cx, y - cy, L.PAD, L.PAD, 7))
+    for _n, (sx, sy), _need in L.SITES:
+        m = max(m, L.rect_mask(x - sx, y - sy, L.SITE_PAD, L.SITE_PAD, 7))
+    # Town-centre yards. grade.py pins their HEIGHT, but the ground only gets
+    # levelled here - without this the power plant's slab had 254 vertices under
+    # the terrain noise it was standing on.
+    for tx, ty in L.TOWNS:
+        m = max(m, L.rect_mask(x - tx, y - ty, L.TOWN_PAD + 2, L.TOWN_PAD + 2, 8))
+    # port apron - offset landward of the quay, which way round depends on
+    # which side of the island the sea is on
+    m = max(m, L.rect_mask(x - L.PORT[0] - L.PORT_APRON[0],
+                           y - L.PORT[1] - L.PORT_APRON[1], 38, 30, 8))
+    return min(1.0, m)
+
+
 def flat_mask(x, y):
     """1 where the ground must be flat (districts, sites, roads, rail)."""
     m = road_mask(x, y)
@@ -88,20 +113,7 @@ def flat_mask(x, y):
         _c, _h = (_a + _b) * 0.5, (_b - _a) * 0.5
         cut *= 1.0 - L.band(abs(tr - _c), _h * 0.65, _h)
     m = max(m, L.band(dr, 9.0, 20.0) * cut)
-    for cx, cy in L.DISTRICTS:
-        m = max(m, L.rect_mask(x - cx, y - cy, L.PAD, L.PAD, 7))
-    for _n, (sx, sy), _need in L.SITES:
-        m = max(m, L.rect_mask(x - sx, y - sy, L.SITE_PAD, L.SITE_PAD, 7))
-    # Town-centre yards. grade.py pins their HEIGHT, but the ground only gets
-    # levelled here - without this the power plant's slab had 254 vertices under
-    # the terrain noise it was standing on.
-    for tx, ty in L.TOWNS:
-        m = max(m, L.rect_mask(x - tx, y - ty, L.TOWN_PAD + 2, L.TOWN_PAD + 2, 8))
-    # port apron - offset landward of the quay, which way round depends on
-    # which side of the island the sea is on
-    m = max(m, L.rect_mask(x - L.PORT[0] - L.PORT_APRON[0],
-                           y - L.PORT[1] - L.PORT_APRON[1], 38, 30, 8))
-    return min(1.0, m)
+    return min(1.0, max(m, pad_mask(x, y)))
 
 
 # How far the ground is dished below the tarmac along a carriageway. Measured
@@ -147,10 +159,19 @@ def land_height(x, y):
     # middle of the island and opens to a floodplain at either end, which is
     # the only way a river gets across that map without eating the central
     # crossroads at one end or the market pad at the other.
-    d, t = L.dist_to_path(x, y, L.RIVER)
+    # An island need not have a river at all - see isle_coal.RIVER.
+    d, t = (L.dist_to_path(x, y, L.RIVER) if L.RIVER else (1e9, 0.0))
     carve = L.river_carve(t)
-    if d < carve * 1.4:
-        w = L.band(d, L.river_w(t) * 0.52, carve)
+    if L.RIVER and d < carve * 1.4:
+        # ...but never through a yard. The carve is applied AFTER the flatten,
+        # so ungated it simply overwrote whatever the pad had just laid: the
+        # coal river runs 11 units off the mine pad's west edge with a 24-unit
+        # gorge, and it ate the western third of the mine - 28 units deep at the
+        # south-west corner - leaving the apron slab, the rock face and three
+        # adits hanging over open air. The pad mask feathers over 7 units, so
+        # what the gorge gets instead of the yard is a bank down off the terrace,
+        # which is what a works cut into a river valley looks like.
+        w = L.band(d, L.river_w(t) * 0.52, carve) * (1.0 - pad_mask(x, y))
         h = h * (1.0 - w) + (bed_z(t) - 1.5) * w
     # open-pit bowl once the quarry site is unlocked
     if PHASE >= 2:
@@ -248,22 +269,27 @@ ROCKC = (0.315, 0.300, 0.272)
 SANDC = (0.395, 0.330, 0.212)
 SEABD = (0.120, 0.150, 0.115)
 
+# The ground is painted here, not by a material, so the copper island's warmer
+# country rock has to be repeated in these constants or the outcrops in
+# 01_setup would be rusty while the hillsides they sit on stayed grey.
+if L.DESIGN == "copper":
+    EARTH = (0.205, 0.122, 0.052)
+    ROCKC = (0.345, 0.272, 0.202)
+    SANDC = (0.420, 0.340, 0.222)
+
 # An island may bring its own palette. The ramp above is the green country the
 # first two maps are in; the iron island is ferruginous ground and reads red.
-# Same five-stop shade-to-sun structure whatever the hue, so the slope and
+# Same six-stop shade-to-sun structure whatever the hue, so the slope and
 # height shading below is unchanged.
+#
+# This comes SECOND on purpose. The derived islands (isle_silver and friends)
+# re-export a base map and set these to shift its ground off the original's;
+# read the other way round, the copper block above would clobber the silver
+# island's grey back to copper's rust.
 GRASS = getattr(L, "GROUND_RAMP", GRASS)
 EARTH = getattr(L, "GROUND_EARTH", EARTH)
 ROCKC = getattr(L, "GROUND_ROCK", ROCKC)
 SANDC = getattr(L, "GROUND_SAND", SANDC)
-
-# The ground is painted here, not by a material, so the copper island's warmer
-# country rock has to be repeated in these constants or the outcrops in
-# 01_setup would be rusty while the hillsides they sit on stayed grey.
-if L.ISLAND == "copper":
-    EARTH = (0.205, 0.122, 0.052)
-    ROCKC = (0.345, 0.272, 0.202)
-    SANDC = (0.420, 0.340, 0.222)
 
 
 def slope_at(i, j):
@@ -299,8 +325,9 @@ def grass_at(x, y, z, i, j):
            + 0.10 * nz1(x, y, 1.0 / 6.0, 15.0))
     dry += 0.008 * max(0.0, rel)                       # bleached up the hillsides
     dry += 0.18 * L.smoothstep(0.12, 0.55, sl)         # and on the sunny faces
-    dr, _t = L.dist_to_path(x, y, L.RIVER)
-    dry -= 0.45 * L.band(dr, 7.0, 36.0)                # green follows the water
+    if L.RIVER:
+        dr, _t = L.dist_to_path(x, y, L.RIVER)
+        dry -= 0.45 * L.band(dr, 7.0, 36.0)            # green follows the water
     c = ramp(GRASS, dry)
     c = mix(c, EARTH, L.smoothstep(0.48, 1.05, sl) * 0.55)  # soil through the turf
     c = mix(c, ROCKC, max(L.smoothstep(0.85, 1.60, sl),
@@ -446,18 +473,19 @@ def water(path, zfun, name, lift=1.6):
     return ob, pts
 
 
-river_ob, rpts = water(L.RIVER, bed_z, "River")
+if L.RIVER:
+    river_ob, rpts = water(L.RIVER, bed_z, "River")
 
-bff = B().use("foam")
-for thr in L.FALLS:
-    x, y, t = min(rpts, key=lambda d: abs(d[2] - thr - 0.016))
-    for k in range(22):
-        a = RNG.uniform(0, 6.28)
-        rr = RNG.uniform(0, L.RIVER_W * 0.6)
-        bff.sphere(RNG.uniform(0.9, 2.3),
-                   (x + cos(a) * rr, y + sin(a) * rr,
-                    bed_z(t) + 1.7 + RNG.uniform(-0.4, 1.8)), 1)
-bff.make("Foam", mat("foam"), CT, smooth=True)
+    bff = B().use("foam")
+    for thr in L.FALLS:
+        x, y, t = min(rpts, key=lambda d: abs(d[2] - thr - 0.016))
+        for k in range(22):
+            a = RNG.uniform(0, 6.28)
+            rr = RNG.uniform(0, L.RIVER_W * 0.6)
+            bff.sphere(RNG.uniform(0.9, 2.3),
+                       (x + cos(a) * rr, y + sin(a) * rr,
+                        bed_z(t) + 1.7 + RNG.uniform(-0.4, 1.8)), 1)
+    bff.make("Foam", mat("foam"), CT, smooth=True)
 
 # ------------------------------------------------------------------- boulders
 rock_src = []
@@ -481,7 +509,7 @@ while placed < 470 and tries < 9000:
     z = height(x, y)
     if z < L.SEA_Z - 0.5:
         continue
-    dr, _ = L.dist_to_path(x, y, L.RIVER)
+    dr = L.dist_to_path(x, y, L.RIVER)[0] if L.RIVER else 1e9
     steep = abs(height(x + 2, y) - z) + abs(height(x, y + 2) - z)
     coastal = -10.0 < L.sea_depth(x, y) < 6.0
     rel = z - grade.road_z(x, y)          # above the graded surface, as above

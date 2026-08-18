@@ -98929,6 +98929,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -9096004779071284208, guid: d621eb65921db4512b03290c405d2156, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: b79e8cc9eef2649eea5c7e5f0917bfc7, type: 2}
     - target: {fileID: -9095040788615329998, guid: d621eb65921db4512b03290c405d2156, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -99481,6 +99485,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -6312261167394418740, guid: d621eb65921db4512b03290c405d2156, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 78417daa0c319414cafd0a54eded6ec8, type: 2}
     - target: {fileID: -6279593406946494540, guid: d621eb65921db4512b03290c405d2156, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -101441,6 +101449,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2973748460800309378, guid: d621eb65921db4512b03290c405d2156, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 78417daa0c319414cafd0a54eded6ec8, type: 2}
     - target: {fileID: 3027374233091775597, guid: d621eb65921db4512b03290c405d2156, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -102565,6 +102577,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: 8333630404140201079, guid: d621eb65921db4512b03290c405d2156, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 5f25856847c72461c803a88a423667fc, type: 2}
     - target: {fileID: 8384464890827531101, guid: d621eb65921db4512b03290c405d2156, type: 3}
       propertyPath: m_Enabled
       value: 0

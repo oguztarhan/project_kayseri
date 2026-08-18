@@ -16,6 +16,11 @@ namespace Game.Gameplay
     ///
     /// Pickup is on a cadence rather than instant. Emptying the pad in one frame would make the walk
     /// over to it pointless, and the rhythm — bar, bar, bar — is most of what the loop feels like.
+    ///
+    /// The heap is drawn as a POOL rather than the island's cone. Same slab, same number, different
+    /// reading: a cone shows the player one face of itself and hides its own volume behind it, and at
+    /// this fixed camera angle that is most of the stock. Spread shallow over the whole pad in many
+    /// small pieces, all of it is on screen at once — which is the point of walking in to look at it.
     /// </summary>
     [RequireComponent(typeof(BoxCollider))]
     public sealed class StockPad : MonoBehaviour
@@ -23,15 +28,18 @@ namespace Game.Gameplay
         [Tooltip("İki külçe alışı arasındaki süre. Küçültürsen yığın daha hızlı sırta biner.")]
         [SerializeField, Min(0.02f)] private float pickupSeconds = 0.14f;
 
-        [Tooltip("Yığındaki bir parçanın kaç külçeyi temsil ettiği. Küçültürsen tepe daha çok, " +
-                 "daha ufak parçadan kurulur.")]
-        [SerializeField, Min(0.05f)] private float barsPerChunk = 0.3f;
+        [Tooltip("Havuzdaki bir parçanın kaç külçeyi temsil ettiği. Küçültürsen aynı stok daha çok, " +
+                 "daha ufak parçadan kurulur — ekranda görünen parça sayısı bununla ayarlanır.\n\n" +
+                 "0,12'de havuz 84 külçede dolar: eski koni de orada dolardı, ama 285 parçayla. " +
+                 "Daha küçük yaparsan havuz daha erken tıka basa dolar ve stok farkı okunmaz olur.")]
+        [SerializeField, Min(0.02f)] private float barsPerChunk = 0.12f;
 
-        [Tooltip("Bir parçanın boyu. Adadaki yığınlara göre küçük — burası kaya değil külçe yığını.")]
-        [SerializeField, Min(0.05f)] private float chunkScale = 0.42f;
+        [Tooltip("Bir parçanın boyu. Adadaki kaya yığınlarının çok altında: burası külçe havuzu, " +
+                 "oyuncunun tek bakışta çok parça görmesi gerek.")]
+        [SerializeField, Min(0.05f)] private float chunkScale = 0.22f;
 
-        [Tooltip("Piramidin en geniş tabanı. Büyüdükçe yığın daha çok parça alabilir.")]
-        [SerializeField, Min(2)] private int maxGrid = 9;
+        [Tooltip("Havuzun kaç kat derinleşebileceği. Küçük tut — büyüttükçe havuz yeniden tepeye döner.")]
+        [SerializeField, Min(1)] private int poolLayers = 3;
 
         /// <summary>
         /// How stale a touch may be before the pad decides nobody is standing on it. Comfortably longer
@@ -60,7 +68,8 @@ namespace Game.Gameplay
             _audio = ServiceLocator.Get<AudioService>();
             _haptics = ServiceLocator.Get<HapticService>();
             _heap = new PileStack(padSurface, oreMaterial, barsPerChunk, "StokYigini",
-                                  chunkMesh: null, cellScale: chunkScale, maxGrid: maxGrid);
+                                  chunkMesh: null, cellScale: chunkScale,
+                                  layout: PileStack.Layout.Pool, poolLayers: poolLayers);
             GetComponent<BoxCollider>().isTrigger = true;
         }
 

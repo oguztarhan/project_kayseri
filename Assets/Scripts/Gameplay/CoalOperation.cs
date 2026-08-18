@@ -153,6 +153,39 @@ namespace Game.Gameplay
                  "yoksa kuyrukta gövdeler iç içe geçiyor.")]
         [SerializeField] private float truckFollowGap = 12f;
         [SerializeField] private int queueSpacing = 2;           // loop points a queued truck stops short of the truck ahead
+        // Two-way traffic on the authored islands.
+        //
+        // Every authored circuit drives the same tarmac twice — out along an arterial, home along it
+        // again further round — and the three routes share arterials with each other on top of that.
+        // On the bare centreline that is a head-on pass: the ore fleet ran centre→refinery through the
+        // very points the cargo fleet ran refinery→centre, and the bodies went through one another.
+        // Every driving line is shifted this far to the RIGHT of its own direction of travel, so
+        // opposing traffic ends up on opposite sides of the road and never has to negotiate anything.
+        // Keep it inside half the carriageway: the authored arterials are 12 m, the ring and quay 10 m.
+        [Tooltip("Yolun ortasından sağ şeridin ortasına olan mesafe. Şerit genişliğinin yarısı — " +
+                 "12 m'lik yolda 2.4 iyi durur. Büyütürsen kamyonlar banketten taşar.")]
+        [SerializeField] private float laneOffset = 2.4f;
+        // How far past the running lane a truck pulls to load, tip or idle. Without this a tipper
+        // dwelling at the refinery gate stands in the lane and every cargo truck behind it waits out
+        // the whole dwell — the island gridlocks at the one junction all three routes share.
+        [Tooltip("Kamyonun yüklenirken/boşaltırken şeritten ne kadar sağa çekileceği. " +
+                 "crossCorridor'dan büyük olmalı, yoksa duran kamyon hâlâ yolu kapatır.")]
+        [SerializeField] private float layByDepth = 3.4f;
+        [SerializeField] private float layByRamp = 10f;          // metres of taper in and out of a lay-by
+        // Traffic on ANOTHER route only counts when it is this close to the driving line. Must stay
+        // under layByDepth or a truck parked in a lay-by still reads as blocking the lane.
+        [SerializeField] private float crossCorridor = 2.2f;
+        [SerializeField] private float crossFollowGap = 9f;      // room left behind a truck from another route
+        // Every district is a terminus: its gate sits 18 m PAST the ring junction that serves it, so a
+        // truck drives out to the works, stops, and has to come back the way it came. That reversal is
+        // real and cannot be routed away — there is one road in. What it must not look like is a truck
+        // spinning on the spot, or whipping round a donut the width of a lane.
+        //
+        // So the two lanes swing apart on the approach and the turn is driven as a proper arc of this
+        // radius, out in the district's own forecourt rather than across the carriageway.
+        [Tooltip("Tesise yaklaşırken iki şeridin yol ortasında birleşmesi için gereken mesafe. " +
+                 "Kısaltırsan kamyon son anda ortaya kırar, uzatırsan yolun yarısını ortada gider.")]
+        [SerializeField] private float turnFlare = 14f;
 
         [Header("Ring layout")]
         // The four stations stand at the corners of a ring: mountains top-left, the ore drop top-right,
@@ -217,6 +250,11 @@ namespace Game.Gameplay
         [SerializeField] private Color oreTruckColor = new Color(0.93f, 0.55f, 0.13f);    // works amber
         [SerializeField] private Color cargoTruckColor = new Color(0.22f, 0.45f, 0.72f);  // haulage blue
         [SerializeField] private float vehicleLookAhead = 7f;     // metres down the route
+        // ...but never further round a bend than this. See LoopLookAhead: aiming past the corner is
+        // what made a truck cut across a turn and swing back onto the road afterwards.
+        [Tooltip("Kamyonun viraja bakarken ne kadar ilerisini hedefleyeceği, derece cinsinden. " +
+                 "Büyütürsen virajı kesip geçer, küçültürsen direksiyonu geç çevirir.")]
+        [SerializeField] private float lookAheadBend = 45f;
         // However gently the body eases onto a new heading, a route that corners on a point still
         // pivots the truck's POSITION through every junction — the tail swings over the verge and
         // the whole move reads as a toy on a wire. The loops are filleted with this radius at build
@@ -236,6 +274,37 @@ namespace Game.Gameplay
         // from registering as bends worth sliding for.
         private const float CornerBrake = 5f, CornerAccel = 2.5f;
         private const float DriftKick = 10f, DriftRecover = 4f, DriftDeadzone = 8f;
+        // How far down its own line a truck looks for traffic belonging to another route, and how
+        // long it may be held at a dead stop before it creeps on regardless. Nothing in CrossGap
+        // should be able to deadlock, but the creep is the island's guarantee that no layout can
+        // ever lock it up, and it costs one float per truck.
+        private const float CrossScan = 26f, StuckCreep = 2.5f;
+        // The distance the anti-jam creep will never close inside: about one body, so a truck that
+        // has given up its polite gap still stops nose to tail rather than nose through tail.
+        private const float HardStop = 6f;
+        // The two escalations behind that creep. A jam only clears if SOMETHING in it moves, and the
+        // polite creep above cannot be that something once a truck is already inside HardStop of
+        // whatever is in front — it hands out zero metres and hands out zero metres forever. So:
+        //
+        //   StuckBarge  the stand-off goes too, but only against a blocker that is never leaving on
+        //               its own — one parked in Idle, one as jammed as we are, or one that has been
+        //               retired out from under us. A queue whose head is dwelling never gets here;
+        //               that head has a timer and the whole line rolls the moment it runs out.
+        //   StuckForce  every rule goes. Nothing should ever reach this, and that is exactly why it
+        //               is here: it is the one line that makes "no truck is ever stuck" a property
+        //               of the code rather than of an argument about the code. It has to stay clear
+        //               of the longest a truck can legitimately be held behind a working one — a
+        //               dwell on a worn-out station is dwellSeconds/0.05, twenty times the base —
+        //               or the net would fire on an honest queue and drive it through its own head.
+        //
+        // Both are wall time on the ISLAND's clock, so a boosted island unpicks a knot twice as fast,
+        // which is right — everything the player is watching is happening twice as fast too.
+        private const float StuckBarge = 6f, StuckForce = 25f;
+        // A truck counts as held up when it is given less than this fraction of the distance it
+        // asked for. Timing a DEAD stop alone was the hole in the old guarantee: a truck handed a
+        // millimetre a frame reset the timer every frame and stood at the works gate for good, doing
+        // a perfect impression of being stopped while technically still moving.
+        private const float StuckCrawl = 0.05f;
         // The model's upright pose. Identity on the generated islands, whose vehicles are authored
         // in Unity space already; the -90 pitch of the FBX conversion on the authored ones.
         private Quaternion _vehicleBaseRot = Quaternion.identity;
@@ -312,16 +381,61 @@ namespace Game.Gameplay
         // Purely cosmetic, but both scale with progress: the crew grows as you buy levels and the smoke
         // thickens as the smelter speeds up, so the island keeps showing what your money bought.
         [SerializeField] private GameObject workerPrefab;
+        [Tooltip("Adadaki insanların gövdeleri. Birden fazla koy — sekiz tane aynı model aynı kaldırımda " +
+                 "yürüyünce klon gibi duruyor. İstasyon ekipleri buradan yapıya göre seçiliyor: maden ve " +
+                 "dökümhanede 'strong', depo ve limanda 'stout', çarşı ve kasabada 'normal'.\n\n" +
+                 "Boş bırakılırsa yukarıdaki tek workerPrefab kullanılır ve istasyonlarda kimse durmaz.")]
+        [SerializeField] private GameObject[] workerPrefabs;
         [SerializeField] private GameObject smokePuffPrefab;
         [SerializeField] private float workerScale = 2.2f;
         [SerializeField] private int maxWorkers = 8;
         [SerializeField] private int workerLevelsPer = 24;    // one extra worker per this many axis levels
+
+        [Header("Station crews")]
+        // The other half of the island's life: staff who belong to a BUILDING rather than to the ring
+        // pavement, so the mine reads as a mine being worked. Capped hard — every one of these is a
+        // skinned mesh, and this is a phone.
+        [Tooltip("Ada başına istasyonlarda duran en fazla insan. Devriye ekibiyle birlikte toplam bütçe bu + maxWorkers.")]
+        [SerializeField] private int maxStationWorkers = 16;
+        [Tooltip("Her bölgede kaç çalışma noktası. İlk nokta bedava, sonrakiler istasyon seviyesiyle açılır.")]
+        [SerializeField] private int postsPerDistrict = 2;
+        [Tooltip("Bir bölgenin ikinci, üçüncü elemanı için gereken istasyon seviyesi.")]
+        [SerializeField] private int stationWorkerLevelsPer = 18;
+        [Tooltip("İstasyon elemanlarının yürüme hızı.")]
+        [SerializeField] private float stationWalkSpeed = 1.8f;
+        [Tooltip("Elemanların noktalarından ne kadar uzağa gezinebileceği. 0 = hiç kıpırdamaz.")]
+        [SerializeField] private float stationDriftRange = 2.5f;
+        [Tooltip("Yayaların kamyona yol vermesi için kaldırıma çekildiği mesafe.")]
+        [SerializeField] private float trafficYieldRadius = 7f;
         [SerializeField] private int maxSmokePuffs = 10;
         [SerializeField] private float smokePuffLife = 3.2f;
         [SerializeField] private float smokePuffRise = 3.4f;
         [SerializeField] private float smokePuffSpread = 1.3f;
         [SerializeField] private Color smokeColor = new Color(0.86f, 0.86f, 0.88f, 1f);
         [SerializeField] private float smeltGlowSeconds = 1.5f;   // how long one conversion keeps the stack smoking
+        [Tooltip("Dökümhane çalışmadığı anlarda bacaların tüttürdüğü hız. 0 = ada soğuduğunda bütün bacalar sönük " +
+                 "kalır ve tesis kapanmış gibi durur.")]
+        [SerializeField] private float chimneyIdleRate = 0.3f;
+
+        [Header("Machinery animation")]
+        // Sadece MAKİNELER kıpırdar — kırıcı, konveyör, ekskavatör, vinç, gantry. Binalar (ofis, hol,
+        // depo, ambar) hiç oynamaz: beton esnemez, esnetince ada lastikten yapılmış gibi duruyor.
+        // Hareket metre cinsinden, yüzde değil: gerçek makine boyu ne olursa olsun aynı birkaç santim
+        // titrer, yüzdeyle büyük gantry zıplarken küçük yükleyici kıpırdamıyordu.
+        [Tooltip("Ada başına canlandırılan en fazla makine.")]
+        [SerializeField] private int maxPulseBodies = 40;
+        [Tooltip("Her bölgede kaç makine canlanır.")]
+        [SerializeField] private int pulseBodiesPerDistrict = 6;
+        [Tooltip("Makinenin çöküş mesafesi — METRE. 0.08 = 8 cm. Yüzde değil, o yüzden küçük tut.")]
+        [SerializeField] private float pulseTravel = 0.08f;
+        [Tooltip("Saniyedeki çalışma vuruşu. Yükseltirsen makine daha hızlı çalışıyor gibi durur.")]
+        [SerializeField] private float pulseRate = 2.2f;
+        [Tooltip("Üretim anında (döküm, boşaltma, satış) vuruşun ne kadar derinleşeceği — metre. " +
+                 "Ayrı bir hareket değil, aynı vuruş bir süre daha derin iner.")]
+        [SerializeField] private float pulseSurgeTravel = 0.05f;
+        [SerializeField] private float pulseSurgeSeconds = 0.5f;
+        [Tooltip("Bölge çalışmaya başlayınca makinelerin tam güce çıkma süresi.")]
+        [SerializeField] private float pulseRampSeconds = 0.6f;
 
         [Header("Upgrade feedback")]
         // A purchase has to land on the map, not just in the HUD: the station it belongs to grows with the
@@ -436,6 +550,10 @@ namespace Game.Gameplay
         private Transform _dressing;                 // parent for every generated road, rail and rock
         private PileStack _oreYard, _barYard;
         private SiteLife _life;
+        private StationCrew _crew;
+        private BuildingPulse _pulse;
+        private DistrictWear _wear;
+        private float _appliedScale = 1f;   // the clock the rigged bodies were last told about
         private float _smeltGlow;        // seconds of smoke left after the last conversion
         // Which arrival bay each mine's line uses at the shed, ordered left-to-right across the approach.
         private readonly Dictionary<Transform, int> _railLanes = new Dictionary<Transform, int>();
@@ -517,6 +635,7 @@ namespace Game.Gameplay
         private double _storeOre, _refOre, _bars;
         private WalletService _wallet;
         private MarketService _marketService;   // where the bars go, and the only thing that pays for them
+        private MaintenanceService _maintenance;  // how well this island is running, and who mends it
         private AudioService _audio;
         private float _deckY;              // ground height every vehicle drives at
         private SaveData _data;
@@ -688,6 +807,7 @@ namespace Game.Gameplay
             public float cornerSlow = 1f;  // smoothed corner-brake factor applied to this frame's speed
             public float driftYaw;         // current slip angle, degrees, signed toward the bend
             public float turnSharp;        // how hard the road bends inside look-ahead, 0..1, last frame's read
+            public float stuck;            // seconds held at a dead stop by traffic — see StuckCreep
         }
         private const int OreBaseTrucks = Econ.OreBaseTrucks, CargoBaseTrucks = Econ.CargoBaseTrucks;
         // What the exporter stamps on each truck body — "truck_road_ore3", "truck_road_cargo1".
@@ -926,6 +1046,14 @@ namespace Game.Gameplay
             _lv[s][a]++;
             SaveLevel(islandKey + "#" + s + "#" + a, _lv[s][a]);
             if (_punch != null) _punch[s] = punchSeconds;   // the station pops, then settles at its new size
+            // And so does the art the station owns. On an authored island the line above pops an EMPTY
+            // anchor — the landmarks are exported points, not buildings — so without this a purchase
+            // lands nowhere the player is looking. Cargo trucks pay for the quay as well as the park.
+            if (_pulse != null)
+            {
+                _pulse.Punch(PulseDistrict(s));
+                if (s == StCargoTrucks) _pulse.Punch("Port");
+            }
             if ((s == StOreTrucks || s == StCargoTrucks) && a == 0) ApplyFleetStates();
             // This level may have carried its district over a phase threshold - the mine yard
             // rebuilds on its own, without waiting for the rest of the island.
@@ -1026,6 +1154,14 @@ namespace Game.Gameplay
             _data = ServiceLocator.Get<SaveData>();
             LoadLevels();
 
+            // The island's state of repair, handed to the maths as a SHARED array — the same contract
+            // the level vectors have. Wear lands on it between frames and the rates below have to feel
+            // it immediately; a copy taken here would leave the simulation running a spotless island
+            // forever. Here in Awake rather than Start because all eight islands run Awake and only
+            // the live one runs Start, and the seven idle ones are still being paid for their yards.
+            _maintenance = ServiceLocator.Get<MaintenanceService>();
+            if (_maintenance != null) Ec.SetConditions(_maintenance.Conditions(islandKey));
+
             _marketService = ServiceLocator.Get<MarketService>();
             if (_marketService == null) return;
             _marketService.Register(islandKey, this);
@@ -1035,6 +1171,8 @@ namespace Game.Gameplay
         private void OnDestroy()
         {
             if (_marketService != null) _marketService.Sold -= OnYardSold;
+            if (_crew != null) _crew.Dispose();
+            if (_pulse != null) _pulse.Dispose();
         }
 
         /// <summary>
@@ -1214,7 +1352,34 @@ namespace Game.Gameplay
             _ready = true;
         }
 
-        private void Update() { if (_ready) Tick(Time.deltaTime); }
+        /// <summary>
+        /// The island's clock, which is not always the game's.
+        ///
+        /// A rewarded ×2 used to be a number on the top bar and nothing else — the same trains at the same
+        /// pace, and the only way to tell a boosted island from an unboosted one was to read the counter.
+        /// So the yard spends the boost on TIME here instead of on price, and the whole chain — trains,
+        /// lorries, furnace, crew, smoke — runs at ×2 and delivers twice as much. The money comes out the
+        /// same ×2 it always did; <see cref="MarketService.IslandTimeScale"/> is the whole contract, and
+        /// it divides this back out of everything it saves so nothing here leaks into the offline rate.
+        /// </summary>
+        private float TimeScale
+            => _marketService != null ? (float)_marketService.IslandTimeScale : 1f;
+
+        private void Update()
+        {
+            if (!_ready) return;
+            float scale = TimeScale;
+            // The crew are rigged, and a walk cycle does not know about our clock: at ×2 a body glides
+            // twice as far per stride and reads as skating. Pushed on change only — it is a poll of a
+            // value that moves twice an ad, not per frame.
+            if (scale != _appliedScale)
+            {
+                _appliedScale = scale;
+                if (_life != null) _life.SetTimeScale(scale);
+                if (_crew != null) _crew.SetTimeScale(scale);
+            }
+            Tick(Time.deltaTime * scale);
+        }
 
         /// <summary>
         /// Travelling here re-enables this island after however long. The contract ship may have sailed a
@@ -1318,7 +1483,22 @@ namespace Game.Gameplay
                 float d = NearestDist(a, door);
                 // Only if it really is at this line's storage end: an expansion mine's path runs the
                 // other way down the same rails, and its shed is not this one.
-                if (d > a.doorDist * 0.6f) a.doorDist = d;
+                if (d > a.doorDist * 0.6f)
+                {
+                    // And only if the doorway is ON the line. NearestDist answers with an arc distance
+                    // whatever it is handed, so a route file exported from a build whose rails have
+                    // since moved yields a plausible number for a shed standing in a field — which is
+                    // how the coal train came to keep going for another fifty metres across the depot
+                    // yard before it stopped being drawn. Falling back to the end of the track puts it
+                    // at the buffer stop, which is wrong by a shed's depth rather than by a yard.
+                    const float onTheLine = 6f;
+                    float off = Flat(PathAt(a, d) - door).magnitude;
+                    if (off < onTheLine) a.doorDist = d;
+                    else Debug.LogWarning("[Island] " + islandKey + ": the railShed anchor stands "
+                                          + off.ToString("F0") + "m off the rail — this route file and "
+                                          + "this island's track are from different builds. Re-run "
+                                          + "Tools/blender/fit_rail_routes.py.", this);
+                }
             }
 
             BuildTunnelCover(a);
@@ -1681,6 +1861,7 @@ namespace Game.Gameplay
                         a.carry = EffTrainOre;                      // one trip's worth of ore, decided at load time
                         ShowTrainAt(a, -a.locoLen * 0.5f, true);    // nose at the tunnel mouth, rake behind it
                         SetWagonOre(a, true);                       // show the ore cubes sitting in the wagons
+                        if (_pulse != null) _pulse.Punch("Mine");   // a full rake just left the face
                         a.state = TR.Haul;
                     }
                     break;
@@ -1700,6 +1881,7 @@ namespace Game.Gameplay
                         double dep = System.Math.Min(space, a.carry);   // only as much as the yard can still take
                         _storeOre += dep; a.carry -= dep;
                         _minedFlow.Add(dep);
+                        if (_pulse != null) _pulse.Punch("Depot");      // a rake just tipped into the shed
                     }
                     // Still holding ore means the yard filled up. Staying in this state keeps the train
                     // parked in the shed and stops the whole mine — the intended "upgrade Storage" signal.
@@ -2146,9 +2328,16 @@ namespace Game.Gameplay
             var agents = new List<TruckAgent>();
             for (int li = 0; li < loops.Count; li++)
             {
-                // Rounded before anything indexes into it, so the stops, the queue stagger and the
-                // cumulative arcs all live on the same polyline the trucks actually drive.
-                List<Vector3> loop = RoundLoopCorners(loops[li], cornerRadius);
+                // Onto the right-hand lane first, so opposing traffic on shared tarmac is separated
+                // by the geometry rather than by anyone braking — see OffsetToLane. Authored islands
+                // only: the generated island's RouteLoop already lays its out and back runs
+                // routeLaneWidth apart, and offsetting again would double it.
+                //
+                // Rounded after, so the stops, the queue stagger and the cumulative arcs all live on
+                // the same polyline the trucks actually drive.
+                List<Vector3> loop = RoundLoopCorners(
+                    Authored ? OffsetToLane(loops[li], laneOffset, turnFlare) : loops[li],
+                    cornerRadius);
                 loops[li] = loop;   // NearestLoop below judges proximity against the driven line
                 if (loop.Count < 2) continue;
                 Route route = (Route)li;   // BuildRoadLoops emits exactly one loop per route, in Route order
@@ -2223,6 +2412,19 @@ namespace Game.Gameplay
                     StripOpChildren(c);
                     fleet.Add(c);
                 }
+
+                // Pull this route's three stopping places off the running lane, now that the fleet
+                // size is known and before any agent takes its copy of the line. A dwelling truck
+                // must not stand in traffic — see MarkLayBy. The window is capped at a quarter of
+                // the circuit so a long fleet on a short loop cannot bulge the whole thing sideways.
+                float laneLen = 0f;
+                for (int k = 0; k < n; k++) laneLen += Flat(loop[(k + 1) % n] - loop[k]).magnitude;
+                float queueBack = Mathf.Min(Mathf.Max(1, maxFleet) * truckFollowGap, laneLen * 0.25f);
+                var layBy = new float[n];
+                MarkLayBy(loop, layBy, load, queueBack, layByDepth, layByRamp);
+                MarkLayBy(loop, layBy, drop, queueBack, layByDepth, layByRamp);
+                if (idle != load) MarkLayBy(loop, layBy, idle, queueBack, layByDepth, layByRamp);
+                ApplyLayBys(loop, layBy);
 
                 for (int slot = 0; slot < fleet.Count; slot++)
                 {
@@ -2318,7 +2520,7 @@ namespace Game.Gameplay
                     if (leg.sqrMagnitude > 1e-4f) a.heading = leg.normalized;
                     a.baseRot = VehicleFacing(a.heading);
                     a.body.rotation = a.baseRot;
-                    a.cornerSlow = 1f; a.driftYaw = 0f; a.turnSharp = 0f;
+                    a.cornerSlow = 1f; a.driftYaw = 0f; a.turnSharp = 0f; a.stuck = 0f;
                     a.wp = a.idleIdx; a.state = TK.ToIdle; a.carry = 0d;
                     Show(a.load, false);
                 }
@@ -2543,7 +2745,16 @@ namespace Game.Gameplay
         /// shortcut, and every one of them began 10–16 units INSIDE the ring, so the route left
         /// the tarmac, crossed the ring road at an angle and rejoined further on.
         /// </summary>
-        private List<Vector3> AuthoredCircuit(RoadLink a, RoadLink b)
+        private List<Vector3> AuthoredCircuit(RoadLink a, RoadLink b) => AuthoredCircuit(a, b, false);
+
+        /// <inheritdoc cref="AuthoredCircuit(RoadLink, RoadLink)"/>
+        /// <param name="ringLongWay">
+        /// Send the empty run round the far side of the ring instead of the near side. The export
+        /// circuit takes this: it is the market circuit with the quay spliced in, so on the short arc
+        /// it drove the cargo fleet's own points from end to end and the two fleets occupied the same
+        /// metres of road. Complementary arcs share nothing but their two junctions.
+        /// </param>
+        private List<Vector3> AuthoredCircuit(RoadLink a, RoadLink b, bool ringLongWay)
         {
             var ring = AuthoredRing();
             if (ring == null || ring.Count < 6) return null;
@@ -2568,7 +2779,7 @@ namespace Game.Gameplay
             Append(path, Sub(artB, centre, gateB));
             // Home the long way: back down B's arterial to the ring, round it, and up A's.
             Append(path, Sub(artB, gateB, meetB));
-            Append(path, RingArc(ring, meetB, meetA));
+            Append(path, RingArc(ring, meetB, meetA, ringLongWay));
             Append(path, Sub(artA, meetA, gateA));
             return path.Count >= 8 ? path : null;
         }
@@ -2582,7 +2793,11 @@ namespace Game.Gameplay
             var quay = _routes.GetPath("portRoad");
             if (quay == null || quay.Length < 2) return null;
 
-            var path = AuthoredCircuit(LinkRefinery, LinkMarket);
+            // Home round the FAR side of the ring. On the near side this circuit was the market
+            // circuit point for point, so the two cargo fleets drove the same metres of road with
+            // nothing to tell them apart; the far arc gives the port run a return leg of its own and
+            // leaves only the loaded arterial shared, where following is all that is needed.
+            var path = AuthoredCircuit(LinkRefinery, LinkMarket, true);
             if (path == null) return null;
 
             Vector3 port, market;
@@ -2621,14 +2836,19 @@ namespace Game.Gameplay
             return run;
         }
 
-        /// <summary>The shorter way round the ring between two points on it.</summary>
-        private static List<Vector3> RingArc(List<Vector3> ring, Vector3 from, Vector3 to)
+        /// <summary>
+        /// The way round the ring between two points on it — the shorter arc, or the longer one when
+        /// a route needs tarmac of its own.
+        /// </summary>
+        private static List<Vector3> RingArc(List<Vector3> ring, Vector3 from, Vector3 to, bool longWay)
         {
             int n = ring.Count;
             int i0 = NearestIndex(ring, from), i1 = NearestIndex(ring, to);
             var arc = new List<Vector3>();
             int fwd = (i1 - i0 + n) % n;
-            if (fwd <= n - fwd) for (int k = 0; k <= fwd; k++) arc.Add(ring[(i0 + k) % n]);
+            bool goFwd = fwd <= n - fwd;
+            if (longWay) goFwd = !goFwd;
+            if (goFwd) for (int k = 0; k <= fwd; k++) arc.Add(ring[(i0 + k) % n]);
             else for (int k = 0; k <= n - fwd; k++) arc.Add(ring[(i0 - k + n) % n]);
             return arc;
         }
@@ -2713,13 +2933,185 @@ namespace Game.Gameplay
         }
 
         /// <summary>
+        /// Shifts a driving circuit onto the right-hand lane of the road it was traced from.
+        ///
+        /// The authored circuits are built from centrelines, and a centreline is a single file. Each
+        /// one uses the same tarmac twice — out along an arterial and home along it again further
+        /// round — and the three routes share arterials with each other on top of that, so the ore
+        /// fleet drove centre→refinery through the very points the cargo fleet drove refinery→centre.
+        /// Head-on, on one line, and the bodies passed through each other.
+        ///
+        /// Offsetting every point to the right of the direction being travelled turns that into real
+        /// two-way traffic: opposing runs land on opposite sides of the same road by construction, and
+        /// no rule has to notice. What remains for the follow rules is same-direction traffic, which
+        /// is a queue rather than a collision.
+        ///
+        /// Mitred at the corners — a flat per-segment shift opens a gap on the outside of a bend and
+        /// crosses itself on the inside. The mitre is clamped fairly tight: past that the point flies
+        /// off the road and the lane grows a hook at the junction, and a driver cuts a sharp corner
+        /// anyway rather than tracking its exact outside.
+        ///
+        /// Where the line doubles back on itself the two lanes CLOSE onto the centreline over the last
+        /// <paramref name="flare"/> metres, so the reversal is a point in the middle of the road and
+        /// the truck turns on it while parked — see TurnToDeparture. Every district is a terminus: its
+        /// gate sits about 18 m past the ring junction that serves it and there is one road in, so
+        /// this is the shape of every arrival at a works, not a special case for the quay.
+        ///
+        /// Run BEFORE <see cref="RoundLoopCorners"/> so the fillets are cut on the line the truck
+        /// actually drives.
+        /// </summary>
+        private static List<Vector3> OffsetToLane(List<Vector3> loop, float offset, float flare)
+        {
+            int n = loop.Count;
+            if (n < 3 || offset < 0.01f) return loop;
+
+            // Which vertices double back, and how wide the lane runs at every point because of them.
+            var wide = new float[n];
+            for (int i = 0; i < n; i++) wide[i] = offset;
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 a = Flat(loop[i] - loop[(i - 1 + n) % n]), b = Flat(loop[(i + 1) % n] - loop[i]);
+                if (a.sqrMagnitude < 1e-8f || b.sqrMagnitude < 1e-8f) continue;
+                if (Vector3.Dot(a.normalized, b.normalized) >= -0.9f) continue;
+
+                // Close the two lanes together onto the centreline over the approach, both ways
+                // round. The turn itself then happens on the spot, at the stop that is already
+                // there — the truck drifts to the middle of the road as it pulls into the works,
+                // parks, swings round while it loads, and drifts back to its own side on the way
+                // out. That is what a lorry in a yard does.
+                //
+                // It used to swing the lanes APART instead and drive the reversal as an arc between
+                // them. Any radius wide enough to read as a turn was also wide enough to leave the
+                // carriageway, so it played as a C-shaped excursion off the road and back on again
+                // rather than as a vehicle turning round.
+                wide[i] = 0f;
+                for (int dir = -1; dir <= 1; dir += 2)
+                {
+                    float run = 0f;
+                    for (int k = 1; k < n; k++)
+                    {
+                        int cur = ((i + dir * k) % n + n) % n, prv = ((i + dir * (k - 1)) % n + n) % n;
+                        run += Flat(loop[cur] - loop[prv]).magnitude;
+                        if (run > flare) break;
+                        float w = Mathf.Lerp(0f, offset, flare > 0.01f ? run / flare : 1f);
+                        if (w < wide[cur]) wide[cur] = w;
+                    }
+                }
+            }
+
+            var lane = new List<Vector3>(n + 32);
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 prev = loop[(i - 1 + n) % n], here = loop[i], next = loop[(i + 1) % n];
+                Vector3 inDir = Flat(here - prev), outDir = Flat(next - here);
+                float inLen = inDir.magnitude, outLen = outDir.magnitude;
+                if (inLen < 1e-4f && outLen < 1e-4f) { lane.Add(here); continue; }
+                if (inLen < 1e-4f) inDir = outDir / outLen; else inDir /= inLen;
+                if (outLen < 1e-4f) outDir = inDir; else outDir /= outLen;
+
+                float off = wide[i];
+                Vector3 nIn = new Vector3(inDir.z, 0f, -inDir.x);     // right of the way in
+                Vector3 nOut = new Vector3(outDir.z, 0f, -outDir.x);  // right of the way out
+
+                // The terminus. Both lanes have been closed onto the centreline by the taper above,
+                // so there is nothing left to join: the path simply turns round on the spot, and the
+                // truck is standing here anyway — this is its load or drop stop. TurnToDeparture
+                // swings the body round while it dwells.
+                if (Vector3.Dot(inDir, outDir) < -0.9f) { AddPt(lane, here); continue; }
+
+                // The bisector of the two kerb normals, lengthened by 1/cos(half-turn) so the offset
+                // line keeps a constant distance from the centreline through the bend instead of
+                // pinching in toward the vertex.
+                Vector3 bis = nIn + nOut;
+                float bl = bis.magnitude;
+                if (bl < 1e-3f) { AddPt(lane, here + nOut * off); continue; }
+                bis /= bl;
+                float miter = Mathf.Clamp(Vector3.Dot(bis, nOut), 0.7f, 1f);
+                AddPt(lane, here + bis * (off / miter));
+            }
+            return lane.Count >= 3 ? lane : loop;
+        }
+
+        /// <summary>
+        /// Records how far off the lane the road bulges around one stop, into a per-point depth map
+        /// shared by all of a circuit's stops so two overlapping lay-bys merge instead of fighting.
+        ///
+        /// A truck stops ON the polyline it drives — loadIdx, dropIdx and idleIdx are loop indices.
+        /// That was harmless while a fleet only ever met its own kind, because the queue behind it was
+        /// its own queue and waiting was the point. It stops being harmless the moment a truck yields
+        /// to the other routes as well: an ore tipper dwelling at the refinery gate would hold up every
+        /// cargo truck behind it for the whole dwell, at the one junction all three routes share.
+        ///
+        /// So the lane bulges out into a lay-by instead. The window is measured in METRES rather than
+        /// loop points because what decides how far back the queue reaches is truckFollowGap, not the
+        /// index stagger — a fleet queued 12 m apart on 3 m points trails well past its own stop
+        /// indices, and a point-counted window left the tail of every queue standing in the road.
+        /// </summary>
+        private static void MarkLayBy(List<Vector3> lane, float[] depthAt, int stopIdx,
+                                      float backMetres, float depth, float ramp)
+        {
+            int n = lane.Count;
+            if (n < 6 || depth < 0.01f || ramp < 0.01f) return;
+            if (stopIdx < 0 || stopIdx >= n) return;
+
+            // Back down the circuit from the stop: the whole queue at full depth, then a taper out.
+            float run = 0f;
+            for (int k = 0; k < n; k++)
+            {
+                int i = ((stopIdx - k) % n + n) % n;
+                if (k > 0) run += Flat(lane[(i + 1) % n] - lane[i]).magnitude;
+                if (run > backMetres + ramp) break;
+                float d = run <= backMetres ? depth : depth * (1f - (run - backMetres) / ramp);
+                if (d > depthAt[i]) depthAt[i] = d;
+            }
+            // And forward from it, so the truck rejoins the lane on a taper rather than a step.
+            run = 0f;
+            for (int k = 1; k < n; k++)
+            {
+                int i = (stopIdx + k) % n;
+                run += Flat(lane[i] - lane[(i - 1 + n) % n]).magnitude;
+                if (run > ramp) break;
+                float d = depth * (1f - run / ramp);
+                if (d > depthAt[i]) depthAt[i] = d;
+            }
+        }
+
+        /// <summary>
+        /// Pushes the marked stretches out to the kerb, all at once.
+        ///
+        /// Every point's outward direction is read off the UNMOVED line and the whole shift applied
+        /// afterwards — moving one point first would bend the next point's idea of which way is out,
+        /// and the lay-by would curl.
+        /// </summary>
+        private static void ApplyLayBys(List<Vector3> lane, float[] depthAt)
+        {
+            int n = lane.Count;
+            var shift = new Vector3[n];
+            for (int i = 0; i < n; i++)
+            {
+                if (depthAt[i] <= 0.001f) continue;
+                Vector3 d = Flat(lane[(i + 1) % n] - lane[(i - 1 + n) % n]);
+                if (d.sqrMagnitude < 1e-6f) continue;
+                d.Normalize();
+                shift[i] = new Vector3(d.z, 0f, -d.x) * depthAt[i];
+            }
+            for (int i = 0; i < n; i++) lane[i] += shift[i];
+        }
+
+        /// <summary>
         /// Rounds every corner of a closed driving loop with a circular fillet, so the trucks' very
         /// position arcs through a junction instead of pivoting on its vertex — the eased body
         /// rotation alone cannot hide a path that turns on a point.
         ///
-        /// Near-straight corners keep their vertex, the bend is not worth the points; so does
-        /// anything past 135°, where the fillet's tangent length diverges — and the port's retraced
-        /// quay road is exactly that, a dead end driven in and backed out of on the spot.
+        /// Near-straight corners keep their vertex, the bend is not worth the points; so does anything
+        /// past 160°, which on a driving line means a genuine reversal rather than a corner.
+        ///
+        /// That ceiling used to be 135°, to spare the port's retraced quay road — a dead end driven in
+        /// and backed out of on the spot, which no fillet can help. It cost every real corner between
+        /// 135° and 160° as well, and the authored ring meets its arterials at 131–148°, so the
+        /// sharpest turns on the island were the ones left pivoting on a point. Reversals arrive here
+        /// as the arc <see cref="OffsetToLane"/> already drove them round, in steps far under the
+        /// ceiling, so the low limit no longer buys anything.
         /// </summary>
         private static List<Vector3> RoundLoopCorners(List<Vector3> loop, float radius)
         {
@@ -2735,7 +3127,7 @@ namespace Game.Gameplay
                 inDir /= inLen; outDir /= outLen;
                 float turn = Vector3.SignedAngle(inDir, outDir, Vector3.up);
                 float absTurn = Mathf.Abs(turn);
-                if (absTurn < 12f || absTurn > 135f) { AddPt(pts, here); continue; }
+                if (absTurn < 12f || absTurn > 160f) { AddPt(pts, here); continue; }
 
                 // Tangent length for the wanted radius, clamped to half of either leg so two
                 // fillets can never claim the same stretch of road; the radius gives way instead.
@@ -2796,6 +3188,10 @@ namespace Game.Gameplay
         {
             bool ore = a.route == Route.Ore;
             double avail = ore ? _storeOre : _bars;   // what this truck's pickup pile currently holds
+            // A truck that has ARRIVED is not held up, whatever the road was doing on the way in. Left
+            // to stand, that count reads as a jam to the queue behind it and invites the whole line to
+            // drive through a truck that is about to pull away on its own — see Hopeless.
+            if (a.state == TK.Loading || a.state == TK.Dropping || a.state == TK.Idle) a.stuck = 0f;
             switch (a.state)
             {
                 // Driving to the pickup. Cargo is taken the instant it arrives, so two trucks can never
@@ -2808,12 +3204,15 @@ namespace Game.Gameplay
                         if (ore) _storeOre -= take; else _bars -= take;
                         a.carry = take; Show(a.load, true);                  // show the cargo block on the flatbed
                         a.timer = ore ? StorageDwell : dwellSeconds; a.state = TK.Loading;
+                        // The yard that just handed a load over jolts with it. Ore comes off the depot's
+                        // heap, bars off the refinery's — the two ends of the chain the truck runs.
+                        if (_pulse != null) _pulse.Punch(ore ? "Depot" : "Refinery");
                     }
                     break;
 
                 // Paused at the pile being filled.
                 case TK.Loading:
-                    RelaxDrift(a, dt);
+                    TurnToDeparture(a, dt);
                     a.timer -= dt;
                     if (a.timer <= 0f) a.state = TK.ToDrop;
                     break;
@@ -2837,7 +3236,7 @@ namespace Game.Gameplay
                 // touches the wallet any more: MarketService sells what is on those pads, at a speed
                 // that depends on who is working the yard, and that is the whole point of the yard.
                 case TK.Dropping:
-                    RelaxDrift(a, dt);
+                    TurnToDeparture(a, dt);
                     a.timer -= dt;
                     if (a.timer > 0f) break;
                     if (ore) { _refOre += a.carry; _hauledFlow.Add(a.carry); }
@@ -2850,6 +3249,10 @@ namespace Game.Gameplay
                         _marketService.Deliver(islandKey, delivered);
                         _deliveredFlow.Add(delivered);
                     }
+                    // The building receiving the load takes the hit, whichever end of the chain that is:
+                    // ore into the furnace, bars onto the market's pads, or bars over the export quay.
+                    if (_pulse != null)
+                        _pulse.Punch(ore ? "Refinery" : a.route == Route.Export ? "Port" : "Market");
                     a.carry = 0d; Show(a.load, false);
                     a.state = avail > 0.01d ? TK.ToLoad : TK.ToIdle;
                     break;
@@ -2858,7 +3261,7 @@ namespace Game.Gameplay
                     if (DriveLoop(a, a.idleIdx, dt)) a.state = TK.Idle;
                     break;
                 case TK.Idle:
-                    RelaxDrift(a, dt);
+                    TurnToDeparture(a, dt);
                     if (avail > 0.01d) a.state = TK.ToLoad;              // parked until there is something to haul
                     break;
             }
@@ -2894,8 +3297,9 @@ namespace Game.Gameplay
         /// driving through a moving one; the queue behind it clears the moment work appears, because that
         /// is what takes it out of Idle.
         /// </summary>
-        private float GapAhead(TruckAgent a)
+        private float GapAhead(TruckAgent a, out int who)
         {
+            who = -1;
             if (_agents == null || _arc == null || a.loopLen <= 0f) return float.MaxValue;
             float mine = _arc[a.idx];
             float best = float.MaxValue;
@@ -2909,9 +3313,78 @@ namespace Game.Gameplay
                 // zero gap and both stand still for good. The lower index pulls away first and the tie
                 // breaks itself on the next frame.
                 if (d < 0.05f) { if (i > a.idx) continue; d = 0f; }
-                if (d < best) best = d;
+                if (d < best) { best = d; who = i; }
             }
             return best;
+        }
+
+        /// <summary>
+        /// Distance to the nearest truck from ANOTHER route standing in this one's way.
+        ///
+        /// <see cref="GapAhead"/> deliberately only looks at a truck's own fleet: it compares distance
+        /// around a shared loop, which is meaningless between two routes that drive different lines.
+        /// That left every crossing the three routes share completely unpoliced, and the arterial into
+        /// the refinery is shared by all of them — the ore fleet and the cargo fleet simply drove
+        /// through one another there.
+        ///
+        /// This is the cross-route half: straight world-space proximity, restricted to a corridor
+        /// ahead so a truck only yields to something actually in its path and not to the queue passing
+        /// the other way. The lane offset has already dealt with oncoming traffic geometrically, so
+        /// most of what this catches is at junctions.
+        ///
+        /// Deadlock is the thing to be careful of, and there are two cases. Traffic going roughly the
+        /// same way is a queue: whoever is at the head of it is following nobody, so the chain always
+        /// has something moving at the front and yielding to it is safe. Crossing and oncoming traffic
+        /// genuinely can lock, so there the lower agent index has right of way — the lowest index in a
+        /// knot never waits for anyone, so something always moves and the knot unpicks itself.
+        /// </summary>
+        private float CrossGap(TruckAgent a, Vector3 pos, Vector3 dir, out int who)
+        {
+            who = -1;
+            if (_agents == null) return float.MaxValue;
+            float best = float.MaxValue;
+            for (int i = 0; i < _agents.Length; i++)
+            {
+                TruckAgent o = _agents[i];
+                if (i == a.idx || !o.active || o.route == a.route) continue;   // own fleet: GapAhead has it
+                Vector3 rel = Flat(o.body.position - pos);
+                float fwd = rel.x * dir.x + rel.z * dir.z;
+                if (fwd <= 0f || fwd > CrossScan) continue;                    // behind, or too far to matter
+                // Perpendicular distance from the line being driven. Anything wider than the corridor
+                // is in another lane or pulled into a lay-by, and is passing rather than blocking.
+                if (Mathf.Abs(rel.x * dir.z - rel.z * dir.x) > crossCorridor) continue;
+                // Crossing or oncoming MOVING traffic breaks on the index, so a knot always has
+                // someone who does not wait. A truck standing still is different: it cannot be the
+                // one that unpicks the knot, and driving through it is exactly what this is for.
+                // Yielding to it cannot hang, either — it is dwelling at a stop it leaves in under a
+                // second, and the one state that can hold indefinitely (Idle) parks in a lay-by, out
+                // of the corridor. This is what keeps two fleets off each other at a shared works
+                // gate, where both routes terminate on the same few metres of centreline.
+                bool standing = o.state == TK.Loading || o.state == TK.Dropping || o.state == TK.Idle;
+                if (!standing && Vector3.Dot(a.heading, o.heading) < 0.3f && i > a.idx) continue;
+                if (fwd < best) { best = fwd; who = i; }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// How long a truck is willing to sit behind the body in front before it gives up the stand-off
+        /// and squeezes past — decided by whether that body is ever going to move off on its own.
+        ///
+        /// Parked in <see cref="TK.Idle"/>, or retired out of the fleet and left where it stood: it is
+        /// not going anywhere until its pile refills, which on a maxed island can be the rest of the
+        /// session. Waiting is pointless, so wait the minimum. Jammed exactly as we are: it might yet
+        /// free itself, and the whole knot unpicks from the inside out if everyone gives it that long.
+        /// Working — driving, or dwelling at a stop with a timer running — is the case that must NOT
+        /// yield, and never does: that is an ordinary queue, its head rolls on its own, and a queue
+        /// that barges through its own head is worse than the jam this exists to prevent.
+        /// </summary>
+        private float BargeAfter(int who)
+        {
+            if (who < 0 || _agents == null || who >= _agents.Length) return StuckCreep;
+            TruckAgent o = _agents[who];
+            if (!o.active || o.state == TK.Idle) return StuckCreep;
+            return o.stuck > StuckCreep ? StuckBarge : float.MaxValue;
         }
 
         /// <summary>Advances a truck forward around its loop toward the stop point. True on arrival.</summary>
@@ -2929,13 +3402,66 @@ namespace Game.Gameplay
             a.cornerSlow += (slowTo - a.cornerSlow)
                           * (1f - Mathf.Exp(-(slowTo < a.cornerSlow ? CornerBrake : CornerAccel) * dt));
 
-            float budget = speed * a.cornerSlow * dt;
-            float room = GapAhead(a) - truckFollowGap;
+            float stride = speed * a.cornerSlow * dt;
+            float budget = stride;
+            // Two separate rules, whichever leaves less room. Own fleet by distance around the shared
+            // loop, everyone else by proximity in front — see GapAhead and CrossGap.
+            int ownWho, crossWho;
+            float ownAhead = GapAhead(a, out ownWho);
+            float crossAhead = CrossGap(a, pos, dir, out crossWho);
+            float room = Mathf.Min(ownAhead - truckFollowGap, crossAhead - crossFollowGap);
+            // Held up for longer than any junction should take: give ground, in three steps.
+            //
+            // Neither rule above is supposed to deadlock — a following chain is acyclic and a crossing
+            // conflict breaks on the agent index — and this used to be one polite creep on the strength
+            // of that. It was not enough, and a maxed smelter on a boosted island is what found the
+            // hole: the yard empties as fast as the trains fill it, the ore fleet parks in Idle where
+            // it stands, a cargo truck coming off the refinery gate closes to inside HardStop of one of
+            // them, and from there the creep hands out max(0, gap − HardStop) = 0 metres for as long as
+            // the ore keeps arriving in the wrong quantities. Both trucks sit at the works gate for the
+            // rest of the session. The escalation below is what that cost, and what it buys is a
+            // guarantee instead of an argument:
+            //
+            //   1. StuckCreep  the polite gaps go — close to one body length and hold there. This is
+            //                  the whole of the old rule and it still handles every ordinary bunch-up.
+            //                  Against a blocker that is provably parked for good, the body length
+            //                  goes at the same moment; there is nothing to be gained by waiting.
+            //   2. StuckBarge  the body length goes against a blocker that is merely as jammed as we
+            //                  are, having given the knot time to unpick itself first. A queue behind
+            //                  a WORKING truck never reaches either — see BargeAfter — so an ordinary
+            //                  line still stops nose to tail and waits its turn.
+            //   3. StuckForce  everything goes. It should be unreachable. It is the reason nothing
+            //                  can sit at a gate for a session again, whatever a future layout does.
+            //
+            // Measured against distance ASKED FOR rather than against a dead stop, so a truck being
+            // fed a millimetre a frame is held up too — standing still slowly is still standing still.
+            if (room < stride * StuckCrawl)
+            {
+                a.stuck += dt;
+                if (a.stuck > StuckCreep)
+                {
+                    // Whichever of the two rules left less room is the one holding this truck up, so
+                    // that is the truck actually in the way and the one worth asking about.
+                    int who = ownAhead - truckFollowGap <= crossAhead - crossFollowGap ? ownWho : crossWho;
+                    room = Mathf.Max(room, Mathf.Min(stride * 0.25f, Mathf.Min(ownAhead, crossAhead) - HardStop));
+                    // Squeezing past a truck that is never moving, not creeping up on a working one:
+                    // the overlap is unavoidable once that call is made, so the thing to do with it is
+                    // spend as little time in it as possible.
+                    if (a.stuck > BargeAfter(who)) room = Mathf.Max(room, stride * 0.6f);
+                    if (a.stuck > StuckForce) room = stride;
+                }
+            }
+            else a.stuck = 0f;
             if (room < budget) budget = room > 0f ? room : 0f;
             float given = budget;
-            bool arrived = false;
+            // Standing ON the stop already, with the road ahead closed. Arrival cannot be made to wait
+            // on a movement budget that is never coming: a truck parked on its own pickup point and
+            // refused the last centimetre never loads, and the pile under it never drains. This is the
+            // state a truck is put into the moment its slot is bought — body set down on idleIdx — so
+            // it was reachable from a standing start, not just out of a jam.
+            bool arrived = a.wp == stopIdx && Flat(a.loop[stopIdx] - pos).sqrMagnitude < 1e-4f;
             int guard = a.loop.Length + 2;
-            while (budget > 0f && guard-- > 0)
+            while (!arrived && budget > 0f && guard-- > 0)
             {
                 Vector3 target = a.loop[a.wp];
                 Vector3 d = target - pos; d.y = 0f; float dist = d.magnitude;
@@ -2966,14 +3492,24 @@ namespace Game.Gameplay
             // Look further down the road the faster it is going, the way a driver does. A fixed
             // look-ahead makes a fast truck cut late and hard into a bend and a slow one wander.
             Vector3 segDir = dir;   // the tarmac under the truck right now
-            Vector3 aim = LoopLookAhead(a, pos, vehicleLookAhead * Mathf.Clamp(speed / 20f, 0.6f, 2f));
+            float walked;
+            Vector3 aim = LoopLookAhead(a, pos, vehicleLookAhead * Mathf.Clamp(speed / 20f, 0.6f, 2f),
+                                        lookAheadBend, out walked);
             if (aim.sqrMagnitude > 1e-4f) dir = aim.normalized;
 
             // How hard the road bends inside look-ahead: next frame's brake, this frame's slip. The
             // signed angle keeps which WAY it bends, so the slip hangs the tail out of the corner
             // rather than into whatever happened to be alongside.
             float bend = Vector3.SignedAngle(segDir, dir, Vector3.up);
-            a.turnSharp = Mathf.Clamp01(Mathf.Abs(bend) / 90f);
+
+            // Brake on the road's CURVATURE — degrees turned per metre travelled — not on the raw
+            // look-ahead angle. The angle alone stopped meaning anything once the look-ahead was
+            // capped at lookAheadBend: every turn tighter than the cap reported the same number, so
+            // a hairpin and a gentle sweep braked identically. Degrees per metre separates them
+            // again, and it is the same quantity whatever the look-ahead distance happens to be.
+            // 12°/m is about a 4.8 m radius — a turnaround — so that is full brake.
+            float curve = walked > 0.1f ? Mathf.Abs(bend) / walked : 0f;
+            a.turnSharp = Mathf.Clamp01(curve / 12f);
 
             // The slip only holds while the truck is actually covering ground — a queued truck may
             // steer, but it cannot slide. Measured against the full road-speed step, so a crawl in
@@ -3016,34 +3552,88 @@ namespace Game.Gameplay
         private bool DriftFleet(Route r) => Ec.AxisMaxed(r == Route.Ore ? StOreTrucks : StCargoTrucks, 1);
 
         /// <summary>
-        /// Runs the slip off while a truck dwells. DriveLoop is not called while it stands, so a
-        /// truck that slid into its stop would otherwise hold the pose frozen for the whole dwell —
-        /// this way it straightens against the kerb while it loads, which is the handbrake stop the
+        /// What a standing truck does: runs the slip off, and swings round to face the way it will
+        /// leave.
+        ///
+        /// DriveLoop is not called while a truck dwells, so anything it arrived holding it would hold
+        /// for the whole stop — a truck that slid in stayed slid, frozen mid-slide. Running the slip
+        /// off here straightens it against the kerb while it loads, which is the handbrake stop the
         /// slide was promising.
+        ///
+        /// The facing matters more. Every works is a terminus: one road in, so the truck arrives,
+        /// stops, and leaves the way it came. Turning through that 180° while driving is what made
+        /// the reversal read as a truck flicking round in the middle of the road. Turning it here,
+        /// standing at the stop, during a dwell it takes anyway, is a lorry turning in a yard — by
+        /// the time the dwell is up it is already pointing at the exit and simply drives away.
         /// </summary>
-        private void RelaxDrift(TruckAgent a, float dt)
+        private void TurnToDeparture(TruckAgent a, float dt)
         {
-            if (a.driftYaw * a.driftYaw < 0.01f) { a.driftYaw = 0f; return; }
-            a.driftYaw *= Mathf.Exp(-DriftRecover * dt);
-            a.body.rotation = Quaternion.AngleAxis(a.driftYaw, Vector3.up) * a.baseRot;
+            if (a.driftYaw * a.driftYaw < 0.01f) a.driftYaw = 0f;
+            else a.driftYaw *= Mathf.Exp(-DriftRecover * dt);
+
+            int n = a.loop.Length;
+            Vector3 leave = Flat(a.loop[(a.wp + 1) % n] - a.loop[a.wp]);
+            if (leave.sqrMagnitude > 1e-4f)
+            {
+                a.heading = leave.normalized;
+                a.baseRot = Quaternion.Slerp(a.baseRot, VehicleFacing(a.heading),
+                                             1f - Mathf.Exp(-vehicleTurnSmooth * dt));
+            }
+            a.body.rotation = a.driftYaw * a.driftYaw > 0.01f
+                ? Quaternion.AngleAxis(a.driftYaw, Vector3.up) * a.baseRot
+                : a.baseRot;
         }
 
-        /// <summary>Flat vector from <paramref name="pos"/> to the point <paramref name="ahead"/>
-        /// metres further along the loop. Zero if the loop runs out.</summary>
-        private static Vector3 LoopLookAhead(TruckAgent a, Vector3 pos, float ahead)
+        /// <summary>
+        /// Flat vector from <paramref name="pos"/> to the point <paramref name="ahead"/> metres
+        /// further along the loop — but stopping early once the road has bent
+        /// <paramref name="maxBend"/> degrees away from the direction it set off in.
+        ///
+        /// Looking a fixed distance down the road is right on a straight and wrong on a bend, because
+        /// what the truck steers at is the far END of the look-ahead. Through a turn that point is
+        /// already round the corner, so the truck aims across the inside of the bend instead of
+        /// driving it, then has to swing back once the aim point comes round — which is the C-shaped
+        /// dive off the road and back that the turnarounds were making. The tighter the turn the
+        /// worse it got: on a 6 m turnaround, 14 m of look-ahead sits three quarters of the way round
+        /// the arc, very nearly behind the truck.
+        ///
+        /// Cutting the look-ahead off at a fixed BEND rather than a fixed distance keeps the aim
+        /// point just into the corner at every radius: long on a straight, short through a bend,
+        /// which is where a driver actually looks.
+        /// </summary>
+        /// <param name="walked">
+        /// How much road was actually covered getting there. On a straight that is the full
+        /// look-ahead; through a bend the cap cuts it short, and the shortfall is what tells the
+        /// corner brake how tight the turn is — see the curvature read in <see cref="DriveLoop"/>.
+        /// </param>
+        private static Vector3 LoopLookAhead(TruckAgent a, Vector3 pos, float ahead, float maxBend,
+                                             out float walked)
         {
             Vector3 p = pos;
             int i = a.wp;
+            Vector3 first = Vector3.zero;
+            bool haveFirst = false;
+            float minDot = Mathf.Cos(maxBend * Mathf.Deg2Rad);
+            walked = 0f;
             for (int n = 0; n < a.loop.Length && ahead > 0f; n++)
             {
                 Vector3 t = a.loop[i];
-                float d = Flat(t - p).magnitude;
+                Vector3 step = Flat(t - p);
+                float d = step.magnitude;
+                if (d > 1e-4f)
+                {
+                    step /= d;
+                    if (!haveFirst) { first = step; haveFirst = true; }
+                    else if (Vector3.Dot(first, step) < minDot) break;
+                }
                 if (d >= ahead)
                 {
                     p = Vector3.Lerp(p, t, ahead / d);
+                    walked += ahead;
                     break;
                 }
                 ahead -= d;
+                walked += d;
                 p = t;
                 i = (i + 1) % a.loop.Length;
             }
@@ -5453,9 +6043,146 @@ namespace Game.Gameplay
             Vector3[] chimneys = IslandChimneys();
             Material smoke = MakeMat(_srcMat, smokeColor);
 
-            _life = new SiteLife(_islandRoot, workerPrefab, smokePuffPrefab, smoke,
+            // The array is what the people pack is wired into; the old single field stays as the
+            // fallback so a scene that has never been through the wiring tool still gets its crew.
+            GameObject[] bodies = workerPrefabs != null && workerPrefabs.Length > 0
+                                ? workerPrefabs
+                                : new[] { workerPrefab };
+
+            _life = new SiteLife(_islandRoot, bodies, smokePuffPrefab, smoke,
                                  patrol, chimneys, _deckY, workerScale,
                                  maxWorkers, maxSmokePuffs, smokePuffLife, smokePuffRise, smokePuffSpread);
+
+            // Pedestrians give way to traffic. The hook has existed on SiteLife since it was written but
+            // nothing ever assigned it, so the kerb logic and its stuck-worker timeout had never once
+            // run — the ring pavement crosses both arterials, and the crew walked straight through the
+            // trucks. Only this class knows where the trucks are, which is why it answers rather than
+            // SiteLife asking.
+            _life.Hazard = TruckNear;
+
+            _crew = new StationCrew(_islandRoot, bodies, _phases, workerScale,
+                                    maxStationWorkers, postsPerDistrict, stationWorkerLevelsPer,
+                                    stationWalkSpeed, stationDriftRange)
+            {
+                StationLevels = LevelsOnStation,
+                Busy = DistrictBusy,
+            };
+
+            // The machinery. Reads the same busy flags the station crew does, so a district's staff and
+            // its machines start and stop on the same beat rather than disagreeing about whether the
+            // place is running. The BUILDINGS never move — see BuildingPulse for why.
+            _pulse = new BuildingPulse(_phases, maxPulseBodies, pulseBodiesPerDistrict,
+                                       pulseTravel, pulseRate,
+                                       pulseSurgeTravel, pulseSurgeSeconds, pulseRampSeconds)
+            {
+                Busy = DistrictBusy,
+            };
+
+            // And how well kept they are. Same district table as the two above, so the grime lands on
+            // the buildings whose station has actually been left — a worn mine is a filthy mine yard,
+            // not a uniformly brown island.
+            _wear = new DistrictWear(_phases) { Damage = StationDamage };
+            _wear.Refresh();
+
+            // The mine yard is arranged at runtime and the heaps are walked out from under whatever is
+            // standing on them, so the art a district measures at Start is not always where it settles.
+            StartCoroutine(SettleCrew());
+        }
+
+        /// <summary>
+        /// Re-measures the districts over the first few seconds. Same reason <see cref="IslandAmbience"/>
+        /// settles its sound sources: the layout is still moving when this island boots.
+        /// </summary>
+        private System.Collections.IEnumerator SettleCrew()
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                yield return new WaitForSeconds(i == 0 ? 0.5f : 1f);
+                if (_crew != null) _crew.Refresh();
+                if (_pulse != null) _pulse.Refresh();
+            }
+        }
+
+        /// <summary>
+        /// Is an active truck close enough to this point that a pedestrian should wait?
+        ///
+        /// Needs no notion of where the crossings are: trucks only ever exist on roads, so "a truck is
+        /// near my next step" is true exactly at the places someone on foot has to give way, and nowhere
+        /// else.
+        /// </summary>
+        private bool TruckNear(Vector3 p)
+        {
+            if (_agents == null) return false;
+            float r2 = trafficYieldRadius * trafficYieldRadius;
+            for (int i = 0; i < _agents.Length; i++)
+            {
+                TruckAgent a = _agents[i];
+                if (a == null || !a.active || a.body == null) continue;
+                if (Flat(a.body.position - p).sqrMagnitude < r2) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Total levels bought on a station, by name — what staffs a district.</summary>
+        private int LevelsOnStation(string station)
+        {
+            for (int s = 0; s < StationList.Length; s++)
+                if (StationList[s] == station) return StationLevelSum(s);
+            return 0;
+        }
+
+        /// <summary>
+        /// Whether a district is actually running right now, which is what puts its crew to work rather
+        /// than leaving them stood about. Read off state the simulation already keeps — none of this is
+        /// a second simulation to hold in sync with the real one.
+        /// </summary>
+        /// <summary>
+        /// How worn one station is, 0 (as new) to 1 (at the floor) — what <see cref="DistrictWear"/>
+        /// paints with. A station below zero asks for the WORST on the island, which is what the
+        /// districts belonging to no single station follow.
+        ///
+        /// Reads the state of repair rather than the effective condition on purpose: the maintenance
+        /// bonus pushes the effective number above 1, and an island running at 110% should not have
+        /// its grime driven by a figure that means something else.
+        /// </summary>
+        private float StationDamage(int station)
+        {
+            if (_maintenance == null) return 0f;
+
+            float condition;
+            if (station >= 0) condition = _maintenance.StateOfRepair(islandKey, station);
+            else
+            {
+                condition = 1f;
+                for (int s = 0; s < StationList.Length; s++)
+                {
+                    float c = _maintenance.StateOfRepair(islandKey, s);
+                    if (c < condition) condition = c;
+                }
+            }
+            return Game.Core.Maintenance.Damage(condition, _maintenance.Tuning);
+        }
+
+        /// <summary>The grime driver, so a test button can force a tier and inspect the whole range.</summary>
+        public DistrictWear Wear => _wear;
+
+        private bool DistrictBusy(string district)
+        {
+            switch (district)
+            {
+                case "Refinery": return _smeltGlow > 0f;                 // a conversion just landed
+                case "Depot":    return _storeOre > 0d;                  // there is ore in the yard to handle
+                case "Market":   return _bars > 0d;                      // there is stock on the counter
+                case "Haul":
+                case "Fleet":    return _hauledFlow.PerMinute > 0d;      // the trucks are running
+                case "Port":     return _bars > 0d;
+                case "Mine":     return true;                            // the mine never stops
+                // A power plant that has been paid for is burning. It has no throughput of its own to
+                // read — its whole output is the bonus it applies — so being built IS its running state,
+                // and a station on the map that never once moves reads as one that was never finished.
+                case "Power":    return _unlocked[UnlockPowerPlant];
+                default:         return false;                           // Civic: the town is not a workplace
+            }
         }
 
         /// <summary>
@@ -5543,6 +6270,13 @@ namespace Game.Gameplay
 
         private void TickLife(float dt)
         {
+            // Outside the null guard below: the station crew stands on district art, which every
+            // authored island has, whether or not it managed to build a patrol footpath.
+            if (_crew != null) _crew.Tick(dt);
+            // Same: the buildings that animate are district art, not the patrol path's landmarks.
+            if (_pulse != null) _pulse.Tick(dt);
+            // Same again, and on its own slow poll: grime changes on the scale of hours.
+            if (_wear != null) _wear.Tick(dt);
             if (_life == null) return;
             // Crew size follows total investment in the island, so hiring is a visible side effect of
             // every purchase rather than something the player has to manage.
@@ -5550,8 +6284,11 @@ namespace Game.Gameplay
             for (int s = 0; s < _lv.Length; s++) levels += StationLevelSum(s);
             _life.SetCrew(1 + levels / Mathf.Max(1, workerLevelsPer));
             // Puff rate tracks smelting throughput: an idle smelter barely smokes, a maxed one billows.
+            // Between conversions the stacks drop to a wisp rather than going out — a plant whose dozen
+            // chimneys all die the moment the furnace pauses reads as one that has been shut down, which
+            // is the opposite of what a pause between cycles means.
             if (_smeltGlow > 0f) _smeltGlow -= dt;
-            float rate = _smeltGlow > 0f ? Mathf.Clamp(EffSmelt * 0.55f, 0.8f, 6f) : 0f;
+            float rate = _smeltGlow > 0f ? Mathf.Clamp(EffSmelt * 0.55f, 0.8f, 6f) : chimneyIdleRate;
             _life.Tick(dt, rate);
             TickShips(dt);
         }
@@ -5573,6 +6310,20 @@ namespace Game.Gameplay
             for (int s = 0; s < _stationBody.Length; s++)
                 if (_stationBody[s] != null) _stationBaseScale[s] = _stationBody[s].localScale;
         }
+
+        /// <summary>
+        /// The district art a station's purchases show up on — the same pairing the phase controller and
+        /// the station crew use, so a level bought pops the buildings it is about to rebuild and staff.
+        /// TRAIN is absent: its district is the rail line, and squashing track is not a gesture.
+        /// </summary>
+        private static string PulseDistrict(int s) =>
+              s == StMine ? "Mine"
+            : s == StStorage ? "Depot"
+            : s == StSmelter ? "Refinery"
+            : s == StMarket ? "Market"
+            : s == StPower ? "Power"
+            : s == StOreTrucks ? "Haul"
+            : s == StCargoTrucks ? "Fleet" : null;
 
         private int StationLevelSum(int s)
         {

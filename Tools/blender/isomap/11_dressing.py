@@ -36,7 +36,7 @@ def ground_at(x, y):
 # scrub rather than forest even in silhouette. Recolouring alone left the two
 # maps looking like the same wood in different light.
 PINES = []
-if L.ISLAND == "iron":
+if L.DESIGN == "iron":
     for i in range(7):
         h = RNG.uniform(6.0, 10.5)
         PINES.append(P.pine("PineSrc%d" % i, h, h * RNG.uniform(0.42, 0.56), CF,
@@ -109,8 +109,7 @@ while placed < TARGET and tries < 90000:
         continue
     if L.sea_depth(x, y) > -7.0:            # keep off the beach
         continue
-    dr, _ = L.dist_to_path(x, y, L.RIVER)
-    if dr < L.RIVER_W * 0.9:
+    if L.RIVER and L.dist_to_path(x, y, L.RIVER)[0] < L.RIVER_W * 0.9:
         continue
     if any(L.dist_to_path(x, y, p)[0] < 12.5 for p in (L.ROAD_X, L.ROAD_Y)):
         continue
@@ -194,8 +193,7 @@ def clutter_spot():
         return None
     if L.sea_depth(x, y) > -6.0:
         return None
-    dr, _ = L.dist_to_path(x, y, L.RIVER)
-    if dr < L.RIVER_W * 0.8:
+    if L.RIVER and L.dist_to_path(x, y, L.RIVER)[0] < L.RIVER_W * 0.8:
         return None
     if any(L.dist_to_path(x, y, p)[0] < 11.0 for p in (L.ROAD_X, L.ROAD_Y)):
         return None

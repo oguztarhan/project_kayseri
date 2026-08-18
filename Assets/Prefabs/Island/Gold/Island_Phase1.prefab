@@ -117098,6 +117098,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -9096004779071284208, guid: 47cec8181ac4f4da1a9337313403939c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d220f990de7794e69af7ec030110f917, type: 2}
     - target: {fileID: -9095040788615329998, guid: 47cec8181ac4f4da1a9337313403939c, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -117650,6 +117654,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -6312261167394418740, guid: 47cec8181ac4f4da1a9337313403939c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: c2729ddb7df3246a095fcc785087bb70, type: 2}
     - target: {fileID: -6279593406946494540, guid: 47cec8181ac4f4da1a9337313403939c, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -119610,6 +119618,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2973748460800309378, guid: 47cec8181ac4f4da1a9337313403939c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: c2729ddb7df3246a095fcc785087bb70, type: 2}
     - target: {fileID: 3027374233091775597, guid: 47cec8181ac4f4da1a9337313403939c, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 2147483647
@@ -120734,6 +120746,10 @@ PrefabInstance:
       propertyPath: m_StaticEditorFlags
       value: 2147483647
       objectReference: {fileID: 0}
+    - target: {fileID: 8333630404140201079, guid: 47cec8181ac4f4da1a9337313403939c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: e16383a071a1d49abb0aab1e06ca2ccb, type: 2}
     - target: {fileID: 8384464890827531101, guid: 47cec8181ac4f4da1a9337313403939c, type: 3}
       propertyPath: m_Enabled
       value: 0
