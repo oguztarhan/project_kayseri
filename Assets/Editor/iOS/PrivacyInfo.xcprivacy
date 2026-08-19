@@ -2,14 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- AdMob IDFA'ya uzanıyor: izleme var. App Store Connect gizlilik anketiyle BİREBİR aynı olmalı. -->
-    <key>NSPrivacyTracking</key>
-    <true/>
+    <!-- Gizlilik bildirimi paket başınadır: burası yalnız UYGULAMANIN KENDİ kodunu anlatır.
+         AdMob'un IDFA takibini ve alan adlarını GoogleMobileAds.xcframework ile
+         UserMessagingPlatform.xcframework kendi manifestlerinde bildiriyor; burada tekrarlanmaz.
 
-    <!-- Uygulama düzeyinde boş: Google kendi reklam alan adlarını GMA'nın paketlediği manifestte
-         bildiriyor. Apple'ın otomatik denetimi şikayet ederse buraya eklenecek. -->
-    <key>NSPrivacyTrackingDomains</key>
-    <array/>
+         NSPrivacyTracking'i true yapıp NSPrivacyTrackingDomains'i boş bırakmak ITMS-91064
+         (Invalid tracking information) demek — yükleme "Invalid Binary"e düşer. Alan adlarını
+         buraya yazmak da çözüm değil: ATT reddedilince iOS bu alan adlarına giden istekleri
+         engelliyor, yani reklam doldurma tamamen ölüyor. Doğrusu, uygulamanın kendi kodu
+         takip yapmadığı için burayı false bırakmak.
+
+         App Store Connect gizlilik anketi bundan AYRIDIR: o anket uygulama geneli olduğu için
+         AdMob'un topladıklarını da kapsamalı. Bu dosyayla birebir aynı olması beklenmez. -->
+    <key>NSPrivacyTracking</key>
+    <false/>
 
     <key>NSPrivacyCollectedDataTypes</key>
     <array>
@@ -24,34 +30,6 @@
             <key>NSPrivacyCollectedDataTypePurposes</key>
             <array>
                 <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-            </array>
-        </dict>
-
-        <!-- Cihaz kimliği (IDFA): AdMob. İzleme için — ATT izninin sebebi bu. -->
-        <dict>
-            <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypeDeviceID</string>
-            <key>NSPrivacyCollectedDataTypeLinked</key>
-            <false/>
-            <key>NSPrivacyCollectedDataTypeTracking</key>
-            <true/>
-            <key>NSPrivacyCollectedDataTypePurposes</key>
-            <array>
-                <string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
-            </array>
-        </dict>
-
-        <!-- Reklam verisi: gösterim ve etkileşim ölçümü, yine AdMob. -->
-        <dict>
-            <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypeAdvertisingData</string>
-            <key>NSPrivacyCollectedDataTypeLinked</key>
-            <false/>
-            <key>NSPrivacyCollectedDataTypeTracking</key>
-            <true/>
-            <key>NSPrivacyCollectedDataTypePurposes</key>
-            <array>
-                <string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
             </array>
         </dict>
     </array>
