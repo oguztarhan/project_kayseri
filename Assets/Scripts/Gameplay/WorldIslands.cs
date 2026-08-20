@@ -34,6 +34,8 @@ namespace Game.Gameplay
         private CoalOperation[] _ops;
         private WalletService _wallet;
         private MarketService _market;
+        private TimeService _time;
+        private SaveService _save;
         private SaveData _data;
         private int _active;
 
@@ -68,6 +70,8 @@ namespace Game.Gameplay
             if (islands == null || islands.Length == 0) islands = DefaultLadder();
             _data = ServiceLocator.Get<SaveData>();
             _market = ServiceLocator.Get<MarketService>();
+            _time = ServiceLocator.Get<TimeService>();
+            _save = ServiceLocator.Get<SaveService>();
 
             // match each entry to its operation component (they all live on this controller object)
             _ops = new CoalOperation[islands.Length];
@@ -79,6 +83,17 @@ namespace Game.Gameplay
             _active = 0;
             StationLevel act = FindLevel("worldactive");
             if (act != null && act.level >= 0 && act.level < islands.Length && IsOwned(act.level)) _active = act.level;
+
+            // The old starter was account-wide. Convert it before starting today's island so a legacy
+            // buyer is not offered old islands again and an unbought countdown keeps its original age.
+            var owned = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < islands.Length; i++) if (IsOwned(i)) owned.Add(islands[i].key);
+            bool starterChanged = StarterOfferState.MigrateLegacy(
+                _data, islands[_active].key, owned);
+            if (_time != null)
+                starterChanged |= StarterOfferState.EnsureStarted(
+                    _data, islands[_active].key, _time.NowUnix());
+            if (starterChanged && _save != null) _save.Save(_data);
 
             // exactly one island alive: Awake runs before every Start, so inactive operations never boot
             for (int i = 0; i < islands.Length; i++) SetIslandLive(i, i == _active);
@@ -103,6 +118,14 @@ namespace Game.Gameplay
             _active = i;
             SetIslandLive(i, true);
             SaveLevel("worldactive", i);
+            // Entering an island, not opening the store, starts its independent two-day window.
+            if (_time == null) _time = ServiceLocator.Get<TimeService>();
+            if (_save == null) _save = ServiceLocator.Get<SaveService>();
+            if (_time != null)
+                StarterOfferState.EnsureStarted(_data, islands[i].key, _time.NowUnix());
+            // Persist both the travel target and the offer stamp together. Otherwise killing the app
+            // immediately after arrival could restart the 48-hour clock on the next launch.
+            if (_save != null) _save.Save(_data);
             // Which island's trucks are really driving. Every other yard is fed by the rate its own
             // trucks last managed, so telling the ledger this is what stops it double-counting the one
             // island that is delivering for real.

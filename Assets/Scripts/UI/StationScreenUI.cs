@@ -458,7 +458,7 @@ namespace Game.UI
         {
             if (stage != null) stage.Live = false;
             if (_loc != null) _loc.Changed -= OnLanguageChanged;
-            if (_phases != null) { _phases.PhaseChanged -= OnDistrictPhaseChanged; _phases = null; }
+            if (_phases != null) { _phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted; _phases = null; }
         }
 
         /// <summary>
@@ -471,12 +471,12 @@ namespace Game.UI
         {
             Kayseri.Island.IslandPhaseController next = _op != null ? _op.Phases : null;
             if (next == _phases) return;
-            if (_phases != null) _phases.PhaseChanged -= OnDistrictPhaseChanged;
+            if (_phases != null) _phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted;
             _phases = next;
-            if (_phases != null) _phases.PhaseChanged += OnDistrictPhaseChanged;
+            if (_phases != null) _phases.PhaseRefreshCompleted += OnPhaseRefreshCompleted;
         }
 
-        private void OnDistrictPhaseChanged(string district, int phase)
+        private void OnPhaseRefreshCompleted()
         {
             // Açılışta değil. Ada önce faz 1'de kuruluyor, sonra kayıttaki seviyeler uygulanınca
             // bulunduğu faza sıçrıyor; bu da bölge bölge PhaseChanged olarak rapor ediliyor. Oyuncu
@@ -763,18 +763,15 @@ namespace Game.UI
         /// </summary>
         private string Multipliers()
         {
-            if (_prestige == null) _prestige = ServiceLocator.Get<PrestigeService>();
             if (_boost == null) _boost = ServiceLocator.Get<BoostService>();
 
-            double investors = _prestige != null ? _prestige.IncomeMultiplier : 1d;
-            double permanent = _boost != null ? _boost.PermanentMultiplier : 1d;
+            double legacy = _market != null ? _market.LegacyIncomeMultiplier : 1d;
+            double permanent = (_boost != null ? _boost.PermanentMultiplier : 1d) * legacy;
             double boost = _boost != null && _boost.IsActive ? _boost.ActiveMultiplier : 1d;
-            if (investors <= 1.0001d && permanent <= 1.0001d && boost <= 1.0001d)
+            if (permanent <= 1.0001d && boost <= 1.0001d)
                 return Loc.T("rapor.carpan_yok");
 
             string line = "";
-            if (investors > 1.0001d)
-                line = string.Format(Loc.T("rapor.yatirimci"), investors.ToString("0.00", Culture));
             if (permanent > 1.0001d)
             {
                 if (line.Length > 0) line += "  ·  ";
@@ -794,7 +791,6 @@ namespace Game.UI
         private static string Tenth(double v) => ((float)v).ToString("0.0", Culture);
 
         private MarketService _market;
-        private PrestigeService _prestige;
         private BoostService _boost;
 
         private Row AddCard(string name, Sprite icon)
@@ -1348,7 +1344,7 @@ namespace Game.UI
         {
             _busy = true;
             SetButtons(false);
-            // Ses ve titreşim OnDistrictPhaseChanged'den geliyor; o zaten bu karede çalıştı.
+            // Ses ve titreşim toplu faz bildirimiyle geliyor; o zaten bu karede bir kez çalıştı.
             Bind();
 
             // The island rebuild already happened in the purchase frame. Let that frame finish before

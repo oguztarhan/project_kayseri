@@ -38,6 +38,7 @@ namespace Game.Gameplay
 
         private AudioSource[] _live;
         private AudioService _audio;
+        private Coroutine _phasePlacement;
 
         private void Start()
         {
@@ -48,7 +49,7 @@ namespace Game.Gameplay
             _audio.MixChanged += ApplyVolumes;
 
             if (phases == null) phases = GetComponentInChildren<Kayseri.Island.IslandPhaseController>(true);
-            if (phases != null) phases.PhaseChanged += OnPhaseChanged;
+            if (phases != null) phases.PhaseRefreshCompleted += OnPhaseRefreshCompleted;
 
             Build();
             Place();
@@ -75,10 +76,24 @@ namespace Game.Gameplay
         private void OnDestroy()
         {
             if (_audio != null) _audio.MixChanged -= ApplyVolumes;
-            if (phases != null) phases.PhaseChanged -= OnPhaseChanged;
+            if (phases != null) phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted;
         }
 
-        private void OnPhaseChanged(string district, int phase) => Place();
+        private void OnPhaseRefreshCompleted()
+        {
+            if (_phasePlacement == null) _phasePlacement = StartCoroutine(PlaceAfterPhase());
+        }
+
+        private System.Collections.IEnumerator PlaceAfterPhase()
+        {
+            // Bounds collection walks every renderer below each audible district. Let lighting take
+            // the first two follow-up frames and move the audio sources after those scans.
+            yield return null;
+            yield return null;
+            yield return null;
+            Place();
+            _phasePlacement = null;
+        }
 
         private void Build()
         {

@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Gameplay;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
@@ -10,16 +11,13 @@ namespace Game.UI
     /// with the time left and switches the whole card off once the window closes, so the store stops
     /// advertising something that can no longer be bought.
     ///
-    /// The clock is stamped by <see cref="PremiumStoreUI"/> the first time the store is opened rather
-    /// than at install: a player who comes back on day three should still get the full window instead
-    /// of an offer that quietly expired while they were away.
+    /// The clock is stamped by <see cref="WorldIslands"/> when an island is entered. Every island owns
+    /// a separate window, so an expired coal offer cannot hide a fresh copper offer.
     /// </summary>
     public sealed class OfferCountdown : MonoBehaviour
     {
         [Tooltip("Rozetin içindeki süre yazısı.")]
         [SerializeField] private TMP_Text label;
-        [Tooltip("Teklifin açık kaldığı süre, saat.")]
-        [SerializeField] private float windowHours = 48f;
         [Tooltip("Kalan süre bunun altına inince rozet nabız gibi atar, saniye.")]
         [SerializeField] private float urgentSeconds = 3600f;
         [SerializeField] private float pulseScale = 1.09f;
@@ -30,6 +28,7 @@ namespace Game.UI
         private RectTransform _labelRt;
         private SaveData _data;
         private TimeService _time;
+        private WorldIslands _world;
         private int _painted = -1;
 
         private void Awake()
@@ -41,6 +40,7 @@ namespace Game.UI
         {
             _data = ServiceLocator.Get<SaveData>();
             _time = ServiceLocator.Get<TimeService>();
+            _world = FindAnyObjectByType<WorldIslands>();
             _painted = -1;
             Tick();
         }
@@ -69,13 +69,12 @@ namespace Game.UI
             _labelRt.localScale = new Vector3(k, k, 1f);
         }
 
-        /// <summary>Full window until the store has been opened once — the stamp is what starts the clock.</summary>
+        /// <summary>The active island's own window; bought, expired or unstamped islands return zero.</summary>
         private long SecondsLeft()
         {
-            long window = (long)(windowHours * 3600f);
-            if (_data == null || _time == null || _data.starterOfferSeenUnix <= 0L) return window;
-            long left = window - _time.ElapsedSince(_data.starterOfferSeenUnix);
-            return left > 0L ? left : 0L;
+            if (_data == null || _time == null || _world == null) return 0L;
+            return StarterOfferState.SecondsLeft(
+                _data, _world.IslandKey(_world.ActiveIndex), _time.NowUnix());
         }
 
         /// <summary>Writes SS:DD:SN into the reused buffer; building a string every second would allocate.</summary>

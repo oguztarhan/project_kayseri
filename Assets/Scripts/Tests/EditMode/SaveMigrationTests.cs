@@ -54,6 +54,33 @@ namespace Game.Tests
             Assert.IsFalse(SaveMigration.NeedsReset(new SaveData()));
         }
 
+        [Test]
+        public void RetiringPrestigeFreezesExistingInvestorBonusOnce()
+        {
+            var data = new SaveData();
+            data.wallet.investors = 10d;
+            data.wallet.lifetimeCash = new BigDouble(50000d);
+
+            Assert.IsTrue(SaveMigration.RetirePrestige(data, 0.10d));
+            Assert.IsTrue(data.prestigeRetired);
+            Assert.AreEqual(2d, data.legacyIncomeMultiplier, 1e-9);
+            Assert.AreEqual(0d, data.wallet.investors, 1e-9);
+            Assert.IsTrue(data.wallet.lifetimeCash.IsZero);
+
+            data.legacyIncomeMultiplier = 2.5d;
+            Assert.IsFalse(SaveMigration.RetirePrestige(data, 0.10d));
+            Assert.AreEqual(2.5d, data.legacyIncomeMultiplier, 1e-9, "migration must never run twice");
+        }
+
+        [Test]
+        public void RetiringPrestigeLeavesNewPlayerAtOneTimesIncome()
+        {
+            var data = new SaveData();
+
+            Assert.IsTrue(SaveMigration.RetirePrestige(data, 0.10d));
+            Assert.AreEqual(1d, data.legacyIncomeMultiplier, 1e-9);
+        }
+
         /// <summary>Wiping once is the feature; wiping every launch is a bug. The reset stamps the version.</summary>
         [Test]
         public void ResettingDoesNotArmAnotherReset()

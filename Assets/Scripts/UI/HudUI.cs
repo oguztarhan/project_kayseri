@@ -63,7 +63,6 @@ namespace Game.UI
 
         [Header("Alt")]
         [SerializeField] private Button upgradeButton;
-        [SerializeField] private Button prestigeButton;
         [Tooltip("Yükseltmenin solundaki kısayol: reklam izle, gelir 2× olsun. Hak ve bekleme süresi UI_Reklam'daki yuvanın.")]
         [SerializeField] private Button boostButton;
         [SerializeField] private Image boostButtonImage;
@@ -78,7 +77,6 @@ namespace Game.UI
         [SerializeField] private IslandMapUI islandMap;
         [SerializeField] private SettingsUI settings;
         [SerializeField] private DailyRewardUI dailyScreen;
-        [SerializeField] private PrestigeUI prestigeScreen;
         [SerializeField] private ContractUI contractScreen;
         [SerializeField] private AdRewardUI adScreen;
         [Tooltip("Açılır fırsat penceresi. Kendi zamanlamasını kendi yönetir; HUD sadece butonu ona açar.")]
@@ -137,7 +135,6 @@ namespace Game.UI
             if (upgradeButton != null) upgradeButton.onClick.AddListener(OnUpgrades);
             if (rateButton != null) rateButton.onClick.AddListener(OnRate);
             if (boostButton != null) boostButton.onClick.AddListener(OnBoost);
-            if (prestigeButton != null) prestigeButton.onClick.AddListener(OnPrestige);
             if (settingsButton != null) settingsButton.onClick.AddListener(OnSettings);
 
             if (_wallet != null) _wallet.GemsChanged += RefreshGems;
@@ -267,7 +264,7 @@ namespace Game.UI
                 if (boosted && boostValue != null)
                     boostValue.text = "×" + _boost.ActiveMultiplier.ToString("0.#",
                         System.Globalization.CultureInfo.InvariantCulture)
-                        + "  " + ContractUI.ClockText(_boost.SecondsLeft);
+                        + "  " + LongClock(_boost.SecondsLeft);
             }
             RefreshBoostButton(boosted);
 
@@ -293,13 +290,19 @@ namespace Game.UI
         /// and seconds, which is right for a contract and reads as "1440:00" on a 24-hour shield —
         /// so anything past the hour mark gets an hour field of its own here.
         /// </summary>
-        private static string LongClock(float seconds)
+        public static string LongClock(float seconds)
         {
             if (seconds < 3600f) return ContractUI.ClockText(seconds);
             int total = Mathf.CeilToInt(seconds);
+            if (total >= 86400)
+            {
+                int d = total / 86400;
+                int dh = (total - d * 86400) / 3600;
+                return string.Format(Loc.T("ortak.sure_gun_sa"), d, dh);
+            }
             int h = total / 3600;
             int m = (total - h * 3600) / 60;
-            return h + ":" + (m < 10 ? "0" + m : m.ToString());
+            return string.Format(Loc.T("ortak.sure_sa_dk"), h, m);
         }
 
         /// <summary>
@@ -389,7 +392,6 @@ namespace Game.UI
         public RectTransform BoostRect => Rect(boostButton);
         public RectTransform DailyRect => Rect(dailyButton);
         public RectTransform MapRect => Rect(mapButton);
-        public RectTransform PrestigeRect => Rect(prestigeButton);
         public RectTransform GoldRect => Rect(goldButton);
         public RectTransform SettingsRect => Rect(settingsButton);
         public RectTransform StoreRect => Rect(storeButton);
@@ -447,11 +449,6 @@ namespace Game.UI
         private void OnSettings()
         {
             if (settings != null) settings.Toggle();
-        }
-
-        private void OnPrestige()
-        {
-            if (prestigeScreen != null) prestigeScreen.Toggle();
         }
 
         private void OnContract()

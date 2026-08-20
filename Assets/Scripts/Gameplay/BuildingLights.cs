@@ -37,6 +37,7 @@ namespace Game.Gameplay
         private Material _material;
         private float _rebindIn;
         private bool _built;
+        private Coroutine _phaseRebuild;
 
         /// <summary>
         /// Travelling to another island enables a different <see cref="CoalOperation"/> and disables
@@ -69,19 +70,31 @@ namespace Game.Gameplay
 
             if (phases != _phases)
             {
-                if (_phases != null) _phases.PhaseChanged -= OnPhaseChanged;
+                if (_phases != null) _phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted;
                 _phases = phases;
-                if (_phases != null) _phases.PhaseChanged += OnPhaseChanged;
+                if (_phases != null) _phases.PhaseRefreshCompleted += OnPhaseRefreshCompleted;
             }
 
             _built = Rebuild();
         }
 
-        private void OnPhaseChanged(string district, int phase) => _built = Rebuild();
+        private void OnPhaseRefreshCompleted()
+        {
+            if (_phaseRebuild == null) _phaseRebuild = StartCoroutine(RebuildAfterPhase());
+        }
+
+        private System.Collections.IEnumerator RebuildAfterPhase()
+        {
+            // SetActive and the station preview already occupy the purchase frame. The building scan
+            // can safely follow one frame later without changing what the player sees.
+            yield return null;
+            _built = Rebuild();
+            _phaseRebuild = null;
+        }
 
         private void OnDestroy()
         {
-            if (_phases != null) _phases.PhaseChanged -= OnPhaseChanged;
+            if (_phases != null) _phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted;
             if (_marker != null) Destroy(_marker);
             if (_material != null) Destroy(_material);
         }

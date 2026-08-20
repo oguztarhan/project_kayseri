@@ -193,6 +193,8 @@ namespace Game.Gameplay
 
         private Camera _camera;
         private float _rebindIn;
+        private bool _rebuildQueued;
+        private int _rebuildDelayFrames;
         private UnityEngine.Rendering.Universal.UniversalAdditionalCameraData _cameraData;
 
         private void Start()
@@ -222,9 +224,9 @@ namespace Game.Gameplay
             { live = controller; break; }
             if (live == _phases) return;
 
-            if (_phases != null) _phases.PhaseChanged -= OnPhaseChanged;
+            if (_phases != null) _phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted;
             _phases = live;
-            if (_phases != null) _phases.PhaseChanged += OnPhaseChanged;
+            if (_phases != null) _phases.PhaseRefreshCompleted += OnPhaseRefreshCompleted;
 
             Rebuild();
         }
@@ -244,16 +246,24 @@ namespace Game.Gameplay
             }
         }
 
-        private void OnPhaseChanged(string district, int phase) => Rebuild();
+        private void OnPhaseRefreshCompleted()
+        {
+            _rebuildQueued = true;
+            _rebuildDelayFrames = Mathf.Max(_rebuildDelayFrames, 3);
+        }
 
         /// <summary>Scan for lights again. For anything that PUTS lights in the scene at runtime —
         /// <see cref="StreetLamps"/>, <see cref="BuildingLights"/> — which would otherwise have to
         /// land inside this component's settle window to be seen at all.</summary>
-        public void Refresh() => Rebuild();
+        public void Refresh()
+        {
+            _rebuildQueued = true;
+            _rebuildDelayFrames = Mathf.Max(_rebuildDelayFrames, 1);
+        }
 
         private void OnDestroy()
         {
-            if (_phases != null) _phases.PhaseChanged -= OnPhaseChanged;
+            if (_phases != null) _phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted;
             if (_mesh != null) Destroy(_mesh);
         }
 
@@ -714,6 +724,18 @@ namespace Game.Gameplay
         private void Update()
         {
             Rebind();
+
+            // BuildingLights, StreetLamps and the phase controller can all request the same global
+            // scan during one rebuild. Coalesce them here, after their hierarchy edits have finished,
+            // so the scene is walked once on the following frame rather than repeatedly inside the
+            // purchase click.
+            if (_rebuildDelayFrames > 0)
+                _rebuildDelayFrames--;
+            else if (_rebuildQueued)
+            {
+                _rebuildQueued = false;
+                Rebuild();
+            }
 
             // All three, not just the mesh: a domain reload in play mode hands the Mesh reference
             // back but drops the plain arrays alongside it, and the frame after a recompile then

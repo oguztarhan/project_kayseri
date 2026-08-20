@@ -761,15 +761,24 @@ namespace Game.UI
                 yield return Fade(0f, 1f, fadeOutSeconds, 0f, 0.18f);
             }
 
+            int previousIsland = _world.ActiveIndex;
             CoalOperation op = _world.Travel(i);
-            if (op != null)
+            bool arrived = previousIsland != i && _world.ActiveIndex == i;
+            if (arrived)
             {
                 if (_camBoot == null) _camBoot = FindAnyObjectByType<OperationCameraBoot>();
                 if (_upgrades == null) _upgrades = FindAnyObjectByType<StationScreenUI>(FindObjectsInactive.Include);
                 if (_juice == null) _juice = FindAnyObjectByType<HudJuice>();
+
+                // Camera framing belongs to the island switch, not to the optional operation binding.
+                // If an operation is late/missing on a device, the destination is still live and must
+                // never inherit the previous island's camera position.
                 if (_camBoot != null) _camBoot.FrameOn(_world.RootName(i));
-                if (_upgrades != null) _upgrades.SetOperation(op);
-                if (_juice != null) _juice.SetOperation(op);
+                if (op != null)
+                {
+                    if (_upgrades != null) _upgrades.SetOperation(op);
+                    if (_juice != null) _juice.SetOperation(op);
+                }
             }
             TravelProgress(0.58f);
 

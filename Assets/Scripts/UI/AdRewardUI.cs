@@ -274,7 +274,7 @@ namespace Game.UI
                 default:
                     return string.Format(Loc.T("reklam.gelir"),
                         slot.boostMultiplier.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture),
-                        Minutes(slot.boostSeconds));
+                        Minutes((float)BoostService.RewardedAdSeconds));
             }
         }
 
@@ -373,7 +373,7 @@ namespace Game.UI
                     if (_wallet != null) _wallet.AddCash(new BigDouble(IncomePerMinute() * slot.incomeMinutes));
                     break;
                 default:
-                    if (_boost != null) _boost.AddBoost(slot.boostMultiplier, slot.boostSeconds);
+                    if (_boost != null) _boost.AddRewardedAdBoost(slot.boostMultiplier);
                     break;
             }
             _free.Consume(slot.id);

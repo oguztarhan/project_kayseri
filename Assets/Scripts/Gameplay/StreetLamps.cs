@@ -82,6 +82,7 @@ namespace Game.Gameplay
 
         private Transform _root;
         private Mesh _marker;
+        private Coroutine _phaseRebuild;
         private readonly List<Vector3> _kerb = new List<Vector3>();
         private readonly List<int> _kerbRoad = new List<int>();
         private readonly List<Node> _nodes = new List<Node>();
@@ -114,9 +115,9 @@ namespace Game.Gameplay
 
             if (live != _phases)
             {
-                if (_phases != null) _phases.PhaseChanged -= OnPhaseChanged;
+                if (_phases != null) _phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted;
                 _phases = live;
-                if (_phases != null) _phases.PhaseChanged += OnPhaseChanged;
+                if (_phases != null) _phases.PhaseRefreshCompleted += OnPhaseRefreshCompleted;
             }
 
             // Keeps trying until it actually stands something. The roads are not in the scene for
@@ -133,11 +134,24 @@ namespace Game.Gameplay
             return null;
         }
 
-        private void OnPhaseChanged(string district, int phase) => _built = Rebuild();
+        private void OnPhaseRefreshCompleted()
+        {
+            if (_phaseRebuild == null) _phaseRebuild = StartCoroutine(RebuildAfterPhase());
+        }
+
+        private System.Collections.IEnumerator RebuildAfterPhase()
+        {
+            // Lamp placement samples readable road meshes and can instantiate a large row. Keep it
+            // off both the purchase frame and the building-light frame.
+            yield return null;
+            yield return null;
+            _built = Rebuild();
+            _phaseRebuild = null;
+        }
 
         private void OnDestroy()
         {
-            if (_phases != null) _phases.PhaseChanged -= OnPhaseChanged;
+            if (_phases != null) _phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted;
             if (_marker != null) Destroy(_marker);
         }
 

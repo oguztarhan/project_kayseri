@@ -13,6 +13,10 @@ namespace Game.Systems
     {
         public int version = SaveMigration.CurrentVersion;  // stamped on write; a mismatch on load
                                                             // wipes the run — see SaveMigration
+        // One-time, non-destructive retirement of prestige. Existing investors become this frozen
+        // permanent income bonus; new players remain at x1.
+        public bool prestigeRetired;
+        public double legacyIncomeMultiplier = 1d;
         public long savedUnixSeconds;
         public long lastDailyClaimUnix;               // daily reward (GDD §11)
         public int dailyStreak;                       // consecutive daily claims; drives the 7-day ladder
@@ -28,11 +32,20 @@ namespace Game.Systems
         public List<FreeRewardState> freeRewards = new List<FreeRewardState>();  // rewarded-ad slots (GDD §10)
         public bool adsRemoved;                      // the remove-ads purchase, so it survives a restart
         public List<string> purchasedOffers = new List<string>();  // one-time offer skus already owned
+        // StoreKit/Play can redeliver an unconfirmed order after an app kill or network failure. The
+        // reward and this id are written in the same save before the order is confirmed, making that
+        // redelivery harmless instead of paying the same transaction twice.
+        public List<string> processedIapTransactions = new List<string>();
         public double stationSpeedMultiplier = 1d;  // Maden Patronu: permanent station clock multiplier
         public double offlineEfficiencyBonus;        // permanent offline perks bought from the store, added
         public long offlineCapBonusSeconds;          // on top of OfflineConfig's base efficiency and cap
-        public long starterOfferSeenUnix;            // first time the store was opened; starts the starter
-                                                     // offer's 48h window (0 = never opened, clock not running)
+        public long starterOfferSeenUnix;            // legacy account-wide timestamp; migrated once below
+        // Legacy field above is migrated once into these per-island windows. A newly entered island gets
+        // its own 48-hour starter window; buying one island's pack must not close the next island's.
+        public bool starterOffersMigrated;
+        public List<StarterOfferWindow> starterOfferWindows = new List<StarterOfferWindow>();
+        public string pendingStarterIsland = "";      // island captured before StoreKit/Play opens;
+                                                     // survives an app kill between payment and grant
         public double dailyRewardBonusMult;          // permanent daily-reward multiplier bought from the store;
                                                      // the effective multiplier is 1 + this, so 1 means doubled
         public int freeRewardBonusCharges;           // extra rewarded-ad charges per slot per day, bought
@@ -90,6 +103,13 @@ namespace Game.Systems
         public int marketCarryLevel;                 // the stack the player carries on his back. One body,
                                                      // one upgrade — deliberately outside MarketYard, which
                                                      // is per island
+    }
+
+    [Serializable]
+    public class StarterOfferWindow
+    {
+        public string island;
+        public long startedUnix;
     }
 
     [Serializable]
@@ -199,8 +219,10 @@ namespace Game.Systems
     {
         public BigDouble cash;
         public long gems;
-        public double investors;         // prestige currency (GDD §8)
-        public BigDouble lifetimeCash;   // total cash earned this run, for prestige payout
+        // Kept for save compatibility after prestige was retired. Runtime systems no longer write or
+        // read these fields; removing them would make old JsonUtility payloads harder to migrate safely.
+        public double investors;
+        public BigDouble lifetimeCash;
     }
 
     [Serializable]

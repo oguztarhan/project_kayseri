@@ -68,7 +68,6 @@ namespace Game.Systems
 
         private readonly SaveData _data;
         private readonly WalletService _wallet;
-        private readonly PrestigeService _prestige;
         private readonly BoostService _boost;
         private readonly MaintenanceService _maintenance;   // null in tests: everything reads as new
 
@@ -78,7 +77,12 @@ namespace Game.Systems
         private string _activeIsland;    // the one whose trucks are really driving; null in the market scene
         private string _simulatedYard;   // the one being acted out on screen; null when nobody is in the hall
         private float _accum;
-        private double _prestigeMult = 1d, _boostMult = 1d, _permanentSpeed = 1d, _simSpeed = 1d;
+        private double _legacyIncomeMult = 1d, _boostMult = 1d, _permanentSpeed = 1d, _simSpeed = 1d;
+
+        /// <summary>Frozen compensation for investors earned before prestige was retired.</summary>
+        public double LegacyIncomeMultiplier => _data != null && _data.legacyIncomeMultiplier > 1d
+            ? _data.legacyIncomeMultiplier
+            : 1d;
 
         /// <summary>
         /// Raised when a yard actually sells: which island, and what the wallet was paid. The floating
@@ -87,12 +91,11 @@ namespace Game.Systems
         /// </summary>
         public event Action<string, double> Sold;
 
-        public MarketService(SaveData data, WalletService wallet, PrestigeService prestige, BoostService boost,
+        public MarketService(SaveData data, WalletService wallet, BoostService boost,
                              MaintenanceService maintenance = null)
         {
             _data = data;
             _wallet = wallet;
-            _prestige = prestige;
             _boost = boost;
             _maintenance = maintenance;
         }
@@ -298,7 +301,7 @@ namespace Game.Systems
             Yard y = Get(islandKey);
             if (y.terms == null) return 0d;
             return MarketPrices.Cost(kind, Level(islandKey, kind),
-                                     y.terms.IncomeCapPerMinuteRaw * _prestigeMult);
+                                     y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult);
         }
 
         /// <summary>True when this track has nothing left to sell.</summary>
@@ -345,7 +348,7 @@ namespace Game.Systems
             _accum = 0f;
 
             // Once a second, off the sale path — the same cadence the island meter used.
-            _prestigeMult = _prestige != null ? _prestige.IncomeMultiplier : 1d;
+            _legacyIncomeMult = LegacyIncomeMultiplier;
             _boostMult = _boost != null ? _boost.ActiveMultiplier : 1d;
             _permanentSpeed = _boost != null ? _boost.PermanentMultiplier : 1d;
             // Spent on the live island's clock when there is one running, and on price otherwise. The
@@ -434,10 +437,10 @@ namespace Game.Systems
             // the same place either way, and the income meter (which feeds SaveData.incomeRatePerSec, and
             // through it the NEXT session's offline grant) never banks a rate that only existed while an
             // ad was running.
-            double sale = bars * y.terms.BarPriceRaw * _prestigeMult / speed * _permanentSpeed;
+            double sale = bars * y.terms.BarPriceRaw * _legacyIncomeMult / speed * _permanentSpeed;
             if (sale <= 0d) return 0d;
 
-            double cap = y.terms.IncomeCapPerMinuteRaw * _prestigeMult * _permanentSpeed;
+            double cap = y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed;
             double headroom = cap - (y.earnTrailing + y.earnedThisTick);
             if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
             if (sale <= 0d) return 0d;
@@ -518,7 +521,7 @@ namespace Game.Systems
             if (y.earnFilled < y.earnBuckets.Length) y.earnFilled++;
 
             double cap = y.terms != null
-                ? y.terms.IncomeCapPerMinuteRaw * _prestigeMult * _permanentSpeed
+                ? y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed
                 : double.MaxValue;
             // Clamp the extrapolation rather than the buckets: while the window is still filling, one
             // good second scaled up by 60/filled reads far above anything the yard can sustain.

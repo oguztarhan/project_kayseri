@@ -26,9 +26,13 @@ namespace Game.Systems
         IReadOnlyList<string> Entitlements { get; }
         event Action ProductsUpdated;
         event Action<IReadOnlyList<string>> EntitlementsUpdated;
-        event Action<string> UnfinishedPurchase;
+        event Action<string, string> UnfinishedPurchase;
         string LocalizedPrice(string sku, string fallback);
-        void Purchase(string sku, Action<bool> onDone);
+        /// <summary>
+        /// Completes with the platform transaction id. The reward must be saved against that id before
+        /// this callback returns; only then may the platform order be confirmed.
+        /// </summary>
+        void Purchase(string sku, Action<bool, string> onDone);
         void RestorePurchases(Action<bool, string> onDone);
         /// <summary>Yarıda kalmış siparişleri yeniden teslim etmeyi dener.</summary>
         void RetryUnfinishedPurchases();
@@ -42,12 +46,37 @@ namespace Game.Systems
         public IReadOnlyList<string> Entitlements => NoEntitlements;
         public event Action ProductsUpdated { add { } remove { } }
         public event Action<IReadOnlyList<string>> EntitlementsUpdated { add { } remove { } }
-        public event Action<string> UnfinishedPurchase { add { } remove { } }
+        public event Action<string, string> UnfinishedPurchase { add { } remove { } }
         public string LocalizedPrice(string sku, string fallback) => fallback;
-        public void Purchase(string sku, Action<bool> onDone) => onDone?.Invoke(false);
+        public void Purchase(string sku, Action<bool, string> onDone) => onDone?.Invoke(false, null);
         public void RestorePurchases(Action<bool, string> onDone)
             => onDone?.Invoke(false, "Mağaza bu platformda kullanılamıyor.");
         public void RetryUnfinishedPurchases() { }
+    }
+
+    /// <summary>
+    /// Durable idempotency journal shared by every IAP reward path. A transaction is recorded in the
+    /// same SaveData object as its reward, then both are written before the platform order is confirmed.
+    /// </summary>
+    public static class IapTransactionJournal
+    {
+        public static bool Contains(SaveData data, string transactionId)
+        {
+            return data != null && !string.IsNullOrEmpty(transactionId)
+                   && data.processedIapTransactions != null
+                   && data.processedIapTransactions.Contains(transactionId);
+        }
+
+        /// <summary>Returns true only the first time this transaction is recorded.</summary>
+        public static bool Record(SaveData data, string transactionId)
+        {
+            if (data == null || string.IsNullOrEmpty(transactionId)) return false;
+            if (data.processedIapTransactions == null)
+                data.processedIapTransactions = new List<string>();
+            if (data.processedIapTransactions.Contains(transactionId)) return false;
+            data.processedIapTransactions.Add(transactionId);
+            return true;
+        }
     }
 
     public struct LocalNotificationRequest

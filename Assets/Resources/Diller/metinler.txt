@@ -19,6 +19,7 @@ ortak.sure_dk	{0} DK	{0} MIN	{0} MIN	{0} MIN	{0} MIN	{0} MIN	{0} MIN	{0} MIN	{0}
 ortak.sure_sn	{0} SN	{0} SEC	{0} SEK	{0} SEC	{0} SEG	{0} SEG	{0} SEC	{0} SEK	{0} СЕК	{0} DTK	{0} GIÂY
 ortak.sure_sa	{0} SA	{0} H	{0} STD	{0} H	{0} H	{0} H	{0} H	{0} GODZ	{0} Ч	{0} JAM	{0} GIỜ
 ortak.sure_sa_dk	{0} SA {1} DK	{0} H {1} MIN	{0} STD {1} MIN	{0} H {1} MIN	{0} H {1} MIN	{0} H {1} MIN	{0} H {1} MIN	{0} GODZ {1} MIN	{0} Ч {1} МИН	{0} JAM {1} MNT	{0} GIỜ {1} PHÚT
+ortak.sure_gun_sa	{0} GÜN {1} SA	{0} DAYS {1} H	{0} TAGE {1} STD	{0} JOURS {1} H	{0} DÍAS {1} H	{0} DIAS {1} H	{0} GIORNI {1} H	{0} DNI {1} GODZ	{0} ДНЯ {1} Ч	{0} HARI {1} JAM	{0} NGÀY {1} GIỜ
 ortak.yukleniyor	YÜKLENİYOR	LOADING	LÄDT	CHARGEMENT	CARGANDO	CARREGANDO	CARICAMENTO	WCZYTYWANIE	ЗАГРУЗКА	MEMUAT	ĐANG TẢI
 # ayarlar
 ayarlar.baslik	AYARLAR	SETTINGS	EINSTELLUNGEN	RÉGLAGES	AJUSTES	AJUSTES	IMPOSTAZIONI	USTAWIENIA	НАСТРОЙКИ	PENGATURAN	CÀI ĐẶT

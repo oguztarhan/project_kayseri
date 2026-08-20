@@ -445,7 +445,6 @@ MonoBehaviour:
   economyConfig: {fileID: 11400000, guid: b2e5bce0d1ab0024b898717576f78629, type: 2}
   offlineConfig: {fileID: 11400000, guid: dc74bd4795524e34ea87d583cc982a4b, type: 2}
   maintenanceConfig: {fileID: 0}
-  prestigeConfig: {fileID: 11400000, guid: 8105ec2aa56e3d942953538b4c6b92e2, type: 2}
   contractConfig: {fileID: 11400000, guid: 786d965aa072ec7408e2e2092c56fc3e, type: 2}
   qualityConfig: {fileID: 11400000, guid: efcbe199e112c0f4698f74cd8d89063a, type: 2}
   audioConfig: {fileID: 11400000, guid: 91d15cd85764725469814094f92f7627, type: 2}
@@ -456,6 +455,7 @@ MonoBehaviour:
   loadMainOnStart: 1
   loadingScreen: {fileID: 310829363}
   notificationTestSpacingSeconds: 0
+  forceEeaConsentForTesting: 0
 --- !u!4 &332712978
 Transform:
   m_ObjectHideFlags: 0

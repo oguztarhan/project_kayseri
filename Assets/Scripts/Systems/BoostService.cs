@@ -13,6 +13,8 @@ namespace Game.Systems
     /// </summary>
     public sealed class BoostService
     {
+        public const double RewardedAdSeconds = 300d;
+
         private readonly SaveData _data;
         private readonly TimeService _time;
 
@@ -54,6 +56,15 @@ namespace Game.Systems
 
             _data.boostMultiplier = keep;
             _data.boostEndUnix = now + (long)(worth / (keep - 1d));
+        }
+
+        /// <summary>
+        /// Rewarded ads are one fixed five-minute product. Keeping this duration out of prefab tuning
+        /// prevents a bad Inspector value or a seconds/minutes mix-up from minting multi-day boosts.
+        /// </summary>
+        public void AddRewardedAdBoost(double multiplier)
+        {
+            AddBoost(multiplier, RewardedAdSeconds);
         }
 
         public double ActiveMultiplier => _time.NowUnix() < _data.boostEndUnix ? _data.boostMultiplier : 1d;

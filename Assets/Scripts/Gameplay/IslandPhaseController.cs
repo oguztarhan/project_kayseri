@@ -85,6 +85,14 @@ namespace Kayseri.Island
         /// <summary>Raised when a district changes phase: district name, new phase.</summary>
         public event System.Action<string, int> PhaseChanged;
 
+        /// <summary>
+        /// Raised once after every district affected by one refresh has been switched. Global systems
+        /// that scan the whole island must listen here rather than to <see cref="PhaseChanged"/>:
+        /// one station threshold can also advance all shared landscape districts, and rebuilding the
+        /// same lights, lamps or ambience for every one of them causes a visible frame stall.
+        /// </summary>
+        public event System.Action PhaseRefreshCompleted;
+
         private void Awake()
         {
             if (_operation == null) _operation = GetComponentInParent<Game.Gameplay.CoalOperation>();
@@ -124,16 +132,22 @@ namespace Kayseri.Island
 
             _topPhase = top;
 
+            bool anyChanged = false;
             for (int d = 0; d < count; d++)
             {
                 if (_shown[d] == wanted[d]) continue;
 
                 bool changed = _shown[d] != 0 && _started;
-                Show(Districts[d], wanted[d], changed);
+                // Shared landscape follows the leading station and several of those districts can
+                // switch together. Bursting Terrain/Foliage/Theme scans enormous renderer trees and
+                // creates several particle systems in the purchase frame. Only station-owned art is
+                // the rebuild the player bought, so only that art gets the celebration.
+                Show(Districts[d], wanted[d], changed && Drivers[d] != null);
                 _shown[d] = wanted[d];
 
                 if (changed)
                 {
+                    anyChanged = true;
                     if (PhaseChanged != null) PhaseChanged(Districts[d], wanted[d]);
                     Debug.Log("[Island] " + Districts[d] + " rebuilt to phase " + wanted[d]);
                 }
@@ -141,6 +155,7 @@ namespace Kayseri.Island
 
             Show(VehicleGroup, 1, false);
             _started = true;
+            if (anyChanged && PhaseRefreshCompleted != null) PhaseRefreshCompleted();
         }
 
         /// <summary>
@@ -162,7 +177,6 @@ namespace Kayseri.Island
 
                 if (on && animate && isActiveAndEnabled)
                 {
-                    StopCoroutine("Grow");
                     StartCoroutine(Grow(t));
                     Burst(t);
                 }

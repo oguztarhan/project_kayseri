@@ -28,9 +28,8 @@ namespace Game.Tests
         {
             data = new SaveData();
             wallet = new WalletService(data.wallet);
-            // Prestige and boost are left null on purpose: the service treats their absence as x1, and
-            // a test that had to construct them would be testing them too.
-            var market = new MarketService(data, wallet, null, null);
+            // Boost is left null on purpose: the service treats its absence as x1.
+            var market = new MarketService(data, wallet, null);
             market.Register(Coal, new Terms { BarPriceRaw = Price, IncomeCapPerMinuteRaw = capPerMinute });
             return market;
         }
@@ -61,6 +60,21 @@ namespace Game.Tests
             // bare yard: capacity 2/s at the 0.15 trickle = 0.3 bars, at $10 a bar
             Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(3d).Within(1e-6));
             Assert.That(market.Stock(Coal), Is.EqualTo(49.7d).Within(1e-6));
+        }
+
+        [Test]
+        public void RetiredPrestigeBonusStillMultipliesExistingPlayersIncome()
+        {
+            SaveData data; WalletService wallet;
+            MarketService market = Build(out data, out wallet);
+            data.legacyIncomeMultiplier = 2d;
+            SetSupply(market, 120d);
+            market.SetActiveIsland(Coal);
+
+            market.Deliver(Coal, 50d);
+            market.Tick(1f);
+
+            Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(6d).Within(1e-6));
         }
 
         [Test]
@@ -198,7 +212,7 @@ namespace Game.Tests
                 boost = new BoostService(data, new TimeService());
                 boost.AddBoost(boostMult, 3600d);     // far longer than the minute below takes to run
             }
-            var market = new MarketService(data, wallet, null, boost);
+            var market = new MarketService(data, wallet, boost);
             market.Register(Coal, new Terms { BarPriceRaw = Price, IncomeCapPerMinuteRaw = NoCeiling });
             market.SetActiveIsland(Coal);             // its lorries are running, so Deliver is the supply
             Staff(market, MarketFlow.MaxHireLevel);   // a yard that keeps up, so the counter is not the wall

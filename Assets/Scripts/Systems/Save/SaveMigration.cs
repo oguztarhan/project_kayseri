@@ -40,6 +40,30 @@ namespace Game.Systems
         public static bool NeedsReset(SaveData data) => data == null || data.version != CurrentVersion;
 
         /// <summary>
+        /// Retires prestige without taking an earned multiplier away from an existing player. This is
+        /// deliberately independent of the save version: bumping the version would wipe progression,
+        /// while this compatibility pass only freezes the old investor benefit once.
+        /// </summary>
+        public static bool RetirePrestige(SaveData data, double bonusPerInvestor)
+        {
+            if (data == null || data.prestigeRetired) return false;
+
+            double investors = data.wallet != null ? data.wallet.investors : 0d;
+            double multiplier = 1d + System.Math.Max(0d, investors) * System.Math.Max(0d, bonusPerInvestor);
+            data.legacyIncomeMultiplier = System.Math.Max(1d, multiplier);
+            data.prestigeRetired = true;
+
+            // Leave the legacy fields serialized for backwards compatibility, but make it explicit that
+            // nothing in the retired feature can continue accumulating or be paid out.
+            if (data.wallet != null)
+            {
+                data.wallet.investors = 0d;
+                data.wallet.lifetimeCash = Game.Core.BigDouble.Zero;
+            }
+            return true;
+        }
+
+        /// <summary>
         /// A fresh run, carrying across only what was bought with money.
         ///
         /// Built by starting from a default <see cref="SaveData"/> and copying the keep-list onto
@@ -55,6 +79,14 @@ namespace Game.Systems
             if (old.wallet != null) fresh.wallet.gems = old.wallet.gems;
             fresh.adsRemoved = old.adsRemoved;
             if (old.purchasedOffers != null) fresh.purchasedOffers.AddRange(old.purchasedOffers);
+            if (old.processedIapTransactions != null)
+                fresh.processedIapTransactions.AddRange(old.processedIapTransactions);
+            if (old.islandOffersBought != null)
+                fresh.islandOffersBought.AddRange(old.islandOffersBought);
+            fresh.starterOffersMigrated = old.starterOffersMigrated;
+            if (old.starterOfferWindows != null)
+                fresh.starterOfferWindows.AddRange(old.starterOfferWindows);
+            fresh.pendingStarterIsland = old.pendingStarterIsland;
             fresh.stationSpeedMultiplier = old.stationSpeedMultiplier > 1d
                 ? old.stationSpeedMultiplier
                 : 1d;
@@ -63,6 +95,10 @@ namespace Game.Systems
             fresh.dailyRewardBonusMult = old.dailyRewardBonusMult;
             fresh.freeRewardBonusCharges = old.freeRewardBonusCharges;
             fresh.dailyGemStipend = old.dailyGemStipend;
+            fresh.prestigeRetired = true;
+            fresh.legacyIncomeMultiplier = old.legacyIncomeMultiplier > 1d
+                ? old.legacyIncomeMultiplier
+                : 1d;
             return fresh;
         }
     }

@@ -876,7 +876,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.OfferCountdown
   label: {fileID: 5129631456189329865}
-  windowHours: 48
   urgentSeconds: 3600
   pulseScale: 1.09
   pulseHz: 1.5
@@ -4515,7 +4514,7 @@ MonoBehaviour:
     freeRewardBonusCharges: 0
     dailyGemStipend: 0
     permanentStationSpeedMultiplier: 1
-    oneTime: 1
+    oneTime: 0
     gemPrice: 0
     icon: {fileID: 0}
     hero: {fileID: 0}
@@ -4885,32 +4884,8 @@ MonoBehaviour:
     description: "G\xFCnl\xFCk \xF6d\xFCller\nkal\u0131c\u0131 olarak iki kat\u0131"
     incomeMinutes: 0
     investorShare: 0
-  - name: gem_investor
-    button: {fileID: 0}
-    sku: gem_investor
-    cashAmount: 0
-    gemAmount: 0
-    boostMultiplier: 1
-    boostSeconds: 0
-    shieldHours: 0
-    removeAds: 0
-    offlineEfficiencyBonus: 0
-    offlineCapBonusHours: 0
-    dailyRewardBonusMult: 0
-    freeRewardBonusCharges: 0
-    dailyGemStipend: 0
-    permanentStationSpeedMultiplier: 1
-    oneTime: 0
-    gemPrice: 600
-    icon: {fileID: 21300000, guid: d7c377d99a93e0f44b0967b47f66fd9d, type: 3}
-    hero: {fileID: 21300000, guid: d2b99a9d4d3272f4a9f9b75c924b1968, type: 3}
-    heroMotion: 3
-    title: '%50'
-    description: "Prestij kazanc\u0131n\u0131n yar\u0131s\u0131,\nadalar\u0131n kal\u0131r"
-    incomeMinutes: 0
-    investorShare: 0.5
   gemIcon: {fileID: 21300000, guid: a20a9f9dbc3cec944b3b4a4504d3c2b5, type: 3}
-  devFreeIAP: 1
+  devFreeIAP: 0
   purchaseFx: {fileID: 5059351080587554020}
 --- !u!114 &5059351080587554020
 MonoBehaviour:

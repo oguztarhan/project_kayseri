@@ -170,7 +170,6 @@ namespace Game.UI
             new Stop { key = "buton_reklam"  },
             new Stop { key = "buton_teklif"  },
             new Stop { key = "ipucu_boost",   tip = "boost"   },
-            new Stop { key = "ipucu_prestij", tip = "prestij" },
         };
 
         // ------------------------------------------------------------------ servisler
@@ -179,7 +178,6 @@ namespace Game.UI
         private WalletService _wallet;
         private ContractService _contract;
         private DailyRewardService _daily;
-        private PrestigeService _prestige;
         private AudioService _audio;
         private HapticService _haptic;
         private HudUI _hud;
@@ -234,7 +232,6 @@ namespace Game.UI
             _wallet = ServiceLocator.Get<WalletService>();
             _contract = ServiceLocator.Get<ContractService>();
             _daily = ServiceLocator.Get<DailyRewardService>();
-            _prestige = ServiceLocator.Get<PrestigeService>();
             _audio = ServiceLocator.Get<AudioService>();
             _haptic = ServiceLocator.Get<HapticService>();
             _hud = GetComponent<HudUI>();
@@ -466,7 +463,7 @@ namespace Game.UI
         /// will look at the frame rather than through it.
         ///
         /// A button that is not on screen yet is skipped rather than pointed at, and only the ones
-        /// actually shown are struck off the tip list: prestige and the ×2 shortcut unlock later, and
+        /// actually shown are struck off the tip list: the ×2 shortcut unlocks later, and
         /// they still deserve their card the day they appear.
         /// </summary>
         private IEnumerator ButtonsPart()
@@ -540,8 +537,7 @@ namespace Game.UI
                 case 4: return _hud.ContractRect;
                 case 5: return _hud.AdRect;
                 case 6: return _hud.OfferRect;
-                case 7: return _hud.BoostRect;
-                default: return _hud.PrestigeRect;
+                default: return _hud.BoostRect;
             }
         }
 
@@ -592,7 +588,6 @@ namespace Game.UI
             if (NextIslandAffordable() && Tip("ada", _hud != null ? _hud.MapRect : null)) return;
             if (PhaseMoved() && Tip("faz", null)) return;
             if (_op != null && _op.StationLevelTotal(IslandEconomy.Mine) >= 6 && Tip("genisletme", null)) return;
-            if (_prestige != null && _prestige.CanPrestige() && Tip("prestij", _hud != null ? _hud.PrestigeRect : null)) return;
         }
 
         private bool NextIslandAffordable()

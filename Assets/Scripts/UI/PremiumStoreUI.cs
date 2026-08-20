@@ -114,9 +114,6 @@ namespace Game.UI
             [TextArea(2, 3)] public string description = "";
             [Tooltip("Bu kadar dakikalık imparatorluk geliri kadar anında nakit verir (0 = nakit yok).")]
             public float incomeMinutes = 0f;
-            [Tooltip("Prestij yapsa kazanacağı yatırımcının bu oranını verir (0.5 = yarısı). " +
-                     "Ömür boyu kazançtan karşılığını yakar, bkz. PrestigeService.TakeInvestorShare.")]
-            [Range(0f, 1f)] public float investorShare = 0f;
         }
 
         [Header("Panel (UI_Magaza prefabında bağlı)")]
@@ -160,7 +157,6 @@ namespace Game.UI
         private FreeRewardService _free;
         private SaveData _data;
         private SaveService _save;
-        private PrestigeService _prestige;
         private MaintenanceService _maintenance;
         private Game.Gameplay.WorldIslands _world;
         private OfferPopupUI _offerPopup;
@@ -206,11 +202,19 @@ namespace Game.UI
             if (_free == null) _free = ServiceLocator.Get<FreeRewardService>();
             if (_data == null) _data = ServiceLocator.Get<SaveData>();
             if (_save == null) _save = ServiceLocator.Get<SaveService>();
-            if (_prestige == null) _prestige = ServiceLocator.Get<PrestigeService>();
             if (_maintenance == null) _maintenance = ServiceLocator.Get<MaintenanceService>();
             if (_world == null) _world = FindAnyObjectByType<Game.Gameplay.WorldIslands>();
             if (_offerPopup == null) _offerPopup = FindAnyObjectByType<OfferPopupUI>();
+            EnsurePurchaseLists();
             BindIap();
+        }
+
+        private void EnsurePurchaseLists()
+        {
+            if (_data == null) return;
+            if (_data.purchasedOffers == null) _data.purchasedOffers = new List<string>();
+            if (_data.processedIapTransactions == null)
+                _data.processedIapTransactions = new List<string>();
         }
 
         private void BindIap()
@@ -242,10 +246,11 @@ namespace Game.UI
         /// screen prices its own. Sold as minutes rather than a fixed sum so a card is worth the same
         /// share of progress on coal as it is on diamond.
         /// </summary>
-        private double IncomePerMinute()
+        private double IncomePerMinute(bool activeIslandOnly = false)
         {
             if (_world != null)
             {
+                if (activeIslandOnly) return _world.RatePerMin(_world.ActiveIndex);
                 double sum = 0d;
                 for (int i = 0; i < _world.Count; i++) if (_world.IsOwned(i)) sum += _world.RatePerMin(i);
                 if (sum > 0d) return sum;
@@ -255,25 +260,46 @@ namespace Game.UI
 
         /// <summary>
         /// True when the offer would charge for an empty grant. A card priced in minutes of income pays
-        /// nothing while the empire has not reported a rate yet, and a card that converts progress into
-        /// investors pays nothing before there is any progress to convert. Gems leave the wallet before
+        /// nothing while the empire has not reported a rate yet. Gems leave the wallet before
         /// <see cref="Grant"/> runs, so without this the sale takes the price and hands back nothing.
         /// </summary>
         private bool NothingToGrant(OfferBinding offer)
         {
+            if (offer != null && StarterOfferState.IsStarterSku(offer.sku) && offer.cashAmount > 0d)
+                return false;
             if (offer.incomeMinutes > 0f && IncomePerMinute() <= 0d) return true;
-            if (offer.investorShare > 0f && _prestige != null
-                && _prestige.PendingInvestors().Mantissa <= 0d) return true;
             return false;
         }
 
         /// <summary>Has this one-time offer already been bought? Untracked skus are always buyable.</summary>
         private bool Owned(OfferBinding offer)
         {
-            if (!offer.oneTime || _data == null || string.IsNullOrEmpty(offer.sku)) return false;
+            if (offer == null || _data == null || string.IsNullOrEmpty(offer.sku)) return false;
+            if (StarterOfferState.IsStarterSku(offer.sku))
+                return StarterOfferState.Bought(_data, ActiveIslandKey());
+            if (!offer.oneTime) return false;
             for (int i = 0; i < _data.purchasedOffers.Count; i++)
-                if (_data.purchasedOffers[i] == offer.sku) return true;
+                if (SameOwnership(offer.sku, _data.purchasedOffers[i])) return true;
             return false;
+        }
+
+        private static bool SameOwnership(string a, string b)
+        {
+            if (a == b) return true;
+            return StarterOfferState.IsStarterSku(a) && StarterOfferState.IsStarterSku(b);
+        }
+
+        private string ActiveIslandKey()
+            => _world != null && _world.ActiveIndex >= 0 && _world.ActiveIndex < _world.Count
+                ? _world.IslandKey(_world.ActiveIndex)
+                : null;
+
+        private long StarterSecondsLeft()
+        {
+            TimeService time = ServiceLocator.Get<TimeService>();
+            return time != null
+                ? StarterOfferState.SecondsLeft(_data, ActiveIslandKey(), time.NowUnix())
+                : 0L;
         }
 
         // ---------- open / close ----------
@@ -284,7 +310,6 @@ namespace Game.UI
             // Gelir sıfır olduğu için açılışta ödenemeyen bir ada teklifi burada tekrar denenir:
             // mağaza açıldığında dünyanın bir geliri olduğu kesin.
             if (_iap != null) _iap.RetryUnfinishedPurchases();
-            StampStarterWindow();
             if (panelRoot != null) panelRoot.SetActive(true);
             RefreshGoldAmounts();
             RefreshOffers();
@@ -353,20 +378,6 @@ namespace Game.UI
             _awning.color = Color.white;
             _awning.raycastTarget = false;
             _awning.gameObject.SetActive(true);
-        }
-
-        /// <summary>
-        /// Starts the starter offer's countdown the first time the store is actually opened rather than
-        /// at install: someone who comes back on day three should still get the full window instead of
-        /// an offer that expired while they were away. <see cref="OfferCountdown"/> only reads it.
-        /// </summary>
-        private void StampStarterWindow()
-        {
-            if (_data == null || _data.starterOfferSeenUnix > 0L) return;
-            TimeService time = ServiceLocator.Get<TimeService>();
-            if (time == null) return;
-            _data.starterOfferSeenUnix = time.NowUnix();
-            if (_save != null) _save.Save(_data);
         }
 
         public void Hide()
@@ -587,11 +598,30 @@ namespace Game.UI
         }
 
         // ---------- purchase handling ----------
-        /// <summary>Real IAP normally; the dev toggle short-circuits to success so grants are testable in-editor.</summary>
-        private void PurchaseFlow(string sku, Action<bool> onDone)
+        /// <summary>Real IAP normally; the dev toggle exists only inside the editor.</summary>
+        private void PurchaseFlow(string sku, Action<bool, string> onDone)
         {
-            if (devFreeIAP && (Application.isEditor || Debug.isDebugBuild)) { onDone(true); return; }
+            // A Development Build is still a phone build connected to a real store. Letting this bypass
+            // run there made test purchases indistinguishable from paid rewards and could stack them
+            // after a reinstall. Editor-only keeps the balancing shortcut without shipping a free till.
+            if (devFreeIAP && Application.isEditor) { onDone(true, null); return; }
             if (_iap != null) _iap.Purchase(sku, onDone);
+        }
+
+        private bool TransactionProcessed(string transactionId)
+        {
+            return IapTransactionJournal.Contains(_data, transactionId);
+        }
+
+        private void RecordTransaction(string transactionId)
+        {
+            IapTransactionJournal.Record(_data, transactionId);
+        }
+
+        private void SavePurchase(string transactionId)
+        {
+            RecordTransaction(transactionId);
+            if (_save != null && _data != null) _save.Save(_data);
         }
 
         /// <summary>
@@ -618,11 +648,11 @@ namespace Game.UI
         ///
         /// The floor is then scaled by the island, because a fifth of coal is nothing on diamond.
         /// </summary>
-        private double CashGrant(double floor, float minutes)
+        private double CashGrant(double floor, float minutes, bool activeIslandOnly = false)
         {
             double scaledFloor = floor * IslandScale();
             if (minutes <= 0f) return scaledFloor;
-            double scaled = IncomePerMinute() * minutes;
+            double scaled = IncomePerMinute(activeIslandOnly) * minutes;
             return scaled > scaledFloor ? scaled : scaledFloor;
         }
 
@@ -651,7 +681,8 @@ namespace Game.UI
             {
                 CashLabel c = _cashLabels[i];
                 if (c.label == null) continue;
-                c.label.text = NumberFormatter.Format(new BigDouble(CashGrant(c.floor, c.minutes)));
+                c.label.text = NumberFormatter.Format(new BigDouble(
+                    CashGrant(c.floor, c.minutes, c.activeIslandOnly)));
             }
         }
 
@@ -665,6 +696,7 @@ namespace Game.UI
             public TMP_Text label;
             public double floor;
             public float minutes;
+            public bool activeIslandOnly;
         }
 
         private readonly List<CashLabel> _cashLabels = new List<CashLabel>();
@@ -710,7 +742,8 @@ namespace Game.UI
                     {
                         _cashLabels.Add(new CashLabel
                         {
-                            label = found[t], floor = offer.cashAmount, minutes = offer.incomeMinutes
+                            label = found[t], floor = offer.cashAmount, minutes = offer.incomeMinutes,
+                            activeIslandOnly = StarterOfferState.IsStarterSku(offer.sku),
                         });
                     }
                     else if (found[t].name == "Fiyat" && offer.gemPrice <= 0)
@@ -732,14 +765,15 @@ namespace Game.UI
                 RefreshOffers();
             }
             else
-                PurchaseFlow(item.sku, ok =>
+                PurchaseFlow(item.sku, (ok, transactionId) =>
                 {
                     if (!ok) return;
+                    if (TransactionProcessed(transactionId)) return;
                     if (_wallet != null) _wallet.AddGems(item.gemAmount);
                     // Sipariş çoktan onaylandı; ödenmiş elmas diskte olmadan bir kare bile beklemez.
                     // iOS uygulamayı arka planda uyarısız öldürür ve tüketilmiş bir siparişin
                     // yeniden teslim edileceği yol yoktur.
-                    if (_save != null && _data != null) _save.Save(_data);
+                    SavePurchase(transactionId);
                     if (purchaseFx != null) purchaseFx.PlayGems(card);
                 });
         }
@@ -755,6 +789,8 @@ namespace Game.UI
         {
             ResolveServices();
             if (offer == null || Owned(offer)) { onDone?.Invoke(false); return; }
+            bool starter = StarterOfferState.IsStarterSku(offer.sku);
+            if (starter && StarterSecondsLeft() <= 0L) { onDone?.Invoke(false); return; }
             // Two tills, one till-slip. A gem card is paid for out of the wallet and either succeeds or
             // does not, so there is nothing to wait for; a money card goes out to the store and comes
             // back later. Both hand the same offer to the same grant.
@@ -762,28 +798,75 @@ namespace Game.UI
             {
                 if (NothingToGrant(offer)) { onDone?.Invoke(false); return; }
                 if (_wallet == null || !_wallet.TrySpendGems(offer.gemPrice)) { onDone?.Invoke(false); return; }
-                Grant(offer);
+                Grant(offer, null);
                 onDone?.Invoke(true);
             }
             else
             {
-                PurchaseFlow(offer.sku, ok => { if (ok) Grant(offer); onDone?.Invoke(ok); });
+                if (starter) BeginStarterPurchase();
+                PurchaseFlow(offer.sku, (ok, transactionId) =>
+                {
+                    if (!ok)
+                    {
+                        // Keep the captured island. "false" also covers Ask-to-Buy/deferred orders,
+                        // which can be approved after the player has travelled somewhere else.
+                        // A later starter tap overwrites this value, so an ordinary cancellation is safe.
+                        onDone?.Invoke(false);
+                        return;
+                    }
+                    if (!TransactionProcessed(transactionId)) Grant(offer, transactionId);
+                    else if (starter) ClearPendingStarter(true);
+                    onDone?.Invoke(ok);
+                });
             }
         }
 
-        private void Grant(OfferBinding offer)
+        private void BeginStarterPurchase()
         {
+            if (_data == null) return;
+            _data.pendingStarterIsland = ActiveIslandKey() ?? "";
+            if (_save != null) _save.Save(_data);
+        }
+
+        private string StarterPurchaseIsland()
+        {
+            if (_data != null && !string.IsNullOrEmpty(_data.pendingStarterIsland))
+                return _data.pendingStarterIsland;
+            return ActiveIslandKey();
+        }
+
+        private void ClearPendingStarter(bool save)
+        {
+            if (_data == null || string.IsNullOrEmpty(_data.pendingStarterIsland)) return;
+            _data.pendingStarterIsland = "";
+            if (save && _save != null) _save.Save(_data);
+        }
+
+        private void Grant(OfferBinding offer, string transactionId)
+        {
+            if (TransactionProcessed(transactionId)) return;
+            bool starter = StarterOfferState.IsStarterSku(offer.sku);
             if (_wallet != null)
             {
-                double cash = CashGrant(offer.cashAmount, offer.incomeMinutes);
+                double cash = CashGrant(offer.cashAmount, offer.incomeMinutes, starter);
                 if (cash > 0d) _wallet.AddCash(new BigDouble(cash));
             }
             if (_wallet != null && offer.gemAmount > 0) _wallet.AddGems(offer.gemAmount);
             if (_boost != null && offer.boostMultiplier > 1d && offer.boostSeconds > 0d)
                 _boost.AddBoost(offer.boostMultiplier, offer.boostSeconds);
-            if (_prestige != null && offer.investorShare > 0f) _prestige.TakeInvestorShare(offer.investorShare);
             if (_maintenance != null && offer.shieldHours > 0f) _maintenance.AddShield(offer.shieldHours);
+            if (starter)
+            {
+                string island = StarterPurchaseIsland();
+                if (string.IsNullOrEmpty(island))
+                    throw new InvalidOperationException("Başlangıç paketi için ada kimliği bulunamadı.");
+                StarterOfferState.MarkBought(_data, island);
+                _data.pendingStarterIsland = "";
+            }
             GrantPermanent(offer);
+            // All currency, timed effects, permanent perks and this marker reach disk together before
+            // MobileIAPService confirms the order. A redelivery sees the marker and grants nothing.
+            SavePurchase(transactionId);
             RefreshOffers();
 
             var audio = ServiceLocator.Get<AudioService>();
@@ -818,7 +901,6 @@ namespace Game.UI
                 _data.stationSpeedMultiplier = Math.Max(
                     Math.Max(1d, _data.stationSpeedMultiplier), offer.permanentStationSpeedMultiplier);
             if (offer.oneTime && !string.IsNullOrEmpty(offer.sku)) _data.purchasedOffers.Add(offer.sku);
-            if (_save != null) _save.Save(_data);
         }
 
         /// <summary>
@@ -828,28 +910,38 @@ namespace Game.UI
         private void RestoreEntitlements(IReadOnlyList<string> skus)
         {
             if (skus == null || skus.Count == 0 || _data == null) return;
+            bool touched = false;
             for (int s = 0; s < skus.Count; s++)
                 for (int i = 0; i < offers.Count; i++)
                 {
                     OfferBinding offer = offers[i];
-                    if (offer != null && offer.oneTime && offer.sku == skus[s])
+                    if (offer != null && offer.oneTime && SameOwnership(offer.sku, skus[s]))
                     {
                         GrantPermanent(offer);
+                        touched = true;
                         break;
                     }
                 }
+            if (touched && _save != null) _save.Save(_data);
             RefreshOffers();
         }
 
         /// <summary>Uygulama ödeme ile ödül arasında kapandıysa yeni satın alımı tam olarak bir kez bitirir.</summary>
-        private void CompleteUnfinishedPurchase(string sku)
+        private void CompleteUnfinishedPurchase(string sku, string transactionId)
         {
+            if (TransactionProcessed(transactionId)) return;
             for (int i = 0; i < offers.Count; i++)
             {
                 OfferBinding offer = offers[i];
-                if (offer == null || offer.sku != sku) continue;
-                if (!Owned(offer)) Grant(offer);
-                else GrantPermanent(offer);
+                if (offer == null || !SameOwnership(offer.sku, sku)) continue;
+                if (StarterOfferState.IsStarterSku(sku))
+                {
+                    string starterIsland = StarterPurchaseIsland();
+                    if (!StarterOfferState.Bought(_data, starterIsland)) Grant(offer, transactionId);
+                    else { ClearPendingStarter(false); SavePurchase(transactionId); }
+                }
+                else if (!Owned(offer)) Grant(offer, transactionId);
+                else SavePurchase(transactionId);
                 return;
             }
 
@@ -860,7 +952,7 @@ namespace Game.UI
                 StoreItem item = items[i];
                 if (item == null || item.kind != StoreItemKind.GemPackIAP || item.sku != sku) continue;
                 if (_wallet != null) _wallet.AddGems(item.gemAmount);
-                if (_save != null && _data != null) _save.Save(_data);
+                SavePurchase(transactionId);
                 return;
             }
 
@@ -872,7 +964,7 @@ namespace Game.UI
                 // ödemektense siparişi bırak: mağaza açıldığında RetryUnfinishedPurchases tekrar dener.
                 if (NothingToGrant(island))
                     throw new InvalidOperationException("Ada teklifi henüz ödenemez (gelir yok): " + sku);
-                Grant(island);
+                Grant(island, transactionId);
                 return;
             }
 
@@ -886,8 +978,23 @@ namespace Game.UI
         /// </summary>
         private void RefreshOffers()
         {
+            RefreshStarterVisibility();
             Grey(offers);
             Grey(gemOffers);
+        }
+
+        private void RefreshStarterVisibility()
+        {
+            bool visible = StarterSecondsLeft() > 0L
+                           && !StarterOfferState.Bought(_data, ActiveIslandKey());
+            for (int i = 0; i < offers.Count; i++)
+            {
+                OfferBinding offer = offers[i];
+                if (offer == null || offer.button == null
+                    || !StarterOfferState.IsStarterSku(offer.sku)) continue;
+                if (offer.button.gameObject.activeSelf != visible)
+                    offer.button.gameObject.SetActive(visible);
+            }
         }
 
         private void Grey(List<OfferBinding> list)

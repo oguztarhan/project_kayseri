@@ -7,7 +7,7 @@ namespace Game.Systems
 {
     /// <summary>
     /// Entry point on a persistent object in the Bootstrap scene. Registers all services (facade-first:
-    /// dev stubs now, real SDKs at ship time), applies quality settings, builds economy + prestige, loads
+    /// dev stubs now, real SDKs at ship time), applies quality settings, builds the economy, loads
     /// the save, grants offline earnings, then loads Main. Drives the GameClock each frame (GDD §14.5).
     /// </summary>
     public sealed class GameBootstrap : MonoBehaviour
@@ -19,7 +19,6 @@ namespace Game.Systems
                  "(8 saat tolerans, 72 saatte tabana iner) — kapatmak için bir config asset'i " +
                  "bağlayıp Enabled'ı kapat.")]
         [SerializeField] private MaintenanceConfig maintenanceConfig;
-        [SerializeField] private PrestigeConfig prestigeConfig;
         [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
@@ -149,6 +148,11 @@ namespace Game.Systems
                 // that — the wipe has to be recorded even if nothing else about the session is.
                 Save.Save(Data);
             }
+
+            // Prestige has been retired. Keep an existing player's earned multiplier, but freeze it as
+            // a plain permanent bonus and never expose/reset the run again. No save-version bump: this
+            // update must preserve progression.
+            if (SaveMigration.RetirePrestige(Data, 0.10d)) Save.Save(Data);
             ServiceLocator.Register(Data);
 
             Clock = new GameClock(ticksPerSecond);
@@ -167,13 +171,6 @@ namespace Game.Systems
                 Game.Core.Milestones.Every = economyConfig.MilestoneEvery;
                 Game.Core.Milestones.StepMultiplier = economyConfig.MilestoneStepMultiplier;
             }
-
-            var prestige = prestigeConfig != null
-                ? new PrestigeService(Data, prestigeConfig.InvestorK, prestigeConfig.BonusPerInvestor,
-                                      prestigeConfig.ReferenceLifetime, prestigeConfig.TierStep,
-                                      prestigeConfig.MinIslandsOwned, prestigeConfig.ReadyFraction)
-                : new PrestigeService(Data, 10d, 0.10d, 1.1e6d, 3.2d, 3, 0.5d);
-            ServiceLocator.Register(prestige);
 
             _time = new TimeService();
             ServiceLocator.Register(_time);
@@ -198,7 +195,7 @@ namespace Game.Systems
             // The yards, and with them the only path cash takes into the wallet. Registered before the
             // offline grant so the pads can be advanced for the absence in the same breath as paying
             // for it, and driven from Update below so it keeps settling across a scene load.
-            Market = new MarketService(Data, Wallet, prestige, boost, Maintenance);
+            Market = new MarketService(Data, Wallet, boost, Maintenance);
             ServiceLocator.Register(Market);
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));

@@ -24,7 +24,7 @@ namespace Game.Systems
         private static readonly string[] Consumables =
         {
             "gems_80", "gems_250", "gems_700", "gems_1800", "gems_4500", "gems_12000",
-            "teklif_kucuk", "teklif_orta", "teklif_buyuk",
+            "teklif_kucuk", "teklif_orta", "teklif_buyuk", "offer_baslangic",
         };
 
         /// <summary>
@@ -33,23 +33,23 @@ namespace Game.Systems
         /// </summary>
         private static readonly string[] NonConsumables =
         {
-            "offer_baslangic", "offer_hazine", "offer_gecevardiyasi", "offer_madenpatronu",
+            "offer_hazine", "offer_gecevardiyasi", "offer_madenpatronu",
         };
 
         private StoreController _store;
-        private Action<bool> _waiting;   // the tap still owed an answer
+        private Action<bool, string> _waiting;   // success + transaction id still owed to the tap
         private string _waitingSku;
         private bool _ready;
         private readonly List<string> _entitlements = new List<string>();
         private readonly List<PendingOrder> _unfinishedOrders = new List<PendingOrder>();
-        private Action<string> _unfinishedPurchase;
+        private Action<string, string> _unfinishedPurchase;
 
         /// <summary>True once the store is connected and the catalogue has arrived.</summary>
         public bool Ready => _ready;
         public IReadOnlyList<string> Entitlements => _entitlements;
         public event Action ProductsUpdated;
         public event Action<IReadOnlyList<string>> EntitlementsUpdated;
-        public event Action<string> UnfinishedPurchase
+        public event Action<string, string> UnfinishedPurchase
         {
             add
             {
@@ -119,10 +119,10 @@ namespace Game.Systems
                            " (tekrar denenebilir: " + (failure != null && failure.IsRetryable) + ")");
 
             if (_waiting == null) return;
-            Action<bool> done = _waiting;
+            Action<bool, string> done = _waiting;
             _waiting = null;
             _waitingSku = null;
-            done(false);
+            done(false, null);
         }
 
         /// <summary>
@@ -136,10 +136,10 @@ namespace Game.Systems
             Debug.Log("[IAP] satın alma onay bekliyor (deferred): " + sku);
             if (_waiting == null || sku != _waitingSku) return;
 
-            Action<bool> done = _waiting;
+            Action<bool, string> done = _waiting;
             _waiting = null;
             _waitingSku = null;
-            done(false);
+            done(false, null);
         }
 
         private void OnConnected()
@@ -197,7 +197,7 @@ namespace Game.Systems
             _store.FetchPurchases();
         }
 
-        public void Purchase(string sku, Action<bool> onDone)
+        public void Purchase(string sku, Action<bool, string> onDone)
         {
             if (!_ready || _store == null)
             {
@@ -299,25 +299,24 @@ namespace Game.Systems
                 return;
             }
 
-            Action<bool> done = _waiting;
+            Action<bool, string> done = _waiting;
             _waiting = null;
             _waitingSku = null;
 
             // Ödül önce, onay sonra. Onay ağ üzerinden gider ve düşebilir; o sırada ödül çoktan
             // verilmiş olur ve sipariş bekleyip iade edilir. Ters sırada oyuncu parayı kaybederdi.
-            done(true);
+            done(true, TransactionKey(order));
             _store.ConfirmPurchase(order);
         }
 
         /// <summary>Aynı sipariş hem OnPurchasePending hem FetchPurchases yolundan gelebilir.</summary>
         private bool AlreadyQueued(PendingOrder order)
         {
-            string id = order != null && order.Info != null ? order.Info.TransactionID : null;
+            string id = TransactionKey(order);
             if (string.IsNullOrEmpty(id)) return false;
             for (int i = 0; i < _unfinishedOrders.Count; i++)
             {
-                var info = _unfinishedOrders[i] != null ? _unfinishedOrders[i].Info : null;
-                if (info != null && info.TransactionID == id) return true;
+                if (TransactionKey(_unfinishedOrders[i]) == id) return true;
             }
             return false;
         }
@@ -338,7 +337,7 @@ namespace Game.Systems
                 string sku = SkuOf(order);
                 try
                 {
-                    _unfinishedPurchase(sku);
+                    _unfinishedPurchase(sku, TransactionKey(order));
                     _store.ConfirmPurchase(order);
                     _unfinishedOrders.RemoveAt(i);
                 }
@@ -357,10 +356,34 @@ namespace Game.Systems
 
             if (_waiting == null || sku != _waitingSku) return;
 
-            Action<bool> done = _waiting;
+            Action<bool, string> done = _waiting;
             _waiting = null;
             _waitingSku = null;
-            done(false);
+            done(false, null);
+        }
+
+        /// <summary>
+        /// StoreKit and Play normally provide TransactionID. The receipt fallback keeps fake stores and
+        /// unusual platform responses idempotent too without persisting the (potentially large) receipt.
+        /// FNV-1a is not a security primitive; it is only a compact, stable equality key.
+        /// </summary>
+        private static string TransactionKey(Order order)
+        {
+            if (order == null || order.Info == null) return null;
+            if (!string.IsNullOrEmpty(order.Info.TransactionID)) return order.Info.TransactionID;
+            string receipt = order.Info.Receipt;
+            if (string.IsNullOrEmpty(receipt)) return null;
+
+            unchecked
+            {
+                ulong hash = 14695981039346656037UL;
+                for (int i = 0; i < receipt.Length; i++)
+                {
+                    hash ^= receipt[i];
+                    hash *= 1099511628211UL;
+                }
+                return "receipt:" + hash.ToString("x16");
+            }
         }
 
         private static string SkuOf(Order order)
@@ -372,10 +395,10 @@ namespace Game.Systems
             return p != null && p.definition != null ? p.definition.id : null;
         }
 
-        private static void Refuse(Action<bool> onDone, string why)
+        private static void Refuse(Action<bool, string> onDone, string why)
         {
             Debug.LogWarning("[IAP] " + why);
-            if (onDone != null) onDone(false);
+            if (onDone != null) onDone(false, null);
         }
     }
 }

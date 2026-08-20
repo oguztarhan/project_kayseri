@@ -73,23 +73,48 @@ namespace Game.UI
         private static readonly string[] SkipDistricts = { "Terrain", "Foliage", "Rail", "Roads" };
 
         private bool _framed;
+        private int _reframeChecks;
         private WorldIslands _world;
+
+        // Component Start order is not deterministic. Authored operations finish resolving and
+        // scaling their modelled geometry in CoalOperation.Start, so a camera solution produced by
+        // this component's Start can have measured the pre-initialized island on some devices.
+        // Two following frames cover both the other Start calls and one activation/layout frame.
+        private const int BootVerificationFrames = 2;
 
         /// <summary>True once the opening shot has been solved — the tutorial waits for it before it
         /// takes the camera, so the two are never easing it to different places in the same frame.</summary>
-        public bool Framed => _framed;
+        public bool Framed => _framed && _reframeChecks <= 0;
 
-        private void Start() { Frame(); }
+        private void Start()
+        {
+            _reframeChecks = BootVerificationFrames;
+            Frame();
+        }
 
         // Retry until it succeeds: at boot (Bootstrap → Main load) the CameraController can be unfindable
-        // in the same frame as Start. Once framed we stop so we never fight the player's own pan/zoom.
-        private void Update() { if (!_framed) Frame(); }
+        // in the same frame as Start. Boot is rechecked after every operation's Start has completed,
+        // while travel gets one verification frame behind the curtain: a
+        // destination root can become active late in the frame on a device, and leaving the old camera
+        // there makes the new island look like a speck that disappears when the player zooms in.
+        private void Update()
+        {
+            if (!_framed) { Frame(); return; }
+            if (_reframeChecks <= 0) return;
+
+            _framed = false;
+            Frame();
+            if (_framed) _reframeChecks--;
+        }
 
         /// <summary>Re-frame onto another island root (world-map travel).</summary>
         public void FrameOn(string rootName)
         {
+            if (string.IsNullOrEmpty(rootName)) return;
             operationRootName = rootName;
             _framed = false;
+            _reframeChecks = 1;
+            Frame();
         }
 
         /// <summary>
@@ -119,7 +144,6 @@ namespace Game.UI
 
             cam.orthographic = false;
             cam.fieldOfView = fieldOfView;
-            cam.farClipPlane = Mathf.Max(cam.farClipPlane, 20000f);
 
             // Each island's chain runs mine → market in its own world direction. Aiming the camera along
             // that axis makes every island read identically in portrait — mountains at the top, market at
@@ -148,15 +172,34 @@ namespace Game.UI
             float centreOffset = (hudBottomFraction - hudTopFraction) * 0.5f;
             pos -= rot * Vector3.up * (centreOffset * 2f * dist * vTan);
 
+            // CameraController measures its perspective zoom to the ground plane, while the fit above
+            // is measured to the operation centre. Work in the controller's space for both the zoom
+            // limits and the far plane. A fixed 20,000-unit far plane used to cover the whole archipelago
+            // even though the camera travels with the active island; on mobile that near/far ratio throws
+            // away enough depth precision for Copper's huge transparent sea to show through the land.
+            float down = Mathf.Max(0.2f, -(rot * Vector3.forward).y);
+            float groundToCentre = (b.center.y - b.min.y) / down;
+            float safeCentreDistance = (b.extents.y + cam.nearClipPlane + 8f) / down;
+            float minCentreDistance = Mathf.Max(surveyDist * zoomInFactor, safeCentreDistance);
+            float minZoom = minCentreDistance + groundToCentre;
+            float maxZoom = Mathf.Max(minZoom, surveyDist * zoomOutFactor + groundToCentre);
+            cam.farClipPlane = RequiredFarClip(rot, fieldOfView, cam.aspect, maxZoom, b.size.y);
+
             if (cc != null)
             {
                 cc.enabled = true;
                 cc.SetGroundY(b.min.y);
-                cc.SetZoomRange(surveyDist * zoomInFactor, surveyDist * zoomOutFactor);
+
+                // CameraController expresses perspective zoom as distance to the GROUND plane, while
+                // surveyDist is measured from the operation's CENTRE. Using surveyDist directly made
+                // the closest Iron shot only ~24 units from the centre of a 353x54x362 island: the
+                // camera entered the buildings and the island vanished behind/around it. Convert both
+                // limits to the same ground-distance space and keep the camera above the tallest bound.
                 // Pan far enough to walk the whole chain at the opening zoom, but no further.
                 cc.SetBounds(new Vector2(pos.x - b.extents.x - panPadding, pos.x + b.extents.x + panPadding),
                              new Vector2(pos.z - b.extents.z - panPadding, pos.z + b.extents.z + panPadding));
                 cc.FrameTo(pos, rot, dist);
+                cc.SetZoomRange(minZoom, maxZoom);
             }
             else
             {
@@ -168,6 +211,34 @@ namespace Game.UI
                       b.size.x.ToString("F0") + "x" + b.size.z.ToString("F0") +
                       " open " + dist.ToString("F0") + " survey " + surveyDist.ToString("F0") +
                       " aspect " + cam.aspect.ToString("F2"));
+        }
+
+        /// <summary>
+        /// The farthest visible point is the ground/sea hit of a viewport corner at maximum zoom-out,
+        /// not an inactive island thousands of units away. Solving those four rays keeps the whole screen
+        /// filled at every allowed zoom while retaining far more depth-buffer precision on mobile GPUs.
+        /// </summary>
+        private static float RequiredFarClip(Quaternion rot, float fov, float aspect,
+                                             float maxGroundDistance, float verticalSpan)
+        {
+            Vector3 forward = rot * Vector3.forward;
+            float down = Mathf.Max(0.2f, -forward.y);
+            float cameraHeight = down * Mathf.Max(1f, maxGroundDistance);
+            float vTan = Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
+            float hTan = vTan * Mathf.Max(0.1f, aspect);
+            float farthest = maxGroundDistance;
+
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sy = -1; sy <= 1; sy += 2)
+                {
+                    Vector3 ray = rot * new Vector3(sx * hTan, sy * vTan, 1f).normalized;
+                    if (ray.y < -0.02f)
+                        farthest = Mathf.Max(farthest, cameraHeight / -ray.y);
+                }
+
+            // Tall peaks and water displacement get their own guard band. 250 also keeps fog, ships and
+            // particles just beyond a tightly framed starter island from being cut off.
+            return Mathf.Max(250f, farthest + Mathf.Max(0f, verticalSpan) + 50f);
         }
 
         /// <summary>
