@@ -25,16 +25,18 @@ namespace Game.Systems
     public static class SaveMigration
     {
         /// <summary>
-        /// Version 6: the market yard. Cash no longer enters the game when a cargo truck reaches the
-        /// market building — the truck delivers, and the yard sells. Every island's income now runs
-        /// through a yard that starts unstaffed and therefore starts SLOW, so a version-5 save's
-        /// levels were bought against a curve where the same island paid several times as much. The
-        /// rates persisted in that save describe an economy this build no longer has.
+        /// Version 7: the open-testing reset. Every tester starts the run over on this build, so the
+        /// pacing that open testing is meant to measure is measured from zero rather than on top of
+        /// whatever the previous economy had already paid out.
+        ///
+        /// Version 6 was the market yard: cash stopped entering the game when a cargo truck reached
+        /// the market building — the truck delivers, and the yard sells. Every island's income runs
+        /// through a yard that starts unstaffed and therefore starts SLOW.
         ///
         /// Version 5 was the ad-economy pass: offline efficiency 50% → 35%, the welcome-back ad
         /// stopped paying a second unlimited grant, and the unlock ladder was re-solved.
         /// </summary>
-        public const int CurrentVersion = 6;
+        public const int CurrentVersion = 7;
 
         /// <summary>True when <paramref name="data"/> came from a build whose progress cannot carry over.</summary>
         public static bool NeedsReset(SaveData data) => data == null || data.version != CurrentVersion;
