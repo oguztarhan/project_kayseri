@@ -70,6 +70,8 @@ namespace Game.Systems
         private readonly WalletService _wallet;
         private readonly BoostService _boost;
         private readonly MaintenanceService _maintenance;   // null in tests: everything reads as new
+        private readonly ForemanService _foremen;           // null in tests: an empty roster is x1
+        private readonly GoalService _goals;                // null in tests: nothing is counted
 
         private readonly Dictionary<string, Yard> _yards = new Dictionary<string, Yard>();
         private readonly List<Yard> _order = new List<Yard>();   // stable iteration without allocating
@@ -78,6 +80,11 @@ namespace Game.Systems
         private string _simulatedYard;   // the one being acted out on screen; null when nobody is in the hall
         private float _accum;
         private double _legacyIncomeMult = 1d, _boostMult = 1d, _permanentSpeed = 1d, _simSpeed = 1d;
+        private double _foremanMult = 1d;
+
+        // A yard sells a fraction of a bar per tick, so casting per call would floor to zero forever
+        // and the bar counter would never move. The remainder carries between ticks instead.
+        private double _barsCounted;
 
         /// <summary>Frozen compensation for investors earned before prestige was retired.</summary>
         public double LegacyIncomeMultiplier => _data != null && _data.legacyIncomeMultiplier > 1d
@@ -92,12 +99,15 @@ namespace Game.Systems
         public event Action<string, double> Sold;
 
         public MarketService(SaveData data, WalletService wallet, BoostService boost,
-                             MaintenanceService maintenance = null)
+                             MaintenanceService maintenance = null, ForemanService foremen = null,
+                             GoalService goals = null)
         {
             _data = data;
             _wallet = wallet;
             _boost = boost;
             _maintenance = maintenance;
+            _foremen = foremen;
+            _goals = goals;
         }
 
         // ------------------------------------------------------------------ wiring
@@ -351,6 +361,11 @@ namespace Game.Systems
             _legacyIncomeMult = LegacyIncomeMultiplier;
             _boostMult = _boost != null ? _boost.ActiveMultiplier : 1d;
             _permanentSpeed = _boost != null ? _boost.PermanentMultiplier : 1d;
+            // The roster lifts the ceiling as well as the payout, which is the whole reason it enters
+            // here rather than only speeding the stations up. Every island's income is capped, so a
+            // bonus that moved throughput alone would do nothing at all for the player who has been
+            // playing long enough to own foremen — see Game.Core.Foremen.
+            _foremanMult = _foremen != null ? _foremen.IncomeMultiplier : 1d;
             // Spent on the live island's clock when there is one running, and on price otherwise. The
             // guard is what stops a boost going nowhere while the player stands in a market hall: no
             // island is simulating there, so there is nothing to speed up and the price keeps it.
@@ -437,10 +452,10 @@ namespace Game.Systems
             // the same place either way, and the income meter (which feeds SaveData.incomeRatePerSec, and
             // through it the NEXT session's offline grant) never banks a rate that only existed while an
             // ad was running.
-            double sale = bars * y.terms.BarPriceRaw * _legacyIncomeMult / speed * _permanentSpeed;
+            double sale = bars * y.terms.BarPriceRaw * _legacyIncomeMult / speed * _permanentSpeed * _foremanMult;
             if (sale <= 0d) return 0d;
 
-            double cap = y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed;
+            double cap = y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed * _foremanMult;
             double headroom = cap - (y.earnTrailing + y.earnedThisTick);
             if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
             if (sale <= 0d) return 0d;
@@ -455,6 +470,18 @@ namespace Game.Systems
             double paid = Earn(y, bars);
             if (paid <= 0d) return;
             _wallet.AddCash(new BigDouble(paid));
+
+            if (_goals != null && bars > 0d)
+            {
+                _barsCounted += bars;
+                if (_barsCounted >= 1d)
+                {
+                    long whole = (long)_barsCounted;
+                    _barsCounted -= whole;
+                    _goals.Record(Game.Core.Goals.BarsSold, whole);
+                }
+            }
+
             if (Sold != null) Sold(y.save.id, paid);
         }
 
@@ -521,7 +548,7 @@ namespace Game.Systems
             if (y.earnFilled < y.earnBuckets.Length) y.earnFilled++;
 
             double cap = y.terms != null
-                ? y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed
+                ? y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed * _foremanMult
                 : double.MaxValue;
             // Clamp the extrapolation rather than the buckets: while the window is still filling, one
             // good second scaled up by 60/filled reads far above anything the yard can sustain.

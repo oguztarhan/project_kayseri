@@ -50,6 +50,7 @@ Material:
     - _Smoothness: 0.4
     - _SpecularStrength: 0.35
     - _TintAmount: 0
+    - _TintLift: 0
     - _ToonSmoothness: 0.1
     - _ToonSteps: 3
     - _VertexColorAmount: 0

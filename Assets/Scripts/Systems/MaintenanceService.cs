@@ -127,6 +127,13 @@ namespace Game.Systems
         }
 
         /// <summary>True while a crew is out anywhere on this island.</summary>
+        /// <summary>
+        /// Set after construction rather than taken in the constructor: wear is evaluated during boot,
+        /// before the goal system exists, and reordering the two would charge the absence after the
+        /// island had already been asked how fast it runs. Null until then, which counts nothing.
+        /// </summary>
+        public GoalService Goals { get; set; }
+
         public bool Repairing(string island)
         {
             long[] end = Get(island).save.repairEnd;
@@ -382,6 +389,7 @@ namespace Game.Systems
                 end[s] = now + row.save.repairSecs[s];
             }
 
+            Goals?.Record(Game.Core.Goals.Repairs, jobs);
             Changed?.Invoke(island);
             return true;
         }

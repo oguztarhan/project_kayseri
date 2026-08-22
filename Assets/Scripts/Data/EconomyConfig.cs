@@ -20,10 +20,6 @@ namespace Game.Data
         [Header("Ore economy")]
         [SerializeField] private double tierValueMultiplier = 3.2d;
 
-        [Header("Managers (GDD 6)")]
-        [SerializeField] private double managerBonus = 1.0d;       // +100% station rate (x2)
-        [SerializeField] private double managerCostBase = 500d;
-
         [Header("Milestone step-multipliers (GDD 5)")]
         [Tooltip("Every N levels on a track, the station's output gets a step multiplier.")]
         [SerializeField] private int milestoneEvery = 25;
@@ -34,8 +30,6 @@ namespace Game.Data
         public double BaseUpgradeCost => baseUpgradeCost;
         public double CostGrowth => costGrowth;
         public double TierValueMultiplier => tierValueMultiplier;
-        public double ManagerBonus => managerBonus;
-        public double ManagerCostBase => managerCostBase;
         public int MilestoneEvery => milestoneEvery;
         public double MilestoneStepMultiplier => milestoneStepMultiplier;
     }

@@ -17,9 +17,13 @@ namespace Game.UI
         [SerializeField] private string operationRootName = "Island_Coal";
 
         [Header("Framing")]
-        [SerializeField] private float pitch = 46f;            // downward tilt
+        [SerializeField] private float pitch = 40f;            // downward tilt: more facade, less roof
         [SerializeField] private float yaw = 90f;              // aligned with the mine→market axis so the chain runs down-screen
-        [SerializeField] private float fieldOfView = 30f;      // narrow: less perspective distortion, reads closer
+        // Wide, not narrow. The fit below is derived from the FOV, so tan(fov/2) cancels out of the
+        // apparent size of a building entirely — widening the lens does not make anything smaller.
+        // What it changes is how fast near reads bigger than far, and that divergence is what makes
+        // an island look like a place you are standing over rather than a map you are looking at.
+        [SerializeField] private float fieldOfView = 42f;
         [SerializeField] private float edgeMargin = 0.06f;     // breathing room as a fraction of the fitted span
         // The whole-operation fit is the "survey" distance, and the opening shot is a fraction of it.
         //
@@ -27,11 +31,26 @@ namespace Game.UI
         // ran in a straight line. With the stations at the corners of a ring that same fraction cropped
         // two of them off the sides, so the player's first sight of the island was a road going nowhere.
         // Opening on very nearly the whole loop is what makes the layout legible; zooming in is a pinch.
-        [SerializeField] private float defaultZoomFraction = 0.30f;
+        //
+        // This fraction, and the usable band below it, are the only two things that set how big a
+        // building actually reads — see the field-of-view note above for why the lens does not.
+        // At 0.30 a station was about forty pixels tall on a 1284-high screen, which is under half
+        // what the genre opens on; 0.21 puts it near sixty.
+        [SerializeField] private float defaultZoomFraction = 0.21f;
 
         [Header("HUD-safe area")]
-        [SerializeField] private float hudTopFraction = 0.09f;    // screen height hidden by the top bar
-        [SerializeField] private float hudBottomFraction = 0.17f; // screen height hidden by the bottom bar
+        // Landscape measurements. These were authored against the portrait sheet, where the bars are
+        // a bigger share of a 2340-tall screen; on a 1284-high landscape screen the top pill row is
+        // about 0.086 and the bottom button row about 0.117 including margin. They cost camera
+        // distance directly — FitDistance divides by (1 - top - bottom).
+        [SerializeField] private float hudTopFraction = 0.07f;    // screen height hidden by the top bar
+        [SerializeField] private float hudBottomFraction = 0.145f; // screen height hidden by the bottom bar
+
+        // Every island is built around a ring road with an empty disc at the middle of it, and that
+        // disc lands exactly where the eye goes. Sliding the operation up-frame moves the hole out of
+        // the focal zone and puts a district in it instead. Positive lifts the subject up the screen,
+        // the same direction as the HUD compensation below; tune against the island in Play mode.
+        [SerializeField] private float aimLiftFraction = 0.08f;
 
         [Header("Limits")]
         // A deliberately narrow band around the opening shot: the playfield is composed to be
@@ -42,7 +61,9 @@ namespace Game.UI
         // of zooming in a game where the stations are the content, so the floor is now low enough to
         // fill the screen with one of them.
         [SerializeField] private float zoomInFactor = 0.07f;   // closest dolly, as a fraction of the whole-operation fit
-        [SerializeField] private float zoomOutFactor = 0.44f;  // a step back, not a map view
+        // Raised alongside the tighter opening shot so the widest view the player can reach is the
+        // one they had before: only the opening tightens, nothing is taken away.
+        [SerializeField] private float zoomOutFactor = 0.52f;  // a step back, not a map view
         [SerializeField] private float panPadding = 40f;       // slack beyond the operation footprint
 
         // Children whose bounds must not influence the framing: locked expansions the player can't act on
@@ -169,7 +190,7 @@ namespace Game.UI
             // The HUD eats more screen at the bottom than the top, so the visual centre of the free area
             // sits above the screen centre. Slide the camera down its own up-axis to put the operation there.
             float vTan = Mathf.Tan(fieldOfView * 0.5f * Mathf.Deg2Rad);
-            float centreOffset = (hudBottomFraction - hudTopFraction) * 0.5f;
+            float centreOffset = (hudBottomFraction - hudTopFraction) * 0.5f + aimLiftFraction;
             pos -= rot * Vector3.up * (centreOffset * 2f * dist * vTan);
 
             // CameraController measures its perspective zoom to the ground plane, while the fit above

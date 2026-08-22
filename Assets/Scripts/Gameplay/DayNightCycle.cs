@@ -47,18 +47,42 @@ namespace Game.Gameplay
 
         [Header("Gece")]
         [SerializeField] private Color _nightSunColor = new Color(0.34f, 0.44f, 0.84f);
-        [SerializeField] private float _nightSunIntensity = 0.4f;
+        [SerializeField] private float _nightSunIntensity = 0.72f;
         [Tooltip("Ayın geldiği yön (Euler). Güneşin gündüz yönü sahneden okunur, geçişte buraya süzülür.")]
         [SerializeField] private Vector3 _nightSunAngles = new Vector3(38f, 205f, 0f);
-        [SerializeField] private Color _nightSkyColor = new Color(0.05f, 0.068f, 0.15f);
+        [SerializeField] private Color _nightSkyColor = new Color(0.10f, 0.14f, 0.28f);
         [Tooltip("Gece ortam ışığı ve yansımalarının gündüze oranı.")]
-        [Range(0f, 1f)][SerializeField] private float _nightAmbient = 0.22f;
+        [Range(0f, 1f)][SerializeField] private float _nightAmbient = 0.52f;
         [Tooltip("Gece ortam ışığına karışan ay mavisi; kanal başına çarpan. Beyaz = eski davranış.")]
         [SerializeField] private Color _nightAmbientTint = new Color(0.75f, 0.85f, 1.3f);
         [Tooltip("Materyallerdeki sabit gölge ve rim renklerinin gecede düştüğü ton.")]
-        [SerializeField] private Color _nightTint = new Color(0.31f, 0.37f, 0.6f);
+        // Was (0.31, 0.37, 0.60). Multiplying every surface on the island by 0.31 in red does not
+        // read as night, it reads as the colour being broken — which is exactly how it was reported.
+        // A night still has to show what the player built.
+        [SerializeField] private Color _nightTint = new Color(0.58f, 0.65f, 0.86f);
         [Tooltip("Gece pozlaması, EV cinsinden. Gündüz değeri sahnedeki Volume'dan okunur.")]
         [SerializeField] private float _nightExposure = -1f;
+
+        [Header("Sis")]
+        // Aerial perspective, and it is very nearly free: both island shaders already carry
+        // #pragma multi_compile_fog and call MixFog, so this costs one lerp per pixel on a code path
+        // that is already compiled in. The scene has fog switched off in its RenderSettings; this
+        // class already owns ambient and reflection there, so it owns fog too rather than the scene
+        // needing an edit.
+        //
+        // What it buys: the far side of the island softens instead of ending in a hard silhouette,
+        // the terrain plane's edge stops reading as a cut, and the archipelago gains depth. Density is
+        // deliberately tiny — at 0.0016 the near districts are untouched and only the far ridge lifts.
+        // The skybox is Kayseri/ToonSky, which has an _Exposure but no night handling of its own —
+        // it was authored as a daytime sky and left unused while the scene ran a night skybox from a
+        // demo pack at 0.16 exposure, in daylight. Now that it is actually in use, this is what takes
+        // it down after dark instead.
+        [SerializeField] private float _nightSkyExposure = 0.42f;
+
+        [SerializeField] private bool _fog = true;
+        [SerializeField] private float _fogDensity = 0.0016f;
+        [SerializeField] private Color _dayFogColor = new Color(0.62f, 0.74f, 0.86f);
+        [SerializeField] private Color _nightFogColor = new Color(0.05f, 0.07f, 0.13f);
 
         // Dusk is not the midpoint between day and night: the real sky detours through orange
         // before it gets anywhere near blue. These are that detour, blended on a weight that peaks
@@ -153,6 +177,8 @@ namespace Game.Gameplay
         private float _daySunIntensity;
         private float _daySunPitch, _daySunYaw;
         private Color _daySkyColor;
+        private Material _skyInstance;
+        private float _daySkyExposure = 1f;
         private AmbientMode _ambientMode;
         private float _dayAmbientIntensity;
         private Color _dayAmbientSky, _dayAmbientEquator, _dayAmbientGround, _dayAmbientFlat;
@@ -201,6 +227,14 @@ namespace Game.Gameplay
             }
             if (_sky != null) _daySkyColor = _sky.backgroundColor;
 
+            var sharedSky = RenderSettings.skybox;
+            if (sharedSky != null && sharedSky.HasProperty("_Exposure"))
+            {
+                _daySkyExposure = sharedSky.GetFloat("_Exposure");
+                _skyInstance = new Material(sharedSky);
+                RenderSettings.skybox = _skyInstance;
+            }
+
             _ambientMode = RenderSettings.ambientMode;
             _dayAmbientIntensity = RenderSettings.ambientIntensity;
             _dayAmbientSky = RenderSettings.ambientSkyColor;
@@ -236,6 +270,15 @@ namespace Game.Gameplay
             {
                 _dayBloomIntensity = _bloom.intensity.value;
                 _dayBloomThreshold = _bloom.threshold.value;
+
+                // The only place in the game that holds the bloom override, so it is the only place
+                // that can pay for it by device. See QualityService.HighQualityBloomAllowed.
+                bool richBloom = Game.Systems.QualityService.HighQualityBloomAllowed;
+                _bloom.highQualityFiltering.value = richBloom;
+                // maxIterations, not the obsolete skipIterations, and the sense is the other way
+                // round: this is how many mips the pyramid is allowed, so FEWER is cheaper. Six is
+                // the URP default; four costs the widest, softest end of the glow and little else.
+                _bloom.maxIterations.value = richBloom ? 6 : 4;
             }
         }
 
@@ -391,6 +434,23 @@ namespace Game.Gameplay
                     RenderSettings.ambientIntensity =
                         Mathf.Lerp(_dayAmbientIntensity, _dayAmbientIntensity * _nightAmbient, night);
                     break;
+            }
+
+            // A RUNTIME INSTANCE, never the shared asset. Writing _Exposure straight onto
+            // RenderSettings.skybox mutates the material asset on disk — in the editor that survives
+            // leaving play mode, so one session that happened to end at night would leave the sky
+            // permanently dark and look exactly like a bug in the art.
+            if (_skyInstance != null)
+                _skyInstance.SetFloat("_Exposure", Mathf.Lerp(_daySkyExposure, _nightSkyExposure, night));
+
+            if (_fog)
+            {
+                RenderSettings.fog = true;
+                RenderSettings.fogMode = FogMode.ExponentialSquared;
+                RenderSettings.fogDensity = _fogDensity;
+                // Follows the sky rather than staying one colour, or the island would sit in a pale
+                // haze at midnight — which is exactly what fog looks like when nobody wired it up.
+                RenderSettings.fogColor = Color.Lerp(_dayFogColor, _nightFogColor, night);
             }
 
             // Without this the glossy props keep mirroring a midday skybox after dark.

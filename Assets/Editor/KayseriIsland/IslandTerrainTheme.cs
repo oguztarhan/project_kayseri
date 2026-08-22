@@ -470,6 +470,15 @@ namespace Kayseri.IslandTools
                 var c = theme.Foliage;
                 if (PlayerSettings.colorSpace == ColorSpace.Linear) c = c.linear;
                 mat.SetColor("_BaseColor", c);
+
+                // GPU instancing, and ONLY here. This one material carries roughly 745 pines, 295
+                // bushes and 465 boulders per island — the same handful of meshes drawn over and over,
+                // which is exactly the case instancing exists for. It is switched on nowhere else on
+                // purpose: instancing and the SRP Batcher are mutually exclusive per draw, and the
+                // building materials sit on meshes that are each used once, so turning it on there
+                // would cost a batch and buy nothing.
+                mat.enableInstancing = true;
+
                 EditorUtility.SetDirty(mat);
             }
         }

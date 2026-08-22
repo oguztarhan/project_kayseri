@@ -100,6 +100,15 @@ namespace Game.UI
         [Tooltip("Perde ada görselini taşırken bekleme. Buna açılma süresi ekleniyor: 1,7 + 0,3 = " +
                  "oyuncunun gittiği adayı gördüğü iki saniye.")]
         [SerializeField] private float sailHoldSeconds = 1.7f;
+
+        [Header("Takımadaları şeridi")]
+        // The chain along the bottom. Built in code (see MapArchipelago) so the UI_Harita prefab needs
+        // nothing wired; these are the band it occupies, as fractions of the panel.
+        [SerializeField] private bool showArchipelago = true;
+        [SerializeField] private Vector2 archipelagoMin = new Vector2(0.02f, 0.02f);
+        [SerializeField] private Vector2 archipelagoMax = new Vector2(0.98f, 0.17f);
+        [SerializeField] private float archipelagoNodeSize = 34f;
+        [SerializeField] private Color archipelagoRoute = new Color(0.62f, 0.78f, 0.92f, 1f);
         [SerializeField] private float fadeInSeconds = 0.3f;
 
         [Header("Animasyon")]
@@ -123,6 +132,7 @@ namespace Game.UI
         private int _shown;             // island the showcase is displaying, not necessarily the live one
         private int _pending = -1;      // island waiting on the confirm popup
         private bool _sailing;
+        private MapArchipelago _chain;
         private bool _busy;             // a slide is playing; input is ignored
         private bool _dragging;
         private float _dragStart;
@@ -162,6 +172,18 @@ namespace Game.UI
             _wallet = ServiceLocator.Get<WalletService>();
             _canvas = GetComponentInParent<Canvas>();
             if (_canvas != null) _canvasBaseSortingOrder = _canvas.sortingOrder;
+
+            var panelRect = panelRoot != null ? panelRoot.transform as RectTransform : null;
+            if (showArchipelago && _world != null && panelRect != null)
+            {
+                _chain = new MapArchipelago(_world);
+                // Behind the medallion stage but in front of the backdrop and its ray wheel, so the
+                // chain reads as something on the water rather than something over the UI. Inserting
+                // AT the stage's index pushes the stage one later, which is what puts us behind it.
+                int behindStage = stage != null && stage.parent == panelRect ? stage.GetSiblingIndex() : 1;
+                _chain.Build(panelRect, behindStage, archipelagoMin, archipelagoMax,
+                             archipelagoRoute, lockedTint, archipelagoNodeSize);
+            }
 
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
             if (confirmCancelButton != null) confirmCancelButton.onClick.AddListener(CloseConfirm);
@@ -320,6 +342,8 @@ namespace Game.UI
             float dt = Time.unscaledDeltaTime;
             _clock += dt;
 
+            if (_chain != null) _chain.Tick(dt);
+
             if (rays != null) rays.rectTransform.Rotate(0f, 0f, backdropSpin * dt);
             if (backdrop != null)
             {
@@ -368,7 +392,9 @@ namespace Game.UI
                 if (!_world.IsOwned(k)) { next = k; break; }
             bool buyable = !owned && i == next;
 
-            Color ore = _world.OreColor(i);
+            // The BRAND, not the ore — see WorldIslands.BrandColor. Half the ore palette is grey by
+            // design, and this screen was showing that grey.
+            Color ore = _world.BrandColor(i);
             // ore colours run dark — coal is nearly black — so the disc is lifted toward the set's
             // cream, or the medallion reads as a hole punched in the screen
             Color face = owned ? Color.Lerp(ore, new Color(1f, 0.96f, 0.88f), 0.5f) : lockedTint;
@@ -386,9 +412,22 @@ namespace Game.UI
             }
             SetOn(lockIcon, !owned);
             if (sparkleRing != null) sparkleRing.gameObject.SetActive(owned);
-            if (rays != null) rays.color = new Color(ore.r, ore.g, ore.b, owned ? 0.42f : 0.18f);
+            // The rays are the only thing carrying the colour at full strength, and at 0.42/0.18 they
+            // were barely there. This is the screen's main source of hue now.
+            if (rays != null) rays.color = new Color(ore.r, ore.g, ore.b, owned ? 0.70f : 0.34f);
 
-            _backWant = Color.Lerp(owned ? ore : lockedTint, BackdropFloor, 0.72f);
+            // 0.72 kept barely a quarter of the island's colour and mixed in three quarters of a
+            // near-black navy, so every backdrop landed in the same dark band whatever island you were
+            // looking at. 0.45 keeps over half of it and still reads as deep water.
+            //
+            // A locked island keeps its own colour too, dimmed rather than replaced by a shared grey:
+            // the map's job is to make you want the next island, and it cannot do that while every
+            // island you do not own looks identical.
+            _backWant = owned
+                ? Color.Lerp(ore, BackdropFloor, 0.45f)
+                : Color.Lerp(ore, BackdropFloor, 0.72f);
+
+            if (_chain != null) _chain.Refresh(i, lockedTint, archipelagoRoute);
 
             if (nameText != null) nameText.text = IslandName(i);
             double cap = _world.CapPerMin(i);
@@ -837,7 +876,9 @@ namespace Game.UI
             }
             if (_travelFillImage != null && _world != null)
             {
-                Color ore = _world.OreColor(i);
+                // The BRAND, not the ore — see WorldIslands.BrandColor. Half the ore palette is grey by
+            // design, and this screen was showing that grey.
+            Color ore = _world.BrandColor(i);
                 _travelFillImage.color = Color.Lerp(ore, new Color(1f, 0.80f, 0.28f, 1f), 0.42f);
             }
             return has;

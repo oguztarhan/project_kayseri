@@ -21,6 +21,12 @@ namespace Game.Systems
         public static bool NightBeamsAllowed { get; private set; } = true;
         public static bool NightSpotLightsAllowed { get; private set; } = true;
 
+        /// <summary>High-quality bloom filtering is a nine-tap upsample across the whole mip chain at
+        /// full resolution. It is worth it on a device that can spare the bandwidth and is the first
+        /// thing to drop on one that cannot. Read by <c>DayNightCycle</c>, which already resolves the
+        /// scene's global volume and is the only thing that holds a reference to the bloom override.</summary>
+        public static bool HighQualityBloomAllowed { get; private set; } = true;
+
         public QualityService(int targetFrameRate, bool vSync)
         {
             DeviceTier = Detect();
@@ -41,16 +47,23 @@ namespace Game.Systems
         {
             // Shadow distance has to go through the pipeline asset: under URP the renderer reads
             // its own shadowDistance and QualitySettings.shadowDistance is ignored, so the writes
-            // that used to live here did nothing at all. The island needs ~780 to be covered end
-            // to end (measured: it spans 207-733 in view depth from the game camera), so the low
-            // tier drops shadows entirely rather than showing half an island's worth.
+            // that used to live here did nothing at all. The low tier drops shadows entirely rather
+            // than showing half an island's worth.
+            //
+            // 780 was measured against the old survey framing, where the island spanned 207-733 in
+            // view depth. The camera now sits at roughly half that distance, so the same island
+            // fits inside 520 — and a shorter distance is a straight win twice over: the single
+            // cascade's 2048 map covers less ground per texel, so contact hardens, and fewer
+            // renderers qualify as casters, so the shadow pass gets cheaper. Keep this in step with
+            // m_ShadowDistance on Mobile_RPAsset; this write is what the device actually sees.
             var pipeline = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
             if (pipeline != null)
-                pipeline.shadowDistance = t == Tier.Low ? 0f : 780f;
+                pipeline.shadowDistance = t == Tier.Low ? 0f : 520f;
 
             SetAmbientOcclusion(t != Tier.Low);
             NightBeamsAllowed = t != Tier.Low;
             NightSpotLightsAllowed = t == Tier.High;
+            HighQualityBloomAllowed = t == Tier.High;
         }
 
         /// <summary>Screen-space AO is the first thing to go on a low-tier device: it is a

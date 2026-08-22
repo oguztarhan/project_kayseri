@@ -31,10 +31,10 @@ Material:
     - _Metallic: 0
     - _Saturation: 1.7
     - _Smoothness: 0.7
-    - _VertexColorAmount: 1
+    - _VertexColorAmount: 0
     - _Vibrance: 1.02
     m_Colors:
-    - _BaseColor: {r: 0.19701566, g: 0.6118244, b: 0.8455901, a: 0.3}
-    - _EmissionColor: {r: 0.3435394, g: 0.96974766, b: 1.3277091, a: 1}
+    - _BaseColor: {r: 1, g: 0.72, b: 0.16, a: 0.55}
+    - _EmissionColor: {r: 0.9, g: 0.55, b: 0.1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

@@ -62,6 +62,15 @@ namespace Game.Systems
         private const double SampleBlend = 0.5d;
 
         private readonly WalletService _wallet;
+        private readonly ForemanService _foremen;
+        private readonly GoalService _goals;
+        private readonly int _cardsPerContract;
+        private readonly int _cardsStreakStep;
+
+        /// <summary>Which slot the last claim paid cards into, and how many — so the reward screen can
+        /// name the foreman rather than saying "you got some cards". -1 when nothing was paid.</summary>
+        public int LastCardStation { get; private set; } = -1;
+        public int LastCards { get; private set; }
         private readonly SaveData _data;
         private readonly ContractSaveData _save;
         private readonly TimeService _time;
@@ -94,9 +103,12 @@ namespace Game.Systems
         private float _left;
 
         public ContractService(WalletService wallet, ContractConfig config, SaveData data = null,
-                               TimeService time = null)
+                               TimeService time = null, ForemanService foremen = null,
+                               GoalService goals = null)
         {
             _wallet = wallet;
+            _foremen = foremen;
+            _goals = goals;
             _data = data;
             _time = time;
             if (_data != null && _data.contract == null) _data.contract = new ContractSaveData();
@@ -106,6 +118,8 @@ namespace Game.Systems
             _normalMinutes = config != null && config.NormalMinutes > 0.1f ? config.NormalMinutes : 10f;
             _rewardFloor = config != null ? config.RewardCash : 500d;
             _rewardGems = config != null ? config.RewardGems : 2L;
+            _cardsPerContract = config != null ? config.CardsPerContract : 2;
+            _cardsStreakStep = config != null && config.CardsStreakStep > 0 ? config.CardsStreakStep : 5;
             _rewardFraction = config != null && config.RewardFraction > 0d ? config.RewardFraction : 0.45d;
 
             _tierRate[EasyTier] = config != null ? config.EasyRate : 0.6f;
@@ -308,6 +322,21 @@ namespace Game.Systems
 
             _wallet.AddCash(new BigDouble(_activeCash));
             _wallet.AddGems(_activeGems);
+
+            // Foreman cards. Contracts were dead content — a whole ship, a timer and a state machine
+            // paying out about a second of a maxed island's income plus a handful of gems that had
+            // nowhere to go. Cards are the reward that cannot be bought, so this is the loop that
+            // makes finishing one worth the trip, and it scales with the streak the player has built.
+            LastCardStation = -1;
+            LastCards = 0;
+            if (_foremen != null && _cardsPerContract > 0)
+            {
+                LastCards = _cardsPerContract + (int)(Streak / _cardsStreakStep);
+                LastCardStation = _foremen.GrantRandomDuplicates(LastCards);
+            }
+
+            _goals?.Record(Game.Core.Goals.Contracts);
+
             Streak++;
             _difficulty *= StreakStep;
             if (_difficulty > StreakCap) _difficulty = StreakCap;

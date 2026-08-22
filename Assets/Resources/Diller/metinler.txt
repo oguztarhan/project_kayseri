@@ -56,18 +56,6 @@ kontrat.gemi_geliyor	GEMİ YANAŞIYOR	SHIP DOCKING	SCHIFF LEGT AN	NAVIRE À QUAI
 kontrat.teslim_edildi	TESLİM EDİLDİ	DELIVERED	GELIEFERT	LIVRÉ	ENTREGADO	ENTREGUE	CONSEGNATO	DOSTARCZONO	ДОСТАВЛЕНО	TERKIRIM	ĐÃ GIAO
 kontrat.kacirildi	KAÇIRILDI	MISSED	VERPASST	MANQUÉ	PERDIDO	PERDIDO	MANCATO	NIEUDANE	УПУЩЕНО	TERLEWAT	ĐÃ LỠ
 kontrat.gemi_kisa	GEMİ	SHIP	SCHIFF	NAVIRE	BARCO	NAVIO	NAVE	STATEK	КОРАБЛЬ	KAPAL	TÀU
-# prestij
-prestij.baslik	PRESTİJ	PRESTIGE	PRESTIGE	PRESTIGE	PRESTIGIO	PRESTÍGIO	PRESTIGIO	PRESTIŻ	ПРЕСТИЖ	PRESTISE	DANH VỌNG
-prestij.yatirimci_kazanc	+{0} YATIRIMCI	+{0} INVESTORS	+{0} INVESTOREN	+{0} INVESTISSEURS	+{0} INVERSORES	+{0} INVESTIDORES	+{0} INVESTITORI	+{0} INWESTORÓW	+{0} ИНВЕСТОРОВ	+{0} INVESTOR	+{0} NHÀ ĐẦU TƯ
-prestij.hazir	PRESTİJ HAZIR	PRESTIGE READY	PRESTIGE BEREIT	PRESTIGE PRÊT	PRESTIGIO LISTO	PRESTÍGIO PRONTO	PRESTIGIO PRONTO	PRESTIŻ GOTOWY	ПРЕСТИЖ ГОТОВ	PRESTISE SIAP	SẴN SÀNG DANH VỌNG
-prestij.esik	PRESTİJ İÇİN ${0} DAHA KAZAN	EARN ${0} MORE TO PRESTIGE	NOCH ${0} FÜR PRESTIGE	GAGNEZ ${0} DE PLUS	GANA ${0} MÁS	GANHE MAIS ${0}	GUADAGNA altri ${0}	ZAROB JESZCZE ${0}	ЗАРАБОТАЙ ЕЩЁ ${0}	KUMPULKAN ${0} LAGI	KIẾM THÊM ${0}
-prestij.ada_gerek	{0} ADA DAHA GEREK	{0} MORE ISLANDS NEEDED	NOCH {0} INSELN NÖTIG	ENCORE {0} ÎLES REQUISES	FALTAN {0} ISLAS	FALTAM {0} ILHAS	SERVONO ANCORA {0} ISOLE	POTRZEBA JESZCZE {0} WYSP	НУЖНО ЕЩЁ {0} ОСТРОВОВ	BUTUH {0} PULAU LAGI	CẦN THÊM {0} ĐẢO
-prestij.yap	PRESTİJ YAP	PRESTIGE	PRESTIGE	PRESTIGE	PRESTIGIAR	PRESTIGIAR	PRESTIGIA	ZRÓB PRESTIŻ	ПРЕСТИЖ	PRESTISE	DANH VỌNG
-prestij.henuz_degil	HENÜZ DEĞİL	NOT YET	NOCH NICHT	PAS ENCORE	TODAVÍA NO	AINDA NÃO	NON ANCORA	JESZCZE NIE	ПОКА НЕТ	BELUM	CHƯA ĐỦ
-prestij.onayla	ONAYLAMAK İÇİN TEKRAR BAS	TAP AGAIN TO CONFIRM	ZUM BESTÄTIGEN ERNEUT TIPPEN	APPUYEZ ENCORE POUR CONFIRMER	PULSA OTRA VEZ PARA CONFIRMAR	TOQUE DE NOVO PARA CONFIRMAR	TOCCA ANCORA PER CONFERMARE	DOTKNIJ PONOWNIE, BY POTWIERDZIĆ	НАЖМИ ЕЩЁ РАЗ ДЛЯ ПОДТВЕРЖДЕНИЯ	KETUK LAGI UNTUK KONFIRMASI	CHẠM LẦN NỮA ĐỂ XÁC NHẬN
-prestij.gider	GİDER	YOU LOSE	DU VERLIERST	VOUS PERDEZ	PIERDES	VOCÊ PERDE	PERDI	TRACISZ	ТЕРЯЕШЬ	HILANG	MẤT
-prestij.kalir	KALIR	YOU KEEP	DU BEHÄLTST	VOUS GARDEZ	CONSERVAS	VOCÊ MANTÉM	MANTIENI	ZACHOWUJESZ	ОСТАЁТСЯ	TETAP	GIỮ LẠI
-prestij.yatirimci	YATIRIMCI	INVESTORS	ANLEGER	INVESTISSEURS	INVERSORES	INVESTIDORES	INVESTITORI	INWESTORZY	ИНВЕСТОРЫ	INVESTOR	NHÀ ĐẦU TƯ
 # dunya haritasi
 harita.baslik	DÜNYA HARİTASI	WORLD MAP	WELTKARTE	CARTE DU MONDE	MAPA DEL MUNDO	MAPA-MÚNDI	MAPPA DEL MONDO	MAPA ŚWIATA	КАРТА МИРА	PETA DUNIA	BẢN ĐỒ THẾ GIỚI
 harita.buradasin	BURADASIN	YOU ARE HERE	DU BIST HIER	VOUS ÊTES ICI	ESTÁS AQUÍ	VOCÊ ESTÁ AQUI	SEI QUI	TU JESTEŚ	ТЫ ЗДЕСЬ	ANDA DI SINI	BẠN Ở ĐÂY
@@ -95,7 +83,6 @@ hosgeldin.saat_dakika	{0} SAAT {1} DAKİKA	{0} H {1} MIN	{0} STD {1} MIN	{0} H {
 # HUD
 hud.gelir	×{0} GELİR	×{0} INCOME	×{0} EINKOMMEN	×{0} REVENU	×{0} INGRESOS	×{0} RENDA	×{0} ENTRATE	×{0} DOCHÓD	×{0} ДОХОД	×{0} PENGHASILAN	×{0} THU NHẬP
 hud.harita	HARİTA	MAP	KARTE	CARTE	MAPA	MAPA	MAPPA	MAPA	КАРТА	PETA	BẢN ĐỒ
-hud.prestij	PRESTİJ	PRESTIGE	PRESTIGE	PRESTIGE	PRESTIGIO	PRESTÍGIO	PRESTIGIO	PRESTIŻ	ПРЕСТИЖ	PRESTISE	DANH VỌNG
 hud.gunluk	GÜNLÜK	DAILY	TÄGLICH	QUOTIDIEN	DIARIO	DIÁRIO	GIORNALIERO	CODZIENNE	КАЖДЫЙ ДЕНЬ	HARIAN	HÀNG NGÀY
 hud.magaza	MAĞAZA	SHOP	SHOP	BOUTIQUE	TIENDA	LOJA	NEGOZIO	SKLEP	МАГАЗИН	TOKO	CỬA HÀNG
 hud.yukselt	YÜKSELT	UPGRADE	AUSBAU	AMÉLIORER	MEJORAR	MELHORAR	POTENZIA	ULEPSZ	УЛУЧШИТЬ	TINGKATKAN	NÂNG CẤP
@@ -213,14 +200,12 @@ magaza.gem_cash_2h	2 SAAT	2 HOURS	2 STUNDEN	2 HEURES	2 HORAS	2 HORAS	2 ORE	2 GOD
 magaza.gem_cash_8h	8 SAAT	8 HOURS	8 STUNDEN	8 HEURES	8 HORAS	8 HORAS	8 ORE	8 GODZIN	8 ЧАСОВ	8 JAM	8 GIỜ
 magaza.gem_offline_2h	+4 SAAT	+4 HOURS	+4 STUNDEN	+4 HEURES	+4 HORAS	+4 HORAS	+4 ORE	+4 GODZINY	+4 ЧАСА	+4 JAM	+4 GIỜ
 magaza.gem_ad_charge	+1 HAK	+1 CHARGE	+1 LADUNG	+1 CHARGE	+1 CARGA	+1 CARGA	+1 CARICA	+1 ŁADUNEK	+1 ПОПЫТКА	+1 PELUANG	+1 LƯỢT
-magaza.gem_investor	%50	50%	50%	50%	50%	50%	50%	50%	50%	50%	50%
 magaza.gem_shield_8h	8 SAAT	8 HOURS	8 STUNDEN	8 HEURES	8 HORAS	8 HORAS	8 ORE	8 GODZIN	8 ЧАСОВ	8 JAM	8 GIỜ
 magaza.gem_shield_12h	12 SAAT	12 HOURS	12 STUNDEN	12 HEURES	12 HORAS	12 HORAS	12 ORE	12 GODZIN	12 ЧАСОВ	12 JAM	12 GIỜ
 magaza.gem_shield_24h	24 SAAT	24 HOURS	24 STUNDEN	24 HEURES	24 HORAS	24 HORAS	24 ORE	24 GODZINY	24 ЧАСА	24 JAM	24 GIỜ
 magaza.gem_offline_2h.aciklama	Çevrimdışı kazanç 4 saat uzar	4 more hours of offline earnings	4 Stunden mehr Offline-Ertrag	4 h de gains hors ligne en plus	4 h más de ganancias sin conexión	Mais 4 h de ganhos offline	4 ore in più di guadagni offline	4 godziny dłuższy zarobek offline	Ещё 4 часа офлайн-дохода	4 jam penghasilan offline lagi	Thêm 4 giờ thu nhập ngoại tuyến
 magaza.gem_ad_charge.aciklama	Her reklama günde +1 hak	One extra ad charge a day	Täglich eine Ladung mehr	Une charge de plus par jour	Una carga más al día	Mais uma carga por dia	Una carica in più al giorno	Jeden ładunek więcej dziennie	Ещё одна попытка в день	Satu kesempatan ekstra/hari	Thêm một lượt mỗi ngày
 magaza.gem_daily_x2.aciklama	Günlük ödüller kalıcı ×2	Daily rewards doubled forever	Tagesbelohnungen dauerhaft ×2	Bonus du jour doublé à vie	Premio diario doblado siempre	Prêmio diário dobrado sempre	Premio giornaliero sempre ×2	Nagrody dzienne trwale ×2	Награда дня навсегда ×2	Hadiah harian permanen ×2	Thưởng ngày nhân đôi vĩnh viễn
-magaza.gem_investor.aciklama	Prestij yarısı, adalar kalır	Half prestige, keep islands	Halbes Prestige, Inseln bleiben	Moitié prestige, îles gardées	Mitad de prestigio, islas fijas	Metade do prestígio, ilhas ficam	Metà prestigio, isole restano	Pół prestiżu, wyspy zostają	Половина престижа, острова целы	Setengah prestise, pulau tetap	Nửa danh vọng, giữ đảo
 magaza.gem_shield_8h.aciklama	Binalar %100 sağlıkta kalır	Buildings stay at 100% health	Gebäude bleiben bei 100%	Bâtiments à 100% garantis	Edificios siempre al 100%	Prédios sempre a 100%	Edifici sempre al 100%	Budynki stale w 100%	Здания остаются на 100%	Bangunan tetap 100%	Công trình luôn 100%
 magaza.gem_shield_12h.aciklama	Binalar %100 sağlıkta kalır	Buildings stay at 100% health	Gebäude bleiben bei 100%	Bâtiments à 100% garantis	Edificios siempre al 100%	Prédios sempre a 100%	Edifici sempre al 100%	Budynki stale w 100%	Здания остаются на 100%	Bangunan tetap 100%	Công trình luôn 100%
 magaza.gem_shield_24h.aciklama	Binalar %100 sağlıkta kalır	Buildings stay at 100% health	Gebäude bleiben bei 100%	Bâtiments à 100% garantis	Edificios siempre al 100%	Prédios sempre a 100%	Edifici sempre al 100%	Budynki stale w 100%	Здания остаются на 100%	Bangunan tetap 100%	Công trình luôn 100%
@@ -275,8 +260,6 @@ egitim.ipucu_faz_b	BİNA BÜYÜDÜ	IT GREW	ES IST GEWACHSEN	ÇA A GRANDI	HA CREC
 egitim.ipucu_faz_m	Her istasyonun üç fazı var. Yükselttikçe ada değişir.	Every station has three phases. Upgrades reshape the island.	Jede Station hat drei Phasen. Upgrades formen die Insel um.	Chaque station a trois phases. Les améliorations redessinent l'île.	Cada estación tiene tres fases. Las mejoras transforman la isla.	Cada estação tem três fases. As melhorias mudam a ilha.	Ogni stazione ha tre fasi. I potenziamenti rimodellano l'isola.	Każda stacja ma trzy fazy. Ulepszenia przebudowują wyspę.	У каждой станции три фазы. Улучшения меняют облик острова.	Setiap stasiun punya tiga fase. Peningkatan mengubah pulau.	Mỗi trạm có ba giai đoạn. Nâng cấp làm đảo đổi dáng.
 egitim.ipucu_genisletme_b	GENİŞLETMELER	EXPANSIONS	ERWEITERUNGEN	EXTENSIONS	AMPLIACIONES	EXPANSÕES	ESPANSIONI	ROZBUDOWY	РАСШИРЕНИЯ	PERLUASAN	MỞ RỘNG
 egitim.ipucu_genisletme_m	Şeridin sonunda tek seferlik binalar var.	One-time buildings sit at the end of the strip.	Am Ende der Leiste stehen einmalige Gebäude.	Des bâtiments uniques attendent au bout de la barre.	Al final de la tira hay edificios de una sola vez.	No fim da faixa há prédios de compra única.	In fondo alla striscia ci sono edifici unici.	Na końcu paska są budynki jednorazowe.	В конце ленты — одноразовые постройки.	Di ujung deret ada bangunan sekali beli.	Cuối dải là các công trình mua một lần.
-egitim.ipucu_prestij_b	YATIRIMCILAR	INVESTORS	INVESTOREN	INVESTISSEURS	INVERSORES	INVESTIDORES	INVESTITORI	INWESTORZY	ИНВЕСТОРЫ	INVESTOR	NHÀ ĐẦU TƯ
-egitim.ipucu_prestij_m	Baştan başla, kalıcı bir gelir çarpanı kazan.	Start over and keep a permanent income multiplier.	Fang neu an und behalte einen dauerhaften Einkommensmultiplikator.	Recommence et garde un multiplicateur de revenu permanent.	Empieza de nuevo y quédate un multiplicador de ingresos permanente.	Recomece e fique com um multiplicador de renda permanente.	Ricomincia e tieni un moltiplicatore di entrate permanente.	Zacznij od nowa i zachowaj stały mnożnik dochodu.	Начни заново и оставь себе постоянный множитель дохода.	Mulai lagi dan simpan pengali penghasilan permanen.	Bắt đầu lại và giữ hệ số nhân thu nhập vĩnh viễn.
 # --- acilir teklif penceresi (OfferPopupUI) ---
 teklif.sefer	SEFER PAKETİ	EXPEDITION PACK	EXPEDITIONSPAKET	PACK EXPÉDITION	PACK EXPEDICIÓN	PACOTE EXPEDIÇÃO	PACCHETTO SPEDIZIONE	PAKIET WYPRAWY	НАБОР «РЕЙС»	PAKET EKSPEDISI	GÓI VIỄN CHINH
 teklif.vardiya	VARDİYA PAKETİ	SHIFT PACK	SCHICHT-PAKET	PACK ÉQUIPE	PACK TURNO	PACOTE TURNO	PACCHETTO TURNO	PAKIET ZMIANY	НАБОР «СМЕНА»	PAKET SIF	GÓI CA LÀM
@@ -373,3 +356,24 @@ rapor.kalici_hiz	Kalıcı hız ×{0}	Permanent speed ×{0}	Dauertempo ×{0}	Vite
 degerlendirme.baslik	GÖRÜŞÜN BİZİM İÇİN DEĞERLİ	YOUR FEEDBACK MATTERS	DEINE MEINUNG ZÄHLT	TON AVIS COMPTE	TU OPINIÓN IMPORTA	A TUA OPINIÃO CONTA	LA TUA OPINIONE CONTA	TWOJA OPINIA SIĘ LICZY	ВАШЕ МНЕНИЕ ВАЖНО	PENDAPATMU BERARTI	Ý KIẾN CỦA BẠN RẤT QUAN TRỌNG
 degerlendirme.metin	Island Mining Tycoon'u geliştirmemize yardım et. Mağazada kısa bir değerlendirme bırakabilirsin.	Help us improve Island Mining Tycoon. Leave a quick rating in the store.	Hilf uns, Island Mining Tycoon zu verbessern. Bewerte das Spiel kurz im Store.	Aide-nous à améliorer Island Mining Tycoon. Laisse une courte note sur le store.	Ayúdanos a mejorar Island Mining Tycoon. Déjanos una valoración rápida en la tienda.	Ajuda-nos a melhorar Island Mining Tycoon. Deixa uma avaliação rápida na loja.	Aiutaci a migliorare Island Mining Tycoon. Lascia una breve valutazione nello store.	Pomóż nam ulepszyć Island Mining Tycoon. Zostaw krótką ocenę w sklepie.	Помогите нам улучшить Island Mining Tycoon. Оставьте короткую оценку в магазине.	Bantu kami meningkatkan Island Mining Tycoon. Berikan penilaian singkat di toko.	Hãy giúp chúng tôi cải thiện Island Mining Tycoon. Để lại đánh giá nhanh trên cửa hàng.
 degerlendirme.sonra	SONRA	LATER	SPÄTER	PLUS TARD	MÁS TARDE	MAIS TARDE	PIÙ TARDI	PÓŹNIEJ	ПОЗЖЕ	NANTI	ĐỂ SAU
+# ustabasilar -- kadro ekrani (ForemanRosterUI); isimler istasyon.* satirlarindan gelir
+ustabasi.baslik	USTABAŞILAR	FOREMEN	VORARBEITER	CONTREMAÎTRES	CAPATACES	CONTRAMESTRES	CAPISQUADRA	BRYGADZIŚCI	БРИГАДИРЫ	MANDOR	QUẢN ĐỐC
+ustabasi.isealt	İŞE AL	HIRE	ANHEUERN	EMBAUCHER	CONTRATAR	CONTRATAR	ASSUMI	ZATRUDNIJ	НАНЯТЬ	REKRUT	THUÊ
+ustabasi.seviyeatla	SEVİYE ATLA	LEVEL UP	AUFSTUFEN	AMÉLIORER	SUBIR NIVEL	SUBIR NÍVEL	POTENZIA	ULEPSZ	ПОВЫСИТЬ	NAIKKAN	NÂNG CẤP
+ustabasi.azami	AZAMİ	MAX	MAX	MAX	MÁX	MÁX	MAX	MAKS	МАКС	MAKS	TỐI ĐA
+ustabasi.kiralikdegil	BOŞ	NOT HIRED	FREI	NON EMBAUCHÉ	SIN CONTRATAR	NÃO CONTRATADO	NON ASSUNTO	WOLNY	НЕ НАНЯТ	KOSONG	CHƯA THUÊ
+ustabasi.kart	kart	cards	Karten	cartes	cartas	cartas	carte	karty	карт	kartu	thẻ
+# gorevler -- gunluk gorevler ve basarimlar (GoalsUI / Game.Core.Goals)
+gorev.baslik	GÖREVLER	TASKS	AUFGABEN	MISSIONS	MISIONES	MISSÕES	MISSIONI	ZADANIA	ЗАДАНИЯ	MISI	NHIỆM VỤ
+gorev.gunluk	GÜNLÜK GÖREVLER	DAILY TASKS	TAGESAUFGABEN	MISSIONS DU JOUR	MISIONES DIARIAS	MISSÕES DIÁRIAS	MISSIONI GIORNALIERE	ZADANIA DZIENNE	ЕЖЕДНЕВНЫЕ ЗАДАНИЯ	MISI HARIAN	NHIỆM VỤ HÀNG NGÀY
+gorev.basarimlar	BAŞARIMLAR	ACHIEVEMENTS	ERFOLGE	SUCCÈS	LOGROS	CONQUISTAS	OBIETTIVI	OSIĄGNIĘCIA	ДОСТИЖЕНИЯ	PENCAPAIAN	THÀNH TỰU
+gorev.al	AL	CLAIM	ABHOLEN	RÉCLAMER	RECLAMAR	RESGATAR	RISCUOTI	ODBIERZ	ЗАБРАТЬ	AMBIL	NHẬN
+gorev.alindi	ALINDI	CLAIMED	ABGEHOLT	RÉCLAMÉ	RECLAMADO	RESGATADO	RISCOSSO	ODEBRANE	ПОЛУЧЕНО	DIAMBIL	ĐÃ NHẬN
+gorev.kademe	Kademe	Tier	Stufe	Palier	Nivel	Nível	Livello	Poziom	Ступень	Tingkat	Bậc
+gorev.tamamlandi	TAMAMLANDI	COMPLETE	ABGESCHLOSSEN	TERMINÉ	COMPLETADO	COMPLETO	COMPLETATO	UKOŃCZONE	ЗАВЕРШЕНО	SELESAI	HOÀN THÀNH
+gorev.metrik.kulce	Külçe sat	Sell bars	Barren verkaufen	Vendre des lingots	Vender lingotes	Vender barras	Vendi lingotti	Sprzedaj sztabki	Продать слитки	Jual batangan	Bán thỏi
+gorev.metrik.yukseltme	Yükseltme al	Buy upgrades	Upgrades kaufen	Acheter des améliorations	Comprar mejoras	Comprar melhorias	Compra potenziamenti	Kup ulepszenia	Купить улучшения	Beli peningkatan	Mua nâng cấp
+gorev.metrik.kontrat	Kontrat bitir	Finish contracts	Verträge erfüllen	Terminer des contrats	Completar contratos	Concluir contratos	Completa contratti	Ukończ kontrakty	Выполнить контракты	Selesaikan kontrak	Hoàn thành hợp đồng
+gorev.metrik.onarim	Onarım yap	Make repairs	Reparaturen ausführen	Effectuer des réparations	Hacer reparaciones	Fazer reparos	Esegui riparazioni	Wykonaj naprawy	Выполнить ремонт	Lakukan perbaikan	Thực hiện sửa chữa
+gorev.metrik.ada	Ada satın al	Buy islands	Inseln kaufen	Acheter des îles	Comprar islas	Comprar ilhas	Compra isole	Kup wyspy	Купить острова	Beli pulau	Mua đảo
+gorev.metrik.ustabasi	Ustabaşı seviyesi	Foreman levels	Vorarbeiter-Stufen	Niveaux de contremaître	Niveles de capataz	Níveis de contramestre	Livelli capisquadra	Poziomy brygadzisty	Уровни бригадира	Level mandor	Cấp quản đốc

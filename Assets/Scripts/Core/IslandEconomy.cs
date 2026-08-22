@@ -198,6 +198,31 @@ namespace Game.Core
         public void SetConditions(float[] conditions) => _condition = conditions;
 
         /// <summary>
+        /// The foreman roster's per-station speed, handed over the same way and for the same reason as
+        /// the condition array above: it is owned elsewhere, it changes between frames, and the
+        /// simulation has to read the new value the moment it lands. Null is an empty roster.
+        /// </summary>
+        private float[] _foreman;
+
+        public void SetForemen(float[] multipliers) => _foreman = multipliers;
+
+        /// <summary>One station's foreman multiplier, 1 when nobody is hired for it.</summary>
+        public float ForemanSpeed(int station)
+        {
+            if (_foreman == null || station < 0 || station >= _foreman.Length) return 1f;
+            float m = _foreman[station];
+            return m < 1f ? 1f : m;
+        }
+
+        /// <summary>
+        /// How fast a station runs: what repair leaves it capable of, times what its foreman adds.
+        /// The rates below use THIS rather than Condition directly, so a foreman speeds a station in
+        /// exactly the places neglect slows one — and capacities are deliberately not among them. A
+        /// foreman makes the chain move quicker; they do not make the wagons bigger.
+        /// </summary>
+        private float StationSpeed(int station) => Condition(station) * ForemanSpeed(station);
+
+        /// <summary>
         /// One station's multiplier. Floored well above zero: three of the eight rates below DIVIDE by
         /// this, and a zero would not slow the island down, it would stop time on it.
         /// </summary>
@@ -273,11 +298,11 @@ namespace Game.Core
         // reaches the train and both fleets through PowerSpeed. PowerIncome is deliberately clean:
         // it multiplies the bar PRICE, and what a bar fetches is not a thing that rusts.
         public float PowerIncome => Ax(Power, 0, PowerGenerators);
-        public float PowerSpeed => Ax(Power, 1, PowerTurbines) * Condition(Power);
+        public float PowerSpeed => Ax(Power, 1, PowerTurbines) * StationSpeed(Power);
 
         // MINE. Dwell values DIVIDE, so a higher level means a shorter pause - and a worse state of
         // repair means a longer one.
-        public float MineDwell => _t.DwellSeconds / (Ax(Mine, 1, MineDwellC) * Condition(Mine));
+        public float MineDwell => _t.DwellSeconds / (Ax(Mine, 1, MineDwellC) * StationSpeed(Mine));
         public float TrainOre => _t.TrainOrePerTrip
             * Ax(Mine, 0, MineRichness)
             * (ActiveWagons / (float)BaseWagons)
@@ -286,33 +311,33 @@ namespace Game.Core
 
         // TRAIN. The rake follows the station's own phase - 3, then 5, then 7.
         public float TrainSpeed => _t.TrainSpeed * Ax(Train, 0, TrainSpeedC)
-            * (_un[UnlockDepot] ? _t.DepotBonus : 1f) * PowerSpeed * Condition(Train);
+            * (_un[UnlockDepot] ? _t.DepotBonus : 1f) * PowerSpeed * StationSpeed(Train);
         public int ActiveWagons => Math.Min(BaseWagons + (PhaseForStation(Train) - 1) * 2, MaxWagons);
 
         // STORAGE - the ore yard, and the size of the visible pile.
         public float StorageFull => _t.StorageFull * Ax(Storage, 0, StorageCapacity)
             * (_un[UnlockWarehouse] ? _t.WarehouseBonus : 1f);
-        public float StorageDwell => _t.DwellSeconds / (Ax(Storage, 1, StorageDwellC) * Condition(Storage));
+        public float StorageDwell => _t.DwellSeconds / (Ax(Storage, 1, StorageDwellC) * StationSpeed(Storage));
 
         // ORE TRUCKS - storage to smelter.
         public int OreTruckCount => OreBaseTrucks + _lv[OreTrucks][0];
-        public float OreTruckSpeed => _t.TruckSpeed * Ax(OreTrucks, 1, OreSpeed) * PowerSpeed * Condition(OreTrucks);
+        public float OreTruckSpeed => _t.TruckSpeed * Ax(OreTrucks, 1, OreSpeed) * PowerSpeed * StationSpeed(OreTrucks);
         public float OreTruckLoad => _t.OreTruckCapacity * Ax(OreTrucks, 2, OreCapacity);
 
         // SMELTER. If bar storage fills, smelting STOPS until cargo clears it.
         public float SmeltRate => _t.SmeltPerSecond * Ax(Smelter, 0, SmeltSpeed)
-            * (_un[UnlockSecondSmelter] ? _t.SecondSmelterBonus : 1f) * Condition(Smelter);
+            * (_un[UnlockSecondSmelter] ? _t.SecondSmelterBonus : 1f) * StationSpeed(Smelter);
         public float BarCap => _t.BarCapacity * Ax(Smelter, 1, BarStorage);
 
         // CARGO TRUCKS - smelter to market, or to the dock on the export route.
         public int CargoTruckCount => CargoBaseTrucks + _lv[CargoTrucks][0];
-        public float CargoTruckSpeed => _t.TruckSpeed * Ax(CargoTrucks, 1, CargoSpeed) * PowerSpeed * Condition(CargoTrucks);
+        public float CargoTruckSpeed => _t.TruckSpeed * Ax(CargoTrucks, 1, CargoSpeed) * PowerSpeed * StationSpeed(CargoTrucks);
         public float CargoTruckLoad => _t.CargoTruckCapacity * Ax(CargoTrucks, 2, CargoCapacity);
 
         // MARKET - where cash is actually made.
         public float BarPrice => _t.BarPrice * _t.ValueMultiplier * Ax(Market, 0, MarketPrice)
             * (_un[UnlockTradePost] ? _t.TradePostBonus : 1f) * PowerIncome;
-        public float MarketDwell => _t.DwellSeconds / (Ax(Market, 1, MarketDwellC) * Condition(Market));
+        public float MarketDwell => _t.DwellSeconds / (Ax(Market, 1, MarketDwellC) * StationSpeed(Market));
 
         // -------------------------------------------------------------- readouts
         //

@@ -67,6 +67,13 @@ Shader "Kayseri/IslandVertexLit"
         [Header(Island Tint)]
         _Tint("Tint", Color) = (1,1,1,1)
         _TintAmount("Tint Amount", Range(0,1)) = 0
+        // The tint above multiplies the baked luminance, which means it can rotate the hue of a mid
+        // grey and can do nothing whatever to a near-black one: zero times any colour is still zero.
+        // The district buildings are baked almost black on top, so colour-coding them was impossible
+        // until this existed. Lift is added to the luminance BEFORE the tint multiplies it, so a dark
+        // pixel is raised into a range where a hue is actually visible. 0 everywhere by default, which
+        // is exactly the old behaviour - the terrain themes rely on the pure multiply.
+        _TintLift("Tint Lift", Range(0,1)) = 0
 
         // Lava mountains. The bake already has crevices in it - dark pixels are the cracks and
         // hollows of the rock - so making the DARKEST part of the bake glow lights those cracks
@@ -150,6 +157,7 @@ Shader "Kayseri/IslandVertexLit"
             half4 _GrimeColor;
             half4 _Tint;
             half _TintAmount;
+            half _TintLift;
             half4 _EmberColor;
             half _EmberStrength;
             half _EmberLevel;
@@ -353,7 +361,7 @@ Shader "Kayseri/IslandVertexLit"
                 // not touch. Taken before the grain and the grime below, which then go on doing
                 // their work on this island's colour rather than on the shared bake's.
                 half bakeLum = dot(albedo, half3(0.2126h, 0.7152h, 0.0722h));
-                albedo = lerp(albedo, _Tint.rgb * bakeLum, _TintAmount);
+                albedo = lerp(albedo, _Tint.rgb * (bakeLum + _TintLift), _TintAmount);
 
                 InputData inputData = (InputData)0;
                 inputData.positionWS = IN.positionWS;

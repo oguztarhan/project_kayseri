@@ -8,10 +8,8 @@ namespace Game.Data
     {
         [SerializeField] private bool haptics = true;
         [SerializeField] private bool screenShake = true;
-        [SerializeField] private float numberPunchScale = 1.2f;
 
         public bool Haptics => haptics;
         public bool ScreenShake => screenShake;
-        public float NumberPunchScale => numberPunchScale;
     }
 }

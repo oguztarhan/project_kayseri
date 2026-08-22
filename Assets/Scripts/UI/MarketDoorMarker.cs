@@ -51,9 +51,16 @@ namespace Game.UI
         [Tooltip("Dünya noktasından sonra uygulanan ekran kayması, piksel. Negatif Y aşağı iter.\n\n" +
                  "Rozetin durduğu yerin biraz altına indirir; binanın üstünde durur, binanın önünde " +
                  "durmaz.")]
-        [SerializeField] private Vector2 buildingOffset = new Vector2(0f, -90f);
+        [SerializeField] private Vector2 buildingOffset = new Vector2(0f, -56f);
         [Tooltip("HUD 100, satış yazıları 95, yükseltme rozetleri 92. Kapı rozetlerle aynı katta.")]
         [SerializeField] private int sortingOrder = 92;
+
+        // MARKET can sit low in frame, and the button is tall enough to land under the bottom HUD
+        // row when it does. Same band the building signs keep to.
+        [Header("HUD payı")]
+        [SerializeField] private float hudTopFraction = 0.10f;
+        [SerializeField] private float hudBottomFraction = 0.20f;
+        [SerializeField] private float hudSideFraction = 0.09f;
         [SerializeField] private Color tint = new Color(0.16f, 0.18f, 0.24f, 0.94f);
 
         // MARKET's index in IslandEconomy.Stations. Named here rather than reached for through the
@@ -174,7 +181,18 @@ namespace Game.UI
 
             // Straight onto the point, with no bob and no breath added to it. See the class summary:
             // the movement was what made this thing hard to look past.
-            _rect.anchoredPosition = new Vector2(local.x + buildingOffset.x, local.y + buildingOffset.y);
+            float w = _canvasRect.rect.width, h = _canvasRect.rect.height;
+            float halfW = buttonSize.x * 0.5f, halfH = buttonSize.y * 0.5f;
+            float x = local.x + buildingOffset.x, y = local.y + buildingOffset.y;
+
+            float side = w * hudSideFraction;
+            float loX = -w * 0.5f + side + halfW, hiX = w * 0.5f - side - halfW;
+            float loY = -h * 0.5f + h * hudBottomFraction + halfH;
+            float hiY = h * 0.5f - h * hudTopFraction - halfH;
+            if (loX < hiX) x = x < loX ? loX : (x > hiX ? hiX : x);
+            if (loY < hiY) y = y < loY ? loY : (y > hiY ? hiY : y);
+
+            _rect.anchoredPosition = new Vector2(x, y);
 
             if (!_root.activeSelf) _root.SetActive(true);
         }

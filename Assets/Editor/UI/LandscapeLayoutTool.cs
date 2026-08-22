@@ -43,7 +43,6 @@ namespace Game.EditorTools
             ("UI_Ayarlar", LandscapeFit.InnerColumns),
             ("UI_GunlukOdul", LandscapeFit.InnerColumns),
             ("UI_HosGeldin", LandscapeFit.InnerColumns),
-            ("UI_Prestij", LandscapeFit.InnerColumns),
             ("UI_Reklam", LandscapeFit.InnerColumns),
             ("UI_Teklif", LandscapeFit.InnerColumns),
         };

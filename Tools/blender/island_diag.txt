@@ -1,11 +1,11 @@
-time            : 03:08:21
+time            : 18:15:03
 colorSpace      : Linear
 activeBuildTgt  : iOS
 
 MESH VERTEX COLOURS: 815/815 meshes have colours (from 6 fbx)
+    Civic.Tree0 verts=198 cols=198 first=(88,132,83) mid=(100,143,90)
+    Civic.Lamp0 verts=96 cols=96 first=(251,245,219) mid=(152,156,161)
     Civic.Shop0 verts=1650 cols=1650 first=(163,133,98) mid=(197,95,77)
-    Civic.Tree2 verts=198 cols=198 first=(88,132,83) mid=(100,143,90)
-    Civic.Tower verts=152 cols=152 first=(147,118,85) mid=(252,237,199)
 
 PREFAB RENDERERS: 2693
     kayseriShader=2214 default=0 other=1293 null=0

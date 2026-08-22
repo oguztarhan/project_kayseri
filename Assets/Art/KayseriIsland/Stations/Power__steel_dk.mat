@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Power__steel_dk
+  m_Shader: {fileID: 4800000, guid: 640ab1bd58419435492cf018375e855b, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2000
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _AmbientAmount: 0.4
+    - _AmbientHemi: 0.65
+    - _CrackCoverage: 0.45
+    - _CrackNight: 1.6
+    - _CrackScale: 0.022
+    - _CrackSpeed: 0.25
+    - _CrackStrength: 2
+    - _CrackWarp: 1.1
+    - _CrackWidth: 0.13
+    - _Cracks: 0
+    - _DetailScale: 0.35
+    - _DetailStrength: 0.05
+    - _EmberLevel: 0.18
+    - _EmberNight: 0.8
+    - _EmberSoft: 0.12
+    - _EmberStrength: 0
+    - _EmissionAlways: 0
+    - _Grime: 0
+    - _Metallic: 0.5
+    - _RimPower: 3
+    - _RimStrength: 0.35
+    - _Saturation: 1.7
+    - _Smoothness: 0.5
+    - _SpecularStrength: 0.45
+    - _TintAmount: 0.88
+    - _TintLift: 0.3
+    - _ToonSmoothness: 0.1
+    - _ToonSteps: 3
+    - _VertexColorAmount: 1
+    - _Vibrance: 1.02
+    m_Colors:
+    - _AmbientGround: {r: 0.55, g: 0.48, b: 0.4, a: 1}
+    - _BaseColor: {r: 0.15204445, g: 0.15856884, b: 0.17090459, a: 1}
+    - _CrackColor: {r: 1, g: 0.3, b: 0.04, a: 1}
+    - _EmberColor: {r: 1, g: 0.35, b: 0.06, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _GrimeColor: {r: 0.25999996, g: 0.20999995, b: 0.14999998, a: 1}
+    - _RimColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShadowTint: {r: 0.41999996, g: 0.47999996, b: 0.68, a: 1}
+    - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}
+    - _Tint: {r: 1.2470434, g: 0.84477127, b: 1.810224, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

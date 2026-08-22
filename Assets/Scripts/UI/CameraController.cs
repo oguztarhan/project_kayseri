@@ -29,6 +29,8 @@ namespace Game.UI
         [SerializeField] private Vector2 boundsX = new Vector2(-250f, 250f);
         [SerializeField] private Vector2 boundsZ = new Vector2(-250f, 250f);
         [SerializeField] private float groundY = 6f;   // ground plane height — perspective zoom is the dolly distance to it
+        [Tooltip("Sarsıntının titreşim hızı. Yüksek değer daha sert, düşük değer daha yumuşak sallar.")]
+        [SerializeField] private float shakeFrequency = 24f;
 
         private Vector3 _right, _forward;
         private bool _dragging;
@@ -37,6 +39,9 @@ namespace Game.UI
 
         private Vector3 _target;      // where the camera wants to be
         private Vector3 _smoothVel;   // SmoothDamp state
+
+        private float _shakeAmp, _shakeTotal, _shakeLeft, _shakeSeed;
+
         private Vector3 _panVel;      // world units/sec, for flick inertia
         private bool _pannedThisFrame;
 
@@ -75,6 +80,50 @@ namespace Game.UI
             else if (!_pannedThisFrame) _panVel = Vector3.zero;
 
             transform.position = Vector3.SmoothDamp(transform.position, _target, ref _smoothVel, smoothTime, Mathf.Infinity, dt);
+
+            // Anything in the simulation that wanted a jolt this frame left it here. See
+            // Game.Systems.CameraShake for why the request comes to us rather than us being called.
+            if (Game.Systems.CameraShake.Consume(out float shakeAmp, out float shakeSecs))
+                Shake(shakeAmp, shakeSecs);
+
+            // Shake is added AFTER the smoothing and is never written back into _target, _panVel or
+            // ClampTarget. Fed in earlier it would be something the camera chases and the bounds
+            // clamp fights, and a shake that can push the view out of bounds is a shake that can
+            // strand it there. Here it is a pure offset on the rendered position and costs nothing
+            // once it has decayed.
+            if (_shakeLeft > 0f)
+            {
+                _shakeLeft -= dt;
+                if (_shakeLeft <= 0f) { _shakeLeft = 0f; }
+                else
+                {
+                    float fade = _shakeLeft / _shakeTotal;           // linear decay, so it ends flat
+                    float t = (_shakeTotal - _shakeLeft) * shakeFrequency;
+                    // Perlin rather than Random: successive samples are correlated, so this reads as
+                    // a jolt settling rather than per-frame static. No allocation.
+                    float x = Mathf.PerlinNoise(_shakeSeed, t) * 2f - 1f;
+                    float y = Mathf.PerlinNoise(_shakeSeed + 37.7f, t) * 2f - 1f;
+                    float amp = _shakeAmp * fade * fade;
+                    transform.position += transform.right * (x * amp) + transform.up * (y * amp);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Punctuate something that just happened — a district finishing its rebuild, an unlock
+        /// landing. Keep it short and small: on an idle game the camera is a window the player
+        /// stares at for minutes at a time, and a shake that draws attention to itself is one they
+        /// will be sick of by the third time. A second call while one is running wins only if it is
+        /// stronger, so a big event is never flattened by a small one landing on top of it.
+        /// </summary>
+        public void Shake(float amplitude, float seconds)
+        {
+            if (amplitude <= 0f || seconds <= 0f) return;
+            if (_shakeLeft > 0f && amplitude < _shakeAmp) return;
+            _shakeAmp = amplitude;
+            _shakeTotal = seconds;
+            _shakeLeft = seconds;
+            _shakeSeed += 13.31f;      // a different pattern each time, without Random
         }
 
         public static bool PointerOverUI()

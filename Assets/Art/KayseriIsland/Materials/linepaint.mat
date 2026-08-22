@@ -27,8 +27,21 @@ Material:
     m_Floats:
     - _AmbientAmount: 0.4
     - _AmbientHemi: 0.65
+    - _CrackCoverage: 0.45
+    - _CrackNight: 1.6
+    - _CrackScale: 0.022
+    - _CrackSpeed: 0.25
+    - _CrackStrength: 2
+    - _CrackWarp: 1.1
+    - _CrackWidth: 0.13
+    - _Cracks: 0
     - _DetailScale: 0.35
     - _DetailStrength: 0.13
+    - _EmberLevel: 0.18
+    - _EmberNight: 0.8
+    - _EmberSoft: 0.12
+    - _EmberStrength: 0
+    - _EmissionAlways: 0
     - _Grime: 0
     - _Metallic: 0
     - _RimPower: 3
@@ -36,6 +49,7 @@ Material:
     - _Saturation: 1.7
     - _Smoothness: 0.4
     - _SpecularStrength: 0.45
+    - _TintAmount: 0
     - _ToonSmoothness: 0.1
     - _ToonSteps: 3
     - _VertexColorAmount: 1
@@ -43,10 +57,13 @@ Material:
     m_Colors:
     - _AmbientGround: {r: 0.55, g: 0.48, b: 0.4, a: 1}
     - _BaseColor: {r: 0.7944556, g: 0.7740429, b: 0.6926769, a: 1}
+    - _CrackColor: {r: 1, g: 0.3, b: 0.04, a: 1}
+    - _EmberColor: {r: 1, g: 0.35, b: 0.06, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GrimeColor: {r: 0.25999996, g: 0.20999995, b: 0.14999998, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowTint: {r: 0.41999996, g: 0.47999996, b: 0.68, a: 1}
     - _SpecularTint: {r: 1, g: 1, b: 1, a: 1}
+    - _Tint: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

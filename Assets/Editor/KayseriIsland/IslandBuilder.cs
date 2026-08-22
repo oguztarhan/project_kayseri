@@ -367,6 +367,7 @@ namespace Kayseri.IslandTools
                     }
 
                     mat.renderQueue = isTransparent ? 3000 : 2000;
+                    ApplyOverrides(mat, entry.name);
                     EditorUtility.SetDirty(mat);
                 }
             }
@@ -378,6 +379,37 @@ namespace Kayseri.IslandTools
             }
 
             Debug.Log($"[Island] Materials: {created} created, {updated} updated.");
+        }
+
+        /// <summary>
+        /// The handful of palette entries whose generated colour is wrong for the game, applied after
+        /// the palette write so a rebuild cannot quietly undo them.
+        ///
+        /// This exists because the loop above force-writes _BaseColor and _VertexColorAmount from
+        /// palette.json on every run, so fixing one of these in the Inspector lasts exactly until the
+        /// next "Create Materials". The Blender side is the other place it could live — but the
+        /// generator is expensive to re-run and its colours are chosen against Blender's own preview,
+        /// not against the island as the player sees it, so the correction belongs on this side.
+        /// </summary>
+        private static void ApplyOverrides(Material mat, string name)
+        {
+            // The locked expansion plot. Blender draws its posts and rails in a cyan that, at 30%
+            // alpha over green grass or white snow, reads as an unfinished build rather than a plot
+            // you are meant to want. Amber is what the rest of the site already speaks: the hazard
+            // kerb and the survey stakes ringing this exact geometry are yellow.
+            //
+            // _VertexColorAmount MUST go to zero first. IslandVertexLitTransparent computes
+            //     albedo = lerp(_BaseColor.rgb, vertexColour.rgb, _VertexColorAmount)
+            // so at 1 the base colour is ignored entirely and the cyan comes from the baked mesh
+            // colours. Setting the colour without this does nothing at all.
+            if (name == "ghost")
+            {
+                mat.SetFloat("_VertexColorAmount", 0f);
+                mat.SetColor("_BaseColor", new Color(1.0f, 0.72f, 0.16f, 0.55f));
+                mat.SetColor("_EmissionColor", new Color(0.9f, 0.55f, 0.10f, 1f));
+                mat.EnableKeyword("_EMISSION");
+                mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            }
         }
 
         // ------------------------------------------------------------ prefabs
@@ -489,6 +521,15 @@ namespace Kayseri.IslandTools
                 int themed = IslandTerrainTheme.Apply(root, island);
                 if (themed > 0)
                     Debug.Log($"[Island] {island} phase {phase}: {themed} terrain renderers themed.");
+
+                // Then the districts get their own colours. AFTER the terrain theme, not before: that
+                // pass swaps ground and foliage materials and would not recognise a district variant,
+                // and this one only touches building materials the theme never looks at. Here rather
+                // than only on the menu item so a Blender re-export cannot silently drop the
+                // colour-coding and leave the island grey again.
+                int coloured = IslandStationColour.Apply(root, island);
+                if (coloured > 0)
+                    Debug.Log($"[Island] {island} phase {phase}: {coloured} district renderers coloured.");
 
                 // Scenery comes out of the shadow pass. Nine renderers in ten on a phase root are
                 // scatter - 2411 of Coal phase 1's 2693 are Pine, Rock or Bush - so with them

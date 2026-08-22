@@ -334,28 +334,41 @@ namespace Kayseri.IslandTools
                 },
             },
 
-            // Pack ice - the same plated sheet at the other end of the thermometer. Big floes,
-            // barely drifting, and the three crack colours run the other way: the pale wet edge of
-            // a floe, then a shallow lead, then deep open water in the core. Emission is 0, so the
-            // whole glow term compiles down to nothing. Its foam is the only white one left, and
-            // here it is snow.
+            // Arctic open water, and it used to be pack ice. The floes were the right idea and the
+            // wrong sea, for three reasons that compounded:
+            //
+            //   Scale 0.013 put a floe at about 77 units on a sea roughly 640 across, so barely
+            //   eight cells spanned the visible water and the plate boundaries read as a cracked
+            //   web laid over the map rather than as ice.
+            //
+            //   It was the only crust sea running BRIGHT plate against DARK crack. Gold and Ruby
+            //   are dark basalt split by something hot, so their cracks are the light. Inverted,
+            //   the seams became the highest-contrast edges on the screen and took the eye
+            //   straight off the island.
+            //
+            //   The plate sat at 0.88-1.00, the same value as the snow ground it met at the
+            //   shoreline. Land and sea had no separation at all, which is most of why this island
+            //   photographed as a white blur.
+            //
+            // Deep blue fixes all three at once and gives the snow something to be white against.
+            // The foam stays white, and at this island it reads as shore ice.
             new Ocean
             {
-                Island = "Diamond", Name = "frozen", Kind = Kind.Crust,
-                Crust = new Crust
+                Island = "Diamond", Name = "arctic", Kind = Kind.Wave,
+                Wave = new Wave
                 {
-                    Plate     = Rgb(0.880f, 0.925f, 0.960f),
-                    PlateAlt  = Rgb(0.970f, 0.990f, 1.000f),
-                    Variation = 1.0f, Grain = 0.12f,
-                    CrackCool = Rgb(0.620f, 0.780f, 0.860f),
-                    CrackMid  = Rgb(0.280f, 0.520f, 0.660f),
-                    CrackHot  = Rgb(0.085f, 0.235f, 0.400f),
-                    CrackWidth = 0.22f,
-                    Scale = 0.013f, Drift = 0.012f, Warp = 0.95f, WarpScale = 0.20f, Heat = 0.40f,
+                    Body  = Rgb(0.045f, 0.180f, 0.310f),
+                    Crest = Rgb(0.220f, 0.520f, 0.680f),
+                    Cap   = Rgb(0.920f, 0.970f, 1.000f),
+                    CrestBlend = 1.0f, CapLevel = 0.880f, CapWidth = 0.070f, CapAmount = 0.65f,
+                    Scale = 0.050f, Speed = 0.40f, Choppy = 0.50f, Bend = 4.0f, BendScale = 0.210f,
                     Dir = new Vector2(1f, 0.15f),
-                    Relief = 0.9f, Smoothness = 0.75f, Specular = 0.75f,
-                    GlowStrength = 0f, NightGlow = 0f,
-                    Wrap = 0.35f, Ambient = 0.60f,
+                    // Colder and glassier than Coal: a little more slope for a northern chop, a
+                    // little more glitter for low sun on water, same restraint on the sheen so the
+                    // sea does not turn to silver at the game camera's yaw.
+                    Slope = 1.1f, Smoothness = 0.90f, Sheen = 0.35f, Glitter = 0.32f,
+                    Sky = Rgb(0.55f, 0.70f, 0.88f), SkyAmount = 0.22f,
+                    Wrap = 0.35f, Ambient = 0.65f,
                 },
                 Foam = new Spray
                 {
@@ -364,6 +377,13 @@ namespace Kayseri.IslandTools
                 },
             },
         };
+
+        /// <summary>Raises a colour to a minimum value and saturation without moving its hue.</summary>
+        private static Color Lift(Color c, float minValue, float minSaturation)
+        {
+            Color.RGBToHSV(c, out float h, out float s, out float v);
+            return Color.HSVToRGB(h, Mathf.Max(s, minSaturation), Mathf.Max(v, minValue));
+        }
 
         // ───────────────────────────────────────────────────────────────────────────── materials
         [MenuItem("Kayseri/Island/Create Ocean Materials", false, 22)]
@@ -437,8 +457,15 @@ namespace Kayseri.IslandTools
         {
             var mat = Load(shader, $"{OceanRoot}/{liquid}_{island}.mat");
 
-            mat.SetColor("_DeepColor", ToLinear(w.Body, 1f));
-            mat.SetColor("_ShallowColor", ToLinear(w.Crest, 1f));
+            // Brightness floors, applied to the authored hue rather than replacing it.
+            //
+            // The seas were authored very dark — Copper's body is (0.060, 0.130, 0.055) and Iron's is
+            // (0.085, 0.050, 0.038), which render as near-black water. Against a bright island that
+            // reads as a hole in the map, and it was a large part of the game looking gloomy. These
+            // raise value and saturation while KEEPING each island's own hue, so Copper's sea is still
+            // green and Iron's is still rust — just no longer black.
+            mat.SetColor("_DeepColor", ToLinear(Lift(w.Body, 0.52f, 0.62f), 1f));
+            mat.SetColor("_ShallowColor", ToLinear(Lift(w.Crest, 0.80f, 0.55f), 1f));
             mat.SetColor("_FoamColor", ToLinear(w.Cap, 1f));
             mat.SetFloat("_Depth", w.CrestBlend);
             mat.SetFloat("_FoamLevel", w.CapLevel);

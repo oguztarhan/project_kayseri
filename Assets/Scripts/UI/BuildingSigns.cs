@@ -40,9 +40,20 @@ namespace Game.UI
         // a fixed distance on screen keeps the two apart at every zoom level, which a world-space
         // offset would not: at the far end of the zoom they would converge into one another.
         [Tooltip("Tabelanın yükseltme rozetinin altında kalması için ekranda kaydırılacağı piksel.")]
-        [SerializeField] private float _screenDrop = 124f;
+        [SerializeField] private float _screenDrop = 72f;
         [Tooltip("HUD 100, yükseltme rozetleri 92. Tabela rozetin altında durmalı.")]
         [SerializeField] private int _sortingOrder = 88;
+
+        // The drop above is measured down the screen, so a station low in frame lands under the
+        // bottom HUD row and a station at the edge slides under the left and right icon rails.
+        // These keep every sign inside the band the HUD leaves free, whatever the camera is doing.
+        [Header("HUD payı")]
+        [Tooltip("Üstteki para/elmas satırının kapladığı ekran oranı.")]
+        [SerializeField] private float _hudTopFraction = 0.10f;
+        [Tooltip("Alttaki buton satırının kapladığı ekran oranı.")]
+        [SerializeField] private float _hudBottomFraction = 0.20f;
+        [Tooltip("Sol ve sağdaki ikon raylarının kapladığı ekran oranı.")]
+        [SerializeField] private float _hudSideFraction = 0.09f;
 
         [Header("Gündüz")]
         [SerializeField] private Color _dayPlate = new Color(0.97f, 0.95f, 0.90f, 0.94f);
@@ -66,6 +77,9 @@ namespace Game.UI
         private Camera _camera;
         private CoalOperation _operation;
         private RectTransform _canvas;
+
+        /// <summary>MARKET's index in IslandEconomy.Stations — the one station that gets no sign.</summary>
+        private const int MarketStation = 6;
 
         private RectTransform[] _signs;
         private Image[] _plates;
@@ -144,6 +158,7 @@ namespace Game.UI
 
             for (int station = 0; station < total; station++)
             {
+                if (station == MarketStation) continue;   // the door button owns that roof
                 if (!_operation.StationHasBody(station)) continue;
                 _stations[_count] = station;
                 _signs[_count] = BuildSign(station, out _plates[_count], out _labels[_count]);
@@ -257,9 +272,19 @@ namespace Game.UI
                 if (sign.gameObject.activeSelf != visible) sign.gameObject.SetActive(visible);
                 if (!visible) continue;
 
-                sign.anchoredPosition = new Vector2(
-                    (screen.x / Screen.width - 0.5f) * _canvas.rect.width,
-                    (screen.y / Screen.height - 0.5f) * _canvas.rect.height - _screenDrop);
+                float w = _canvas.rect.width, h = _canvas.rect.height;
+                float halfW = sign.sizeDelta.x * 0.5f, halfH = sign.sizeDelta.y * 0.5f;
+                float x = (screen.x / Screen.width - 0.5f) * w;
+                float y = (screen.y / Screen.height - 0.5f) * h - _screenDrop;
+
+                float side = w * _hudSideFraction;
+                float loX = -w * 0.5f + side + halfW, hiX = w * 0.5f - side - halfW;
+                float loY = -h * 0.5f + h * _hudBottomFraction + halfH;
+                float hiY = h * 0.5f - h * _hudTopFraction - halfH;
+                if (loX < hiX) x = x < loX ? loX : (x > hiX ? hiX : x);
+                if (loY < hiY) y = y < loY ? loY : (y > hiY ? hiY : y);
+
+                sign.anchoredPosition = new Vector2(x, y);
             }
         }
 

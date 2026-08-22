@@ -39,6 +39,10 @@ namespace Kayseri.Island
         [SerializeField] private float _burstLife = 1.5f;
         [SerializeField] private float _burstSize = 2.6f;
         [SerializeField] private Color _burstColor = new Color(1f, 0.86f, 0.35f, 1f);
+        [Tooltip("Bir bölge yeniden inşa edildiğinde kameranın ne kadar sarsılacağı, dünya birimi. " +
+                 "0 yaparsan sarsıntı kapanır.")]
+        [SerializeField] private float _shakeAmplitude = 0.9f;
+        [SerializeField] private float _shakeSeconds = 0.26f;
 
         /// <summary>Districts, and the station whose level advances each one.</summary>
         private static readonly string[] Districts =
@@ -191,6 +195,11 @@ namespace Kayseri.Island
         private void Burst(Transform district)
         {
             if (district == null || _burstCount <= 0) return;
+
+            // A district finishing its rebuild is the largest single thing that happens on the
+            // island, and until now it was 44 particles and nothing else. The jolt is what makes it
+            // land as an event rather than a decoration.
+            Game.Systems.CameraShake.Request(_shakeAmplitude, _shakeSeconds);
 
             Bounds b = new Bounds(district.position, Vector3.one * 8f);
             var rends = district.GetComponentsInChildren<Renderer>();

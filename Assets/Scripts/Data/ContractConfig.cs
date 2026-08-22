@@ -30,6 +30,13 @@ namespace Game.Data
         [SerializeField] private double rewardCash = 500d;
         [Tooltip("NORMAL kontratın elması. Kolay/zor bunun katları.")]
         [SerializeField] private long rewardGems = 2;
+
+        [Header("Ustabaşı kartları")]
+        [Tooltip("Her tamamlanan kontratın verdiği kart sayısı. Kartlar satın alınamaz, sadece " +
+                 "kazanılır — kadroyu ilerleten asıl şey budur.")]
+        [SerializeField] private int cardsPerContract = 2;
+        [Tooltip("Kaç kontratlık seride bir, kart ödülü 1 artar.")]
+        [SerializeField] private int cardsStreakStep = 5;
         [Tooltip("Ödül = dakikalık gelir × kontrat dakikası × bu oran × zorluk çarpanı. 0,45 = NORMAL " +
                  "kontrat, penceresinin ürettiği paranın %45'ini üstüne koyar.")]
         [SerializeField] private double rewardFraction = 0.45d;
@@ -61,6 +68,8 @@ namespace Game.Data
         public float NormalMinutes => normalMinutes;
         public double RewardCash => rewardCash;
         public long RewardGems => rewardGems;
+        public int CardsPerContract => cardsPerContract;
+        public int CardsStreakStep => cardsStreakStep;
         public double RewardFraction => rewardFraction;
 
         public float EasyRate => easyRate;

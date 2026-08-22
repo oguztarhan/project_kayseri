@@ -47,6 +47,56 @@ namespace Game.Gameplay
         public double UnlockCost(int i) => islands[i].unlockCost;
         public double CapPerMin(int i) => islands[i].capPerMin;
         public Color OreColor(int i) => islands[i].oreColor;
+
+        /// <summary>
+        /// The island's colour FOR THE UI, which is not the same thing as the colour of its ore.
+        ///
+        /// oreColor has to stay honest, because it tints the actual ore chunks and heaps in the world
+        /// (CoalOperation builds _oreMat from it). Honest ore is the problem: silver measures 0.076
+        /// saturation, iron 0.088, coal 0.167, diamond 0.250 — four of the eight islands are, correctly,
+        /// grey. Drive a map, a badge and a progress bar off that and half the game has no colour in it,
+        /// which is exactly what happened.
+        ///
+        /// So the UI gets a brand instead. Every island in the genre does this — the mine's colour is a
+        /// label, not a mineralogy claim. The four ores with real hue keep it and are only lifted; the
+        /// four without are assigned one.
+        ///
+        /// HUES ARE SPACED AGAINST THE LADDER, not just against each other. Coal, Copper and Iron are
+        /// islands 1, 2 and 3, so making iron a rust orange — the obvious choice — would open the game
+        /// with three consecutive warm-orange islands. Iron reads naturally as steel blue, which both
+        /// suits it and breaks the run.
+        /// </summary>
+        public Color BrandColor(int i)
+        {
+            if (islands == null || i < 0 || i >= islands.Length) return Color.white;
+            switch (islands[i].key)
+            {
+                // Hues, and the gaps between CONSECUTIVE islands, are solved rather than picked: the
+                // smallest gap along the ladder is 20 degrees (coal to copper), and those two are also
+                // separated by value — coal resolves darker than copper on the map, which is what a
+                // 20-degree gap on its own would not carry.
+                case "coal":    return new Color(0.76f, 0.24f, 0.13f);   //  10deg  ember, deliberately dark
+                case "copper":  return new Color(0.94f, 0.58f, 0.20f);   //  31deg  its own colour, lifted
+                case "iron":    return new Color(0.30f, 0.50f, 0.86f);   // 219deg  steel; see the note above
+                case "silver":  return new Color(0.32f, 0.86f, 0.80f);   // 173deg  cool teal
+                case "gold":    return new Color(0.98f, 0.78f, 0.20f);   //  45deg  its own colour, lifted
+                case "ruby":    return new Color(0.92f, 0.20f, 0.34f);   // 348deg  its own colour, lifted
+                case "emerald": return new Color(0.18f, 0.82f, 0.42f);   // 142deg  its own colour, lifted
+                case "diamond": return new Color(0.64f, 0.52f, 0.98f);   // 256deg  ice violet
+            }
+            return Lift(islands[i].oreColor);
+        }
+
+        /// <summary>
+        /// Fallback for an island the table above has never heard of — a new key, or a scene wired by
+        /// hand. Pushes saturation and value up to a floor so it is at least usable in the UI, which is
+        /// the best that can be done without being told what the island is supposed to look like.
+        /// </summary>
+        private static Color Lift(Color c)
+        {
+            Color.RGBToHSV(c, out float h, out float s, out float v);
+            return Color.HSVToRGB(h, Mathf.Max(s, 0.55f), Mathf.Max(v, 0.70f));
+        }
         public CoalOperation Operation(int i) => _ops[i];
         public bool IsOwned(int i) => i == 0 || (_data != null && _data.unlockedIslands.Contains(islands[i].key));
         public bool IsMaxed(int i) => _ops[i] != null && _ops[i].enabled && _ops[i].FullyMaxed;
@@ -107,6 +157,7 @@ namespace Game.Gameplay
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
             if (_wallet == null || !_wallet.TrySpendCash(new BigDouble(islands[i].unlockCost))) return false;
             _data.unlockedIslands.Add(islands[i].key);
+            ServiceLocator.Get<GoalService>()?.Record(Game.Core.Goals.Islands);
             return true;
         }
 

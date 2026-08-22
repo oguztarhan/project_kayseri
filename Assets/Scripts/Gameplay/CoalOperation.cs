@@ -353,6 +353,24 @@ namespace Game.Gameplay
         [SerializeField] private Color plotPadColor = new Color(0.40f, 0.37f, 0.31f);    // surveyed but unbuilt ground
         [SerializeField] private Color plotMarkColor = new Color(0.97f, 0.83f, 0.30f);   // its dashed border
 
+        [Header("Town square")]
+        // The four parcels around the central crossing. Defaults are solved against the generator's own
+        // numbers — ROAD_W 14 means each arterial takes 7 units either side of its axis, and the town
+        // yards start at 17 — so a parcel centred at 12.5 with a 4.2 half-extent clears both. Retune
+        // here if a map ever moves its roads; see Tools/blender/isomap/isle_coal.py.
+        [Tooltip("Meydan parçalarının kapalıysa hiç kurulmaz.")]
+        [SerializeField] private bool buildTownSquare = true;
+        [Tooltip("Merkezden her parçanın ortasına olan uzaklık.")]
+        [SerializeField] private float squareOffset = 12.5f;
+        [Tooltip("Bir parçanın yarı genişliği. Yol 7'de bitiyor, kasaba avlusu 17'de başlıyor.")]
+        [SerializeField] private float squareHalf = 4.2f;
+        [Tooltip("Anıtın hangi parçada duracağı: 0..3. Eksi verirsen anıt olmaz.")]
+        [SerializeField] private int squareMonumentQuadrant = 1;
+        [SerializeField] private float squareMonumentHeight = 14f;
+        [SerializeField] private Color squarePadColor = new Color(0.38f, 0.47f, 0.30f);
+        [SerializeField] private Color squareKerbColor = new Color(0.62f, 0.60f, 0.56f);
+        [SerializeField] private Color squareStoneColor = new Color(0.70f, 0.68f, 0.63f);
+
         [Header("Expansion buildings")]
         // The authored island meshes only carry the starting chain. Without these, six of the ten one-time
         // unlocks were pure text: you paid for a WAREHOUSE and nothing appeared. Spawned at Start named
@@ -403,6 +421,11 @@ namespace Game.Gameplay
         [SerializeField] private int stationWorkerLevelsPer = 18;
         [Tooltip("İstasyon elemanlarının yürüme hızı.")]
         [SerializeField] private float stationWalkSpeed = 1.8f;
+        [Tooltip("Ustabaşı, işçilere göre kaç kat büyük dursun. Onu kalabalıktan ayıran şey bu ve " +
+                 "duruşu; ayrı bir modeli yok.")]
+        [SerializeField] private float foremanScaleMultiplier = 1.18f;
+        [Tooltip("Ustabaşının istasyon çapasından ada merkezine doğru kaç birim geride duracağı.")]
+        [SerializeField] private float foremanStandOffset = 7f;
         [Tooltip("Elemanların noktalarından ne kadar uzağa gezinebileceği. 0 = hiç kıpırdamaz.")]
         [SerializeField] private float stationDriftRange = 2.5f;
         [Tooltip("Yayaların kamyona yol vermesi için kaldırıma çekildiği mesafe.")]
@@ -551,6 +574,7 @@ namespace Game.Gameplay
         private PileStack _oreYard, _barYard;
         private SiteLife _life;
         private StationCrew _crew;
+        private StationForemen _bosses;
         private BuildingPulse _pulse;
         private DistrictWear _wear;
         private float _appliedScale = 1f;   // the clock the rigged bodies were last told about
@@ -636,6 +660,8 @@ namespace Game.Gameplay
         private WalletService _wallet;
         private MarketService _marketService;   // where the bars go, and the only thing that pays for them
         private MaintenanceService _maintenance;  // how well this island is running, and who mends it
+        private ForemanService _foremen;          // account-wide roster; speeds this island's stations
+        private GoalService _goals;               // the checklist; null until the service graph is up
         private AudioService _audio;
         private float _deckY;              // ground height every vehicle drives at
         private SaveData _data;
@@ -1070,6 +1096,7 @@ namespace Game.Gameplay
             if (!_wallet.TrySpendCash(AxisCost(s, a))) return false;
             _lv[s][a]++;
             SaveLevel(islandKey + "#" + s + "#" + a, _lv[s][a]);
+            _goals?.Record(Game.Core.Goals.Upgrades);
             if (_punch != null) _punch[s] = punchSeconds;   // the station pops, then settles at its new size
             // And so does the art the station owns. On an authored island the line above pops an EMPTY
             // anchor — the landmarks are exported points, not buildings — so without this a purchase
@@ -1092,6 +1119,10 @@ namespace Game.Gameplay
             if (u < 0 || u >= _unlocked.Length || _unlocked[u] || _wallet == null) return false;
             if (!_wallet.TrySpendCash(UnlockCost(u))) return false;
             _unlocked[u] = true;
+            // A ghost building is a purchase on the same track as an axis level, so the checklist
+            // counts it the same way — otherwise a player who spends an evening on unlocks makes no
+            // progress on "buy 5 upgrades" while visibly upgrading the island.
+            _goals?.Record(Game.Core.Goals.Upgrades);
             SaveLevel(islandKey + "u#" + u, 1);
             ApplyUnlock(u);
             return true;
@@ -1187,6 +1218,14 @@ namespace Game.Gameplay
             _maintenance = ServiceLocator.Get<MaintenanceService>();
             if (_maintenance != null) Ec.SetConditions(_maintenance.Conditions(islandKey));
 
+            // The foreman roster, on the same shared-array terms and for the same reason. Account-wide
+            // rather than per-island, so every island gets the one array — hiring a mine foreman on
+            // coal speeds the mine on diamond too, which is the point of the roster being a roster.
+            _foremen = ServiceLocator.Get<ForemanService>();
+            if (_foremen != null) Ec.SetForemen(_foremen.StationSpeeds);
+
+            _goals = ServiceLocator.Get<GoalService>();
+
             _marketService = ServiceLocator.Get<MarketService>();
             if (_marketService == null) return;
             _marketService.Register(islandKey, this);
@@ -1197,6 +1236,7 @@ namespace Game.Gameplay
         {
             if (_marketService != null) _marketService.Sold -= OnYardSold;
             if (_crew != null) _crew.Dispose();
+            if (_foremen != null) _foremen.RosterChanged -= OnForemanRosterChanged;
             if (_pulse != null) _pulse.Dispose();
         }
 
@@ -1365,6 +1405,7 @@ namespace Game.Gameplay
                 AuthoredTunnel(_train3, "3"); AuthoredTunnel(_train4, "4");
             }
             BuildUnlockRegistry();   // and this needs the dressing parent, to hang the build plots off
+            BuildTownSquare();
             BuildSiteLife();
             ApplyFleetStates();
             for (int u = 0; u < _unlocked.Length; u++) if (_unlocked[u]) ApplyUnlock(u);
@@ -1402,6 +1443,7 @@ namespace Game.Gameplay
                 _appliedScale = scale;
                 if (_life != null) _life.SetTimeScale(scale);
                 if (_crew != null) _crew.SetTimeScale(scale);
+                if (_bosses != null) _bosses.SetTimeScale(scale);
             }
             Tick(Time.deltaTime * scale);
         }
@@ -3718,6 +3760,68 @@ namespace Game.Gameplay
                 _plots[u] = MakePlot(u, bodies, padMat, markMat);
                 if (!_unlocked[u]) SetGhosted(u, true);
             }
+        }
+
+        /// <summary>
+        /// The civic square in the middle of the ring road. See <see cref="TownSquare"/> for why it is
+        /// four corner parcels rather than one central plinth — the centre is a live junction.
+        ///
+        /// The crystal takes the island's own ore colour and is made emissive, so the middle of the
+        /// frame is also the brightest thing in it once the lamps come on. _EmissionAlways keeps a
+        /// little of that by day; the day/night globals do the rest.
+        /// </summary>
+        private void BuildTownSquare()
+        {
+            if (!buildTownSquare || _dressing == null || squareHalf <= 0.1f) return;
+
+            Material pad = MakeMat(_srcMat, squarePadColor);
+            Material kerb = MakeMat(_srcMat, squareKerbColor);
+            Material stone = MakeMat(_srcMat, squareStoneColor);
+            Material crystal = MakeMat(_srcMat, oreColor);
+            if (crystal.HasProperty("_EmissionColor"))
+            {
+                crystal.SetColor("_EmissionColor", oreColor * 1.6f);
+                crystal.EnableKeyword("_EMISSION");
+            }
+            if (crystal.HasProperty("_EmissionAlways")) crystal.SetFloat("_EmissionAlways", 0.35f);
+
+            // Sampled off the terrain rather than taken from the island root: the root sits at the
+            // island's origin, while the square stands on the ring-road plateau, and the two are not
+            // the same height. Same borrowed-collider trick ExtendCoverThroughHillsides uses — one
+            // question at load time, then the collider goes away again.
+            float groundY = SampleGroundY(Vector3.zero, _islandRoot != null ? _islandRoot.position.y : 0f);
+
+            TownSquare.Build(_dressing, Vector3.zero, squareOffset, squareHalf, groundY,
+                             squareMonumentQuadrant, squareMonumentHeight, pad, kerb, stone, crystal);
+        }
+
+        /// <summary>The terrain height under a point, or <paramref name="fallback"/> when nothing is hit.</summary>
+        private float SampleGroundY(Vector3 at, float fallback)
+        {
+            if (_islandRoot == null) return fallback;
+
+            Transform ground = null;
+            for (int p = 0; p < _islandRoot.childCount; p++)
+            {
+                Transform terrain = _islandRoot.GetChild(p).Find("Terrain");
+                if (terrain == null) continue;
+                Transform g = terrain.Find("Ground");
+                if (g == null || g.GetComponent<MeshFilter>() == null) continue;
+                ground = g;
+                if (g.gameObject.activeInHierarchy) break;   // prefer the phase actually on show
+            }
+            if (ground == null) return fallback;
+
+            var mc = ground.GetComponent<MeshCollider>();
+            bool borrowed = mc == null;
+            if (borrowed) mc = ground.gameObject.AddComponent<MeshCollider>();
+
+            float y = fallback;
+            Vector3 from = new Vector3(at.x, ground.position.y + 400f, at.z);
+            if (mc.Raycast(new Ray(from, Vector3.down), out RaycastHit hit, 900f)) y = hit.point.y;
+
+            if (borrowed) Destroy(mc);
+            return y;
         }
 
         /// <summary>
@@ -6093,6 +6197,21 @@ namespace Game.Gameplay
                 Busy = DistrictBusy,
             };
 
+            // The hired foremen. Same bodies as the crew, posted off the station anchors rather than
+            // the district art — see StationForemen for why those are not the same thing.
+            _bosses = new StationForemen(_islandRoot, bodies, StationList.Length,
+                                         workerScale * foremanScaleMultiplier)
+            {
+                Hired = ForemanHired,
+                Post = ForemanPost,
+            };
+            // StationCrew refreshes inside its own constructor; this one cannot, because the two
+            // delegates above are assigned by the initialiser that runs after it. SettleCrew would get
+            // there in half a second anyway — this is just so a returning player's foremen are already
+            // standing there on the first frame instead of popping in.
+            _bosses.Refresh();
+            if (_foremen != null) _foremen.RosterChanged += OnForemanRosterChanged;
+
             // The machinery. Reads the same busy flags the station crew does, so a district's staff and
             // its machines start and stop on the same beat rather than disagreeing about whether the
             // place is running. The BUILDINGS never move — see BuildingPulse for why.
@@ -6118,12 +6237,51 @@ namespace Game.Gameplay
         /// Re-measures the districts over the first few seconds. Same reason <see cref="IslandAmbience"/>
         /// settles its sound sources: the layout is still moving when this island boots.
         /// </summary>
+        /// <summary>Is this station's foreman hired? The roster is account-wide, so every island asks
+        /// the same service and every island shows the same eight men.</summary>
+        private bool ForemanHired(int station) => _foremen != null && _foremen.IsHired(station);
+
+        /// <summary>
+        /// Where a station's foreman stands: a few paces off his station's anchor toward the middle of
+        /// the island, looking back at it.
+        ///
+        /// Offset because the anchor is the TOP of the station's silhouette — stand on it exactly and
+        /// he is inside the building. Toward the centre because that is the side the roads and the
+        /// player's camera are on; posted on the seaward side he would spend the game facing away.
+        ///
+        /// Height is _deckY, the plane every vehicle on this island drives at, rather than a raycast:
+        /// the whole chain is drivable so every station sits on that deck, and sampling terrain here
+        /// would mean building and dropping a MeshCollider every time the roster changed.
+        /// </summary>
+        private bool ForemanPost(int station, out Vector3 ground, out Vector3 lookAt)
+        {
+            ground = Vector3.zero;
+            lookAt = Vector3.zero;
+            if (!StationAnchor(station, out Vector3 top)) return false;
+
+            Vector3 at = Flat(top);
+            Vector3 centre = _islandRoot != null ? Flat(_islandRoot.position) : Vector3.zero;
+            Vector3 inward = centre - at;
+            inward = inward.sqrMagnitude > 0.0001f ? inward.normalized : Vector3.forward;
+
+            Vector3 spot = at + inward * foremanStandOffset;
+            ground = new Vector3(spot.x, _deckY, spot.z);
+            lookAt = new Vector3(at.x, _deckY, at.z);
+            return true;
+        }
+
+        private void OnForemanRosterChanged(int station)
+        {
+            if (_bosses != null) _bosses.Refresh();
+        }
+
         private System.Collections.IEnumerator SettleCrew()
         {
             for (int i = 0; i < 3; i++)
             {
                 yield return new WaitForSeconds(i == 0 ? 0.5f : 1f);
                 if (_crew != null) _crew.Refresh();
+                if (_bosses != null) _bosses.Refresh();
                 if (_pulse != null) _pulse.Refresh();
             }
         }
@@ -6302,6 +6460,7 @@ namespace Game.Gameplay
             // Outside the null guard below: the station crew stands on district art, which every
             // authored island has, whether or not it managed to build a patrol footpath.
             if (_crew != null) _crew.Tick(dt);
+            if (_bosses != null) _bosses.Tick(dt);
             // Same: the buildings that animate are district art, not the patrol path's landmarks.
             if (_pulse != null) _pulse.Tick(dt);
             // Same again, and on its own slow poll: grime changes on the scale of hours.

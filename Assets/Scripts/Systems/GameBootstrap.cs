@@ -19,6 +19,7 @@ namespace Game.Systems
                  "(8 saat tolerans, 72 saatte tabana iner) — kapatmak için bir config asset'i " +
                  "bağlayıp Enabled'ı kapat.")]
         [SerializeField] private MaintenanceConfig maintenanceConfig;
+        [SerializeField] private ForemanConfig foremanConfig;
         [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
@@ -50,6 +51,8 @@ namespace Game.Systems
         public OfflineReport Offline { get; private set; }
         public MarketService Market { get; private set; }
         public MaintenanceService Maintenance { get; private set; }
+        public ForemanService Foremen { get; private set; }
+        public GoalService Goals { get; private set; }
 
         private TimeService _time;
         private NotificationService _notifications;
@@ -85,12 +88,12 @@ namespace Game.Systems
             // Text first: everything built after this can ask for a translated line while it is building.
             ServiceLocator.Register(new LocalizationService());
 
-            // Presentation. Audio plays for real once the config carries a library; VFX is still a facade.
+            // Presentation. Audio plays for real once the config carries a library.
             ServiceLocator.Register(audioConfig != null
                 ? new AudioService(audioConfig.Master, audioConfig.Music, audioConfig.Sfx, audioConfig.Library)
                 : new AudioService(1f, 0.6f, 0.8f));
-            ServiceLocator.Register(new VFXService());
             ServiceLocator.Register(new HapticService(juiceConfig == null || juiceConfig.Haptics));
+            CameraShake.Enabled = juiceConfig == null || juiceConfig.ScreenShake;
             if (accessibilityConfig != null) ServiceLocator.Register(accessibilityConfig);
 
             // Platform facades (dev stubs now, real SDKs need package installs at ship time)
@@ -162,7 +165,7 @@ namespace Game.Systems
             ServiceLocator.Register(Wallet);
 
             Economy = economyConfig != null
-                ? new EconomyService(economyConfig.CostGrowth, economyConfig.TierValueMultiplier, economyConfig.ManagerBonus, economyConfig.ManagerCostBase)
+                ? new EconomyService(economyConfig.CostGrowth, economyConfig.TierValueMultiplier)
                 : new EconomyService(1.09d, 3.2d);
             ServiceLocator.Register(Economy);
 
@@ -195,12 +198,25 @@ namespace Game.Systems
             // The yards, and with them the only path cash takes into the wallet. Registered before the
             // offline grant so the pads can be advanced for the absence in the same breath as paying
             // for it, and driven from Update below so it keeps settling across a scene load.
-            Market = new MarketService(Data, Wallet, boost, Maintenance);
+            // The roster, before the yards: MarketService reads its income multiplier every tick, and
+            // an island's stations read its speeds every frame. Gems are what buy it, which is the
+            // first thing in the game they have been able to buy outside the store.
+            Foremen = new ForemanService(Data, Wallet,
+                foremanConfig != null ? foremanConfig.ToTuning() : Game.Core.Foremen.Tuning.Default);
+            ServiceLocator.Register(Foremen);
+
+            // The checklist. After the roster because a goal can pay out foreman cards, and before
+            // the yards and the contracts because both of them report into it.
+            Goals = new GoalService(Data, Wallet, Foremen, _time);
+            ServiceLocator.Register(Goals);
+            Maintenance.Goals = Goals;   // built before this, and evaluated before this on purpose
+
+            Market = new MarketService(Data, Wallet, boost, Maintenance, Foremen, Goals);
             ServiceLocator.Register(Market);
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
-            var contract = new ContractService(Wallet, contractConfig, Data, _time);
+            var contract = new ContractService(Wallet, contractConfig, Data, _time, Foremen, Goals);
             ServiceLocator.Register(contract);
 
             Offline = new OfflineReport();

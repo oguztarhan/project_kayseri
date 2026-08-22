@@ -11,15 +11,10 @@ namespace Game.Systems
     {
         public double CostGrowth { get; }
         public double TierValueMultiplier { get; }
-        public double ManagerBonus { get; }       // e.g. 1.0 = +100% (x2) rate when a manager is hired
-        public double ManagerCostBase { get; }
-
-        public EconomyService(double costGrowth, double tierValueMultiplier, double managerBonus = 1d, double managerCostBase = 500d)
+        public EconomyService(double costGrowth, double tierValueMultiplier)
         {
             CostGrowth = costGrowth;
             TierValueMultiplier = tierValueMultiplier;
-            ManagerBonus = managerBonus;
-            ManagerCostBase = managerCostBase;
         }
 
         /// <summary>Cost to take a station from <paramref name="level"/> to level+1.</summary>

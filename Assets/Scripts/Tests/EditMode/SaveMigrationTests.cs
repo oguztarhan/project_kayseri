@@ -25,7 +25,6 @@ namespace Game.Tests
             d.islandRates.Add(new IslandRate { id = "coal", perMin = 102626d });
             d.unlockedIslands.AddRange(new[] { "copper", "iron", "silver", "gold", "ruby", "emerald", "diamond" });
             d.unlockedMountains.Add("dag1");
-            d.hiredManagers.Add("mine");
             d.dailyStreak = 6;
             d.boostMultiplier = 2d;
             d.boostEndUnix = 1_700_090_000L;
@@ -103,7 +102,6 @@ namespace Game.Tests
             CollectionAssert.IsEmpty(fresh.islandRates);
             CollectionAssert.IsEmpty(fresh.unlockedIslands, "back to coal only");
             CollectionAssert.IsEmpty(fresh.unlockedMountains);
-            CollectionAssert.IsEmpty(fresh.hiredManagers);
             Assert.AreEqual(0, fresh.dailyStreak);
             Assert.AreEqual(0d, fresh.boostMultiplier, "a boost mid-flight would distort the fresh pacing");
         }

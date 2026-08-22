@@ -139,7 +139,7 @@ namespace Game.UI
 
             _postMaterial = Instance(shader, _postColor, Color.black);
             _plateMaterial = Instance(shader, _dayPlate, Color.black);
-            Color ore = _world.OreColor(island);
+            Color ore = _world.BrandColor(island);   // a label, not a mineral sample
             // The stripe glows its ore colour after dark through the lamps' own emission global.
             _stripeMaterial = Instance(shader, ore, ore * 1.4f);
 

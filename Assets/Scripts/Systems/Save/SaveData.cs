@@ -5,8 +5,8 @@ using Game.Core;
 namespace Game.Systems
 {
     /// <summary>
-    /// Root serializable save payload (Unity JsonUtility). Station levels and hired managers are lists
-    /// keyed by station id so any number persist without a schema change.
+    /// Root serializable save payload (Unity JsonUtility). Station levels are a list keyed by station
+    /// id so any number persist without a schema change.
     /// </summary>
     [Serializable]
     public class SaveData
@@ -23,7 +23,14 @@ namespace Game.Systems
         public double incomeRatePerSec;               // offline earnings (GDD §7)
         public WalletData wallet = new WalletData();
         public List<StationLevel> stationLevels = new List<StationLevel>();
-        public List<string> hiredManagers = new List<string>();  // station ids with a manager (GDD §6)
+        // The foreman roster, one entry per station index (Game.Core.Foremen). Levels are 0 for a slot
+        // nobody has hired; duplicates are the spare cards waiting to be spent on a level. Both are
+        // fixed-length arrays rather than keyed lists because the roster is exactly the station list
+        // and cannot grow. A save written before the roster existed simply arrives short and is padded
+        // on load, which is why there is no version bump for this.
+        public int[] foremanLevels = new int[Game.Core.Foremen.Count];
+        public int[] foremanDuplicates = new int[Game.Core.Foremen.Count];
+        public GoalSaveData goals = new GoalSaveData();
         public List<string> unlockedMountains = new List<string>();  // mountain ids the player has bought (GDD §4/§8)
         public List<string> unlockedIslands = new List<string>();    // island ids the player has bought (archipelago progression)
         public List<StationLevel> islandLevels = new List<StationLevel>();  // per-island upgrade level (archipelago progression)
@@ -172,6 +179,21 @@ namespace Game.Systems
     /// the level arrays already use, and for the same reason: two copies of what the player owns is
     /// two things that can disagree.
     /// </summary>
+    /// <summary>
+    /// The goal system's state. Lifetime totals are what the achievement ladder reads; the day
+    /// baseline is what makes a daily task a DELTA rather than another counter to keep — the day's
+    /// progress is simply lifetime minus what it was when the day rolled.
+    /// </summary>
+    [Serializable]
+    public class GoalSaveData
+    {
+        public int day = -1;                                              // UTC day the dailies belong to
+        public long[] lifetime = new long[Game.Core.Goals.MetricCount];
+        public long[] dayBaseline = new long[Game.Core.Goals.MetricCount];
+        public bool[] dailyClaimed = new bool[Game.Core.Goals.DailySlots];
+        public int[] tiersClaimed = new int[Game.Core.Goals.Ladder.Length];
+    }
+
     [Serializable]
     public class IslandCondition
     {
