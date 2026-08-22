@@ -1,6 +1,6 @@
-time            : 21:27:30
+time            : 03:08:21
 colorSpace      : Linear
-activeBuildTgt  : Android
+activeBuildTgt  : iOS
 
 MESH VERTEX COLOURS: 815/815 meshes have colours (from 6 fbx)
     Civic.Shop0 verts=1650 cols=1650 first=(163,133,98) mid=(197,95,77)

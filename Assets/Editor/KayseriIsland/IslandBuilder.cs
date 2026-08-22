@@ -390,6 +390,11 @@ namespace Kayseri.IslandTools
             string prefabRoot = PrefabsFor(island);
             EnsureFolder(prefabRoot);
             int built = 0;
+            // Shared across this island's three phases, and deliberately not across islands: a rebuild
+            // runs one island at a time, so anything wider would depend on what else had been built in
+            // the same session and two runs would not produce the same prefabs.
+            var canonicalMeshes = new Dictionary<string, Mesh>();
+            int totalShared = 0;
 
             for (int phase = 1; phase <= PhaseCount; phase++)
             {
@@ -485,12 +490,36 @@ namespace Kayseri.IslandTools
                 if (themed > 0)
                     Debug.Log($"[Island] {island} phase {phase}: {themed} terrain renderers themed.");
 
+                // Scenery comes out of the shadow pass. Nine renderers in ten on a phase root are
+                // scatter - 2411 of Coal phase 1's 2693 are Pine, Rock or Bush - so with them
+                // casting, the shadow map redraws virtually the whole island and the frame pays for
+                // the terrain twice. The island is lit by one directional sun at a fixed 44 degrees
+                // and read from a fixed isometric camera, where a bush's cast shadow lands under the
+                // bush and a pine's is a stripe on grass nobody is looking at. The buildings, the
+                // rake and the fleet still cast, which is what actually reads as depth here.
+                // Last, so swapped-in art and themed terrain are caught too.
+                int unshadowed = DropScatterShadows(root);
+                if (unshadowed > 0)
+                    Debug.Log($"[Island] {island} phase {phase}: {unshadowed} scatter renderers taken out of the shadow pass.");
+
+                // Duplicate geometry is folded onto one mesh each. The exporter writes every scattered
+                // object as its own mesh datablock - Pine and Pine.001 are 306 identical vertices twice -
+                // so an island arrives as ~4,500 meshes where ~620 distinct shapes exist. Nothing is
+                // rewritten here; the extra copies are simply no longer referenced, so they stop being
+                // pulled into the build and into memory. Signature covers positions, normals, UVs, vertex
+                // colours and indices, so a retinted variant is correctly left alone - the island shader
+                // reads its colour from vertex colour, and merging two tints would repaint the island.
+                totalShared += DedupeMeshes(root, canonicalMeshes);
+
                 string prefabPath = $"{prefabRoot}/Island_Phase{phase}.prefab";
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
                 Object.DestroyImmediate(root);
                 built++;
                 Debug.Log($"[Island] {island} phase {phase} prefab: {added} district groups.");
             }
+
+            if (totalShared > 0)
+                Debug.Log($"[Island] {island}: {totalShared} mesh references folded onto {canonicalMeshes.Count} distinct meshes.");
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -606,9 +635,101 @@ namespace Kayseri.IslandTools
             return list;
         }
 
+        /// <summary>
+        /// Identity of a mesh by what it actually draws. Counts first so meshes of different sizes
+        /// separate immediately, then one accumulator per stream: two shapes that agree on every
+        /// vertex, normal, UV, colour and index draw the same picture whatever the exporter named them.
+        /// </summary>
+        private static string MeshSignature(Mesh m)
+        {
+            var sb = new System.Text.StringBuilder(160);
+            sb.Append(m.vertexCount).Append('|').Append(m.subMeshCount).Append('|');
+
+            long verts = 17, norms = 17, uvs = 17, cols = 17, tris = 17;
+            var v = m.vertices;
+            for (int i = 0; i < v.Length; i++) verts = verts * 31 + v[i].GetHashCode();
+            var n = m.normals;
+            if (n != null) for (int i = 0; i < n.Length; i++) norms = norms * 31 + n[i].GetHashCode();
+            var u = m.uv;
+            if (u != null) for (int i = 0; i < u.Length; i++) uvs = uvs * 31 + u[i].GetHashCode();
+            var c = m.colors;
+            if (c != null) for (int i = 0; i < c.Length; i++) cols = cols * 31 + c[i].GetHashCode();
+            var t = m.triangles;
+            for (int i = 0; i < t.Length; i++) tris = tris * 31 + t[i];
+
+            sb.Append(verts).Append('|').Append(norms).Append('|').Append(uvs)
+              .Append('|').Append(cols).Append('|').Append(tris);
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Points every filter under <paramref name="root"/> at one mesh per distinct shape, reusing
+        /// <paramref name="canonical"/> so the island's later phases land on the same copies as its
+        /// first. Returns how many references it moved.
+        /// </summary>
+        private static int DedupeMeshes(GameObject root, Dictionary<string, Mesh> canonical)
+        {
+            int shared = 0;
+            var signatures = new Dictionary<Mesh, string>();
+            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var mesh = mf.sharedMesh;
+                if (mesh == null) continue;
+
+                // Signatures are the expensive half and an island reuses each mesh many times over.
+                if (!signatures.TryGetValue(mesh, out var sig))
+                {
+                    sig = MeshSignature(mesh);
+                    signatures[mesh] = sig;
+                }
+
+                if (!canonical.TryGetValue(sig, out var keep)) { canonical[sig] = mesh; continue; }
+                if (keep == mesh) continue;
+                mf.sharedMesh = keep;
+                shared++;
+            }
+            return shared;
+        }
+
+        /// <summary>Scenery meshes, by exported name. The generator numbers duplicates
+        /// (Pine, Pine.001, ...), so these are prefixes rather than whole names.</summary>
+        private static readonly string[] ScatterPrefixes = { "Pine", "Rock", "Bush" };
+
+        /// <summary>Takes the scatter out of the shadow map. Returns how many it changed.</summary>
+        private static int DropScatterShadows(GameObject root)
+        {
+            int dropped = 0;
+            foreach (var mr in root.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                bool scatter = false;
+                string n = mr.gameObject.name;
+                for (int i = 0; i < ScatterPrefixes.Length; i++)
+                    if (n.StartsWith(ScatterPrefixes[i])) { scatter = true; break; }
+                if (!scatter) continue;
+                if (mr.shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.Off) continue;
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                dropped++;
+            }
+            return dropped;
+        }
+
+        /// <summary>
+        /// Every static flag except batching. Build-time static batching welds a district's renderers
+        /// into one combined mesh before <c>IslandPhaseController</c> has resolved which districts are
+        /// visible, so a phase the player has not reached draws anyway - which is why the copper island
+        /// was stripped of it by hand and why RenderingSafetyTests guards that. The reason is not
+        /// copper's: every island toggles districts the same way. Batching is also what would undo the
+        /// mesh sharing above, since a combined mesh copies its geometry in rather than referencing it.
+        /// </summary>
         private static void SetStaticRecursive(GameObject go, bool value)
         {
+            // Taken off the full set rather than built up from named flags: the navigation members
+            // are deprecated in 6.4 and naming them warns, and this way the object keeps whatever
+            // "everything static" means in whichever Editor version builds the island.
             go.isStatic = value;
+            if (value)
+                GameObjectUtility.SetStaticEditorFlags(go,
+                    GameObjectUtility.GetStaticEditorFlags(go) & ~StaticEditorFlags.BatchingStatic);
             foreach (Transform child in go.transform)
                 SetStaticRecursive(child.gameObject, value);
         }
