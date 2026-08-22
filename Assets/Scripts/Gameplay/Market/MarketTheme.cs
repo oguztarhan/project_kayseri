@@ -78,6 +78,22 @@ namespace Game.Gameplay
         private static readonly Prop Tank = new Prop("tank", 2.8f);
         private static readonly Prop Chimney = new Prop("chimney", 4.2f);
 
+        // The yard's own furniture, modelled for this room rather than borrowed from a pack — see
+        // Tools/blender/market_props.py. Their parts are named for a material role, so unlike the
+        // Kenney props above they take the ISLAND's timber and steel rather than arriving painted.
+        //
+        // They are here to say what the room is FOR. A yard dressed only in crates and barrels is a
+        // storeroom; a scale, a hand truck, a bench and a pallet under everything are what make it a
+        // place where goods are weighed, moved and sold to somebody who had to wait for them.
+        private static readonly Prop Pallet = new Prop("pallet", 1.5f);
+        private static readonly Prop Sacks = new Prop("sacks", 1.7f);
+        private static readonly Prop HandTruck = new Prop("hand_truck", 1.7f);
+        private static readonly Prop Scale = new Prop("scale", 1.6f);
+        private static readonly Prop Bench = new Prop("bench", 2.2f);
+        private static readonly Prop Plant = new Prop("plant", 1.4f);
+        private static readonly Prop Cone = new Prop("cone", 0.9f);
+        private static readonly Prop ToolChest = new Prop("toolchest", 1.4f);
+
         /// <summary>
         /// The palette for an island, by the same key <see cref="WorldIslands"/> uses. An unknown key
         /// gets the neutral fallback rather than throwing: the hall builds one yard per island the
@@ -92,55 +108,64 @@ namespace Game.Gameplay
                     new Color(0.22f, 0.21f, 0.20f), new Color(0.31f, 0.33f, 0.38f),
                     new Color(0.55f, 0.54f, 0.52f), new Color(0.34f, 0.36f, 0.40f),
                     new Color(0.52f, 0.40f, 0.26f),
-                    new[] { Chimney, Tank, Barrel, BarrelOpen, CargoPile, Barrel, Crate, Panel });
+                    new[] { Chimney, Tank, Barrel, BarrelOpen, CargoPile, Barrel, Crate, Panel,
+                            Sacks, ToolChest });
 
                 case "copper": return new Palette(
                     new Color(0.31f, 0.23f, 0.18f), new Color(0.56f, 0.38f, 0.27f),
                     new Color(0.78f, 0.66f, 0.54f), new Color(0.45f, 0.33f, 0.26f),
                     new Color(0.85f, 0.55f, 0.25f),
-                    new[] { Tank, ContainerA, Barrel, Crate, Planks, CrateLarge, Barrel, ContainerB });
+                    new[] { Tank, ContainerA, Barrel, Crate, Planks, CrateLarge, Barrel, ContainerB,
+                            HandTruck, Pallet });
 
                 case "iron": return new Palette(
                     new Color(0.33f, 0.34f, 0.36f), new Color(0.44f, 0.47f, 0.52f),
                     new Color(0.70f, 0.72f, 0.75f), new Color(0.30f, 0.33f, 0.38f),
                     new Color(0.62f, 0.66f, 0.72f),
-                    new[] { ContainerB, Panel, Anvil, CrateLarge, Stone, Anvil, Panel, ContainerA });
+                    new[] { ContainerB, Panel, Anvil, CrateLarge, Stone, Anvil, Panel, ContainerA,
+                            ToolChest, Cone });
 
                 case "silver": return new Palette(
                     new Color(0.42f, 0.44f, 0.48f), new Color(0.62f, 0.66f, 0.72f),
                     new Color(0.82f, 0.85f, 0.90f), new Color(0.50f, 0.54f, 0.60f),
                     new Color(0.86f, 0.89f, 0.94f),
-                    new[] { ContainerA, Crate, CrateLarge, Chest, Panel, Planks, CrateOpen, Tank });
+                    new[] { ContainerA, Crate, CrateLarge, Chest, Panel, Planks, CrateOpen, Tank,
+                            Scale, Bench });
 
                 case "gold": return new Palette(
                     new Color(0.46f, 0.39f, 0.26f), new Color(0.68f, 0.57f, 0.34f),
                     new Color(0.88f, 0.80f, 0.60f), new Color(0.52f, 0.45f, 0.30f),
                     new Color(0.95f, 0.78f, 0.22f),
-                    new[] { ContainerB, Chest, Chest, CrateLarge, Planks, Barrel, Chest, Crate });
+                    new[] { ContainerB, Chest, Chest, CrateLarge, Planks, Barrel, Chest, Crate,
+                            Scale, Plant });
 
                 case "ruby": return new Palette(
                     new Color(0.30f, 0.20f, 0.22f), new Color(0.50f, 0.24f, 0.28f),
                     new Color(0.76f, 0.62f, 0.62f), new Color(0.38f, 0.26f, 0.30f),
                     new Color(0.85f, 0.20f, 0.30f),
-                    new[] { CargoPile, Chest, Stone, CrateOpen, Planks, Chest, Crate, CrateLarge });
+                    new[] { CargoPile, Chest, Stone, CrateOpen, Planks, Chest, Crate, CrateLarge,
+                            Bench, Plant });
 
                 case "emerald": return new Palette(
                     new Color(0.22f, 0.30f, 0.24f), new Color(0.28f, 0.48f, 0.36f),
                     new Color(0.68f, 0.78f, 0.68f), new Color(0.30f, 0.40f, 0.34f),
                     new Color(0.20f, 0.78f, 0.42f),
-                    new[] { CargoPile, Stone, CrateOpen, Planks, Chest, Stone, Crate, CrateLarge });
+                    new[] { CargoPile, Stone, CrateOpen, Planks, Chest, Stone, Crate, CrateLarge,
+                            Plant, Sacks });
 
                 case "diamond": return new Palette(
                     new Color(0.34f, 0.42f, 0.48f), new Color(0.44f, 0.60f, 0.70f),
                     new Color(0.80f, 0.88f, 0.92f), new Color(0.40f, 0.50f, 0.58f),
                     new Color(0.72f, 0.94f, 1.00f),
-                    new[] { ContainerA, Chest, CrateLarge, Panel, Stone, Chest, Crate, ContainerB });
+                    new[] { ContainerA, Chest, CrateLarge, Panel, Stone, Chest, Crate, ContainerB,
+                            Scale, Bench });
 
                 default: return new Palette(
                     new Color(0.36f, 0.35f, 0.34f), new Color(0.42f, 0.44f, 0.49f),
                     new Color(0.72f, 0.71f, 0.68f), new Color(0.36f, 0.39f, 0.45f),
                     new Color(0.67f, 0.45f, 0.25f),
-                    new[] { Crate, Barrel, CrateLarge, Planks, Barrel, Crate, Panel, Stone });
+                    new[] { Crate, Barrel, CrateLarge, Planks, Barrel, Crate, Panel, Stone,
+                            Pallet, Cone });
             }
         }
     }

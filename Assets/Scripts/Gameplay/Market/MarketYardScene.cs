@@ -31,11 +31,28 @@ namespace Game.Gameplay
         private Vector3 _padSpot, _counterSpot, _cashSpot;
         private Transform _roof;
         private Transform _dressing;
+        private GameObject _fittings;
+        private GameObject _ceiling;
         /// <summary>False out of the gate: a yard is shut until the hall walks the player into it.</summary>
         private bool _live;
 
         /// <summary>Which island's market this is.</summary>
         public string IslandKey { get; private set; }
+
+        /// <summary>
+        /// Hands the yard something built for it from above — the signage, which is <c>Game.UI</c>'s
+        /// because it draws text and this assembly cannot see TextMeshPro.
+        ///
+        /// A bare GameObject rather than a typed component, and that is the whole point: the yard has
+        /// to be able to switch its fittings off with the rest of it when it is parked, and it can do
+        /// that without knowing what they are. Anything else means Gameplay referencing UI, which is
+        /// the circular asmdef this project has already refused once.
+        /// </summary>
+        public void AddFitting(GameObject fitting)
+        {
+            _fittings = fitting;
+            if (fitting != null) fitting.SetActive(_live);
+        }
 
         /// <summary>Where the player stands if they arrive in this yard.</summary>
         public Vector3 PlayerStart { get; private set; }
@@ -69,6 +86,9 @@ namespace Game.Gameplay
             // Last, so the props are laid over a yard that is already standing — the dressing measures
             // nothing and fits into the corners the layout above leaves empty.
             _dressing = MarketYardDressing.Dress(transform, theme);
+            // The ceiling goes up with them, and for the same reason: it measures nothing off the yard
+            // and only needs the walls to already be at their height.
+            _ceiling = MarketYardLighting.Build(transform, tint, theme).gameObject;
             PlayerStart = transform.TransformPoint(spots[(int)MarketYardBuild.Anchor.PlayerStart]);
             _padSpot = spots[(int)MarketYardBuild.Anchor.StockPad];
             _counterSpot = spots[(int)MarketYardBuild.Anchor.Counter];
@@ -111,6 +131,15 @@ namespace Game.Gameplay
             // to disable — so a parked yard would go on paying for eight props nobody can see through
             // the roof that just went back on.
             if (_dressing != null) _dressing.gameObject.SetActive(live);
+            // Same reasoning as the dressing, and one more besides: the price board on the east wall
+            // reads the ledger every half second, and seven shut yards quietly polling for a number
+            // nobody can see through their own roof is the exact shape of cost this split exists to
+            // avoid. Switched off, its Update does not run at all.
+            if (_fittings != null) _fittings.SetActive(live);
+            // And the ceiling, which is the one that really has to go: three point lights apiece across
+            // eight yards is twenty-four of them in a renderer set to four per object, and the seven the
+            // player is not in are lighting the inside of their own closed roofs.
+            if (_ceiling != null) _ceiling.SetActive(live);
             if (_pad != null) _pad.enabled = live;
             if (_counter != null) _counter.enabled = live;
             if (_queue != null) _queue.enabled = live;
@@ -151,6 +180,13 @@ namespace Game.Gameplay
             floor.localPosition = cashAt;
             _cash = floor.gameObject.AddComponent<CashFloor>();
             _cash.Configure(_market, IslandKey, player, _prefabs);
+
+            // The display rack, standing behind the counter on the player's side. Far enough back that
+            // the whole unloading strip in front of the plank is still his: the counter's trigger runs
+            // from z = -6.6 to -2.2, and this sits at the far end of it with better than two body
+            // widths of clear floor between them.
+            CounterShelf.Build(transform, counterAt + new Vector3(0f, 0f, 5f), _counter, ore,
+                               MarketTheme.For(IslandKey), _prefabs);
 
             var lane = new GameObject("Sira").transform;
             lane.SetParent(transform, false);

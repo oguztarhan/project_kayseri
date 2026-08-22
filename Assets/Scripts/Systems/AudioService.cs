@@ -77,9 +77,29 @@ namespace Game.Systems
         }
 
         /// <summary>Starts the looping ambience bed. Idempotent — safe to call on every scene load.</summary>
-        public void StartAmbience()
+        public void StartAmbience() => Bed(_library != null ? _library.Ambience : null);
+
+        /// <summary>
+        /// Moves the bed between the island's outdoors and the market's indoors.
+        ///
+        /// One bed, swapped, rather than two crossfading. The market is a scene load away behind a
+        /// curtain — the player never hears the join — and a second looping source would be a second
+        /// source running for the whole session to cover a transition nobody is listening to.
+        ///
+        /// Falls back to the island bed if no market clip is wired, so the room going quiet is never
+        /// the failure mode.
+        /// </summary>
+        public void SetMarketAmbience(bool inMarket)
         {
-            if (_library == null || _library.Ambience == null || !EnsureHost()) return;
+            if (_library == null) return;
+            Bed(inMarket && _library.MarketAmbience != null
+                ? _library.MarketAmbience : _library.Ambience);
+        }
+
+        /// <summary>Puts one clip on the looping bed, building the bed the first time.</summary>
+        private void Bed(AudioClip clip)
+        {
+            if (clip == null || !EnsureHost()) return;
 
             if (_bed == null)
             {
@@ -87,10 +107,17 @@ namespace Game.Systems
                 _bed.playOnAwake = false;
                 _bed.loop = true;
                 _bed.spatialBlend = 0f;
-                _bed.clip = _library.Ambience;
             }
             ApplyMix();
-            if (!_bed.isPlaying) _bed.Play();
+            // Restarted only when the clip actually changes. Re-assigning the same clip and calling
+            // Play again would jump the bed back to its first sample every time a scene loads, which
+            // on a twenty-second loop is audible.
+            if (_bed.clip != clip)
+            {
+                _bed.clip = clip;
+                _bed.Play();
+            }
+            else if (!_bed.isPlaying) _bed.Play();
         }
 
         /// <summary>

@@ -25,5 +25,9 @@ namespace Game.Data
         // ilerleme
         PhaseUp,        // bir bölge yeniden inşa oldu
         Tick,           // seviye pipi
+
+        // pazar avlusu
+        MarketDoor,     // müşteri kapıdan girdi — sık çalar, kısıtlıdır
+        MarketVip,      // VIP müşteri girdi
     }
 }

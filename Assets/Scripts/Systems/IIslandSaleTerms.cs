@@ -20,5 +20,17 @@ namespace Game.Systems
 
         /// <summary>This island's income ceiling per minute, before investors.</summary>
         double IncomeCapPerMinuteRaw { get; }
+
+        /// <summary>
+        /// What this island's OWN upgrade tree costs from level zero to maxed — a constant per island,
+        /// not what is left to buy.
+        ///
+        /// The market yard prices itself as a share of this. Quoting the yard in minutes of capped
+        /// income alone looked island-independent and was not: the ratio between an island's tree and
+        /// its ceiling runs from 32 minutes on coal to over four thousand on diamond, so one flat
+        /// number of minutes made the yard five times the price of the whole coal island and four per
+        /// cent of the diamond one. See <c>MarketPrices.YardBudget</c>.
+        /// </summary>
+        double UpgradeTreeCostRaw { get; }
     }
 }

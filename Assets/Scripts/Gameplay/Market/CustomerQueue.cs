@@ -60,6 +60,27 @@ namespace Game.Gameplay
         [Tooltip("Tezgâhın başındaki müşterinin külçeyi alması süresi.")]
         [SerializeField, Min(0.05f)] private float serveSeconds = 0.32f;
 
+        [Header("VIP")]
+        [Tooltip("Kaç müşteride bir VIP gelir. VIP sıradan bir müşteri gibi ödeme yapar ama çok " +
+                 "daha fazla külçe alır — kâr farkı satılan külçeden gelir, çarpandan değil.")]
+        [SerializeField, Min(2)] private int vipEvery = 9;
+
+        [Tooltip("VIP'nin normal bir müşterinin kaç katı külçe istediği.")]
+        [SerializeField, Min(2)] private int vipAppetite = 4;
+
+        [Header("Ruh hâli rozetleri")]
+        [Tooltip("Bu kadar saniye bekleyen müşteri memnun olmaktan çıkar.")]
+        [SerializeField, Min(1f)] private float moodPatience = 7f;
+
+        [Tooltip("Bu kadar saniye bekleyen müşterinin sabrı taşar. Tezgâh boşsa asıl gördüğün bu olur.")]
+        [SerializeField, Min(2f)] private float moodAnger = 16f;
+
+        [Tooltip("Rozetin müşterinin ayağından yüksekliği. Gövdeler yaklaşık 3.1 birim.")]
+        [SerializeField] private float badgeHeight = 4.0f;
+
+        [Tooltip("Rozetin çapı, dünya birimi.")]
+        [SerializeField, Min(0.2f)] private float badgeSize = 1.0f;
+
         [Tooltip("Sıra doluyken bile yeni müşteri arası en kısa süre, tam dolu sırada.")]
         [SerializeField, Min(0.2f)] private float arrivalSecondsAtFullQueue = 0.4f;
 
@@ -82,6 +103,18 @@ namespace Game.Gameplay
         /// </summary>
         private enum Step { Arriving, Waiting, Serving, Departing }
 
+        /// <summary>
+        /// What the icon over a customer's head is saying. In the order it degrades — a customer walks
+        /// in pleased and gets worse the longer nobody serves them.
+        ///
+        /// This is a READOUT, not a mechanic. Nobody storms out and nothing is lost by a line full of
+        /// red badges; what it does is answer, from across the room, the one question the yard could
+        /// never answer before — is the counter keeping up? A stalled queue and a busy one looked
+        /// identical, because in both cases the same bodies are standing in the same places. The
+        /// badges are the difference, and they are what sends the player back to the stock pad.
+        /// </summary>
+        private enum Mood { None, Happy, Wait, Cross, Vip }
+
         private sealed class Customer
         {
             public Transform body;
@@ -90,6 +123,11 @@ namespace Game.Gameplay
             public Step step;
             public float timer;
             public int wants;         // how many bars this one came in for
+            public bool vip;          // buys by the armful; see Take
+            public float waited;      // seconds stood in the line, which is what the badge reads
+            public Transform badge;   // the icon over their head, pooled with the body
+            public MeshRenderer badgeArt;
+            public Mood mood;
             // The route being walked. Four is what the longer of the two needs, and the arrival uses
             // three plus the slot itself, which is read live because the line shuffles forward while
             // somebody is still walking in.
@@ -108,6 +146,8 @@ namespace Game.Gameplay
         private AudioService _audio;
         private MarketPrefabs _prefabs;
         private int _spawned;        // how many bodies have ever been made, for picking their looks
+        private int _taken;          // how many have been dealt out, for spacing the VIPs
+        private Quaternion _face;    // which way a badge has to be turned to be read
 
         /// <summary>The art a customer is made of. Set before <see cref="Configure"/> if it is being set at all.</summary>
         public void SetPrefabs(MarketPrefabs prefabs) => _prefabs = prefabs;
@@ -187,14 +227,31 @@ namespace Game.Gameplay
         /// <summary>A point on one of the two lanes, measured down the line and out to the side.</summary>
         private Vector3 LanePoint(float along, float side) => _head + _along * along + _side * side;
 
-        private void OnEnable() => _needsPrime = true;
+        private void OnEnable()
+        {
+            _needsPrime = true;
+            // Which way a badge has to face to be read, taken ONCE per opening rather than per frame.
+            // The market camera is fixed — it follows the player and never turns — so a badge that
+            // billboarded itself every frame would be recomputing a constant for everyone in the room.
+            //
+            // Here and not in Configure, because the hall builds its yards before it builds the camera:
+            // asked any earlier this is null every time, and the fallback would silently become the
+            // real answer the moment anyone edited the camera's angle in the Inspector.
+            Camera view = Camera.main;
+            _face = view != null ? view.transform.rotation : Quaternion.Euler(52f, 45f, 0f);
+        }
 
         private void Update()
         {
             float dt = Time.deltaTime;
             if (_needsPrime && _market != null) Prime();
             Arrivals(dt);
-            for (int i = _live.Count - 1; i >= 0; i--) Step_(_live[i], i, dt);
+            for (int i = _live.Count - 1; i >= 0; i--)
+            {
+                Customer c = _live[i];
+                Step_(c, i, dt);
+                PlaceBadge(c);
+            }
         }
 
         /// <summary>
@@ -234,6 +291,18 @@ namespace Game.Gameplay
             // Random, unlike the looks: a shop where everyone buys exactly one is a counter, not a
             // shop, and the varying order size is what makes the shelf worth stocking deep.
             c.wants = Random.Range(minPurchase, Mathf.Max(minPurchase, maxPurchase) + 1);
+
+            // Every ninth, counted rather than rolled — a random VIP arrives in pairs often enough to
+            // read as a bug, and never at all for long enough to make the star badge meaningless.
+            c.vip = (++_taken % Mathf.Max(2, vipEvery)) == 0;
+            // A VIP buys MORE, and does not pay more per bar. That distinction is the whole design of
+            // them: the extra money comes out of SellByHand like every other sale, so it goes through
+            // the income ceiling and the meters that feed the next session's offline grant. A per-bar
+            // multiplier applied on the way to the floor would have minted cash the ledger never saw.
+            if (c.vip) c.wants *= vipAppetite;
+
+            c.waited = 0f;
+            SetMood(c, c.vip ? Mood.Vip : Mood.None);
             return c;
         }
 
@@ -272,6 +341,12 @@ namespace Game.Gameplay
             c.legs = 3;
             c.leg = 0;
             _live.Add(c);
+
+            // Somebody came in. The chime is throttled hard in the library because a busy yard opens
+            // that door every four tenths of a second, and a bell on every one of them is a machine
+            // rather than a shop. The VIP's is not throttled the same way: it is the one arrival the
+            // player is meant to turn round for, and the badge alone only works if he is looking.
+            _audio?.Play(c.vip ? Game.Data.SoundId.MarketVip : Game.Data.SoundId.MarketDoor);
         }
 
         private int FirstFreeSlot(int slots)
@@ -295,6 +370,13 @@ namespace Game.Gameplay
                     return;
 
                 case Step.Waiting:
+                    c.waited += dt;
+                    // A VIP keeps their star however long they wait: the badge is telling the player
+                    // this is the order worth stocking for, and swapping it for a scowl halfway
+                    // through would hide the one customer they most need to see.
+                    if (!c.vip)
+                        SetMood(c, c.waited < moodPatience ? Mood.Happy
+                                 : c.waited < moodAnger ? Mood.Wait : Mood.Cross);
                     // Shuffle up as the line moves.
                     Vector3 spot = SlotPosition(c.slot);
                     if ((c.body.position - spot).sqrMagnitude > 0.02f) { Walk(c, spot, dt); return; }
@@ -318,7 +400,13 @@ namespace Game.Gameplay
                     c.timer -= dt;
                     if (c.timer > 0f) return;
                     int taken;
-                    double paid = _counter.TakeUpTo(c.wants, out taken);
+                    // Clamped to what will actually fit on the floor. One note is laid down per bar,
+                    // and a note that arrives on a full floor is thrown away by CashFloor.Drop — while
+                    // the sale that made it has already been banked by the counter. With four-bar
+                    // orders that lost a note now and then; a VIP asking for sixteen would lose most
+                    // of one. See CashFloor.Free.
+                    int room = _cash != null ? _cash.Free : c.wants;
+                    double paid = _counter.TakeUpTo(Mathf.Min(c.wants, room), out taken);
                     if (paid > 0d && _cash != null)
                     {
                         // One note per bar, so a big order visibly pays more than a small one.
@@ -329,6 +417,7 @@ namespace Game.Gameplay
                     }
                     c.slot = -1;                       // frees the head so the next one can move up
                     c.step = Step.Departing;
+                    SetMood(c, Mood.None);             // served and pleased; nothing left to say
                     // Out around the front of the line rather than back down it: past the head, onto
                     // the far lane along the wall, along that to their half of the door, and out.
                     // Stepping aside first is what keeps this route clear of the arrivals' lane, which
@@ -347,10 +436,69 @@ namespace Game.Gameplay
                     if (c.leg < c.legs) return;
                     // Switched off beyond the wall, where nobody can see it happen.
                     c.body.gameObject.SetActive(false);
+                    SetMood(c, Mood.None);
                     _live.RemoveAt(index);
                     _spare.Push(c);
                     return;
             }
+        }
+
+        /// <summary>
+        /// Puts the badge over its owner's head and turns it to be read.
+        ///
+        /// The badge is parented to the QUEUE, not the body, and is placed by hand every frame. Hung
+        /// off the body it would inherit two things it must not: the person scale, which would make
+        /// the icon 1.75 times too big, and the body's own turn, which spins as they walk the route
+        /// and would show the player the back of the badge for most of the walk in.
+        /// </summary>
+        private void PlaceBadge(Customer c)
+        {
+            if (c.badge == null || c.mood == Mood.None) return;
+            c.badge.SetPositionAndRotation(c.body.position + Vector3.up * badgeHeight, _face);
+        }
+
+        /// <summary>
+        /// Shows one of the four icons, or none. Cheap to call every frame — it does nothing at all
+        /// unless the mood actually changed, which for a waiting customer is three times in sixteen
+        /// seconds.
+        /// </summary>
+        private void SetMood(Customer c, Mood mood)
+        {
+            if (c.mood == mood) return;
+            c.mood = mood;
+            if (c.badge == null) c.badge = NewBadge(c);
+            if (c.badge == null) return;
+
+            bool show = mood != Mood.None;
+            c.badge.gameObject.SetActive(show);
+            if (!show) return;
+            // The VIP's is bigger. It is the one badge that is an invitation rather than a complaint,
+            // and it has to be picked out of a line of four other people from across the yard.
+            c.badge.localScale = Vector3.one * badgeSize * (mood == Mood.Vip ? 1.4f : 1f);
+            c.badgeArt.sharedMaterial = MarketSurfaces.Badge(IconOf(mood));
+        }
+
+        private static string IconOf(Mood mood)
+        {
+            switch (mood)
+            {
+                case Mood.Happy: return "Happy";
+                case Mood.Wait: return "Wait";
+                case Mood.Cross: return "Cross";
+                default: return "Vip";
+            }
+        }
+
+        private Transform NewBadge(Customer c)
+        {
+            var go = new GameObject("Rozet");
+            go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = MarketBoxMesh.Quad();
+            var art = go.AddComponent<MeshRenderer>();
+            art.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            art.receiveShadows = false;
+            c.badgeArt = art;
+            return go.transform;
         }
 
         /// <summary>Moves a waiting customer into the first free slot ahead of them.</summary>

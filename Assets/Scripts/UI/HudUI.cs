@@ -150,6 +150,65 @@ namespace Game.UI
             if (_wallet != null) _wallet.GemsChanged -= RefreshGems;
         }
 
+        /// <summary>
+        /// Hangs a code-built screen's opener on the end of one of the two rails: same parent, same
+        /// size, same column, one authored step further down.
+        ///
+        /// <see cref="GoalsUI"/> and <see cref="ForemanRosterUI"/> are built in code and used to bring
+        /// a canvas of their own, anchored at a fraction of the screen. The HUD is a portrait sheet
+        /// scaled as one piece, so a fraction of the screen is not a fraction of the sheet — in
+        /// landscape those two openers landed straight on top of the ads and offer buttons. Borrowing
+        /// a real rail button's rect is the only placement that holds on every aspect ratio, and it is
+        /// also what makes the opener wear the rail's own art instead of a lookalike.
+        ///
+        /// The step comes off the rail itself rather than a constant, so moving the authored buttons
+        /// in the Inspector moves whatever hangs below them too.
+        /// </summary>
+        /// <param name="rightRail">True for the store/daily column, false for the ads/offer one.</param>
+        public Button AttachRailButton(bool rightRail, string name, Sprite icon,
+                                       UnityEngine.Events.UnityAction onClick)
+        {
+            Button head = rightRail ? storeButton : adButton;
+            Button tail = rightRail ? dailyButton : offerButton;
+            if (head == null || tail == null) return null;
+
+            var headRect = (RectTransform)head.transform;
+            var tailRect = (RectTransform)tail.transform;
+            float pitch = Mathf.Abs(headRect.anchoredPosition.y - tailRect.anchoredPosition.y);
+
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(tailRect.parent, false);
+            rect.anchorMin = tailRect.anchorMin;
+            rect.anchorMax = tailRect.anchorMax;
+            rect.pivot = tailRect.pivot;
+            rect.sizeDelta = tailRect.sizeDelta;
+            rect.anchoredPosition = tailRect.anchoredPosition + new Vector2(0f, -pitch);
+
+            var image = go.GetComponent<Image>();
+            image.sprite = icon;
+            image.preserveAspect = true;
+            var button = go.GetComponent<Button>();
+            button.targetGraphic = image;
+            if (onClick != null) button.onClick.AddListener(onClick);
+            return button;
+        }
+
+        /// <summary>
+        /// A copy of the rail's own counter chip, hung under <paramref name="railButton"/>. Cloning the
+        /// authored chip is what keeps a code-built opener wearing the same pill, font and offset as
+        /// the contract and offer counters — a hand-built lookalike only stays alike until someone
+        /// retouches the real one.
+        /// </summary>
+        public GameObject AttachRailChip(Button railButton)
+        {
+            if (railButton == null || offerTimerChip == null) return null;
+            GameObject chip = Instantiate(offerTimerChip, railButton.transform, false);
+            chip.name = offerTimerChip.name;
+            chip.SetActive(true);
+            return chip;
+        }
+
         private void Update()
         {
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();

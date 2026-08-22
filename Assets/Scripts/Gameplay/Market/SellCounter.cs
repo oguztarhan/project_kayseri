@@ -72,6 +72,9 @@ namespace Game.Gameplay
         public bool Served => Time.time - _lastTouch <= ContactGrace || _cashier != null;
 
         /// <summary>The hired cashier, once there is one. Null means the counter is only ever staffed by you.</summary>
+        /// <summary>How many bars the plank holds. The display rack behind it scales off this.</summary>
+        public int ShelfCapacity => shelfCapacity;
+
         public void SetCashier(YardWorker cashier) => _cashier = cashier;
 
         /// <summary>The hired cashier, for the queue to point at whoever it is serving.</summary>
@@ -183,8 +186,8 @@ namespace Game.Gameplay
         {
             var holder = new GameObject("TezgahKulcesi");
             holder.transform.SetParent(transform, false);
-            MarketPrefabs.Spawn(_prefabs != null ? _prefabs.Bar : null, holder.transform, "Mesh",
-                                PrimitiveType.Cube, new Vector3(1.7f, 0.4f, 0.85f), _oreMaterial);
+            MarketPrefabs.SpawnCargo(_prefabs != null ? _prefabs.Bar : null, holder.transform, "Mesh",
+                                     new Vector3(1.7f, 0.4f, 0.85f), _oreMaterial);
             return holder.transform;
         }
     }

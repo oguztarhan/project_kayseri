@@ -73,11 +73,7 @@ namespace Game.Gameplay
             foreach (Transform spare in _spare) Skin(spare);
         }
 
-        private void Skin(Transform block)
-        {
-            var renderer = block != null ? block.GetComponent<MeshRenderer>() : null;
-            if (renderer != null) renderer.sharedMaterial = _material;
-        }
+        private void Skin(Transform block) => MarketPrefabs.Skin(block, _material);
 
         /// <summary>Puts one bar on the stack. False when there is no room, which is the caller's cue to stop.</summary>
         public bool TryAdd()
@@ -122,8 +118,8 @@ namespace Game.Gameplay
         {
             // Colliders are stripped by the spawner — cargo must not collide with the yard it is
             // crossing, or a full stack would shove the player through a wall.
-            return MarketPrefabs.Spawn(_prefabs != null ? _prefabs.Bar : null, _mount, "Kulce",
-                                       PrimitiveType.Cube, blockSize, _material);
+            return MarketPrefabs.SpawnCargo(_prefabs != null ? _prefabs.Bar : null, _mount, "Kulce",
+                                            blockSize, _material);
         }
     }
 }

@@ -32,10 +32,21 @@ namespace Game.Data
         [SerializeField] private AudioClip ambience;
         [SerializeField, Range(0f, 2f)] private float ambienceVolume = 1f;
 
+        [Tooltip("Pazar avlusunun oda tonu. Oyuncu markete girdiğinde adanın yatağı bununla " +
+                 "değişir, çıkarken geri döner. Boş bırakılırsa ada yatağı çalmaya devam eder.")]
+        [SerializeField] private AudioClip marketAmbience;
+
         private Entry[] _byId;
 
         public AudioClip Ambience => ambience;
         public float AmbienceVolume => ambienceVolume;
+
+        /// <summary>
+        /// The bed for the market yard, which is a room rather than an island and should not be
+        /// listening to gulls. Left empty, the market simply keeps the island's bed — the same bargain
+        /// every other clip here makes, and it keeps a half-wired library silent rather than broken.
+        /// </summary>
+        public AudioClip MarketAmbience => marketAmbience;
 
         /// <summary>The entry for <paramref name="id"/>, or false when it has no clip wired.</summary>
         public bool TryGet(SoundId id, out Entry entry)

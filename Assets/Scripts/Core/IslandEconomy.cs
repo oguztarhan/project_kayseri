@@ -269,6 +269,35 @@ namespace Game.Core
             return 3;
         }
 
+        /// <summary>
+        /// What this island's whole upgrade tree costs from a standing start — every axis from level
+        /// zero to its cap, whatever the player has actually bought.
+        ///
+        /// A CONSTANT for the island, unlike <see cref="CostToMax"/>, which shrinks as the tree is
+        /// bought. That is exactly why the market prices itself off this one: a yard whose price fell
+        /// every time the player upgraded a train would be a yard you are rewarded for not visiting.
+        ///
+        /// Cached, because it is a nine-hundred-term sum and the six pads in a market yard ask for it
+        /// several times a second between them. Nothing it reads can change — the level caps and the
+        /// island's cost multiplier are both fixed at construction.
+        /// </summary>
+        public double FullTreeCost()
+        {
+            if (_fullTree >= 0d) return _fullTree;
+            double total = 0d;
+            for (int s = 0; s < BaseCost.Length; s++)
+                for (int a = 0; a < BaseCost[s].Length; a++)
+                {
+                    int cap = AxisCap(s, a);
+                    for (int l = 0; l < cap; l++)
+                        total += BaseCost[s][a] * _t.CostMultiplier * Math.Pow(_t.CostGrowth, l);
+                }
+            _fullTree = total;
+            return total;
+        }
+
+        private double _fullTree = -1d;
+
         /// <summary>Total cash to take every axis from where it is now to its cap.</summary>
         public double CostToMax()
         {

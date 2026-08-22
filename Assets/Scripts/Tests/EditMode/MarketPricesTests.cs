@@ -84,6 +84,49 @@ namespace Game.Tests
         }
 
         [Test]
+        public void AYardIsPricedAgainstItsOwnIslandsTree_UntilTheCeilingBites()
+        {
+            // the bug this replaced: a flat number of capped minutes made the coal market five times
+            // the price of finishing the whole coal island, and four per cent of the diamond one.
+            // A cheap tree has to produce a cheap yard.
+            double cheapTree = Cap * 30d;              // an island finished in half an hour of its cap
+            double vastTree = Cap * 4000d;             // a late island, a deliberate grind
+
+            double cheap = MarketPrices.YardBudget(Cap, cheapTree);
+            double vast = MarketPrices.YardBudget(Cap, vastTree);
+
+            Assert.Less(cheap, vast, "a cheaper island must give a cheaper yard");
+            Assert.Less(cheap, cheapTree, "a yard must never cost more than the island it stands in");
+            // and the ceiling is what stops the vast one running away with it
+            Assert.That(vast, Is.EqualTo(MarketPrices.YardBudget(Cap, vastTree * 10d)),
+                        "past the ceiling the tree stops mattering");
+        }
+
+        [Test]
+        public void NoTreeReportedFallsBackToTheCeiling_NotToFree()
+        {
+            // an old save, or the first frames before an island's economy exists
+            Assert.Greater(MarketPrices.YardBudget(Cap, 0d), 0d);
+            Assert.That(MarketPrices.YardBudget(Cap, 0d), Is.EqualTo(MarketPrices.YardBudget(Cap, 1e30d)));
+        }
+
+        [Test]
+        public void EveryStepOfEveryTrackAddsBackUpToTheYardsBudget()
+        {
+            // the shares are shares: re-shaping a growth curve moves what the steps cost relative to
+            // each other and must never move what the yard costs in total
+            double tree = Cap * 200d;
+            double budget = MarketPrices.YardBudget(Cap, tree);
+
+            double total = 0d;
+            foreach (YardUpgrade kind in System.Enum.GetValues(typeof(YardUpgrade)))
+                total += MarketPrices.CostToMax(kind, MarketPrices.MinLevel(kind), Cap, tree);
+
+            Assert.That(total, Is.EqualTo(budget).Within(budget * 1e-9),
+                        "the six tracks together are the whole budget");
+        }
+
+        [Test]
         public void HiresCostMoreThanSlots()
         {
             // a slot makes a yard better; a hire makes visiting it optional. The second is the prize.

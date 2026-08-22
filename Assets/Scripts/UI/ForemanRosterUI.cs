@@ -1,5 +1,6 @@
 using Game.Core;
 using Game.Systems;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,16 +21,6 @@ namespace Game.UI
     /// </summary>
     public sealed class ForemanRosterUI : MonoBehaviour
     {
-        [Header("Açma düğmesi")]
-        // The HUD is an authored prefab, and this screen is built in code, so it brings its own way in
-        // rather than needing a slot wired into UI_HUD. Anchors are fractions of the screen so the
-        // pill sits in the same place in every aspect ratio; move it in the Inspector if it clashes
-        // with the left rail on a device.
-        [Tooltip("Açma düğmesinin ekrandaki yeri, oran olarak. Sol raydaki ikonların altına oturur.")]
-        [SerializeField] private Vector2 openerMin = new Vector2(0.012f, 0.30f);
-        [SerializeField] private Vector2 openerMax = new Vector2(0.10f, 0.42f);
-        [SerializeField] private int openerSortingOrder = 96;
-
         [Header("Yerleşim")]
         [Tooltip("Kart ızgarası: yatayda kaç sütun. Sekiz slot 4x2 olarak oturur.")]
         [SerializeField] private int columns = 4;
@@ -44,11 +35,14 @@ namespace Game.UI
         [SerializeField] private Color rareTint = new Color(0.33f, 0.62f, 0.92f, 1f);
         [SerializeField] private Color epicTint = new Color(0.72f, 0.45f, 0.95f, 1f);
 
+        /// <summary>The rail button's icon, loaded at runtime — this screen has no Inspector to wire.</summary>
+        private const string OpenerIconResource = "UI/Buttons/ustabasi";
+
         private ForemanService _foremen;
         private WalletService _wallet;
         private RectTransform _root;
         private Text _header;
-        private Text _openerBadge;
+        private TMP_Text _openerCount;
 
         // One entry per slot, built once. No allocation after Build().
         private readonly Text[] _name = new Text[Foremen.Count];
@@ -78,27 +72,30 @@ namespace Game.UI
 
         private void OnRosterChanged(int station) { Refresh(); RefreshOpener(); }
 
+        /// <summary>
+        /// The opener goes on the end of the HUD's right rail, under the store and daily-reward
+        /// buttons — see <see cref="HudUI.AttachRailButton"/> for why a code-built screen borrows a
+        /// rail button's rect instead of anchoring itself to a fraction of the screen.
+        ///
+        /// How many slots are hired rides under it in the rail's own counter chip, so the button says
+        /// whether there is anything to come back for.
+        /// </summary>
         private void BuildOpener()
         {
-            RectTransform canvas = UiBuild.Canvas(transform, "UstabasiAcKanvas", openerSortingOrder);
-            var safe = new GameObject("GuvenliAlan", typeof(RectTransform), typeof(SafeArea));
-            safe.transform.SetParent(canvas, false);
-            RectTransform safeRect = UiBuild.Anchor((RectTransform)safe.transform, Vector2.zero, Vector2.one);
+            HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Include);
+            if (hud == null) return;
 
-            Button open = UiBuild.Btn(safeRect, "UstabasiAc", Loc.T("ustabasi.baslik"),
-                                      UiSkin.ButtonBlue, new Color(0.22f, 0.34f, 0.55f, 0.94f), 20, Show);
-            UiBuild.Anchor((RectTransform)open.transform, openerMin, openerMax);
+            Button open = hud.AttachRailButton(true, "BtnUstabasi", Resources.Load<Sprite>(OpenerIconResource), Show);
+            if (open == null) return;
 
-            // How many slots are hired, so the button says whether there is anything to come back for.
-            _openerBadge = UiBuild.Label(Slot((RectTransform)open.transform, "Rozet",
-                                              new Vector2(0f, -0.34f), new Vector2(1f, 0.02f)),
-                                         "Text", string.Empty, 18, TextAnchor.MiddleCenter);
+            GameObject chip = hud.AttachRailChip(open);
+            if (chip != null) _openerCount = chip.GetComponentInChildren<TMP_Text>(true);
         }
 
         private void RefreshOpener()
         {
-            if (_openerBadge == null || _foremen == null) return;
-            _openerBadge.text = string.Format("{0}/{1}", _foremen.HiredCount, Foremen.Count);
+            if (_openerCount == null || _foremen == null) return;
+            _openerCount.text = string.Format("{0}/{1}", _foremen.HiredCount, Foremen.Count);
         }
 
         public void Show() { if (_root != null) _root.gameObject.SetActive(true); Refresh(); }

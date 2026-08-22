@@ -107,6 +107,37 @@ namespace Game.Gameplay
             return body;
         }
 
+        /// <summary>
+        /// Spawns a piece of cargo — a bar, or a bundle of notes — and paints it whatever this yard is
+        /// selling.
+        ///
+        /// One line different from <see cref="Spawn"/>, and that line is the reason it exists: the
+        /// material goes on EVEN WHEN a prefab is wired. People keep their own skins, deliberately — a
+        /// customer arrives dressed and should stay dressed. Cargo cannot: one bar model serves eight
+        /// islands and the whole point of it is to be the colour of the ore on the player's back. Wired
+        /// through <see cref="Spawn"/> it kept its authored grey, which is a worse bug than the plain
+        /// box it replaced, because a grey bar in a copper yard looks like it belongs there.
+        ///
+        /// The renderer is found in the CHILDREN, not on the root. An imported FBX arrives as a root
+        /// with the mesh hung under it, so a look on the root alone finds nothing and silently does not
+        /// paint — the exact failure this method is here to stop.
+        /// </summary>
+        public static Transform SpawnCargo(GameObject prefab, Transform parent, string name,
+                                           Vector3 fallbackScale, Material material)
+        {
+            Transform body = Spawn(prefab, parent, name, PrimitiveType.Cube, fallbackScale, material);
+            Skin(body, material);
+            return body;
+        }
+
+        /// <summary>Puts one material on every renderer under a transform. See <see cref="SpawnCargo"/>.</summary>
+        public static void Skin(Transform body, Material material)
+        {
+            if (body == null || material == null) return;
+            var parts = body.GetComponentsInChildren<MeshRenderer>(true);
+            for (int i = 0; i < parts.Length; i++) parts[i].sharedMaterial = material;
+        }
+
         private static void StripColliders(GameObject go)
         {
             var colliders = go.GetComponentsInChildren<Collider>(true);

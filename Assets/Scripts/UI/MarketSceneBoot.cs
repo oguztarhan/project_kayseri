@@ -58,6 +58,10 @@ namespace Game.UI
             new System.Collections.Generic.List<MarketYardScene>();
         private readonly System.Collections.Generic.List<Material> _tints =
             new System.Collections.Generic.List<Material>();
+        // Parallel to _yards, and it has to stay that way: the gate plates are set from the row's
+        // point of view rather than the yard's, so BuildWayfinding indexes both lists together.
+        private readonly System.Collections.Generic.List<MarketYardSigns> _signs =
+            new System.Collections.Generic.List<MarketYardSigns>();
 
         private MarketService _market;
         private MarketHudUI _hud;
@@ -81,6 +85,10 @@ namespace Game.UI
             // is fed by the delivery rate its own lorries last managed. What the player does to this
             // yard is not a rate at all: it is bars off the pads, one at a time, by hand.
             if (_market != null) _market.SetActiveIsland(null);
+
+            // Indoors now. The island's bed is gulls and surf, which is a strange thing to hear
+            // under a roof; the market has its own room tone and Leave puts the island's back.
+            ServiceLocator.Get<AudioService>()?.SetMarketAmbience(true);
 
             BuildSun();
 
@@ -133,7 +141,17 @@ namespace Game.UI
         {
             for (int i = 0; i < _yards.Count; i++)
             {
-                if (i + 1 < _yards.Count) Signpost(_yards[i], _yards[i + 1].IslandKey, true);
+                if (i + 1 < _yards.Count)
+                {
+                    string next = _yards[i + 1].IslandKey;
+                    Signpost(_yards[i], next, true);
+                    // And the same thing at head height, on the one wall the camera can read. Only
+                    // eastward: the way back west goes through the PREVIOUS yard's east wall, whose
+                    // inner face points away from the camera — a plate there could only be read
+                    // edge-on. That direction keeps the floor arrow and nothing else.
+                    _signs[i].SetGateSign(next, OreTint(next), MarketTheme.For(_yards[i].IslandKey),
+                                          signFont);
+                }
                 if (i > 0) Signpost(_yards[i], _yards[i - 1].IslandKey, false);
             }
         }
@@ -208,7 +226,22 @@ namespace Game.UI
                 var yard = go.AddComponent<MarketYardScene>();
                 yard.Build(_market, owned[i], tint, MarketYardBuild.Mat(tint),
                            westWall: i == 0, eastDoorway: i < owned.Count - 1, player, _carry, prefabs);
+
+                // The signage goes up after the yard is standing, and it is built from here rather
+                // than from inside the yard because it draws text — Game.Gameplay cannot see
+                // TextMeshPro. The yard takes the holder back so it can park the signs with the rest
+                // of itself; the price board on it reads the ledger twice a second and there is no
+                // sense in seven shut yards doing that under their own roofs.
+                MarketYardSigns signs = MarketYardSigns.Build(yard.transform, _market, owned[i], tint,
+                                                              MarketTheme.For(owned[i]), signFont);
+                yard.AddFitting(signs.gameObject);
+                // The shopfront on the roof is built AFTER the yard has taken the rest, and hung off
+                // the yard root rather than the holder it just took. It is the one sign that has to be
+                // readable while this yard is shut — that is the whole of what it says.
+                signs.BuildNeon(yard.transform, tint, MarketTheme.For(owned[i]), signFont);
+
                 _yards.Add(yard);
+                _signs.Add(signs);
                 _tints.Add(MarketYardBuild.Mat(tint));
             }
         }
@@ -265,6 +298,10 @@ namespace Game.UI
             {
                 bool live = _yards[i] == yard;
                 _yards[i].SetLive(live);
+                // The shopfront says the same thing the roof does, in words and from further away.
+                // Set here rather than inside SetLive because the sign is Game.UI's and the yard's
+                // own assembly cannot see it.
+                if (i < _signs.Count) _signs[i].SetOpen(live);
                 if (live && _carry != null && i < _tints.Count) _carry.SetMaterial(_tints[i]);
             }
             if (_hud != null) _hud.SetYard(_yardKey, yard.Pads);
@@ -314,6 +351,7 @@ namespace Game.UI
             if (!SceneCurtain.Cover(islandSceneName, WorldIslands.OreColorFor(key), Loc.Id("ada", key)))
                 return;
             _leaving = true;
+            ServiceLocator.Get<AudioService>()?.SetMarketAmbience(false);
             // Hand the yard back to the ledger. Leaving this set would freeze whichever yard the
             // player was last standing in: the scene that was selling for it is about to be unloaded,
             // and the ledger would still think somebody else had it.
@@ -329,7 +367,11 @@ namespace Game.UI
         /// scene without going through the button.</summary>
         private void OnDestroy()
         {
-            if (!_leaving && _market != null) _market.SetSimulatedYard(null);
+            if (_leaving) return;
+            if (_market != null) _market.SetSimulatedYard(null);
+            // The bed too, for the same reason: a hot reload or a future path that swaps the scene
+            // without the button would otherwise leave the island humming with the market's room tone.
+            ServiceLocator.Get<AudioService>()?.SetMarketAmbience(false);
         }
 
         private MarketPlayer BuildPlayer(Vector3 at, Material ore)

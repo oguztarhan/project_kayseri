@@ -73,5 +73,16 @@ MonoBehaviour:
     volume: 0.4
     pitchJitter: 0.08
     minInterval: 0.03
+  - id: 13
+    clip: {fileID: 8300000, guid: 86fd283797eb346cd81f274fdb635ffb, type: 3}
+    volume: 0.2475
+    pitchJitter: 0.05
+    minInterval: 2
+  - id: 14
+    clip: {fileID: 8300000, guid: 5229cc2c4b7354982bda1afcd21e8f82, type: 3}
+    volume: 0.3825
+    pitchJitter: 0.02
+    minInterval: 0.4
   ambience: {fileID: 8300000, guid: 55934689c4c933242a05ff5ed074bc6d, type: 3}
   ambienceVolume: 1
+  marketAmbience: {fileID: 8300000, guid: 88d55f38ebfeb4157b1e35d58e4c5885, type: 3}

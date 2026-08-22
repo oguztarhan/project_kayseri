@@ -38,11 +38,21 @@ namespace Game.UI
 
         private void OnEnable()
         {
-            _data = ServiceLocator.Get<SaveData>();
-            _time = ServiceLocator.Get<TimeService>();
-            _world = FindAnyObjectByType<WorldIslands>();
+            Resolve();
             _painted = -1;
             Tick();
+        }
+
+        /// <summary>
+        /// Picks up whatever is available now. Re-run from Tick while anything is still missing,
+        /// because OnEnable can land before the services are registered and before WorldIslands has
+        /// woken — and a card that resolved nothing on its first frame used to stay broken for good.
+        /// </summary>
+        private void Resolve()
+        {
+            if (_data == null) _data = ServiceLocator.Get<SaveData>();
+            if (_time == null) _time = ServiceLocator.Get<TimeService>();
+            if (_world == null) _world = FindAnyObjectByType<WorldIslands>();
         }
 
         private void OnDisable()
@@ -54,8 +64,17 @@ namespace Game.UI
 
         private void Tick()
         {
+            if (_data == null || _time == null || _world == null) Resolve();
+
             long left = SecondsLeft();
-            if (left <= 0L) { gameObject.SetActive(false); return; }
+
+            // NOT READY is not the same as EXPIRED, and conflating them is a one-way trip: the branch
+            // below switches this object off, and a disabled object never gets another OnEnable to
+            // re-ask. One early frame where the world had not finished waking would have hidden a live
+            // offer for the rest of the session. Wait instead.
+            if (left < 0L) return;
+
+            if (left == 0L) { gameObject.SetActive(false); return; }
 
             int whole = (int)left;
             if (whole != _painted) { _painted = whole; Paint(whole); }
@@ -69,12 +88,20 @@ namespace Game.UI
             _labelRt.localScale = new Vector3(k, k, 1f);
         }
 
-        /// <summary>The active island's own window; bought, expired or unstamped islands return zero.</summary>
+        /// <summary>
+        /// The active island's own window. Zero means the offer is over — bought, expired or never
+        /// stamped. NEGATIVE means the question cannot be answered yet, which is a different thing:
+        /// WorldIslands does not build its ladder until its own Awake, and Unity interleaves Awake and
+        /// OnEnable per object during a scene load, so this can be asked first.
+        /// </summary>
         private long SecondsLeft()
         {
-            if (_data == null || _time == null || _world == null) return 0L;
-            return StarterOfferState.SecondsLeft(
-                _data, _world.IslandKey(_world.ActiveIndex), _time.NowUnix());
+            if (_data == null || _time == null || _world == null) return -1L;
+
+            string island = _world.IslandKey(_world.ActiveIndex);
+            if (string.IsNullOrEmpty(island)) return -1L;   // ladder not populated yet
+
+            return StarterOfferState.SecondsLeft(_data, island, _time.NowUnix());
         }
 
         /// <summary>Writes SS:DD:SN into the reused buffer; building a string every second would allocate.</summary>

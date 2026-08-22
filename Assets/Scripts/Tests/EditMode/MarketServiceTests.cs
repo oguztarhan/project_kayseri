@@ -21,6 +21,7 @@ namespace Game.Tests
         {
             public double BarPriceRaw { get; set; }
             public double IncomeCapPerMinuteRaw { get; set; }
+            public double UpgradeTreeCostRaw { get; set; }
         }
 
         private static MarketService Build(out SaveData data, out WalletService wallet,

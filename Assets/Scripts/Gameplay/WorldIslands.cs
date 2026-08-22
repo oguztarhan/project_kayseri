@@ -39,14 +39,29 @@ namespace Game.Gameplay
         private SaveData _data;
         private int _active;
 
-        public int Count => islands.Length;
+        /// <summary>
+        /// True when <paramref name="i"/> actually addresses an island.
+        ///
+        /// This exists because the ladder is not populated until <see cref="Awake"/> runs: the
+        /// serialized array is allowed to be empty — the field's own comment invites it — and Awake
+        /// fills it from DefaultLadder(). Unity interleaves Awake and OnEnable per object during a
+        /// scene load rather than running every Awake first, so anything that asks this component a
+        /// question from its own OnEnable can arrive before that has happened.
+        ///
+        /// OfferCountdown did exactly that and threw IndexOutOfRangeException on every load, which is
+        /// why its badge never showed. OreColor and BrandColor already guarded; the rest did not, and
+        /// the inconsistency was the whole bug.
+        /// </summary>
+        private bool Has(int i) => islands != null && i >= 0 && i < islands.Length;
+
+        public int Count => islands != null ? islands.Length : 0;
         public int ActiveIndex => _active;
-        public string IslandName(int i) => islands[i].displayName;
-        public string IslandKey(int i) => islands[i].key;
-        public string RootName(int i) => islands[i].rootName;
-        public double UnlockCost(int i) => islands[i].unlockCost;
-        public double CapPerMin(int i) => islands[i].capPerMin;
-        public Color OreColor(int i) => islands[i].oreColor;
+        public string IslandName(int i) => Has(i) ? islands[i].displayName : string.Empty;
+        public string IslandKey(int i) => Has(i) ? islands[i].key : string.Empty;
+        public string RootName(int i) => Has(i) ? islands[i].rootName : string.Empty;
+        public double UnlockCost(int i) => Has(i) ? islands[i].unlockCost : 0d;
+        public double CapPerMin(int i) => Has(i) ? islands[i].capPerMin : 0d;
+        public Color OreColor(int i) => Has(i) ? islands[i].oreColor : Color.white;
 
         /// <summary>
         /// The island's colour FOR THE UI, which is not the same thing as the colour of its ore.
@@ -68,7 +83,7 @@ namespace Game.Gameplay
         /// </summary>
         public Color BrandColor(int i)
         {
-            if (islands == null || i < 0 || i >= islands.Length) return Color.white;
+            if (!Has(i)) return Color.white;
             switch (islands[i].key)
             {
                 // Hues, and the gaps between CONSECUTIVE islands, are solved rather than picked: the
@@ -97,9 +112,14 @@ namespace Game.Gameplay
             Color.RGBToHSV(c, out float h, out float s, out float v);
             return Color.HSVToRGB(h, Mathf.Max(s, 0.55f), Mathf.Max(v, 0.70f));
         }
-        public CoalOperation Operation(int i) => _ops[i];
-        public bool IsOwned(int i) => i == 0 || (_data != null && _data.unlockedIslands.Contains(islands[i].key));
-        public bool IsMaxed(int i) => _ops[i] != null && _ops[i].enabled && _ops[i].FullyMaxed;
+        // _ops is built in Awake alongside the ladder, so it needs its own guard rather than Has().
+        public CoalOperation Operation(int i) => _ops != null && i >= 0 && i < _ops.Length ? _ops[i] : null;
+        public bool IsOwned(int i) => i == 0 || (Has(i) && _data != null && _data.unlockedIslands.Contains(islands[i].key));
+        public bool IsMaxed(int i)
+        {
+            var op = Operation(i);
+            return op != null && op.enabled && op.FullyMaxed;
+        }
 
         /// <summary>
         /// The island's earning rate. Every island — the one you are standing on included — is paid by

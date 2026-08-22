@@ -754,6 +754,9 @@ namespace Game.Gameplay
         /// </summary>
         public double IncomeCapPerMinuteRaw => incomeCapPerMin;
 
+        /// <summary>What this island's own upgrade tree costs end to end. <see cref="IIslandSaleTerms"/>.</summary>
+        public double UpgradeTreeCostRaw => Ec.FullTreeCost();
+
         // ═══════════════════════════════════════════════════════════════════════════════════════════
         //  TRAINS — the mine → storage leg
         //
@@ -1096,7 +1099,7 @@ namespace Game.Gameplay
             if (!_wallet.TrySpendCash(AxisCost(s, a))) return false;
             _lv[s][a]++;
             SaveLevel(islandKey + "#" + s + "#" + a, _lv[s][a]);
-            _goals?.Record(Game.Core.Goals.Upgrades);
+            RecordUpgrade();
             if (_punch != null) _punch[s] = punchSeconds;   // the station pops, then settles at its new size
             // And so does the art the station owns. On an authored island the line above pops an EMPTY
             // anchor — the landmarks are exported points, not buildings — so without this a purchase
@@ -1122,7 +1125,7 @@ namespace Game.Gameplay
             // A ghost building is a purchase on the same track as an axis level, so the checklist
             // counts it the same way — otherwise a player who spends an evening on unlocks makes no
             // progress on "buy 5 upgrades" while visibly upgrading the island.
-            _goals?.Record(Game.Core.Goals.Upgrades);
+            RecordUpgrade();
             SaveLevel(islandKey + "u#" + u, 1);
             ApplyUnlock(u);
             return true;
@@ -6239,6 +6242,21 @@ namespace Game.Gameplay
         /// </summary>
         /// <summary>Is this station's foreman hired? The roster is account-wide, so every island asks
         /// the same service and every island shows the same eight men.</summary>
+        /// <summary>
+        /// Counts a purchase toward the checklist, unless it was free.
+        ///
+        /// SettingsUI's "max out this island" debug button flips WalletService.FreePurchases on and
+        /// then loops TryUpgrade until every axis is capped — eight hundred purchases in one press.
+        /// Counted, that clears every upgrade goal in the game instantly and silently. FreePurchases
+        /// is already the engine's "this was not earned" flag, so it is the right thing to gate on.
+        /// </summary>
+        private void RecordUpgrade()
+        {
+            if (_goals == null) return;
+            if (_wallet != null && _wallet.FreePurchases) return;
+            _goals.Record(Game.Core.Goals.Upgrades);
+        }
+
         private bool ForemanHired(int station) => _foremen != null && _foremen.IsHired(station);
 
         /// <summary>

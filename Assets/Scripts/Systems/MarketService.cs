@@ -251,6 +251,26 @@ namespace Game.Systems
             => y.earnFilled >= MinTrustedSeconds ? y.cashPerMin : SavedRate(y.save.id);
 
         /// <summary>Bars sitting on a yard's pads.</summary>
+        /// <summary>
+        /// What one bar off this yard's counter is worth right now, everything applied.
+        ///
+        /// The same arithmetic <see cref="Earn"/> does for a single bar, minus the income ceiling —
+        /// which is deliberate. The cap is a rate limit on a whole minute of selling, so folding it in
+        /// would make a sticker price that fell while the player watched simply because the yard was
+        /// having a good minute. This is the price on the wall, and a price on a wall does not flicker.
+        ///
+        /// Read-only, and it exists for the price board in the yard. That board is the only place in
+        /// the game the player is told what a bar is actually worth: everywhere else the number has
+        /// already been multiplied by however many of them went past.
+        /// </summary>
+        public double BarPrice(string islandKey)
+        {
+            Yard y;
+            if (!_yards.TryGetValue(islandKey ?? string.Empty, out y) || y.terms == null) return 0d;
+            return y.terms.BarPriceRaw * _legacyIncomeMult / SpeedFor(y)
+                   * _permanentSpeed * _foremanMult * _boostMult;
+        }
+
         public double Stock(string islandKey) => Get(islandKey).save.stock;
 
         /// <summary>
@@ -310,8 +330,13 @@ namespace Game.Systems
         {
             Yard y = Get(islandKey);
             if (y.terms == null) return 0d;
+            // The ceiling takes the investor multiplier and the tree does NOT, and that asymmetry is
+            // the island's own rule rather than a slip: prestige multiplies what an island earns and
+            // leaves what its upgrades cost alone. A yard priced off the tree follows the tree, which
+            // is what keeps it the same decision after a wipe as before one.
             return MarketPrices.Cost(kind, Level(islandKey, kind),
-                                     y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult);
+                                     y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult,
+                                     y.terms.UpgradeTreeCostRaw);
         }
 
         /// <summary>True when this track has nothing left to sell.</summary>

@@ -257,8 +257,8 @@ namespace Game.Gameplay
             _load = new Transform[most];
             for (int i = 0; i < most; i++)
             {
-                Transform bar = MarketPrefabs.Spawn(prefabs != null ? prefabs.Bar : null, _body, "Yuk",
-                                                    PrimitiveType.Cube, new Vector3(1.1f, 0.3f, 0.65f), ore);
+                Transform bar = MarketPrefabs.SpawnCargo(prefabs != null ? prefabs.Bar : null, _body,
+                                                         "Yuk", new Vector3(1.1f, 0.3f, 0.65f), ore);
                 bar.localPosition = new Vector3(0f, 1.15f + i * 0.32f, 0f);
                 bar.gameObject.SetActive(false);
                 _load[i] = bar;

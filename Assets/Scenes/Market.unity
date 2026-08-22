@@ -159,10 +159,14 @@ MonoBehaviour:
     - {fileID: 6707088506844094187, guid: 12470d56d64eadc48915ac53abe53e25, type: 3}
     - {fileID: 5481669548617104346, guid: 532a2fc3185beb5458e02f15f6ed2886, type: 3}
     worker: {fileID: 4797605776506193496, guid: 7ab456b87d847a94ca9a43844bda4a6a, type: 3}
-    bar: {fileID: 0}
-    cash: {fileID: 0}
+    bar: {fileID: 919132149155446097, guid: d4fd05922971a4f01b5cf5ce50cd3416, type: 3}
+    cash: {fileID: 919132149155446097, guid: b85e11ee940ef4e9e81af81f32a8c87e, type: 3}
+    personScale: 1.75
   bodyRadius: 0.65
   bodyHeight: 2.1
+  signFontSize: 7.5
+  signArea: {x: 14, y: 4}
+  signFont: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
   sunAngles: {x: 48, y: 35, z: 0}
   sunColor: {r: 1, g: 0.96, b: 0.89, a: 1}
   sunIntensity: 1.15

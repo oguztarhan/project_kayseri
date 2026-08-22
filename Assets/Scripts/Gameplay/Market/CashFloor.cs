@@ -66,6 +66,18 @@ namespace Game.Gameplay
         /// <summary>True when the floor is covered and nothing more can be sold until it is cleared.</summary>
         public bool IsFull => _notes.Count >= capacity;
 
+        /// <summary>
+        /// How many more notes will fit. The queue clamps an order to this before serving it.
+        ///
+        /// It has to, and not only for the VIP who wants a dozen bars at once. <see cref="Drop"/> has
+        /// always thrown away a note that arrives on a full floor, and the sale that made it has
+        /// already been banked by the counter — so an order bigger than the space left has always
+        /// quietly earned money that no note was ever laid down for. With four-bar orders and fourteen
+        /// places that was rare enough not to be noticed; with a customer who wants sixteen it stops
+        /// being rare.
+        /// </summary>
+        public int Free => Mathf.Max(0, capacity - _notes.Count);
+
         /// <summary>Notes lying about right now, for the readout and for the "come and help" nudge.</summary>
         public int Lying => _notes.Count;
 
@@ -216,9 +228,8 @@ namespace Game.Gameplay
 
         private Note NewNote()
         {
-            Transform body = MarketPrefabs.Spawn(_prefabs != null ? _prefabs.Cash : null, transform,
-                                                 "Deste", PrimitiveType.Cube,
-                                                 new Vector3(0.75f, 0.18f, 0.45f), _material);
+            Transform body = MarketPrefabs.SpawnCargo(_prefabs != null ? _prefabs.Cash : null, transform,
+                                                      "Deste", new Vector3(0.75f, 0.18f, 0.45f), _material);
             return new Note { body = body };
         }
     }

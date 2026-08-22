@@ -1,5 +1,6 @@
 using Game.Core;
 using Game.Systems;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,10 +18,6 @@ namespace Game.UI
     /// </summary>
     public sealed class GoalsUI : MonoBehaviour
     {
-        [Header("Açma düğmesi")]
-        [SerializeField] private Vector2 openerMin = new Vector2(0.012f, 0.44f);
-        [SerializeField] private Vector2 openerMax = new Vector2(0.10f, 0.56f);
-        [SerializeField] private int openerSortingOrder = 96;
         [SerializeField] private int sortingOrder = 106;
 
         [Header("Renkler")]
@@ -29,13 +26,15 @@ namespace Game.UI
         [SerializeField] private Color track = new Color(0.10f, 0.11f, 0.16f, 1f);
         [SerializeField] private Color dailyFill = new Color(0.35f, 0.72f, 0.98f, 1f);
         [SerializeField] private Color ladderFill = new Color(0.98f, 0.74f, 0.24f, 1f);
-        [SerializeField] private Color badgeTint = new Color(0.92f, 0.32f, 0.28f, 1f);
+
+        /// <summary>The rail button's icon, loaded at runtime — this screen has no Inspector to wire.</summary>
+        private const string OpenerIconResource = "UI/Buttons/gorev";
 
         private GoalService _goals;
         private RectTransform _root;
         private Text _header;
-        private Text _openerBadge;
-        private Image _openerBadgeBg;
+        private TMP_Text _openerCount;
+        private GameObject _openerChip;
 
         private readonly Text[] _dailyText = new Text[Goals.DailySlots];
         private readonly Text[] _dailyReward = new Text[Goals.DailySlots];
@@ -159,29 +158,33 @@ namespace Game.UI
         }
 
         // ---------------------------------------------------------------- opener
+        /// <summary>
+        /// The opener goes on the end of the HUD's left rail, under the ads and offer buttons, rather
+        /// than floating at a screen fraction of its own — see <see cref="HudUI.AttachRailButton"/> for
+        /// why a fraction of a landscape screen is not a place on a portrait-authored rail.
+        ///
+        /// The pending count rides under it in the rail's own counter chip, the same one the contract
+        /// and offer buttons wear, and goes away when there is nothing to claim: a checklist nobody is
+        /// told about is a checklist nobody opens.
+        /// </summary>
         private void BuildOpener()
         {
-            RectTransform canvas = UiBuild.Canvas(transform, "GorevAcKanvas", openerSortingOrder);
-            var safe = new GameObject("GuvenliAlan", typeof(RectTransform), typeof(SafeArea));
-            safe.transform.SetParent(canvas, false);
-            RectTransform safeRect = UiBuild.Anchor((RectTransform)safe.transform, Vector2.zero, Vector2.one);
+            HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Include);
+            if (hud == null) return;
 
-            Button open = UiBuild.Btn(safeRect, "GorevAc", Loc.T("gorev.baslik"),
-                                      UiSkin.ButtonYellow, new Color(0.55f, 0.42f, 0.16f, 0.94f), 20, Show);
-            UiBuild.Anchor((RectTransform)open.transform, openerMin, openerMax);
+            Button open = hud.AttachRailButton(false, "BtnGorev", Resources.Load<Sprite>(OpenerIconResource), Show);
+            if (open == null) return;
 
-            RectTransform badge = UiBuild.Flat((RectTransform)open.transform, "Rozet", badgeTint,
-                                               new Vector2(0.62f, 0.62f), new Vector2(1.05f, 1.15f));
-            _openerBadgeBg = badge.GetComponent<Image>();
-            _openerBadge = UiBuild.Label(badge, "Text", string.Empty, 20, TextAnchor.MiddleCenter);
+            _openerChip = hud.AttachRailChip(open);
+            if (_openerChip != null) _openerCount = _openerChip.GetComponentInChildren<TMP_Text>(true);
         }
 
         private void RefreshOpener()
         {
-            if (_openerBadgeBg == null || _goals == null) return;
+            if (_openerChip == null || _goals == null) return;
             int pending = _goals.PendingCount();
-            _openerBadgeBg.gameObject.SetActive(pending > 0);
-            if (pending > 0) _openerBadge.text = pending.ToString();
+            _openerChip.SetActive(pending > 0);
+            if (pending > 0) _openerCount.text = pending.ToString();
         }
 
         // --------------------------------------------------------------- refresh
