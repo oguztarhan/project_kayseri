@@ -293,6 +293,7 @@ MonoBehaviour:
   ctaGo: {fileID: 21300000, guid: 31d896c3fab57a4448a7c9a45f780970, type: 3}
   ctaBuy: {fileID: 21300000, guid: 5f8d652329580a7468f4f0c786814ff3, type: 3}
   ctaIdle: {fileID: 21300000, guid: 17542e9dc0db9f54a91c97c7eb3fa034, type: 3}
+  ctaHere: {fileID: 21300000, guid: a64ee722771931e429e1d4a5f21f7183, type: 3}
   oreEmblems:
   - {fileID: 21300000, guid: 01de969c8a8838347afe5f8b177c0b94, type: 3}
   - {fileID: 21300000, guid: eb0593dd12054d14588d39c36a4b734c, type: 3}
@@ -327,7 +328,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 34e2d6adfd12c76459c404cf9169e421, type: 3}
   - {fileID: 21300000, guid: 2b9dd2411227d70489215f62e845a0ad, type: 3}
   - {fileID: 21300000, guid: bfa100e776e873b4ca1ebc3547747b03, type: 3}
-  archipelagoRing: {fileID: 21300000, guid: d05e58a56950afd44a5b72997a801fba, type: 3}
+  archipelagoGlow: {fileID: 21300000, guid: 9577d0da28a2c574b8d2f53f12727a5f, type: 3}
   archipelagoRoute: {r: 0.62, g: 0.78, b: 0.92, a: 1}
   fadeInSeconds: 0.3
   openSeconds: 0.32

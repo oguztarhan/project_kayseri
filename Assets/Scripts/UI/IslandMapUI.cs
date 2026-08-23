@@ -74,7 +74,10 @@ namespace Game.UI
         [SerializeField] private TMP_Text ctaSubLabel;
         [SerializeField] private Sprite ctaGo;        // btn_git — sahip olunan başka ada
         [SerializeField] private Sprite ctaBuy;       // btn_satinal — parası yetiyor
-        [SerializeField] private Sprite ctaIdle;      // btn_bekleme — buradasın ya da kilitli
+        [SerializeField] private Sprite ctaIdle;      // btn_bekleme — kilitli ya da parası yetmiyor
+        [Tooltip("Üzerinde durduğun ada — btn_mavi. Kilitli hâlle aynı sprite'ı paylaşmıyor: " +
+                 "\"buradasın\" bir engel değil, ulaşılmış bir yer.")]
+        [SerializeField] private Sprite ctaHere;
 
         [Header("Cevher görselleri")]
         [Tooltip("Ada sırasıyla: kömür, bakır, demir, gümüş, altın, yakut, zümrüt, elmas.")]
@@ -111,8 +114,8 @@ namespace Game.UI
         [Tooltip("Alt şeritteki cevher rozetleri, ada sırasıyla. Boş bırakılınca zincir düz renkli " +
                  "disklere düşer.")]
         [SerializeField] private Sprite[] archipelagoIcons;
-        [Tooltip("Rozetin arkasındaki madalyon; adanın cevher rengiyle boyanır.")]
-        [SerializeField] private Sprite archipelagoRing;
+        [Tooltip("Bakılan adanın arkasında nabız gibi yanan hale; o adanın cevher rengiyle boyanır.")]
+        [SerializeField] private Sprite archipelagoGlow;
         [SerializeField] private Color archipelagoRoute = new Color(0.62f, 0.78f, 0.92f, 1f);
         [SerializeField] private float fadeInSeconds = 0.3f;
 
@@ -188,7 +191,7 @@ namespace Game.UI
                 int behindStage = stage != null && stage.parent == panelRect ? stage.GetSiblingIndex() : 1;
                 _chain.Build(panelRect, behindStage, archipelagoMin, archipelagoMax,
                              archipelagoRoute, lockedTint, archipelagoNodeSize,
-                             archipelagoIcons, archipelagoRing);
+                             archipelagoIcons, archipelagoGlow);
             }
 
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
@@ -499,7 +502,7 @@ namespace Game.UI
 
             if (here)
             {
-                label = Loc.T("harita.buradasin"); sub = ""; art = ctaIdle;
+                label = Loc.T("harita.buradasin"); sub = ""; art = ctaHere != null ? ctaHere : ctaIdle;
             }
             else if (owned)
             {

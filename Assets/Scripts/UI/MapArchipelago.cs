@@ -30,9 +30,12 @@ namespace Game.UI
         private RectTransform _boat;
         private Image _boatImage;
         private Sprite[] _icons;      // ada başına cevher rozeti; boşsa düğüm düz disk kalır
-        private Sprite _ringSprite;   // rozetin arkasındaki madalyon; boşsa UiSkin.Pill
+        private Sprite _glowSprite;   // bakılan adanın arkasındaki hale; boşsa UiSkin.Pill
 
         private const int DotsPerLeg = 5;
+
+        /// <summary>The colour of the spotlight on the island being looked at.</summary>
+        private static readonly Color Isik = new Color(1f, 0.95f, 0.80f, 0.95f);
 
         private int _highlight = -1;
         private float _pulse;
@@ -55,13 +58,13 @@ namespace Game.UI
         /// </summary>
         public void Build(RectTransform parent, int siblingIndex, Vector2 aMin, Vector2 aMax,
                           Color routeColor, Color lockedColor, float nodeSize,
-                          Sprite[] oreIcons, Sprite ringSprite)
+                          Sprite[] oreIcons, Sprite glowSprite)
         {
             if (_world == null || parent == null) return;
             int n = _world.Count;
             if (n <= 0) return;
             _icons = oreIcons;
-            _ringSprite = ringSprite;
+            _glowSprite = glowSprite;
 
             _root = UiBuild.Anchor(NewRect(parent, "Takimadalari"), aMin, aMax);
             _root.SetSiblingIndex(siblingIndex);
@@ -91,25 +94,26 @@ namespace Game.UI
 
                 Sprite icon = Icon(i);
 
-                // Rozet varsa halka madalyonun kendisi olur — cevher rengini o taşır, düğüm de
-                // üstünde duran cevher resmi. Rozet yoksa eski hâl: renkli disk, halka sadece vurgu.
-                RectTransform ring = MakeDisc(_root, "Halka_" + i, routeColor, t,
-                                              nodeSize * (icon != null ? 1.66f : 1.42f));
+                // Halka artık rozetin arkasındaki madalyon değil, sadece BAKILAN adanın arkasında
+                // yanan yumuşak hale. Her rozetin altına disk koymak sekiz ada arasında hangisinde
+                // olduğunu söylemiyordu — hepsi aynı görünüyordu; ayrıca cevher resmini boğuyordu.
+                RectTransform ring = MakeDisc(_root, "Hale_" + i, routeColor, t,
+                                              nodeSize * (icon != null ? 3.00f : 1.42f));
                 RectTransform node = MakeDisc(_root, "Ada_" + i, lockedColor, t,
-                                              nodeSize * (icon != null ? 1.30f : 1f));
+                                              nodeSize * (icon != null ? 1.55f : 1f));
                 _ring[i] = ring.GetComponent<Image>();
                 _node[i] = node.GetComponent<Image>();
                 if (icon != null)
                 {
                     _node[i].sprite = icon;
                     _node[i].preserveAspect = true;
-                    if (_ringSprite != null)
-                    {
-                        _ring[i].sprite = _ringSprite;
-                        _ring[i].preserveAspect = true;
-                    }
                 }
-                _ring[i].gameObject.SetActive(icon != null);
+                if (_glowSprite != null)
+                {
+                    _ring[i].sprite = _glowSprite;
+                    _ring[i].preserveAspect = true;
+                }
+                _ring[i].gameObject.SetActive(false);
             }
 
             RectTransform boat = MakeDisc(_root, "Gemi", Color.white, 0f, nodeSize * 0.52f);
@@ -175,23 +179,25 @@ namespace Game.UI
                     c = new Color(dim.r, dim.g, dim.b, 0.72f);
                 }
 
+                bool looked = i == _highlight;
                 if (Icon(i) != null)
                 {
                     // Cevher resmi kendi rengini taşıyor; boyamak onu bulandırıyor. Sahip olunan
-                    // ada tam renkte, kilitli olan sönük. Marka rengi arkadaki madalyona geçiyor.
-                    _node[i].color = owned ? Color.white : new Color(0.62f, 0.66f, 0.72f, 0.8f);
-                    _ring[i].gameObject.SetActive(true);
-                    _ring[i].color = here ? Color.Lerp(c, Color.white, 0.25f) : c;
+                    // ada tam renkte, kilitli olan sönük — bakılan ada her hâlükârda tam parlak.
+                    _node[i].color = owned || looked
+                        ? Color.white
+                        : new Color(0.62f, 0.66f, 0.72f, 0.8f);
                 }
-                else
-                {
-                    _node[i].color = c;
-                    bool ringed = i == _highlight || here;
-                    _ring[i].gameObject.SetActive(ringed);
-                    if (ringed)
-                        _ring[i].color = here ? new Color(1f, 0.86f, 0.42f, 0.55f)
-                                              : new Color(1f, 1f, 1f, 0.28f);
-                }
+                else _node[i].color = c;
+
+                // Hale yalnızca kartoteksin gösterdiği adada yanıyor ve rengi cevherden GELMİYOR:
+                // ekranın zemini zaten o adanın cevher rengine boyanıyor, dolayısıyla cevher renkli
+                // bir hale kömür adasında koyu kırmızının üstünde koyu kırmızı kalıyordu. Sıcak beyaz
+                // bir ışık sekiz adanın hepsinde aynı şeyi söylüyor: bakılan ada bu.
+                _ring[i].gameObject.SetActive(looked);
+                if (looked) _ring[i].color = Isik;
+                else _ring[i].rectTransform.localScale = Vector3.one;
+                if (!looked) _node[i].rectTransform.localScale = Vector3.one;
             }
 
             // A leg is lit once the island it arrives at is owned — the wake you have already sailed.
@@ -224,17 +230,32 @@ namespace Game.UI
             _boat.anchoredPosition = new Vector2(0f, _boat.sizeDelta.y * 0.9f);
         }
 
-        /// <summary>Per-frame motion: the ring around the island being looked at breathes, and nothing else.</summary>
+        /// <summary>
+        /// Per-frame motion: the island being looked at breathes, and nothing else. The halo swings
+        /// wider than the badge and its alpha rides with it, so the glow reads as a pulse rather than
+        /// as a disc that changed size.
+        /// </summary>
         public void Tick(float dt)
         {
             if (!Ready) return;
+            if (_highlight < 0 || _highlight >= _ring.Length) return;
 
             _pulse += dt * 2.4f;
-            if (_highlight >= 0 && _highlight < _ring.Length && _ring[_highlight] != null
-                && _ring[_highlight].gameObject.activeSelf)
+            float wave = Mathf.Sin(_pulse);
+
+            Image halo = _ring[_highlight];
+            if (halo != null && halo.gameObject.activeSelf)
             {
-                float s = 1f + Mathf.Sin(_pulse) * 0.06f;
-                _ring[_highlight].rectTransform.localScale = new Vector3(s, s, 1f);
+                float s = 1f + wave * 0.14f;
+                halo.rectTransform.localScale = new Vector3(s, s, 1f);
+                halo.color = new Color(Isik.r, Isik.g, Isik.b, 0.82f + wave * 0.18f);
+            }
+
+            Image badge = _node[_highlight];
+            if (badge != null)
+            {
+                float s = 1.12f + wave * 0.05f;
+                badge.rectTransform.localScale = new Vector3(s, s, 1f);
             }
         }
     }

@@ -50,6 +50,8 @@ namespace Game.UI
 
         private static readonly Color FillColour = new Color(0.85f, 0.72f, 0.25f, 0.95f);
         private static readonly Color SpillingColour = new Color(0.82f, 0.29f, 0.24f, 0.95f);
+        /// <summary>The stock rail, in the plate's own accent orange.</summary>
+        private static readonly Color RailColour = new Color(1f, 0.58f, 0.10f, 1f);
 
         /// <summary>
         /// What a card is painted when there is no skin to ask. Only ever used then: the kit art is
@@ -59,8 +61,9 @@ namespace Game.UI
         private static readonly Color Chrome = new Color(0.07f, 0.08f, 0.11f, 0.86f);
         private const string GlassPath = "UI/MarketLiquid/";
 
-        private TMP_Text _stockText, _incomeText, _padText, _padSubText, _carryText, _yardText, _cashText;
-        private RectTransform _stockFill, _carryFill, _padPanel, _accent;
+        private TMP_Text _stockText, _incomeText, _modeText, _fillText;
+        private TMP_Text _padText, _padSubText, _carryText, _yardText, _cashText;
+        private RectTransform _stockFill, _carryFill, _padPanel;
         private Image _stockFillImage;
         private CarryStack _carry;
         private WalletService _wallet;
@@ -83,6 +86,7 @@ namespace Game.UI
             Sprite infoArt = Glass("island_info_panel");
             Sprite counterArt = Glass("objective_counter");
             Sprite joystickArt = Glass("joystick");
+            Sprite thumbArt = Glass("joystick_thumb");
 
             // ---- the stick's zone, underneath everything, and everything above it is deaf to touch ----
             // Full bleed, and the one thing here that stays OUTSIDE the safe area: this is a surface you
@@ -94,8 +98,10 @@ namespace Game.UI
             UiBuild.Anchor(zone, Vector2.zero, new Vector2(1f, stickZoneHeight));
             MarketJoystick.DragSurface(zone);
 
-            RectTransform ring = Ring(zone, "KolTabani", 300f, new Color(1f, 1f, 1f, 0.68f), joystickArt);
-            RectTransform knob = Ring(zone, "KolBasi", 108f, new Color(1f, 1f, 1f, 0.62f), UiSkin.Flat);
+            // Setin kendi kol basligi var artik; onceki hâlde bu bir beyaz lekeydi (aşağıdaki
+            // Ring'in notuna bak). Basligin capi tabanin ortasindaki delige oturuyor.
+            RectTransform ring = Ring(zone, "KolTabani", 300f, new Color(1f, 1f, 1f, 0.92f), joystickArt);
+            RectTransform knob = Ring(zone, "KolBasi", 126f, Color.white, thumbArt);
 
             _stick = zoneGo.AddComponent<MarketJoystick>();
             _stick.Bind(ring, knob);
@@ -122,10 +128,13 @@ namespace Game.UI
             var pad = (RectTransform)padGo.transform;
             pad.SetParent(safe, false);
             Pin(pad, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-26f, 24f),
-                new Vector2(300f, 286f));
+                new Vector2(300f, 300f));
             // The ripple first, so the base and the head draw over it as it passes them.
-            RectTransform ripple = Ring(pad, "Dalga", 286f, new Color(1f, 1f, 1f, 0.20f), joystickArt);
-            Ring(pad, "Taban", 286f, new Color(1f, 1f, 1f, 0.92f), joystickArt);
+            RectTransform ripple = Ring(pad, "Dalga", 300f, new Color(1f, 1f, 1f, 0.20f), joystickArt);
+            Ring(pad, "Taban", 300f, new Color(1f, 1f, 1f, 0.92f), joystickArt);
+            // Taban ortasi delik bir halka; basligi olmadan duran kol bos bir cember gibi duruyor
+            // ve basilacak bir sey oldugu okunmuyor. Ped surukleme baslayinca komple kapaniyor.
+            Ring(pad, "PedBasligi", 126f, new Color(1f, 1f, 1f, 0.92f), thumbArt);
             _stick.BindRest(pad, ripple);
 
             // ---- top bar: the way out, the wallet, and what this yard is ----
@@ -135,64 +144,84 @@ namespace Game.UI
             // door in and the door out wearing one colour is the cheapest wayfinding there is.
             Button exit = Chip(safe, "CikisDugmesi", "‹  " + Loc.T("market.cik"), backArt,
                                40f, onExit);
+            // Ölçüler setin kendi en-boy oranından: parçalar preserveAspect ile çiziliyor, rect
+            // oranı tutmazsa sanat kutunun içinde küçülüp ortalanıyor ve üstüne koyduğumuz yazı
+            // sanatın dışına düşüyor.
             Pin((RectTransform)exit.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(20f, -18f), new Vector2(300f, 156f));
+                new Vector2(20f, -18f), new Vector2(360f, 132f));
             TMP_Text exitText = exit.GetComponentInChildren<TMP_Text>();
-            if (exitText != null) Inset(exitText, 0.16f, 0.84f);
+            if (exitText != null) Box(exitText, 0.14f, 0.26f, 0.86f, 0.76f);
 
             // What is in the wallet, in the kit's counter capsule. Every pad in the yard is priced in
             // cash and this screen used to be the one place in the game that would not tell you how much
             // you had — you bought upgrades by walking onto them and hoping.
+            // Sikke artik hapin kendi sanatinda basili; ustune bir tane daha koymak iki sikke
+            // demekti. Yazi yalnizca sagdaki koyu okuma penceresine giriyor.
             RectTransform purse = UiBuild.Box(safe, "ParaKarti", Chrome,
                                               new Vector2(0.255f, 0.855f), new Vector2(0.475f, 0.975f));
             Skin(purse, currencyArt);
             Pin(purse, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(336f, -18f), new Vector2(270f, 158f));
-            Icon(purse, UiSkin.Coin);
-            _cashText = Line(purse, "ParaYazisi", 38f, TextAlignmentOptions.Left, 0.17f, 0.83f);
-            var cashRect = (RectTransform)_cashText.transform;
-            cashRect.anchorMin = new Vector2(0.34f, 0.17f);
-            cashRect.anchorMax = new Vector2(0.85f, 0.83f);
+                new Vector2(400f, -18f), new Vector2(330f, 134f));
+            _cashText = Line(purse, "ParaYazisi", 38f, TextAlignmentOptions.Center, 0.28f, 0.72f);
+            Box(_cashText, 0.33f, 0.28f, 0.91f, 0.72f);
 
+            // The card is the kit's slotted plate: a name across the top, four recessed windows in
+            // two rows, a rail along the bottom. Every rect below is measured off that art rather
+            // than spaced by eye — a label that misses its window reads as a bug in the panel.
+            //
+            // The kit ships the plate with Turkish burned into it. Those letters are painted out in
+            // Tools/ui/market_seti.py and redrawn here through Loc, because the game runs in eleven
+            // languages and baked type only ever speaks one.
             RectTransform card = UiBuild.Box(safe, "AvluKarti", Chrome,
                                              new Vector2(0.495f, 0.80f), new Vector2(0.978f, 0.975f));
             Skin(card, infoArt);
-            Pin(card, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(500f, 345f));
+            Pin(card, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(520f, 395f));
 
-            // The ore's own colour down the leading edge, so which yard you are in is answerable
-            // without reading anything — the same cue the world map uses for the same islands.
-            _accent = UiBuild.Flat(card, "Cizgi", FillColour, new Vector2(0.105f, 0.20f),
-                                   new Vector2(0.12f, 0.79f));
+            _yardText = Cell(card, "AvluAdi", 34f, TextAlignmentOptions.Left,
+                             0.115f, 0.792f, 0.640f, 0.882f);
+            _yardText.color = new Color(1f, 0.72f, 0.16f, 1f);   // setin turuncusu
 
-            _yardText = Line(card, "AvluAdi", 34f, TextAlignmentOptions.TopLeft, 0.65f, 0.84f);
-            _yardText.color = new Color(1f, 0.94f, 0.70f, 1f);
-            _incomeText = Line(card, "GelirYazisi", 45f, TextAlignmentOptions.TopLeft, 0.42f, 0.65f);
-            _stockText = Line(card, "StokYazisi", 29f, TextAlignmentOptions.TopLeft, 0.25f, 0.43f);
-            Inset(_yardText, 0.14f, 0.88f);
-            Inset(_incomeText, 0.14f, 0.88f);
-            Inset(_stockText, 0.14f, 0.88f);
+            Caption(card, "GelirEtiketi", Loc.T("market.gelir"), 0.125f, 0.655f, 0.484f, 0.742f);
+            _incomeText = Cell(card, "GelirYazisi", 30f, TextAlignmentOptions.Center,
+                               0.135f, 0.528f, 0.474f, 0.650f);
 
-            UiBuild.Bar(card, "StokCubugu", new Color(1f, 1f, 1f, 0.12f), FillColour,
-                        new Vector2(0.12f, 0.17f), new Vector2(0.88f, 0.205f), out _stockFill);
+            Caption(card, "ModEtiketi", Loc.T("market.mod"), 0.542f, 0.655f, 0.900f, 0.742f);
+            _modeText = Cell(card, "ModYazisi", 30f, TextAlignmentOptions.Center,
+                             0.552f, 0.528f, 0.875f, 0.650f);
+
+            Caption(card, "StokEtiketi", Loc.T("market.stok"), 0.125f, 0.398f, 0.484f, 0.485f);
+            _stockText = Cell(card, "StokYazisi", 30f, TextAlignmentOptions.Center,
+                              0.135f, 0.272f, 0.474f, 0.393f);
+
+            Caption(card, "DolulukEtiketi", Loc.T("market.doluluk"), 0.542f, 0.398f, 0.920f, 0.485f);
+            _fillText = Cell(card, "DolulukYazisi", 30f, TextAlignmentOptions.Center,
+                             0.552f, 0.272f, 0.875f, 0.393f);
+
+            UiBuild.Bar(card, "StokCubugu", new Color(0f, 0f, 0f, 0f), FillColour,
+                        new Vector2(0.152f, 0.152f), new Vector2(0.861f, 0.188f), out _stockFill);
             _stockFillImage = _stockFill.GetComponent<Image>();
 
             // ---- bottom left: what is on your back ----
             RectTransform load = UiBuild.Box(safe, "SirtKarti", Chrome,
                                              new Vector2(0.022f, 0.035f), new Vector2(0.235f, 0.155f));
             Skin(load, counterArt);
-            Pin(load, Vector2.zero, Vector2.zero, new Vector2(20f, 18f), new Vector2(270f, 163f));
-            _carryText = Line(load, "SirtYazisi", 46f, TextAlignmentOptions.Center, 0.34f, 0.80f);
-            UiBuild.Bar(load, "SirtCubugu", new Color(1f, 1f, 1f, 0.12f), new Color(0.44f, 0.72f, 0.95f, 0.95f),
-                        new Vector2(0.17f, 0.22f), new Vector2(0.83f, 0.27f), out _carryFill);
+            Pin(load, Vector2.zero, Vector2.zero, new Vector2(20f, 18f), new Vector2(320f, 123f));
+            // Isci ikonu sayacin kendi sanatinda; yazi ve cubuk sagdaki okuma penceresine giriyor.
+            _carryText = Line(load, "SirtYazisi", 44f, TextAlignmentOptions.Center, 0.38f, 0.76f);
+            Box(_carryText, 0.40f, 0.38f, 0.92f, 0.76f);
+            UiBuild.Bar(load, "SirtCubugu", new Color(0f, 0f, 0f, 0f), new Color(0.44f, 0.72f, 0.95f, 0.95f),
+                        new Vector2(0.42f, 0.27f), new Vector2(0.90f, 0.33f), out _carryFill);
 
             // ---- what the pad underfoot is selling. Hidden until they stand on one ----
             _padPanel = UiBuild.Box(safe, "PedBilgisi", new Color(0.09f, 0.10f, 0.14f, 0.94f),
                                     new Vector2(0.315f, 0.035f), new Vector2(0.685f, 0.175f));
             Skin(_padPanel, counterArt);
             Pin(_padPanel, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 18f),
-                new Vector2(390f, 236f));
-            _padText = Line(_padPanel, "PedYazisi", 38f, TextAlignmentOptions.Top, 0.48f, 0.73f);
-            _padSubText = Line(_padPanel, "PedAltYazisi", 31f, TextAlignmentOptions.Top, 0.27f, 0.49f);
+                new Vector2(470f, 181f));
+            _padText = Cell(_padPanel, "PedYazisi", 32f, TextAlignmentOptions.Center,
+                            0.38f, 0.50f, 0.93f, 0.76f);
+            _padSubText = Cell(_padPanel, "PedAltYazisi", 28f, TextAlignmentOptions.Center,
+                               0.38f, 0.25f, 0.93f, 0.50f);
             _padSubText.color = new Color(1f, 1f, 1f, 0.88f);
             _padPanel.gameObject.SetActive(false);
 
@@ -241,11 +270,37 @@ namespace Game.UI
             rect.sizeDelta = size;
         }
 
-        private static void Inset(TMP_Text text, float left, float right)
+        /// <summary>Pins a label to an exact rectangle of its card, in fractions of that card.</summary>
+        private static void Box(TMP_Text text, float left, float bottom, float right, float top)
         {
             var rect = (RectTransform)text.transform;
-            rect.anchorMin = new Vector2(left, rect.anchorMin.y);
-            rect.anchorMax = new Vector2(right, rect.anchorMax.y);
+            rect.anchorMin = new Vector2(left, bottom);
+            rect.anchorMax = new Vector2(right, top);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>A readout sitting in one of the plate's recessed windows.</summary>
+        private static TMP_Text Cell(Transform parent, string name, float size, TextAlignmentOptions align,
+                                     float left, float bottom, float right, float top)
+        {
+            TMP_Text text = Line(parent, name, size, align, bottom, top);
+            Box(text, left, bottom, right, top);
+            return text;
+        }
+
+        /// <summary>
+        /// One of the plate's engraved slot headings, redrawn through <see cref="Loc"/>.
+        ///
+        /// The kit has these burned into the art in Turkish. They are painted out when the sprite is
+        /// cut and written here instead, so the panel reads in whatever language the player picked.
+        /// </summary>
+        private static void Caption(Transform parent, string name, string label,
+                                    float left, float bottom, float right, float top)
+        {
+            TMP_Text text = Cell(parent, name, 26f, TextAlignmentOptions.Left, left, bottom, right, top);
+            text.text = label;
+            text.color = new Color(0.93f, 0.94f, 0.96f, 1f);
         }
 
         /// <summary>
@@ -303,19 +358,6 @@ namespace Game.UI
             return button;
         }
 
-        /// <summary>The coin on the purse capsule. Skipped entirely when the kit has no icon wired.</summary>
-        private static void Icon(Transform parent, Sprite sprite)
-        {
-            if (sprite == null) return;
-            var go = new GameObject("Ikon", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            var image = go.GetComponent<Image>();
-            image.sprite = sprite;
-            image.preserveAspect = true;
-            image.raycastTarget = false;
-            UiBuild.Anchor((RectTransform)go.transform, new Vector2(0.14f, 0.22f), new Vector2(0.32f, 0.78f));
-        }
-
         /// <summary>
         /// Points the readouts at a different yard. The hall is one scene, so walking through a doorway
         /// changes whose stock and whose income the player is looking at without anything reloading.
@@ -328,7 +370,8 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// A soft round blob. The kit has no joystick art yet, so the greybox draws its own.
+        /// The stick's base and its thumb. Both are kit art now — the note about a greybox blob is
+        /// gone with it, but the anchoring below has not changed and still cannot.
         ///
         /// Anchored to the CENTRE of its parent, and that is a fix rather than a preference. The stick
         /// drives these by writing the thumb's position straight into anchoredPosition, and that position
@@ -424,33 +467,39 @@ namespace Game.UI
             // the one thing in here the player has to be told rather than left to infer, so it gets
             // words and a colour instead of a percentage they would have to notice had stopped moving.
             bool spilling = _market.OverflowSeconds(_yardKey) > 0d;
+            // The plate names each window, so the readouts are bare values — repeating the heading
+            // inside its own slot is the one thing the engraved art already does.
             if (_stockText != null)
-                _stockText.text = spilling
-                    ? Loc.T("market.stok") + "   " + Loc.T("market.dolu")
-                    : Loc.T("market.stok") + "   " + NumberFormatter.Format(new BigDouble(stock)) +
-                      "   " + Mathf.RoundToInt(fraction * 100f) + "%";
+                _stockText.text = NumberFormatter.Format(new BigDouble(stock));
+            if (_fillText != null)
+                _fillText.text = spilling
+                    ? Loc.T("market.dolu")
+                    : Mathf.RoundToInt(fraction * 100f) + "%";
+            if (_fillText != null)
+                _fillText.color = spilling ? SpillingColour : Color.white;
+
+            // The rail is kit orange rather than the yard's ore colour. Ore colour was the obvious
+            // choice and it is wrong here: coal's brand is very nearly black, so a full rail on a
+            // graphite plate read as an empty one. Orange is the plate's own accent and always reads.
             if (_stockFillImage != null)
-                _stockFillImage.color = spilling ? SpillingColour : FillColour;
+                _stockFillImage.color = spilling ? SpillingColour : RailColour;
 
             if (_yardText != null)
                 _yardText.text = Loc.Id("ada", _yardKey).ToUpperInvariant();
-            if (_accent != null)
-            {
-                var image = _accent.GetComponent<Image>();
-                if (image != null) image.color = WorldIslands.OreColorFor(_yardKey);
-            }
 
             if (_incomeText != null)
+                _incomeText.text = "$" +
+                                   NumberFormatter.Format(new BigDouble(_market.RatePerMin(_yardKey))) +
+                                   " /dk";
+            if (_modeText != null)
             {
                 // The AUTO badge is the promise the whole feature is built on, so it replaces the rate
                 // multiplier rather than sitting beside it — once a yard is staffed the number stops
                 // being something the player has to act on.
-                string staffing = _market.IsMaxed(_yardKey)
-                    ? "   " + Loc.T("market.otomatik")
-                    : "   x" + _market.ServiceRate(_yardKey).ToString("0.00");
-                _incomeText.text = "$" +
-                                   NumberFormatter.Format(new BigDouble(_market.RatePerMin(_yardKey))) +
-                                   " /dk" + staffing;
+                bool auto = _market.IsMaxed(_yardKey);
+                _modeText.text = auto ? Loc.T("market.otomatik")
+                                      : "x" + _market.ServiceRate(_yardKey).ToString("0.00");
+                _modeText.color = auto ? new Color(0.42f, 0.92f, 0.52f, 1f) : Color.white;
             }
             if (_stockFill != null) _stockFill.anchorMax = new Vector2(fraction, 1f);
         }
