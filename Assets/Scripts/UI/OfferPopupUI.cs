@@ -216,8 +216,9 @@ namespace Game.UI
             SetRect(backdropGlow, Vector2.zero, new Vector2(1900f, 760f));
             SetRect(offerCard, Vector2.zero, new Vector2(2100f, 820f));
 
+            // Kartın kendi mavi başlık şeridi üstteki 100 birimi kaplıyor: başlık onun ortasına.
             RectTransform ribbon = islandTitle != null ? islandTitle.rectTransform.parent as RectTransform : null;
-            SetRect(ribbon, new Vector2(0f, 340f), new Vector2(900f, 180f));
+            SetRect(ribbon, new Vector2(0f, 360f), new Vector2(900f, 180f));
             SetRect(limitedOfferBadge, new Vector2(-650f, 165f), new Vector2(600f, 58f));
             SetRect(tierTitle != null ? tierTitle.rectTransform : null,
                     new Vector2(-650f, 95f), new Vector2(700f, 86f));
@@ -235,7 +236,7 @@ namespace Game.UI
             SetRect(buyButton != null ? buyButton.transform as RectTransform : null,
                     new Vector2(300f, -275f), new Vector2(520f, 150f));
             SetRect(closeButton != null ? closeButton.transform as RectTransform : null,
-                    new Vector2(975f, 350f), new Vector2(110f, 110f));
+                    new Vector2(1000f, 360f), new Vector2(84f, 84f));
         }
 
         private static void SetRect(RectTransform rect, Vector2 position, Vector2 size)

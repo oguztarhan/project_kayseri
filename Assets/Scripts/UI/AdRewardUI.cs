@@ -184,7 +184,7 @@ namespace Game.UI
             }
 
             SetRect(closeButton != null ? closeButton.transform as RectTransform : null,
-                    new Vector2(1150f, 300f), new Vector2(120f, 120f));
+                    new Vector2(1180f, 330f), new Vector2(84f, 84f));
             if (closeButton != null) closeButton.transform.SetAsLastSibling();
         }
 
@@ -201,7 +201,12 @@ namespace Game.UI
                 image.raycastTarget = false;
             }
 
-            SetRect(_titleRibbon, new Vector2(0f, 300f), new Vector2(980f, 230f));
+            // Panelin kendi mavi başlık şeridi var; ayrı şerit görseli onun üstüne biniyordu.
+            // Düğüm başlığı taşımaya devam ediyor, sadece resmi kapalı.
+            var ribbonImage = _titleRibbon.GetComponent<Image>();
+            if (ribbonImage != null) ribbonImage.enabled = false;
+
+            SetRect(_titleRibbon, new Vector2(0f, 330f), new Vector2(980f, 230f));
             if (title == null) return;
             if (title.parent != _titleRibbon) title.SetParent(_titleRibbon, false);
             SetRect(title, new Vector2(0f, -6f), new Vector2(600f, 120f));

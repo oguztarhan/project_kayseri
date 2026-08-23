@@ -29,6 +29,8 @@ namespace Game.UI
         private Image[] _legDot;      // flattened: (count-1) legs x DotsPerLeg
         private RectTransform _boat;
         private Image _boatImage;
+        private Sprite[] _icons;      // ada başına cevher rozeti; boşsa düğüm düz disk kalır
+        private Sprite _ringSprite;   // rozetin arkasındaki madalyon; boşsa UiSkin.Pill
 
         private const int DotsPerLeg = 5;
 
@@ -52,11 +54,14 @@ namespace Game.UI
         /// call-to-action, which on the landscape layout is everything under about -0.40.
         /// </summary>
         public void Build(RectTransform parent, int siblingIndex, Vector2 aMin, Vector2 aMax,
-                          Color routeColor, Color lockedColor, float nodeSize)
+                          Color routeColor, Color lockedColor, float nodeSize,
+                          Sprite[] oreIcons, Sprite ringSprite)
         {
             if (_world == null || parent == null) return;
             int n = _world.Count;
             if (n <= 0) return;
+            _icons = oreIcons;
+            _ringSprite = ringSprite;
 
             _root = UiBuild.Anchor(NewRect(parent, "Takimadalari"), aMin, aMax);
             _root.SetSiblingIndex(siblingIndex);
@@ -84,11 +89,27 @@ namespace Game.UI
                     }
                 }
 
-                RectTransform ring = MakeDisc(_root, "Halka_" + i, routeColor, t, nodeSize * 1.42f);
-                RectTransform node = MakeDisc(_root, "Ada_" + i, lockedColor, t, nodeSize);
+                Sprite icon = Icon(i);
+
+                // Rozet varsa halka madalyonun kendisi olur — cevher rengini o taşır, düğüm de
+                // üstünde duran cevher resmi. Rozet yoksa eski hâl: renkli disk, halka sadece vurgu.
+                RectTransform ring = MakeDisc(_root, "Halka_" + i, routeColor, t,
+                                              nodeSize * (icon != null ? 1.66f : 1.42f));
+                RectTransform node = MakeDisc(_root, "Ada_" + i, lockedColor, t,
+                                              nodeSize * (icon != null ? 1.30f : 1f));
                 _ring[i] = ring.GetComponent<Image>();
                 _node[i] = node.GetComponent<Image>();
-                _ring[i].gameObject.SetActive(false);
+                if (icon != null)
+                {
+                    _node[i].sprite = icon;
+                    _node[i].preserveAspect = true;
+                    if (_ringSprite != null)
+                    {
+                        _ring[i].sprite = _ringSprite;
+                        _ring[i].preserveAspect = true;
+                    }
+                }
+                _ring[i].gameObject.SetActive(icon != null);
             }
 
             RectTransform boat = MakeDisc(_root, "Gemi", Color.white, 0f, nodeSize * 0.52f);
@@ -96,6 +117,9 @@ namespace Game.UI
             _boatImage = boat.GetComponent<Image>();
             _boat.gameObject.SetActive(false);
         }
+
+        private Sprite Icon(int i) =>
+            _icons != null && i >= 0 && i < _icons.Length ? _icons[i] : null;
 
         private static RectTransform NewRect(Transform parent, string name)
         {
@@ -150,13 +174,24 @@ namespace Game.UI
                     Color dim = Color.Lerp(ore, lockedColor, 0.62f);
                     c = new Color(dim.r, dim.g, dim.b, 0.72f);
                 }
-                _node[i].color = c;
 
-                bool ringed = i == _highlight || here;
-                _ring[i].gameObject.SetActive(ringed);
-                if (ringed)
-                    _ring[i].color = here ? new Color(1f, 0.86f, 0.42f, 0.55f)
-                                          : new Color(1f, 1f, 1f, 0.28f);
+                if (Icon(i) != null)
+                {
+                    // Cevher resmi kendi rengini taşıyor; boyamak onu bulandırıyor. Sahip olunan
+                    // ada tam renkte, kilitli olan sönük. Marka rengi arkadaki madalyona geçiyor.
+                    _node[i].color = owned ? Color.white : new Color(0.62f, 0.66f, 0.72f, 0.8f);
+                    _ring[i].gameObject.SetActive(true);
+                    _ring[i].color = here ? Color.Lerp(c, Color.white, 0.25f) : c;
+                }
+                else
+                {
+                    _node[i].color = c;
+                    bool ringed = i == _highlight || here;
+                    _ring[i].gameObject.SetActive(ringed);
+                    if (ringed)
+                        _ring[i].color = here ? new Color(1f, 0.86f, 0.42f, 0.55f)
+                                              : new Color(1f, 1f, 1f, 0.28f);
+                }
             }
 
             // A leg is lit once the island it arrives at is owned — the wake you have already sailed.

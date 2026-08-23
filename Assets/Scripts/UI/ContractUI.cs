@@ -122,9 +122,11 @@ namespace Game.UI
 
             SetRect(layoutPanel, Vector2.zero, new Vector2(1900f, 900f));
             SetRect(pageBackground, Vector2.zero, new Vector2(1900f, 900f));
-            SetRect(titleRibbon, new Vector2(0f, 350f), new Vector2(900f, 210f));
+            // Panelin kendi mavi başlık şeridi üstteki 100 birimi kaplıyor; başlık ve kapat düğmesi
+            // onun dikey ortasına (y = 450 - 50) oturuyor.
+            SetRect(titleRibbon, new Vector2(0f, 400f), new Vector2(900f, 210f));
             SetRect(closeButton != null ? closeButton.transform as RectTransform : null,
-                    new Vector2(900f, 350f), new Vector2(120f, 120f));
+                    new Vector2(858f, 400f), new Vector2(84f, 84f));
             SetRect(runningCard, new Vector2(-465f, -35f), new Vector2(900f, 468f));
             SetRect(nextSlot, new Vector2(465f, -35f), new Vector2(908f, 484f));
         }

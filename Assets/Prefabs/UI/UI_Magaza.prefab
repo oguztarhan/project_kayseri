@@ -3615,7 +3615,7 @@ RectTransform:
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: -90, y: -140}
-  m_SizeDelta: {x: 140, y: 140}
+  m_SizeDelta: {x: 110, y: 110}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7741432119590210004
 CanvasRenderer:
@@ -3645,7 +3645,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 4c0073cd05eea9d459341e9183201d66, type: 3}
+  m_Sprite: {fileID: 21300000, guid: c2f09f179f4db9249b3b975e79af645d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -4522,7 +4522,6 @@ MonoBehaviour:
     title: 
     description: 
     incomeMinutes: 49
-    investorShare: 0
   - name: "G\xFCnl\xFCk Hazine"
     button: {fileID: 6838375703838413410}
     sku: offer_hazine
@@ -4546,7 +4545,6 @@ MonoBehaviour:
     title: 
     description: 
     incomeMinutes: 0
-    investorShare: 0
   - name: "Gece Vardiyas\u0131"
     button: {fileID: 3015335990691894417}
     sku: offer_gecevardiyasi
@@ -4570,7 +4568,6 @@ MonoBehaviour:
     title: 
     description: 
     incomeMinutes: 0
-    investorShare: 0
   - name: Maden Patronu
     button: {fileID: 3836880484917672375}
     sku: offer_madenpatronu
@@ -4594,7 +4591,6 @@ MonoBehaviour:
     title: 
     description: 
     incomeMinutes: 4872
-    investorShare: 0
   gemOffers:
   - name: gem_boost_2h
     button: {fileID: 0}
@@ -4619,7 +4615,6 @@ MonoBehaviour:
     title: 2 SAAT
     description: 
     incomeMinutes: 0
-    investorShare: 0
   - name: gem_boost_8h
     button: {fileID: 0}
     sku: gem_boost_8h
@@ -4643,7 +4638,6 @@ MonoBehaviour:
     title: 8 SAAT
     description: 
     incomeMinutes: 0
-    investorShare: 0
   - name: gem_boost_24h
     button: {fileID: 0}
     sku: gem_boost_24h
@@ -4667,7 +4661,6 @@ MonoBehaviour:
     title: 24 SAAT
     description: 
     incomeMinutes: 0
-    investorShare: 0
   - name: gem_shield_8h
     button: {fileID: 0}
     sku: gem_shield_8h
@@ -4691,7 +4684,6 @@ MonoBehaviour:
     title: 8 SAAT
     description: Binalar %100 saglikta kalir
     incomeMinutes: 0
-    investorShare: 0
   - name: gem_shield_12h
     button: {fileID: 0}
     sku: gem_shield_12h
@@ -4715,7 +4707,6 @@ MonoBehaviour:
     title: 12 SAAT
     description: Binalar %100 saglikta kalir
     incomeMinutes: 0
-    investorShare: 0
   - name: gem_shield_24h
     button: {fileID: 0}
     sku: gem_shield_24h
@@ -4739,7 +4730,6 @@ MonoBehaviour:
     title: 24 SAAT
     description: Binalar %100 saglikta kalir
     incomeMinutes: 0
-    investorShare: 0
   - name: gem_cash_30m
     button: {fileID: 0}
     sku: gem_cash_30m
@@ -4763,7 +4753,6 @@ MonoBehaviour:
     title: 30 DK
     description: 
     incomeMinutes: 30
-    investorShare: 0
   - name: gem_cash_2h
     button: {fileID: 0}
     sku: gem_cash_2h
@@ -4787,7 +4776,6 @@ MonoBehaviour:
     title: 2 SAAT
     description: 
     incomeMinutes: 120
-    investorShare: 0
   - name: gem_cash_8h
     button: {fileID: 0}
     sku: gem_cash_8h
@@ -4811,7 +4799,6 @@ MonoBehaviour:
     title: 8 SAAT
     description: 
     incomeMinutes: 480
-    investorShare: 0
   - name: gem_offline_2h
     button: {fileID: 0}
     sku: gem_offline_2h
@@ -4835,7 +4822,6 @@ MonoBehaviour:
     title: +4 SAAT
     description: "\xC7evrimd\u0131\u015F\u0131 kazan\xE7\ns\xFCresi 4 saat uzar"
     incomeMinutes: 0
-    investorShare: 0
   - name: gem_ad_charge
     button: {fileID: 0}
     sku: gem_ad_charge
@@ -4859,7 +4845,6 @@ MonoBehaviour:
     title: +1 HAK
     description: "Her reklam yuvas\u0131na\ng\xFCnde bir hak daha"
     incomeMinutes: 0
-    investorShare: 0
   - name: gem_daily_x2
     button: {fileID: 0}
     sku: gem_daily_x2
@@ -4883,7 +4868,6 @@ MonoBehaviour:
     title: "\xD72"
     description: "G\xFCnl\xFCk \xF6d\xFCller\nkal\u0131c\u0131 olarak iki kat\u0131"
     incomeMinutes: 0
-    investorShare: 0
   gemIcon: {fileID: 21300000, guid: a20a9f9dbc3cec944b3b4a4504d3c2b5, type: 3}
   devFreeIAP: 0
   purchaseFx: {fileID: 5059351080587554020}

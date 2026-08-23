@@ -55,7 +55,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -294,14 +294,14 @@ MonoBehaviour:
   ctaBuy: {fileID: 21300000, guid: 5f8d652329580a7468f4f0c786814ff3, type: 3}
   ctaIdle: {fileID: 21300000, guid: 17542e9dc0db9f54a91c97c7eb3fa034, type: 3}
   oreEmblems:
-  - {fileID: 21300000, guid: d8472a450bc28114fa99a6b2910f15af, type: 3}
-  - {fileID: 21300000, guid: c3472d1f3cbb5394d9b533f8bb7f3ff2, type: 3}
-  - {fileID: 21300000, guid: 0119ccc6e4fd2ad488a36053f5d0d2f4, type: 3}
-  - {fileID: 21300000, guid: 15afe79e4afa46e43acce5f04d84cfb9, type: 3}
-  - {fileID: 21300000, guid: cb8a72a865dddce4d85f96cda0ed11d3, type: 3}
-  - {fileID: 21300000, guid: 6126234e96826d640b4948cf49e3603d, type: 3}
-  - {fileID: 21300000, guid: c819fb4a8dfbb8c4c9e6ed5d59ee6d64, type: 3}
-  - {fileID: 21300000, guid: 3c1d6ccd151b52e41b9f1a7f8aa83c57, type: 3}
+  - {fileID: 21300000, guid: 01de969c8a8838347afe5f8b177c0b94, type: 3}
+  - {fileID: 21300000, guid: eb0593dd12054d14588d39c36a4b734c, type: 3}
+  - {fileID: 21300000, guid: 8f2ddc7547d048540a9355c37d350fe6, type: 3}
+  - {fileID: 21300000, guid: b71e62124544e32418b817ac79d111bc, type: 3}
+  - {fileID: 21300000, guid: 59f6f85e3ebffef498d0a83ff5fb3f82, type: 3}
+  - {fileID: 21300000, guid: 4f80ecbb461dfec40894406a9873a872, type: 3}
+  - {fileID: 21300000, guid: 310ec58c7dd6b9a4cbfa8c09d8f68261, type: 3}
+  - {fileID: 21300000, guid: a99f0c2d1224ba14d9362cacc2b2365f, type: 3}
   lockedTint: {r: 0.42, g: 0.47, b: 0.58, a: 1}
   confirmRoot: {fileID: 1033730929392750688}
   confirmTitle: {fileID: 3765967999565603851}
@@ -314,6 +314,21 @@ MonoBehaviour:
   fadeOutSeconds: 0.25
   fadeHoldSeconds: 0.1
   sailHoldSeconds: 1.7
+  showArchipelago: 1
+  archipelagoMin: {x: 0.02, y: 0.02}
+  archipelagoMax: {x: 0.98, y: 0.17}
+  archipelagoNodeSize: 40
+  archipelagoIcons:
+  - {fileID: 21300000, guid: 1a20ff74d91dc104d9fbec237652104d, type: 3}
+  - {fileID: 21300000, guid: 530cc9dceedf66b4d8b3265cdb7f1bae, type: 3}
+  - {fileID: 21300000, guid: d39d82ba1165b464d9cb6a4fd5a31e14, type: 3}
+  - {fileID: 21300000, guid: 241f2887f5a5f2946912e5b3f8bc0101, type: 3}
+  - {fileID: 21300000, guid: 4d9498b3d81021f4a930aed251fe61bd, type: 3}
+  - {fileID: 21300000, guid: 34e2d6adfd12c76459c404cf9169e421, type: 3}
+  - {fileID: 21300000, guid: 2b9dd2411227d70489215f62e845a0ad, type: 3}
+  - {fileID: 21300000, guid: bfa100e776e873b4ca1ebc3547747b03, type: 3}
+  archipelagoRing: {fileID: 21300000, guid: d05e58a56950afd44a5b72997a801fba, type: 3}
+  archipelagoRoute: {r: 0.62, g: 0.78, b: 0.92, a: 1}
   fadeInSeconds: 0.3
   openSeconds: 0.32
   slideOutSeconds: 0.13
@@ -334,7 +349,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5584fe0c6f1f56d44812c4e0b9dfd703, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.NotificationNavigationUI
 --- !u!1 &514562812348791955
 GameObject:
@@ -404,7 +419,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 5af1df40b7a49344184565df25b4b69e, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 62f429fcb3a53fd4eb3e386a96701be1, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -704,7 +719,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2128588716162324353}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
@@ -793,7 +808,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 4c0073cd05eea9d459341e9183201d66, type: 3}
+  m_Sprite: {fileID: 21300000, guid: c2f09f179f4db9249b3b975e79af645d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -957,8 +972,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -6}
-  m_SizeDelta: {x: 700, y: 110}
+  m_AnchoredPosition: {x: 0, y: 24}
+  m_SizeDelta: {x: 470, y: 62}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1049657733501291957
 CanvasRenderer:
@@ -998,7 +1013,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 0.97, b: 0.9, a: 1}
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -1019,8 +1034,8 @@ MonoBehaviour:
   m_fontSizeBase: 62
   m_fontWeight: 400
   m_enableAutoSizing: 1
-  m_fontSizeMin: 31
-  m_fontSizeMax: 62
+  m_fontSizeMin: 24
+  m_fontSizeMax: 44
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
@@ -1269,7 +1284,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.47, g: 0.39, b: 0.28, a: 1}
+  m_fontColor: {r: 0.165, g: 0.227, b: 0.361, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -2026,7 +2041,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.27, g: 0.19, b: 0.1, a: 1}
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -2350,7 +2365,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 4c0073cd05eea9d459341e9183201d66, type: 3}
+  m_Sprite: {fileID: 21300000, guid: c2f09f179f4db9249b3b975e79af645d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2561,7 +2576,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 320}
-  m_SizeDelta: {x: 360, y: 360}
+  m_SizeDelta: {x: 620, y: 620}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3054864192470064642
 CanvasRenderer:
@@ -2591,9 +2606,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: d8472a450bc28114fa99a6b2910f15af, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 01de969c8a8838347afe5f8b177c0b94, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -3318,8 +3333,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -300}
-  m_SizeDelta: {x: 980, y: 240}
+  m_AnchoredPosition: {x: 0, y: 385}
+  m_SizeDelta: {x: 640, y: 134}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3877590463225646662
 CanvasRenderer:
@@ -3349,9 +3364,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: dd988dc1d62a392469b820556a8d87ca, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d207130faa601b6419b96a5c83de301b, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -3411,7 +3426,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7131332691834133022}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
@@ -3509,7 +3524,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.72, g: 0.8, b: 0.92, a: 1}
+  m_fontColor: {r: 0.165, g: 0.227, b: 0.361, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -3945,7 +3960,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.47, g: 0.39, b: 0.28, a: 1}
+  m_fontColor: {r: 0.165, g: 0.227, b: 0.361, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -4162,7 +4177,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: d5ecd521a2f84724d914b4126b12ca19, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d05e58a56950afd44a5b72997a801fba, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -4283,8 +4298,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 07408ab32904e93438f365f3f05c4f7a, type: 3}
-  m_Type: 0
+  m_Sprite: {fileID: 21300000, guid: 62f429fcb3a53fd4eb3e386a96701be1, type: 3}
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -4443,7 +4458,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 0.97, b: 0.9, a: 1}
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:

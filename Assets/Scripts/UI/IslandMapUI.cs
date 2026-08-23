@@ -108,6 +108,11 @@ namespace Game.UI
         [SerializeField] private Vector2 archipelagoMin = new Vector2(0.02f, 0.02f);
         [SerializeField] private Vector2 archipelagoMax = new Vector2(0.98f, 0.17f);
         [SerializeField] private float archipelagoNodeSize = 34f;
+        [Tooltip("Alt şeritteki cevher rozetleri, ada sırasıyla. Boş bırakılınca zincir düz renkli " +
+                 "disklere düşer.")]
+        [SerializeField] private Sprite[] archipelagoIcons;
+        [Tooltip("Rozetin arkasındaki madalyon; adanın cevher rengiyle boyanır.")]
+        [SerializeField] private Sprite archipelagoRing;
         [SerializeField] private Color archipelagoRoute = new Color(0.62f, 0.78f, 0.92f, 1f);
         [SerializeField] private float fadeInSeconds = 0.3f;
 
@@ -182,7 +187,8 @@ namespace Game.UI
                 // AT the stage's index pushes the stage one later, which is what puts us behind it.
                 int behindStage = stage != null && stage.parent == panelRect ? stage.GetSiblingIndex() : 1;
                 _chain.Build(panelRect, behindStage, archipelagoMin, archipelagoMax,
-                             archipelagoRoute, lockedTint, archipelagoNodeSize);
+                             archipelagoRoute, lockedTint, archipelagoNodeSize,
+                             archipelagoIcons, archipelagoRing);
             }
 
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
@@ -260,11 +266,13 @@ namespace Game.UI
             if (Screen.width <= Screen.height || stage == null) return;
 
             SetRect(stage, Vector2.zero, new Vector2(2100f, 850f));
-            SetRect(titleRibbon, new Vector2(0f, 350f), new Vector2(900f, 210f));
+            // Başlık şeridi ekranın tepesinde ortada; kapat sağ üstte. Şerit 640x134'ten büyük
+            // olamıyor: bilgi kartının üst kenarı 310'da, şeridin kuyrukları 348'de bitiyor.
+            SetRect(titleRibbon, new Vector2(0f, 415f), new Vector2(640f, 134f));
             SetRect(closeButton != null ? closeButton.transform as RectTransform : null,
-                    new Vector2(1000f, 350f), new Vector2(120f, 120f));
+                    new Vector2(1000f, 350f), new Vector2(84f, 84f));
 
-            Vector2 medal = new Vector2(-600f, -20f);
+            Vector2 medal = new Vector2(-560f, 10f);
             SetPosition(rays != null ? rays.rectTransform : null, medal);
             SetPosition(aura != null ? aura.rectTransform : null, medal);
             SetPosition(disc != null ? disc.rectTransform : null, medal);
@@ -273,14 +281,23 @@ namespace Game.UI
             SetPosition(lockIcon != null ? lockIcon.transform as RectTransform : null, medal);
             SetPosition(sparkleRing, medal);
 
-            SetRect(infoCard, new Vector2(450f, 105f), new Vector2(900f, 300f));
-            SetRect(pipRoot, new Vector2(450f, -115f), new Vector2(720f, 56f));
+            // Sağ sütun: bilgi kartı, sayfa noktaları, ana buton. Kartın kendi mavi başlık şeridi
+            // ada adını taşıyor, durum ve doluluk çubuğu beyaz gövdede.
+            SetRect(infoCard, new Vector2(480f, 145f), new Vector2(880f, 330f));
+            if (nameText != null) SetRect(nameText.rectTransform, new Vector2(0f, 115f), new Vector2(780f, 92f));
+            if (statusText != null) SetRect(statusText.rectTransform, new Vector2(0f, 0f), new Vector2(780f, 58f));
+            RectTransform barBed = barFillArea != null ? barFillArea.parent as RectTransform : null;
+            SetRect(barBed, new Vector2(0f, -85f), new Vector2(760f, 52f));
+
+            SetRect(pipRoot, new Vector2(480f, -80f), new Vector2(720f, 56f));
             SetRect(ctaButton != null ? ctaButton.transform as RectTransform : null,
-                    new Vector2(450f, -285f), new Vector2(720f, 190f));
+                    new Vector2(480f, -230f), new Vector2(720f, 180f));
+
+            // Oklar adanın iki yanında: sol kenarda ve ada ile bilgi kartının arasında.
             SetRect(prevButton != null ? prevButton.transform as RectTransform : null,
-                    new Vector2(-960f, -20f), new Vector2(124f, 124f));
+                    new Vector2(-1000f, 10f), new Vector2(124f, 124f));
             SetRect(nextButton != null ? nextButton.transform as RectTransform : null,
-                    new Vector2(960f, -20f), new Vector2(124f, 124f));
+                    new Vector2(-120f, 10f), new Vector2(124f, 124f));
         }
 
         private static void SetPosition(RectTransform rect, Vector2 position)
@@ -408,7 +425,10 @@ namespace Game.UI
             if (emblem != null)
             {
                 emblem.sprite = oreEmblems != null && i < oreEmblems.Length ? oreEmblems[i] : null;
-                emblem.enabled = emblem.sprite != null && owned;
+                // Kilitli ada da kendi silüetini gösteriyor, sadece karartılmış. Madalyon diski
+                // kaldırıldığından "sahip değilsen hiçbir şey yok" hâli ekranı boşaltıyordu.
+                emblem.enabled = emblem.sprite != null;
+                emblem.color = owned ? Color.white : new Color(0.40f, 0.42f, 0.48f, 1f);
             }
             SetOn(lockIcon, !owned);
             if (sparkleRing != null) sparkleRing.gameObject.SetActive(owned);
