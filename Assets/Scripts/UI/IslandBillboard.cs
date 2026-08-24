@@ -1,3 +1,4 @@
+using Game.Core;
 using Game.Gameplay;
 using Game.Systems;
 using TMPro;
@@ -87,6 +88,7 @@ namespace Game.UI
         private WorldIslands _world;
         private int _builtFor = -1;
         private float _rebindIn;
+        private LocalizationService _loc;
         private float _appliedNight = -1f;
 
         private Transform _sign;
@@ -98,13 +100,34 @@ namespace Game.UI
         private TextMeshPro _label;
         private Material _labelMaterial;
 
+        private void Awake()
+        {
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += OnLanguageChanged;
+        }
+
         private void Update()
         {
             Rebind();
             if (_label != null) Paint(Shader.GetGlobalFloat(NightId));
         }
 
-        private void OnDestroy() => Clear();
+        private void OnDestroy()
+        {
+            if (_loc != null) _loc.Changed -= OnLanguageChanged;
+            Clear();
+        }
+
+        /// <summary>
+        /// Ada adı tabelaya kuruluşta yazılıyor ve <see cref="Update"/> yalnız rengi tazeliyor, yani
+        /// dil değişince levha eski dilde kalırdı. Kurulu adayı unutmak <see cref="Rebind"/>'in
+        /// ada değiştiğinde zaten yürüdüğü yolu açar.
+        /// </summary>
+        private void OnLanguageChanged()
+        {
+            _builtFor = -1;
+            _rebindIn = 0f;
+        }
 
         /// <summary>Travelling activates a different island root, so the binding is re-checked on
         /// a slow timer rather than taken once — the same contract as the street lamps.</summary>

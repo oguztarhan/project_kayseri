@@ -233,7 +233,10 @@ namespace Game.UI
                 int charges = Charges(slot);
                 int left = _free.ChargesLeft(slot.id, charges);
                 float cooldown = _free.CooldownLeft(slot.id, slot.cooldownSeconds);
-                bool ready = left > 0 && cooldown <= 0f;
+                // AdReady de şart: hak ve bekleme uygunken bile yüklü reklam yoksa Watch() sessizce
+                // geri dönüyordu, yani düğme etkin görünüp hiçbir şey yapmıyordu. HUD kısayolu
+                // (BoostReady) bu kontrolü zaten yapıyordu; satırların yapmaması bir gözden kaçmaydı.
+                bool ready = left > 0 && cooldown <= 0f && AdReady;
 
                 if (slot.background != null && slot.backgroundReady != null && slot.backgroundSpent != null)
                     slot.background.sprite = ready ? slot.backgroundReady : slot.backgroundSpent;
@@ -270,6 +273,9 @@ namespace Game.UI
         {
             if (chargesLeft <= 0) return Loc.T("reklam.yarin_gel");
             if (cooldown > 0f) return string.Format(Loc.T("reklam.sonra"), ContractUI.ClockText(cooldown));
+            // Oyuncunun kendi durumundan kaynaklanan iki hâl önce gelir; bu üçüncüsü geçicidir ve
+            // reklam yüklenir yüklenmez kendiliğinden kalkar (Refresh, refreshInterval ile dönüyor).
+            if (!AdReady) return Loc.T("reklam.hazir_degil");
             switch (slot.kind)
             {
                 case RewardKind.Gems:

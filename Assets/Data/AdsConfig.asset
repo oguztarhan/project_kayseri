@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 141520964ebc048b9bee005886032d5e, type: 3}
   m_Name: AdsConfig
   m_EditorClassIdentifier: Game.Data::Game.Data.AdsConfig
-  useTestAds: 1
-  androidRewardedId: 
-  iosRewardedId: 
+  useTestAds: 0
+  androidRewardedId: ca-app-pub-2925766743577038/3293007589
+  iosRewardedId: ca-app-pub-2925766743577038/1592913104
   showTimeoutSeconds: 5

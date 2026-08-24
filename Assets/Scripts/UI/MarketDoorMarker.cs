@@ -71,6 +71,8 @@ namespace Game.UI
         private CoalOperation _op;
         private RectTransform _canvasRect, _rect;
         private GameObject _root;
+        private Text _doorLabel;
+        private LocalizationService _loc;
         private float _rebindIn;
         private bool _opening;
 
@@ -116,6 +118,23 @@ namespace Game.UI
             _rect.sizeDelta = buttonSize;
             _root = button.gameObject;
             _root.SetActive(false);
+
+            // Yazı burada bir kez basılıyor ve Update yalnız düğmeyi konumlandırıyor, o yüzden dil
+            // değişince etiket eskisi gibi kalırdı. Ölçüm yok — düğme sabit boyutlu — bu yüzden
+            // metni yerinde değiştirmek yetiyor, yeniden kurmaya gerek yok.
+            _doorLabel = button.GetComponentInChildren<Text>();
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += OnLanguageChanged;
+        }
+
+        private void OnDestroy()
+        {
+            if (_loc != null) _loc.Changed -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            if (_doorLabel != null) _doorLabel.text = Loc.T("market.gir");
         }
 
         private void Open()

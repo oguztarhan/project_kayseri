@@ -21,6 +21,15 @@ namespace Game.Systems
     {
         private const float TimeoutSeconds = 8f;
 
+        /// <summary>
+        /// ATT sorulduktan SONRAKİ bütçe. Ayrı olmasının sebebi, oyuncunun diyaloğu okuduğu sürenin
+        /// zaman aşımı sayılmaması: sekiz saniye bir insanın iki sistem penceresini okuyup
+        /// cevaplamasına yetmiyor ve süre dolunca akış cevabı beklemeden kapanıyordu — yani reklam
+        /// SDK'sı izin verilmeden başlıyordu, ki Apple 5.1.2(i) buna doğrudan ret veriyor. Bu değer
+        /// bir insana değil, hiç geri çağırmayan bir SDK'ya karşı duruyor.
+        /// </summary>
+        private const float TrackingTimeoutSeconds = 30f;
+
         /// <summary>IAB TCF amaç onayları: 1 depolama, 3 basit profil, 4 kişiselleştirilmiş reklam.</summary>
         private const string TcfPurposeKey = "IABTCF_PurposeConsents";
 
@@ -74,21 +83,39 @@ namespace Game.Systems
 
             _elapsed += dt;
 
-            if (_formDone && !_attAsked)
+            if (_formDone && !_attAsked) { AskTracking(); return; }
+
+            // İzin sorulduysa saat yeniden başlar: buradan sonrası oyuncunun okuma süresidir ve
+            // onu zaman aşımı saymak, cevabı beklemeden reklam SDK'sını başlatmak demek olur.
+            if (_attAsked)
             {
-                _attAsked = true;
-                IOSTracking.Request(status =>
-                {
-                    Debug.Log("[Consent] ATT sonucu: " + status);
-                    Finish();
-                });
+                if (_elapsed < TrackingTimeoutSeconds) return;
+                Debug.LogWarning("[Consent] ATT geri çağırması gelmedi; kişiselleştirilmemiş reklamla devam.");
+                Finish();
                 return;
             }
 
             if (_elapsed < TimeoutSeconds) return;
 
-            Debug.LogWarning("[Consent] akış zaman aşımına uğradı; kişiselleştirilmemiş reklamla devam.");
-            Finish();
+            // UMP takıldı. Yine de izni sormadan kapanmıyoruz: IDFA kullandığını beyan eden bir
+            // uygulamada incelemecinin ATT penceresini hiç görmemesi, formun açılmamasından çok daha
+            // kesin bir rettir (Guideline 5.1.2(i)). Rıza bilinmiyorsa reklam kişiselleştirilmez.
+            Debug.LogWarning("[Consent] UMP zaman aşımına uğradı; ATT yine de soruluyor.");
+            AskTracking();
+        }
+
+        private void AskTracking()
+        {
+            _attAsked = true;
+            _elapsed = 0f;
+            IOSTracking.Request(status =>
+            {
+                Debug.Log("[Consent] ATT sonucu: " + status);
+                // Zaman aşımı önce kapattıysa Finish() hiçbir şey yapmaz; cevabın yine de işlenmesi
+                // gerekir, yoksa izin veren oyuncu bütün oturum boyunca kişiselleştirilmemiş reklam görür.
+                Resolve();
+                Finish();
+            });
         }
 
         public void ShowPrivacyOptions()

@@ -1,3 +1,4 @@
+using Game.Core;
 using Game.Gameplay;
 using Game.Systems;
 using TMPro;
@@ -95,6 +96,7 @@ namespace Game.UI
 
         private float _rebindIn;
         private float _appliedNight = -1f;
+        private LocalizationService _loc;
 
         private void Awake()
         {
@@ -118,6 +120,26 @@ namespace Game.UI
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             scaler.matchWidthOrHeight = 0.5f;
             _canvas = (RectTransform)go.transform;
+
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += OnLanguageChanged;
+        }
+
+        private void OnDestroy()
+        {
+            if (_loc != null) _loc.Changed -= OnLanguageChanged;
+        }
+
+        /// <summary>
+        /// Tabela adları yerelleştirilmiş ve plaka yazının genişliğine göre ölçülüyor, yani metni
+        /// yerinde değiştirmek yetmez — levhanın yeniden ölçülmesi gerekir. Bağlantıyı düşürmek
+        /// <see cref="Rebind"/>'in ada değiştiğinde zaten kullandığı yolu tetikler ve <see cref="Build"/>
+        /// her şeyi yeni dille kurar. Gecikme bir saniyeye kadar; dil değişimi nadir bir eylem.
+        /// </summary>
+        private void OnLanguageChanged()
+        {
+            _operation = null;
+            _rebindIn = 0f;
         }
 
         private void Update()

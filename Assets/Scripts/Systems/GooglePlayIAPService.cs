@@ -237,6 +237,11 @@ namespace Game.Systems
             _store.RestoreTransactions((success, error) =>
             {
                 if (!success) Debug.LogWarning("[IAP] geri yükleme başarısız: " + error);
+                // RestoreTransactions yalnız Apple'a "sahiplikleri yeniden gönder" diyor; hakları
+                // uygulayan OnPurchasesFetched, ancak FetchPurchases çağrılırsa tetikleniyor. Bu
+                // satır olmadan oyuncu "GERİ YÜKLENDİ" yazısını görüyor ama ekranda hiçbir şey
+                // değişmiyordu — haklar ancak bir sonraki açılışta geri geliyordu.
+                if (success) _store.FetchPurchases();
                 onDone?.Invoke(success, error);
             });
         }

@@ -1149,7 +1149,7 @@ namespace Game.UI
             {
                 SetRow(r, false, true, false);
                 if (r.badge != null && badgeMax != null) r.badge.sprite = badgeMax;
-                if (r.badgeText != null) r.badgeText.text = "MAX";
+                if (r.badgeText != null) r.badgeText.text = Loc.T("market.maks");
                 return;
             }
 

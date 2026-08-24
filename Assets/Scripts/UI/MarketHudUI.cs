@@ -488,9 +488,8 @@ namespace Game.UI
                 _yardText.text = Loc.Id("ada", _yardKey).ToUpperInvariant();
 
             if (_incomeText != null)
-                _incomeText.text = "$" +
-                                   NumberFormatter.Format(new BigDouble(_market.RatePerMin(_yardKey))) +
-                                   " /dk";
+                _incomeText.text = string.Format(Loc.T("ortak.dakika_basina"),
+                    "$" + NumberFormatter.Format(new BigDouble(_market.RatePerMin(_yardKey))));
             if (_modeText != null)
             {
                 // The AUTO badge is the promise the whole feature is built on, so it replaces the rate

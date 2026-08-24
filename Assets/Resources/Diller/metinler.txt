@@ -28,6 +28,7 @@ ayarlar.ses	SES	SOUND	TON	SON	SONIDO	SOM	SUONO	DŹWIĘK	ЗВУК	SUARA	ÂM THANH
 ayarlar.muzik	MÜZİK	MUSIC	MUSIK	MUSIQUE	MÚSICA	MÚSICA	MUSICA	MUZYKA	МУЗЫКА	MUSIK	NHẠC
 ayarlar.titresim	TİTREŞİM	VIBRATION	VIBRATION	VIBRATION	VIBRACIÓN	VIBRAÇÃO	VIBRAZIONE	WIBRACJE	ВИБРАЦИЯ	GETARAN	RUNG
 ayarlar.gizlilik	GİZLİLİK	PRIVACY	DATENSCHUTZ	CONFIDENTIALITÉ	PRIVACIDAD	PRIVACIDADE	PRIVACY	PRYWATNOŚĆ	ПРИВАТНОСТЬ	PRIVASI	QUYỀN RIÊNG TƯ
+ayarlar.reklam_tercihleri	REKLAM TERCİHLERİ	AD PREFERENCES	WERBEEINSTELLUNGEN	PRÉFÉRENCES PUB	PREFERENCIAS DE ANUNCIOS	PREFERÊNCIAS DE ANÚNCIOS	PREFERENZE ANNUNCI	USTAWIENIA REKLAM	НАСТРОЙКИ РЕКЛАМЫ	PREFERENSI IKLAN	TÙY CHỌN QUẢNG CÁO
 ayarlar.degerlendir	BİZİ DEĞERLENDİR	RATE US	BEWERTE UNS	NOTEZ-NOUS	VALÓRANOS	AVALIE-NOS	VALUTACI	OCEŃ NAS	ОЦЕНИТЕ НАС	BERI NILAI	ĐÁNH GIÁ CHÚNG TÔI
 ayarlar.geri_yukle	ALIMLARI GERİ YÜKLE	RESTORE PURCHASES	KÄUFE ZURÜCKHOLEN	RESTAURER LES ACHATS	RESTAURAR COMPRAS	RESTAURAR COMPRAS	RIPRISTINA ACQUISTI	PRZYWRÓĆ ZAKUPY	ВЕРНУТЬ ПОКУПКИ	PULIHKAN PEMBELIAN	KHÔI PHỤC GIAO DỊCH
 ayarlar.geri_yukleniyor	GERİ YÜKLENİYOR…	RESTORING…	WIRD WIEDERHERGESTELLT…	RESTAURATION…	RESTAURANDO…	RESTAURANDO…	RIPRISTINO…	PRZYWRACANIE…	ВОССТАНОВЛЕНИЕ…	MEMULIHKAN…	ĐANG KHÔI PHỤC…
@@ -68,6 +69,7 @@ harita.tavana_kadar	{0}/dk'ya kadar	up to {0}/min	bis zu {0}/Min	jusqu'à {0}/mi
 reklam.baslik	BEDAVA ÖDÜL	FREE REWARD	GRATIS-BELOHNUNG	BONUS GRATUIT	PREMIO GRATIS	PRÊMIO GRÁTIS	PREMIO GRATIS	DARMOWA NAGRODA	ПОДАРОК	HADIAH GRATIS	THƯỞNG MIỄN PHÍ
 reklam.yarin_gel	YARIN TEKRAR GEL	COME BACK TOMORROW	MORGEN WIEDER	REVENEZ DEMAIN	VUELVE MAÑANA	VOLTE AMANHÃ	TORNA DOMANI	WRÓĆ JUTRO	ЗАЙДИ ЗАВТРА	KEMBALI BESOK	QUAY LẠI MAI
 reklam.sonra	{0} SONRA	IN {0}	IN {0}	DANS {0}	EN {0}	EM {0}	TRA {0}	ZA {0}	ЧЕРЕЗ {0}	DALAM {0}	SAU {0}
+reklam.hazir_degil	REKLAM HAZIR DEĞİL	AD NOT READY	WERBUNG NICHT BEREIT	PUB PAS ENCORE PRÊTE	ANUNCIO NO LISTO	ANÚNCIO NÃO ESTÁ PRONTO	ANNUNCIO NON PRONTO	REKLAMA NIEDOSTĘPNA	РЕКЛАМА НЕ ГОТОВА	IKLAN BELUM SIAP	QUẢNG CÁO CHƯA SẴN SÀNG
 reklam.elmas	+{0} ELMAS	+{0} GEMS	+{0} DIAMANTEN	+{0} GEMMES	+{0} GEMAS	+{0} GEMAS	+{0} GEMME	+{0} KLEJNOTÓW	+{0} АЛМАЗОВ	+{0} PERMATA	+{0} KIM CƯƠNG
 reklam.gelir	×{0} GELİR · {1}	×{0} INCOME · {1}	×{0} ERTRAG · {1}	×{0} REVENU · {1}	×{0} INGRESOS · {1}	×{0} RENDA · {1}	×{0} ENTRATE · {1}	×{0} DOCHÓD · {1}	×{0} ДОХОД · {1}	×{0} HASIL · {1}	×{0} TIỀN · {1}
 reklam.aciklama	Kısa bir reklam izle, ödülü anında al.	Watch a short ad and the reward is yours.	Kurze Werbung ansehen, Belohnung sofort kassieren.	Regarde une courte pub et reçois la récompense.	Mira un anuncio corto y llévate la recompensa.	Assista a um anúncio curto e receba o prêmio.	Guarda un breve annuncio e prendi il premio.	Obejrzyj krótką reklamę i odbierz nagrodę.	Посмотри короткую рекламу и забери награду.	Tonton iklan singkat, hadiahnya langsung jadi milikmu.	Xem một quảng cáo ngắn và nhận thưởng ngay.

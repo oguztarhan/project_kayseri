@@ -67,6 +67,8 @@ namespace Game.UI
         private GoalService _goals;
         private RectTransform _root;
         private Text _pendingLabel;
+        private Text _titleLabel, _dailyCaption, _ladderCaption;
+        private LocalizationService _loc;
         private RectTransform _pendingChip;
         private TMP_Text _openerCount;
         private GameObject _openerChip;
@@ -88,11 +90,31 @@ namespace Game.UI
             Build();
             BuildOpener();
             if (_goals != null) _goals.Changed += OnChanged;
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += OnLanguageChanged;
             Hide();
             RefreshOpener();
         }
 
-        private void OnDestroy() { if (_goals != null) _goals.Changed -= OnChanged; }
+        private void OnDestroy()
+        {
+            if (_goals != null) _goals.Changed -= OnChanged;
+            if (_loc != null) _loc.Changed -= OnLanguageChanged;
+        }
+
+        /// <summary>
+        /// Ekran <see cref="Awake"/>'te bir kez kuruluyor, o yüzden şerit başlığı ve iki sütun
+        /// başlığı kurulduğu dilde kalıyordu. Yeniden kurmak ikinci bir kanvas yaratacağı için
+        /// yalnız o üç yazı tazeleniyor; geri kalan her satırı <see cref="Refresh"/> zaten yazıyor.
+        /// </summary>
+        private void OnLanguageChanged()
+        {
+            if (_titleLabel != null) _titleLabel.text = Loc.T("gorev.baslik");
+            if (_dailyCaption != null) _dailyCaption.text = Loc.T("gorev.gunluk");
+            if (_ladderCaption != null) _ladderCaption.text = Loc.T("gorev.basarimlar");
+            Refresh();
+            RefreshOpener();
+        }
 
         private void OnChanged() { Refresh(); RefreshOpener(); }
 
@@ -110,14 +132,14 @@ namespace Game.UI
             const float top = 0.745f, bottom = 0.030f;
 
             // Sol sütun: günün üç görevi.
-            Caption("GunlukBaslik", Loc.T("gorev.gunluk"), 0.035f, 0.475f);
+            _dailyCaption = Caption("GunlukBaslik", Loc.T("gorev.gunluk"), 0.035f, 0.475f);
             float dh = (top - bottom) / Goals.DailySlots;
             for (int i = 0; i < Goals.DailySlots; i++)
                 BuildDaily(i, new Vector2(0.035f, top - (i + 1) * dh + 0.010f),
                               new Vector2(0.475f, top - i * dh - 0.010f));
 
             // Sağ sütun: kalıcı basamaklar.
-            Caption("LadderBaslik", Loc.T("gorev.basarimlar"), 0.525f, 0.965f);
+            _ladderCaption = Caption("LadderBaslik", Loc.T("gorev.basarimlar"), 0.525f, 0.965f);
             int n = Goals.Ladder.Length;
             _ladderText = new Text[n];
             _ladderFillImage = new Image[n];
@@ -134,7 +156,7 @@ namespace Game.UI
         private void BuildHeader()
         {
             RectTransform band = Art(_root, "Serit", ribbon, new Vector2(0.360f, 0.850f), new Vector2(0.640f, 0.992f));
-            UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
+            _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
                                         new Vector2(0.87f, RibbonBand + 0.13f)),
                                    "Text", Loc.T("gorev.baslik"), 38, TextAnchor.MiddleCenter);
 
@@ -154,11 +176,12 @@ namespace Game.UI
         }
 
         /// <summary>A column caption, sitting just under the ribbon and above the first row.</summary>
-        private void Caption(string name, string text, float left, float right)
+        private Text Caption(string name, string text, float left, float right)
         {
             Text t = UiBuild.Label(Slot(_root, name, new Vector2(left, 0.755f), new Vector2(right, 0.815f)),
                                    "Text", text, 28, TextAnchor.MiddleLeft);
             t.color = new Color(1f, 1f, 1f, 0.82f);
+            return t;
         }
 
         private void BuildDaily(int slot, Vector2 aMin, Vector2 aMax)

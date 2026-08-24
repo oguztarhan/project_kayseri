@@ -89,6 +89,8 @@ namespace Game.UI
         private WalletService _wallet;
         private RectTransform _root;
         private Text _multiplier;
+        private Text _titleLabel;
+        private LocalizationService _loc;
         private Text _balance;
         private TMP_Text _openerCount;
 
@@ -112,6 +114,8 @@ namespace Game.UI
             Build();
             BuildOpener();
             if (_foremen != null) _foremen.RosterChanged += OnRosterChanged;
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += OnLanguageChanged;
             Hide();
             RefreshOpener();
         }
@@ -119,6 +123,19 @@ namespace Game.UI
         private void OnDestroy()
         {
             if (_foremen != null) _foremen.RosterChanged -= OnRosterChanged;
+            if (_loc != null) _loc.Changed -= OnLanguageChanged;
+        }
+
+        /// <summary>
+        /// Şerit başlığı <see cref="Awake"/>'te bir kez yazılıyor; ekranı yeniden kurmak ikinci bir
+        /// kanvas açacağı için yalnız o yazı tazeleniyor. Kartların üstündeki her satırı
+        /// <see cref="Refresh"/> zaten baştan yazıyor.
+        /// </summary>
+        private void OnLanguageChanged()
+        {
+            if (_titleLabel != null) _titleLabel.text = Loc.T("ustabasi.baslik");
+            Refresh();
+            RefreshOpener();
         }
 
         private void OnRosterChanged(int station) { Refresh(); RefreshOpener(); }
@@ -183,7 +200,7 @@ namespace Game.UI
         private void BuildHeader()
         {
             RectTransform band = Art(_root, "Serit", ribbon, new Vector2(0.355f, 0.855f), new Vector2(0.645f, 0.995f));
-            UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
+            _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
                                         new Vector2(0.87f, RibbonBand + 0.13f)),
                                    "Text", Loc.T("ustabasi.baslik"), 38, TextAnchor.MiddleCenter);
 
