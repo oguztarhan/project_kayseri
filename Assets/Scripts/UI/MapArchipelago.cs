@@ -6,7 +6,7 @@ namespace Game.UI
 {
     /// <summary>
     /// The chain of islands along the bottom of the world map: eight nodes on a sea route, the owned
-    /// ones lit in their ore colour, the rest dark, and a boat marking the one you are standing on.
+    /// ones lit in their ore colour and the rest dark.
     ///
     /// WHY. The screen is called the world map and was a single medallion on a flat fill. A carousel
     /// tells you what island you are looking at; it does not tell you where that island is, how far you
@@ -27,8 +27,6 @@ namespace Game.UI
         private Image[] _node;
         private Image[] _ring;
         private Image[] _legDot;      // flattened: (count-1) legs x DotsPerLeg
-        private RectTransform _boat;
-        private Image _boatImage;
         private Sprite[] _icons;      // ada başına cevher rozeti; boşsa düğüm düz disk kalır
         private Sprite _glowSprite;   // bakılan adanın arkasındaki hale; boşsa UiSkin.Pill
 
@@ -40,12 +38,12 @@ namespace Game.UI
         private int _highlight = -1;
         private float _pulse;
 
-        // NO SAIL ANIMATION, deliberately. The obvious idea is to glide the boat along the leg during
-        // the 1.7s travel hold — but Travel() deactivates panelRoot before that hold begins, and
-        // IslandMapUI.Update returns early while the panel is inactive, so nothing on this layer draws
-        // a single frame of it. Making it visible would mean reordering the travel sequence, and that
-        // sequence carries the curtain, the sorting-order raise and the scene load. The boat stays a
-        // marker: it says where you are, which is what it was worth having for.
+        // NO MARKER FOR THE ISLAND YOU ARE ON. There was one — a small rect parked over that node —
+        // and it never had any boat art to wear, so it fell back to UiSkin.Pill and drew as a plain
+        // blue rectangle sitting on top of the coal badge. The screen already says where you are
+        // twice over: the halo burns behind the island the carousel is showing, and the call to
+        // action reads YOU ARE HERE. A third telling, drawn as a stray square, was worth less than
+        // the pixels it covered.
 
         public MapArchipelago(WorldIslands world) { _world = world; }
 
@@ -115,11 +113,6 @@ namespace Game.UI
                 }
                 _ring[i].gameObject.SetActive(false);
             }
-
-            RectTransform boat = MakeDisc(_root, "Gemi", Color.white, 0f, nodeSize * 0.52f);
-            _boat = boat;
-            _boatImage = boat.GetComponent<Image>();
-            _boat.gameObject.SetActive(false);
         }
 
         private Sprite Icon(int i) =>
@@ -140,11 +133,21 @@ namespace Game.UI
             return rt;
         }
 
-        /// <summary>Puts a rect on the route at <paramref name="t"/>, 0 at the left end and 1 at the right.</summary>
+        /// <summary>
+        /// Puts a rect on the route at <paramref name="t"/>, 0 at the left end and 1 at the right.
+        ///
+        /// The pivot stays in the middle. It used to be set to the anchor fraction along with the
+        /// anchors, which reads like a tidy one-liner and is not: a rect pinned by a point 6% from
+        /// its own left edge hangs almost entirely to the right of the place it was put. Two rects
+        /// of different sizes then hang by different amounts, so the halo and the badge it belongs
+        /// behind drifted apart — 17px at the coal end, 19px the other way at diamond, and nothing
+        /// in the middle, which is exactly the signature of a pivot expressed as a fraction.
+        /// </summary>
         private static void Place(RectTransform rt, float t, float size)
         {
             float y = 0.5f + Mathf.Sin(t * Mathf.PI) * 0.16f;   // the lift
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(Mathf.Lerp(0.06f, 0.94f, t), y);
+            rt.anchorMin = rt.anchorMax = new Vector2(Mathf.Lerp(0.06f, 0.94f, t), y);
+            rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = new Vector2(size, size);
         }
@@ -213,21 +216,6 @@ namespace Game.UI
                         : new Color(routeColor.r, routeColor.g, routeColor.b, 0.28f);
                 }
             }
-
-            ParkBoat();
-        }
-
-        /// <summary>Parks the boat on the island the player is actually standing on.</summary>
-        private void ParkBoat()
-        {
-            if (!Ready || _boat == null) return;
-            int at = _world.ActiveIndex;
-            int n = _world.Count;
-            if (at < 0 || n <= 1) { _boat.gameObject.SetActive(false); return; }
-            _boat.gameObject.SetActive(true);
-            _boatImage.color = new Color(1f, 0.96f, 0.86f, 0.9f);
-            Place(_boat, at / (float)(n - 1), _boat.sizeDelta.x);
-            _boat.anchoredPosition = new Vector2(0f, _boat.sizeDelta.y * 0.9f);
         }
 
         /// <summary>
