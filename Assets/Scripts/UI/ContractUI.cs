@@ -74,6 +74,12 @@ namespace Game.UI
         [SerializeField] private Color easyTint = new Color(0.13f, 0.60f, 0.29f);
         [SerializeField] private Color normalTint = new Color(0.83f, 0.52f, 0.05f);
         [SerializeField] private Color hardTint = new Color(0.78f, 0.20f, 0.16f);
+        [Tooltip("Teklif kartının gövdesi — MaviSet/panel_beyaz.")]
+        [SerializeField] private Sprite offerPanel;
+        [Tooltip("Kabul düğmesi, zorluk sırasıyla kolay/normal/zor — MaviSet/btn_hap_mavi, " +
+                 "btn_hap_sari, btn_hap_kirmizi. Kartın tamamı zaten basılabiliyor; bu şerit " +
+                 "nereye basılacağını söylüyor.")]
+        [SerializeField] private Sprite[] acceptButtons;
 
         [Tooltip("Sayaç akarken ekranın yenilenme aralığı (saniye).")]
         [SerializeField] private float refreshInterval = 0.1f;
@@ -270,7 +276,9 @@ namespace Game.UI
                 for (int i = 0; i < all.Length; i++)
                     if (all[i].enabled) { _op = all[i]; break; }
             }
-            return _op != null ? _op.OreName : _contract.UnitWord;
+            // Loc, not OreName: OreName is the island key upper-cased, so a Turkish player was reading
+            // "240 COAL İŞLE" on the only line of this card that names what the job is.
+            return _op != null ? Loc.Id("cevher", _op.IslandKey) : _contract.UnitWord;
         }
 
         // ---------------- no ship at the pier ----------------
@@ -320,7 +328,9 @@ namespace Game.UI
                 if (landscape)
                 {
                     float left = 0.035f + i * 0.3225f;
-                    BuildOfferCard(root, i, keys[i], tints[i], left, left + 0.2875f, 0.16f, 0.73f);
+                    // Alt kenar 0,16'daydı ve panelin altında bir avuç boş beyaz kalıyordu — pencere
+                    // yatayda kısa, kartlar da onunla birlikte kısalmalı değil, uzamalı.
+                    BuildOfferCard(root, i, keys[i], tints[i], left, left + 0.2875f, 0.075f, 0.755f);
                 }
                 else
                 {
@@ -345,47 +355,65 @@ namespace Game.UI
             Stretch(rt, new Vector2(xMin, yMin), new Vector2(xMax, yMax));
 
             var img = go.GetComponent<Image>();
-            img.sprite = cardRunning != null ? cardRunning : UiSkin.Panel;
+            Sprite body = offerPanel != null ? offerPanel : cardRunning;
+            img.sprite = body != null ? body : UiSkin.Panel;
             img.type = Image.Type.Sliced;
-            img.color = cardRunning != null ? Color.white : new Color(0.15f, 0.19f, 0.27f, 0.95f);
+            img.color = body != null ? Color.white : new Color(0.15f, 0.19f, 0.27f, 0.95f);
 
             int captured = tier;
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             btn.onClick.AddListener(() => OnAccept(captured));
 
-            // A compact card: header/pay, job, meta row, then one clear action strip. Keeping each item
-            // in its own band prevents the sparse corner layout and long localisation collisions.
-            Image header = Plate(rt, "BaslikSeridi", new Vector2(0.035f, 0.75f),
-                                 new Vector2(0.965f, 0.955f), new Color(tint.r, tint.g, tint.b, 0.10f));
-            header.raycastTarget = false;
-
-            _offerTier[tier] = Text(rt, "Zorluk", 31, TextAlignmentOptions.MidlineLeft,
-                                    new Vector2(0.07f, 0.77f), new Vector2(0.53f, 0.94f));
+            // Everything on one centre line, band by band: difficulty, pay, the job, the two-item meta
+            // row, then the button. Left-aligned in a card this narrow the four bands each started at a
+            // different place and the card read as a form; centred they read as one card.
+            _offerTier[tier] = Text(rt, "Zorluk", 30, TextAlignmentOptions.Center,
+                                    new Vector2(0.06f, 0.815f), new Vector2(0.94f, 0.945f));
             _offerTier[tier].text = Loc.T(tierKey);
             _offerTier[tier].color = tint;
 
-            _offerPay[tier] = Text(rt, "Odul", 33, TextAlignmentOptions.MidlineRight,
-                                   new Vector2(0.50f, 0.77f), new Vector2(0.93f, 0.94f));
+            // The rule under the difficulty carries the tier colour across the whole card, which is
+            // what the tinted header plate used to do — without washing the white panel out.
+            Image rule = Plate(rt, "Cizgi", new Vector2(0.30f, 0.788f), new Vector2(0.70f, 0.803f), tint);
+            rule.raycastTarget = false;
 
-            _offerTask[tier] = Text(rt, "Is", 35, TextAlignmentOptions.MidlineLeft,
-                                    new Vector2(0.07f, 0.47f), new Vector2(0.93f, 0.72f));
+            _offerPay[tier] = Text(rt, "Odul", 40, TextAlignmentOptions.Center,
+                                   new Vector2(0.06f, 0.610f), new Vector2(0.94f, 0.770f));
 
-            _offerTime[tier] = Text(rt, "Sure", 28, TextAlignmentOptions.MidlineLeft,
-                                    new Vector2(0.07f, 0.28f), new Vector2(0.46f, 0.45f));
+            _offerTask[tier] = Text(rt, "Is", 32, TextAlignmentOptions.Center,
+                                    new Vector2(0.06f, 0.430f), new Vector2(0.94f, 0.590f));
+
+            _offerTime[tier] = Text(rt, "Sure", 27, TextAlignmentOptions.Center,
+                                    new Vector2(0.06f, 0.275f), new Vector2(0.49f, 0.410f));
             _offerTime[tier].color = Dim(_offerTime[tier].color, 0.6f);
 
-            _offerGems[tier] = Text(rt, "Elmas", 28, TextAlignmentOptions.MidlineRight,
-                                    new Vector2(0.52f, 0.28f), new Vector2(0.93f, 0.45f));
+            _offerGems[tier] = Text(rt, "Elmas", 27, TextAlignmentOptions.Center,
+                                    new Vector2(0.51f, 0.275f), new Vector2(0.94f, 0.410f));
             _offerGems[tier].color = new Color(0.16f, 0.45f, 0.78f);
 
-            Image action = Plate(rt, "KabulSeridi", new Vector2(0.07f, 0.065f),
-                                 new Vector2(0.93f, 0.235f), new Color(tint.r, tint.g, tint.b, 0.15f));
+            Sprite pill = acceptButtons != null && tier < acceptButtons.Length ? acceptButtons[tier] : null;
+            Image action = Plate(rt, "KabulSeridi", new Vector2(0.075f, 0.065f),
+                                 new Vector2(0.925f, 0.235f), new Color(tint.r, tint.g, tint.b, 0.15f));
             action.raycastTarget = false;
+            if (pill != null)
+            {
+                action.sprite = pill;
+                action.color = Color.white;
+                // Hap sanatının uçları yarım daire ve yalnız yatayda dilimleniyor; şerit sanattan
+                // alçak olduğu için dilim payı da onunla birlikte küçülmeli.
+                PillFit.Wrap(action);
+            }
             TMP_Text take = Text(rt, "Kabul", 27, TextAlignmentOptions.Center,
                                  new Vector2(0.10f, 0.075f), new Vector2(0.90f, 0.225f));
             take.text = Loc.T("kontrat.kabul");
-            take.color = tint;
+            // Dark ink on the amber pill, paper on the blue and the red. Read off the art's own name
+            // rather than off the tier, so swapping which colour a tier gets cannot leave its label
+            // unreadable. Sampling the texture would be exact, but sprite atlases are not readable at
+            // runtime and the branch would only ever take the fallback.
+            take.color = pill == null ? tint
+                       : pill.name.IndexOf("sari") >= 0 ? (Color)new Color32(0x1B, 0x22, 0x3A, 0xFF)
+                       : (Color)new Color32(0xFA, 0xFC, 0xFF, 0xFF);
         }
 
         private static Image Plate(RectTransform parent, string name, Vector2 aMin, Vector2 aMax, Color color)

@@ -29,13 +29,15 @@ namespace Game.UI
         [SerializeField] private Sprite cardPanel;
         [Tooltip("Başlık şeridi — MaviSet/serit_mavi.")]
         [SerializeField] private Sprite ribbon;
-        [Tooltip("Al düğmesi — MaviSet/btn_mavi.")]
+        [Tooltip("Al düğmesi — MaviSet/btn_hap_kalin.")]
         [SerializeField] private Sprite actionButton;
         [Tooltip("Kapat düğmesi — MaviSet/btn_kapat_yeni.")]
         [SerializeField] private Sprite closeIcon;
-        [Tooltip("İlerleme çubuğunun yatağı ve dolgusu — Gostergeler/slider_yatak, slider_dolgu.")]
+        [Tooltip("İlerleme çubuğunun yatağı ve dolgusu — Gostergeler/slider_yatak, bar_dolgu.")]
         [SerializeField] private Sprite barTrack;
         [SerializeField] private Sprite barFill;
+        [Tooltip("Bekleyen sayacı — MaviSet/gosterge_grafit. HUD'un sayaç hapıyla aynı parça.")]
+        [SerializeField] private Sprite chipPill;
         [Tooltip("Ödülün solundaki elmas ikonu — Ikonlar/ikon_elmas.")]
         [SerializeField] private Sprite gemIcon;
 
@@ -53,6 +55,8 @@ namespace Game.UI
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
         private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
+        /// <summary>The pending chip is graphite, so its number goes the other way.</summary>
+        private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
 
         /// <summary>
         /// Where the ribbon's flat band sits, measured on the sprite: its middle is 0.677 up from the
@@ -137,7 +141,7 @@ namespace Game.UI
             _pendingChip = Chip(_root, "Bekleyen", new Vector2(0.035f, 0.880f), new Vector2(0.185f, 0.963f));
             _pendingLabel = UiBuild.Label(Slot(_pendingChip, "Yazi", new Vector2(0.08f, 0f), new Vector2(0.92f, 1f)),
                                           "Text", string.Empty, 32, TextAnchor.MiddleCenter);
-            _pendingLabel.color = Ink;
+            _pendingLabel.color = Paper;
 
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty, closeIcon != null ? closeIcon : UiSkin.ButtonGrey,
                                        track, 34, Hide);
@@ -162,14 +166,14 @@ namespace Game.UI
             RectTransform c = Art(_root, "Gunluk_" + slot, cardPanel, aMin, aMax);
             if (cardPanel == null) c.GetComponent<Image>().color = card;
 
-            _dailyText[slot] = UiBuild.Label(Slot(c, "Yazi", new Vector2(0.045f, 0.60f), new Vector2(0.70f, 0.93f)),
+            _dailyText[slot] = UiBuild.Label(Slot(c, "Yazi", new Vector2(0.045f, 0.60f), new Vector2(0.665f, 0.93f)),
                                              "Text", string.Empty, 30, TextAnchor.MiddleLeft);
             _dailyText[slot].color = Ink;
             Fit(_dailyText[slot], 16, 30);
 
-            _dailyFillImage[slot] = Bar(c, new Vector2(0.045f, 0.42f), new Vector2(0.70f, 0.56f), dailyFill);
+            _dailyFillImage[slot] = Bar(c, new Vector2(0.045f, 0.42f), new Vector2(0.665f, 0.56f), dailyFill);
 
-            RectTransform odul = Slot(c, "Odul", new Vector2(0.045f, 0.10f), new Vector2(0.70f, 0.36f));
+            RectTransform odul = Slot(c, "Odul", new Vector2(0.045f, 0.10f), new Vector2(0.665f, 0.36f));
             Icon(odul, "Elmas", gemIcon, new Vector2(0f, 0.08f), new Vector2(0.10f, 0.92f));
             _dailyReward[slot] = UiBuild.Label(Slot(odul, "Yazi", new Vector2(0.12f, 0f), new Vector2(1f, 1f)),
                                                "Text", string.Empty, 26, TextAnchor.MiddleLeft);
@@ -180,8 +184,12 @@ namespace Game.UI
                                           actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                           new Color(0.24f, 0.68f, 0.36f, 1f), 26,
                                           () => { if (_goals != null && _goals.ClaimDaily(captured)) Ping(); });
+            // Geniş ve alçak: hap sanatının kendi oranı 4:1 ve uçları yatayda dilimleniyor. Daha
+            // yüksek bir kutuya basıldığında uçlar dikey eziliyor ve düğme şişkin bir yumurtaya
+            // dönüyor — sanatın oranına yakın durmak zorunda.
             UiBuild.Anchor((RectTransform)_dailyBtn[slot].transform,
-                           new Vector2(0.735f, 0.30f), new Vector2(0.965f, 0.70f));
+                           new Vector2(0.700f, 0.365f), new Vector2(0.972f, 0.635f));
+            PillFit.Wrap(_dailyBtn[slot].GetComponent<Image>());
             _dailyBtnText[slot] = _dailyBtn[slot].GetComponentInChildren<Text>();
         }
 
@@ -203,7 +211,8 @@ namespace Game.UI
                                             new Color(0.24f, 0.68f, 0.36f, 1f), 26,
                                             () => { if (_goals != null && _goals.ClaimAchievement(captured)) Ping(); });
             UiBuild.Anchor((RectTransform)_ladderBtn[index].transform,
-                           new Vector2(0.770f, 0.18f), new Vector2(0.965f, 0.82f));
+                           new Vector2(0.745f, 0.22f), new Vector2(0.975f, 0.78f));
+            PillFit.Wrap(_ladderBtn[index].GetComponent<Image>());
             _ladderBtnText[index] = _ladderBtn[index].GetComponentInChildren<Text>();
         }
 
@@ -233,13 +242,13 @@ namespace Game.UI
             label.verticalOverflow = VerticalWrapMode.Truncate;
         }
 
-        /// <summary>A small white capsule for the pending counter.</summary>
+        /// <summary>A graphite capsule for the pending counter — the HUD's counter pill.</summary>
         private RectTransform Chip(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
         {
-            RectTransform rt = Art(parent, name, cardPanel, aMin, aMax);
+            Sprite art = chipPill != null ? chipPill : cardPanel;
+            RectTransform rt = Art(parent, name, art, aMin, aMax);
             var img = rt.GetComponent<Image>();
-            if (cardPanel != null) { img.type = Image.Type.Sliced; img.preserveAspect = false; }
-            img.pixelsPerUnitMultiplier = 2.4f;   // the card's 44px corner is half a chip tall
+            if (art != null) { img.type = Image.Type.Sliced; img.preserveAspect = false; PillFit.Wrap(img); }
             return rt;
         }
 
@@ -258,9 +267,11 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// The capsule bar. The fill is <see cref="Image.Type.Filled"/> rather than a stretched child,
-        /// so an almost-empty bar shows the sprite's own rounded left cap instead of a squashed
-        /// capsule with both caps crushed into each other.
+        /// The capsule bar: a track, and inside it a fill whose WIDTH is driven — see
+        /// <see cref="Progress"/>. The fill used to be an <see cref="Image.Type.Filled"/> draw, which
+        /// crops a stretched sprite rather than slicing it, so the round left cap arrived as a wedge
+        /// and the right end as a straight cut. Sliced art plus <see cref="PillFit"/> gives a capsule
+        /// that is a capsule at any length.
         /// </summary>
         private Image Bar(RectTransform parent, Vector2 aMin, Vector2 aMax, Color fallback)
         {
@@ -268,20 +279,32 @@ namespace Game.UI
             var bedImage = bed.GetComponent<Image>();
             bedImage.type = Image.Type.Sliced;
             bedImage.preserveAspect = false;
-            bedImage.pixelsPerUnitMultiplier = 3f;
+            PillFit.Wrap(bedImage);
             if (barTrack == null) bedImage.color = track;
 
+            // Inset by the track's own rim. Flush with the edges the fill covers the rim entirely
+            // and a full bar stops looking like a bar at all — it becomes one solid blue capsule.
+            RectTransform alan = Slot(bed, "DolguAlani", Vector2.zero, Vector2.one);
+            alan.offsetMin = new Vector2(3f, 3f);
+            alan.offsetMax = new Vector2(-3f, -3f);
+
             var go = new GameObject("Dolgu", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(bed, false);
+            go.transform.SetParent(alan, false);
             var img = go.GetComponent<Image>();
             img.sprite = barFill;
-            img.type = Image.Type.Filled;
-            img.fillMethod = Image.FillMethod.Horizontal;
-            img.fillOrigin = 0;
+            img.type = Image.Type.Sliced;
+            img.preserveAspect = false;
             img.raycastTarget = false;
             if (barFill == null) img.color = fallback;
-            UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, Vector2.one);
+            UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, new Vector2(0f, 1f));
+            PillFit.Wrap(img);
             return img;
+        }
+
+        /// <summary>Drives a bar built by <see cref="Bar"/>: the fill's right anchor is the progress.</summary>
+        private static void Progress(Image fill, float t)
+        {
+            ((RectTransform)fill.transform).anchorMax = new Vector2(Mathf.Clamp01(t), 1f);
         }
 
         private static void Ping() => ServiceLocator.Get<HapticService>()?.Medium();
@@ -295,11 +318,12 @@ namespace Game.UI
 
         // ---------------------------------------------------------------- opener
         /// <summary>
-        /// The opener goes on the end of the HUD's left rail, under the ads and offer buttons, rather
-        /// than floating at a screen fraction of its own — see <see cref="HudUI.AttachRailButton"/> for
-        /// why a fraction of a landscape screen is not a place on a portrait-authored rail.
+        /// The opener sits in the HUD's bottom row rather than floating at a screen fraction of its
+        /// own - see <see cref="HudUI.AttachBottomButton"/> for why a fraction of a landscape screen is
+        /// not a place on a portrait-authored sheet. It asks for the leftmost slot; the row re-centres
+        /// itself around whatever is in it.
         ///
-        /// The pending count rides under it in the rail's own counter chip, the same one the contract
+        /// The pending count rides under it in the row's own counter chip, the same one the contract
         /// and offer buttons wear, and goes away when there is nothing to claim: a checklist nobody is
         /// told about is a checklist nobody opens.
         /// </summary>
@@ -308,10 +332,10 @@ namespace Game.UI
             HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Include);
             if (hud == null) return;
 
-            Button open = hud.AttachRailButton(false, "BtnGorev", Resources.Load<Sprite>(OpenerIconResource), Show);
+            Button open = hud.AttachBottomButton(0, "BtnGorev", Resources.Load<Sprite>(OpenerIconResource), Show);
             if (open == null) return;
 
-            _openerChip = hud.AttachRailChip(open);
+            _openerChip = hud.AttachCounterChip(open);
             if (_openerChip != null) _openerCount = _openerChip.GetComponentInChildren<TMP_Text>(true);
         }
 
@@ -344,7 +368,7 @@ namespace Game.UI
 
             _dailyText[slot].text = string.Format("{0}   {1} / {2}", MetricName(t.Metric), have, t.Target);
             _dailyText[slot].color = claimed ? InkFaint : Ink;
-            _dailyFillImage[slot].fillAmount = Goals.Progress(have, t.Target);
+            Progress(_dailyFillImage[slot], Goals.Progress(have, t.Target));
             _dailyReward[slot].text = RewardLine(t.Gems, t.Cards);
 
             _dailyBtnText[slot].text = claimed ? Loc.T("gorev.alindi") : Loc.T("gorev.al");
@@ -365,8 +389,8 @@ namespace Game.UI
                 : string.Format("{0}   ·   {1}", MetricName(a.Metric), Loc.T("gorev.tamamlandi"));
 
             long from = reached > 0 ? a.Tiers[reached - 1] : 0L;
-            _ladderFillImage[index].fillAmount =
-                next > 0L ? Goals.Progress(total - from, next - from) : 1f;
+            Progress(_ladderFillImage[index],
+                     next > 0L ? Goals.Progress(total - from, next - from) : 1f);
 
             _ladderBtnText[index].text = owed > 0 ? string.Format("{0} ×{1}", Loc.T("gorev.al"), owed)
                                                   : Loc.T("gorev.al");

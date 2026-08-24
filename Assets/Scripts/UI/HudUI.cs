@@ -1,6 +1,7 @@
 using Game.Core;
 using Game.Gameplay;
 using Game.Systems;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -61,6 +62,14 @@ namespace Game.UI
         [SerializeField] private GameObject shieldIndicator;
         [SerializeField] private TMP_Text shieldValue;
 
+        [Header("Alt sira")]
+        [Tooltip("Alt siradaki dugmeler, soldan saga. Yerleri koddan veriliyor: esit aralikla " +
+                 "ekranin ortasina diziliyorlar, yani buradaki SIRA disinda ayarlanacak bir sey yok. " +
+                 "Gorev ve ustabasi acicilari calisirken bu dizinin soluna ekleniyor.")]
+        [SerializeField] private RectTransform[] bottomRow;
+        [Tooltip("Iki dugme merkezi arasi mesafe.")]
+        [SerializeField] private float bottomPitch = 220f;
+
         [Header("Alt")]
         [SerializeField] private Button upgradeButton;
         [Tooltip("Yükseltmenin solundaki kısayol: reklam izle, gelir 2× olsun. Hak ve bekleme süresi UI_Reklam'daki yuvanın.")]
@@ -109,6 +118,10 @@ namespace Game.UI
         private float _gemPunch;
         private Vector2 _shieldSlot;      // where the shield chip was authored — beside the boost chip
         private Vector2 _boostSlot;       // and the boost chip's own slot, which it borrows when empty
+        // The bottom row, kept sorted by the key each entry came in with. Two parallel lists
+        // rather than a sorted dictionary: it is six items, written twice at startup and never again.
+        private readonly List<int> _bottomOrder = new List<int>();
+        private readonly List<RectTransform> _bottomRects = new List<RectTransform>();
 
         private void Start()
         {
@@ -137,6 +150,12 @@ namespace Game.UI
             if (boostButton != null) boostButton.onClick.AddListener(OnBoost);
             if (settingsButton != null) settingsButton.onClick.AddListener(OnSettings);
 
+            // Awake'ten eklenen acicilar zaten sirada; kurgulanmis dugmeler onlarin sagina
+            // giriyor ve sira bir kez ortalaniyor.
+            if (bottomRow != null)
+                for (int i = 0; i < bottomRow.Length; i++) InsertBottom(AuthoredOrder + i, bottomRow[i]);
+            LayoutBottomRow();
+
             if (_wallet != null) _wallet.GemsChanged += RefreshGems;
             RefreshGems();
             Refresh();
@@ -150,40 +169,38 @@ namespace Game.UI
             if (_wallet != null) _wallet.GemsChanged -= RefreshGems;
         }
 
+        /// <summary>Inspector'daki siranin anahtarlari buradan basliyor; koddan eklenen acicilar
+        /// solda durmak icin 0-9 arasi bir anahtar veriyor.</summary>
+        private const int AuthoredOrder = 10;
+
         /// <summary>
-        /// Hangs a code-built screen's opener on the end of one of the two rails: same parent, same
-        /// size, same column, one authored step further down.
+        /// Hangs a code-built screen's opener in the bottom row: same parent, same size, same line.
         ///
         /// <see cref="GoalsUI"/> and <see cref="ForemanRosterUI"/> are built in code and used to bring
         /// a canvas of their own, anchored at a fraction of the screen. The HUD is a portrait sheet
-        /// scaled as one piece, so a fraction of the screen is not a fraction of the sheet — in
+        /// scaled as one piece, so a fraction of the screen is not a fraction of the sheet: in
         /// landscape those two openers landed straight on top of the ads and offer buttons. Borrowing
-        /// a real rail button's rect is the only placement that holds on every aspect ratio, and it is
-        /// also what makes the opener wear the rail's own art instead of a lookalike.
+        /// a real row button's rect is the only placement that holds on every aspect ratio, and it is
+        /// also what makes the opener wear the row's own size instead of a lookalike.
         ///
-        /// The step comes off the rail itself rather than a constant, so moving the authored buttons
-        /// in the Inspector moves whatever hangs below them too.
+        /// The row re-centres itself on every attach, so an opener that joins late slides the others
+        /// over rather than hanging off the end.
         /// </summary>
-        /// <param name="rightRail">True for the store/daily column, false for the ads/offer one.</param>
-        public Button AttachRailButton(bool rightRail, string name, Sprite icon,
-                                       UnityEngine.Events.UnityAction onClick)
+        /// <param name="order">Sira anahtari; kucugu solda durur. Kurgulanmis dizi 10'dan basliyor.</param>
+        public Button AttachBottomButton(int order, string name, Sprite icon,
+                                         UnityEngine.Events.UnityAction onClick)
         {
-            Button head = rightRail ? storeButton : adButton;
-            Button tail = rightRail ? dailyButton : offerButton;
-            if (head == null || tail == null) return null;
-
-            var headRect = (RectTransform)head.transform;
-            var tailRect = (RectTransform)tail.transform;
-            float pitch = Mathf.Abs(headRect.anchoredPosition.y - tailRect.anchoredPosition.y);
+            RectTransform model = FirstAuthored();
+            if (model == null) return null;
 
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             var rect = (RectTransform)go.transform;
-            rect.SetParent(tailRect.parent, false);
-            rect.anchorMin = tailRect.anchorMin;
-            rect.anchorMax = tailRect.anchorMax;
-            rect.pivot = tailRect.pivot;
-            rect.sizeDelta = tailRect.sizeDelta;
-            rect.anchoredPosition = tailRect.anchoredPosition + new Vector2(0f, -pitch);
+            rect.SetParent(model.parent, false);
+            rect.anchorMin = model.anchorMin;
+            rect.anchorMax = model.anchorMax;
+            rect.pivot = model.pivot;
+            rect.sizeDelta = model.sizeDelta;
+            rect.anchoredPosition = model.anchoredPosition;
 
             var image = go.GetComponent<Image>();
             image.sprite = icon;
@@ -191,19 +208,57 @@ namespace Game.UI
             var button = go.GetComponent<Button>();
             button.targetGraphic = image;
             if (onClick != null) button.onClick.AddListener(onClick);
+
+            InsertBottom(order, rect);
+            LayoutBottomRow();
             return button;
         }
 
+        /// <summary>The first wired entry of the authored row: the shape every opener copies.</summary>
+        private RectTransform FirstAuthored()
+        {
+            if (bottomRow == null) return null;
+            for (int i = 0; i < bottomRow.Length; i++)
+                if (bottomRow[i] != null) return bottomRow[i];
+            return null;
+        }
+
+        private void InsertBottom(int order, RectTransform rect)
+        {
+            if (rect == null || _bottomRects.Contains(rect)) return;
+            int i = 0;
+            while (i < _bottomOrder.Count && _bottomOrder[i] <= order) i++;
+            _bottomOrder.Insert(i, order);
+            _bottomRects.Insert(i, rect);
+        }
+
         /// <summary>
-        /// A copy of the rail's own counter chip, hung under <paramref name="railButton"/>. Cloning the
+        /// Spreads the row evenly and centres it on the screen. It used to be four buttons at three
+        /// different gaps whose middle sat a hundred units right of centre: right on the phone it was
+        /// authored against, visibly crooked on everything else.
+        /// </summary>
+        private void LayoutBottomRow()
+        {
+            float span = (_bottomRects.Count - 1) * bottomPitch;
+            for (int i = 0; i < _bottomRects.Count; i++)
+            {
+                RectTransform rect = _bottomRects[i];
+                if (rect == null) continue;
+                rect.anchoredPosition = new Vector2(i * bottomPitch - span * 0.5f,
+                                                    rect.anchoredPosition.y);
+            }
+        }
+
+        /// <summary>
+        /// A copy of the offer button's counter chip, hung under <paramref name="owner"/>. Cloning the
         /// authored chip is what keeps a code-built opener wearing the same pill, font and offset as
-        /// the contract and offer counters — a hand-built lookalike only stays alike until someone
+        /// the contract and offer counters: a hand-built lookalike only stays alike until someone
         /// retouches the real one.
         /// </summary>
-        public GameObject AttachRailChip(Button railButton)
+        public GameObject AttachCounterChip(Button owner)
         {
-            if (railButton == null || offerTimerChip == null) return null;
-            GameObject chip = Instantiate(offerTimerChip, railButton.transform, false);
+            if (owner == null || offerTimerChip == null) return null;
+            GameObject chip = Instantiate(offerTimerChip, owner.transform, false);
             chip.name = offerTimerChip.name;
             chip.SetActive(true);
             return chip;

@@ -500,13 +500,16 @@ namespace Game.UI
             string label, sub;
             Sprite art;
 
+            // Every island wears the same button now — the one the coal island has. Three different
+            // pieces of art for four states made the ladder look like four different screens; the
+            // state is carried by the label and by the tint below instead of by the silhouette.
             if (here)
             {
                 label = Loc.T("harita.buradasin"); sub = ""; art = ctaHere != null ? ctaHere : ctaIdle;
             }
             else if (owned)
             {
-                label = Loc.T("ortak.git"); sub = ""; art = ctaGo; afford = true;
+                label = Loc.T("ortak.git"); sub = ""; art = ctaHere != null ? ctaHere : ctaGo; afford = true;
             }
             else if (buyable)
             {
@@ -514,7 +517,7 @@ namespace Game.UI
                 afford = _wallet != null && _wallet.CanAfford(cost);
                 label = Loc.T("ortak.satin_al");
                 sub = "$" + NumberFormatter.Format(cost);
-                art = afford ? ctaBuy : ctaIdle;
+                art = ctaHere != null ? ctaHere : (afford ? ctaBuy : ctaIdle);
             }
             else
             {
@@ -524,7 +527,7 @@ namespace Game.UI
                 // reads as a chain, and following it forward lands on the one you can actually buy.
                 label = Loc.T("ortak.kilitli");
                 sub = string.Format(Loc.T("harita.once"), IslandName(Mathf.Max(0, _shown - 1)));
-                art = ctaIdle;
+                art = ctaHere != null ? ctaHere : ctaIdle;
             }
 
             if (ctaLabel != null) ctaLabel.text = label;
@@ -533,13 +536,22 @@ namespace Game.UI
                 ctaSubLabel.text = sub;
                 SetOn(ctaSubLabel.gameObject, sub.Length > 0);
             }
+            // One sprite for four states means the unavailable ones have to say so some other way,
+            // or a locked island offers a button that looks live and does nothing. "Here" is not
+            // unavailable — it is arrived at — so it keeps full colour with the rest.
+            //
+            // Written into the button's own disabled colour rather than stamped on the image: the
+            // Selectable cross-fades to that colour over several frames whenever interactable moves,
+            // so any tint painted here by hand is overwritten a frame later.
+            Color rest = afford || here ? Color.white : new Color(0.55f, 0.60f, 0.68f, 1f);
+            ColorBlock scheme = ctaButton.colors;
+            if (scheme.disabledColor != rest) { scheme.disabledColor = rest; ctaButton.colors = scheme; }
+            ctaButton.interactable = afford;
             if (ctaImage != null && art != null)
             {
                 ctaImage.sprite = art;
-                // the disabled tint latches on the target graphic; stamp the right colour now
-                ctaImage.CrossFadeColor(Color.white, 0f, true, true);
+                ctaImage.CrossFadeColor(rest, 0f, true, true);
             }
-            ctaButton.interactable = afford;
         }
 
         private void RefreshSides(int i)

@@ -1833,10 +1833,11 @@ MonoBehaviour:
   iosAppStoreId: 
   privacyUrl: https://intakeentertainment.com/privacy#en
   languageSkin:
-    Panel: {fileID: 21300000, guid: 54089e8be6306e041ba5c95acf66ee6d, type: 3}
+    Panel: {fileID: 21300000, guid: 62f429fcb3a53fd4eb3e386a96701be1, type: 3}
     Ribbon: {fileID: 21300000, guid: bd636c964d9427f4d8f42b4c0070cee4, type: 3}
-    Close: {fileID: 21300000, guid: 4c0073cd05eea9d459341e9183201d66, type: 3}
-    Row: {fileID: 21300000, guid: c8c11abc27f210542b83de97a3985693, type: 3}
+    Close: {fileID: 21300000, guid: c2f09f179f4db9249b3b975e79af645d, type: 3}
+    Row: {fileID: 21300000, guid: 1125b2190619d4442a365e93b38a1e89, type: 3}
+    HeaderBar: 1
     Medallion: {fileID: 21300000, guid: d5ecd521a2f84724d914b4126b12ca19, type: 3}
     PipOn: {fileID: 21300000, guid: fa97cbbde32b70945af655e28d37e0ee, type: 3}
     PipOff: {fileID: 21300000, guid: 692c1467bea57064ea33e3176a0119fd, type: 3}

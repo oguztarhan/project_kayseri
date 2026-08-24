@@ -237,7 +237,6 @@ namespace Game.UI
             _hud = GetComponent<HudUI>();
             _hudCanvas = GetComponent<Canvas>();
             _world = FindAnyObjectByType<WorldIslands>();
-            BuildDevButton();
         }
 
         private void Update()
@@ -1478,31 +1477,5 @@ namespace Game.UI
             return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
                                  SpriteMeshType.FullRect, new Vector4(border, border, border, border));
         }
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        /// <summary>
-        /// Watch the opening again without wiping the save. Behind the same guard as the station
-        /// screen's TEST MODU button, and deliberately not a settings row: the settings panel is full
-        /// to its bottom border, and a seventh row only fits there by squashing the other six.
-        /// </summary>
-        private void BuildDevButton()
-        {
-            var go = new GameObject("EgitimTekrar", typeof(RectTransform), typeof(Image), typeof(Button));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(transform, false);
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
-            rt.sizeDelta = new Vector2(300f, 54f);
-            rt.anchoredPosition = new Vector2(12f, -430f);
-            var img = go.GetComponent<Image>();
-            img.color = new Color(0.24f, 0.27f, 0.32f, 0.92f);
-            var btn = go.GetComponent<Button>();
-            btn.targetGraphic = img;
-            btn.onClick.AddListener(Replay);
-            var label = Text(rt, "Etiket", 24f, TextAlignmentOptions.Center, Color.white);
-            label.text = "EĞİTİMİ TEKRAR OYNAT";
-        }
-#else
-        private void BuildDevButton() { }
-#endif
     }
 }

@@ -521,6 +521,7 @@ GameObject:
   - component: {fileID: 2385254560226037868}
   - component: {fileID: 1891238572596221111}
   - component: {fileID: 8439085999907951678}
+  - component: {fileID: 2722176199201330682}
   m_Layer: 5
   m_Name: BtnReklam
   m_TagString: Untagged
@@ -540,6 +541,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 141853746853770554}
   - {fileID: 613977436790332530}
   m_Father: {fileID: 6878458618987278481}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -576,8 +578,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 0639892fad1fbb440b4b316518dc8d22, type: 3}
-  m_Type: 0
+  m_Sprite: {fileID: 21300000, guid: 30a2cc0fc23b8364eb6088edeb7fe203, type: 3}
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -585,7 +587,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 0.7627119
 --- !u!114 &1891238572596221111
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -653,6 +655,18 @@ MonoBehaviour:
   areaSize: {x: 0.86, y: 0.58}
   areaOffset: {x: 0, y: 0.16}
   cullMargin: 60
+--- !u!114 &2722176199201330682
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1936512914274384040}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 384792bf7629510438cf9d8ec454ffe0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PillFit
 --- !u!1 &2821791887276922080
 GameObject:
   m_ObjectHideFlags: 0
@@ -931,6 +945,81 @@ MonoBehaviour:
   m_Sprite: {fileID: 21300000, guid: 62f429fcb3a53fd4eb3e386a96701be1, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!1 &4159879159701731521
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 141853746853770554}
+  - component: {fileID: 4644062721370893007}
+  - component: {fileID: 3099137784782624282}
+  m_Layer: 0
+  m_Name: Ikon
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &141853746853770554
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4159879159701731521}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1895589188365947228}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0.5}
+  m_AnchorMax: {x: 0, y: 0.5}
+  m_AnchoredPosition: {x: 132, y: 0}
+  m_SizeDelta: {x: 118, y: 118}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!222 &4644062721370893007
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4159879159701731521}
+  m_CullTransparentMesh: 1
+--- !u!114 &3099137784782624282
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4159879159701731521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: a9981dfd3e196a4459b505bb427f3163, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -1407,7 +1496,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 2fb8af0908439924e89e790c5707781a, type: 3}
+  m_Sprite: {fileID: 21300000, guid: bef9175fa98b96842b77284e80f89f6a, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1762,7 +1851,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 56, y: 0}
   m_SizeDelta: {x: 440, y: 76}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3582331495015899206
@@ -1803,7 +1892,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColor: {r: 0.105882354, g: 0.13333334, b: 0.22745098, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -1877,6 +1966,7 @@ GameObject:
   - component: {fileID: 7536619254283758297}
   - component: {fileID: 832648119485011900}
   - component: {fileID: 5445769670829005856}
+  - component: {fileID: 4508465093112258553}
   m_Layer: 5
   m_Name: BtnTopla
   m_TagString: Untagged
@@ -1932,8 +2022,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 6b11ab9a0ec27c84cb1a69b36033a89a, type: 3}
-  m_Type: 0
+  m_Sprite: {fileID: 21300000, guid: 8a57c0640e297ec489c468a3394bfa2d, type: 3}
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -1941,7 +2031,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 0.8333333
 --- !u!114 &5445769670829005856
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1986,6 +2076,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &4508465093112258553
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6564434627043084918}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 384792bf7629510438cf9d8ec454ffe0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PillFit
 --- !u!1 &6658378155669570400
 GameObject:
   m_ObjectHideFlags: 0

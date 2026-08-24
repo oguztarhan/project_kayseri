@@ -34,15 +34,19 @@ namespace Game.UI
         [SerializeField] private Sprite cardPanel;
         [Tooltip("Başlık şeridi — MaviSet/serit_mavi.")]
         [SerializeField] private Sprite ribbon;
-        [Tooltip("İşe al / seviye atla düğmesi — MaviSet/btn_mavi.")]
+        [Tooltip("İşe al / seviye atla düğmesi — MaviSet/btn_hap_mavi.")]
         [SerializeField] private Sprite actionButton;
         [Tooltip("Kapat düğmesi — MaviSet/btn_kapat_yeni.")]
         [SerializeField] private Sprite closeIcon;
-        [Tooltip("Kart çubuğunun yatağı ve dolgusu — Gostergeler/slider_yatak, slider_dolgu.")]
+        [Tooltip("Kart çubuğunun yatağı ve dolgusu — Gostergeler/slider_yatak, bar_dolgu.")]
         [SerializeField] private Sprite barTrack;
         [SerializeField] private Sprite barFill;
+        [Tooltip("Üstteki iki gösterge — MaviSet/gosterge_grafit. HUD'un para ve elmas hapıyla aynı parça.")]
+        [SerializeField] private Sprite chipPill;
         [Tooltip("Bedelin solundaki elmas ikonu — Ikonlar/ikon_elmas.")]
         [SerializeField] private Sprite gemIcon;
+        [Tooltip("Kesenin solundaki elmas — HUD'un kullandığı diamond_128x128, artı rozetiyle birlikte.")]
+        [SerializeField] private Sprite purseGem;
         [Tooltip("Sekiz portre, istasyon sırasıyla: maden, tren, depo, cevher kamyonu, fabrika, yük kamyonu, pazar, enerji santrali.")]
         [SerializeField] private Sprite[] portraits;
 
@@ -62,6 +66,8 @@ namespace Game.UI
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
         private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
+        /// <summary>The two header chips are graphite, so their numbers go the other way.</summary>
+        private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
 
         /// <summary>
         /// Where the ribbon's flat band sits, measured on the sprite: its middle is 0.677 up from the
@@ -108,11 +114,11 @@ namespace Game.UI
         private void OnRosterChanged(int station) { Refresh(); RefreshOpener(); }
 
         /// <summary>
-        /// The opener goes on the end of the HUD's right rail, under the store and daily-reward
-        /// buttons — see <see cref="HudUI.AttachRailButton"/> for why a code-built screen borrows a
-        /// rail button's rect instead of anchoring itself to a fraction of the screen.
+        /// The opener sits in the HUD's bottom row, next to the goals opener - see
+        /// <see cref="HudUI.AttachBottomButton"/> for why a code-built screen borrows a row button's
+        /// rect instead of anchoring itself to a fraction of the screen.
         ///
-        /// How many slots are hired rides under it in the rail's own counter chip, so the button says
+        /// How many slots are hired rides under it in the row's own counter chip, so the button says
         /// whether there is anything to come back for.
         /// </summary>
         private void BuildOpener()
@@ -120,10 +126,10 @@ namespace Game.UI
             HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Include);
             if (hud == null) return;
 
-            Button open = hud.AttachRailButton(true, "BtnUstabasi", Resources.Load<Sprite>(OpenerIconResource), Show);
+            Button open = hud.AttachBottomButton(1, "BtnUstabasi", Resources.Load<Sprite>(OpenerIconResource), Show);
             if (open == null) return;
 
-            GameObject chip = hud.AttachRailChip(open);
+            GameObject chip = hud.AttachCounterChip(open);
             if (chip != null) _openerCount = chip.GetComponentInChildren<TMP_Text>(true);
         }
 
@@ -171,16 +177,22 @@ namespace Game.UI
                                         new Vector2(0.87f, RibbonBand + 0.13f)),
                                    "Text", Loc.T("ustabasi.baslik"), 38, TextAnchor.MiddleCenter);
 
+            // Both chips are the HUD's own graphite pill. They sit on the same line as the HUD's
+            // money and gem counters and used to be white, so the top of the screen read as two
+            // different games stacked on each other.
             RectTransform sol = Chip(_root, "Carpan", new Vector2(0.035f, 0.885f), new Vector2(0.175f, 0.968f));
             _multiplier = UiBuild.Label(Slot(sol, "Yazi", new Vector2(0.08f, 0f), new Vector2(0.92f, 1f)),
                                         "Text", string.Empty, 32, TextAnchor.MiddleCenter);
-            _multiplier.color = Ink;
+            _multiplier.color = Paper;
 
-            RectTransform sag = Chip(_root, "Kese", new Vector2(0.660f, 0.885f), new Vector2(0.845f, 0.968f));
-            Icon(sag, "Elmas", gemIcon, new Vector2(0.06f, 0.14f), new Vector2(0.30f, 0.86f));
-            _balance = UiBuild.Label(Slot(sag, "Yazi", new Vector2(0.33f, 0f), new Vector2(0.94f, 1f)),
-                                     "Text", string.Empty, 32, TextAnchor.MiddleLeft);
-            _balance.color = Ink;
+            RectTransform sag = Chip(_root, "Kese", new Vector2(0.672f, 0.885f), new Vector2(0.845f, 0.968f));
+            // The gem overhangs the pill's left cap, the way it does on the HUD — inside the capsule
+            // it would be a diamond in a dark box, and the plus badge would lose its edge.
+            Icon(sag, "Elmas", purseGem != null ? purseGem : gemIcon,
+                 new Vector2(-0.06f, 0.02f), new Vector2(0.26f, 1.02f));
+            _balance = UiBuild.Label(Slot(sag, "Yazi", new Vector2(0.30f, 0f), new Vector2(0.92f, 1f)),
+                                     "Text", string.Empty, 32, TextAnchor.MiddleCenter);
+            _balance.color = Paper;
 
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty, closeIcon != null ? closeIcon : UiSkin.ButtonGrey,
                                        cardLocked, 34, Hide);
@@ -242,8 +254,12 @@ namespace Game.UI
             _action[station] = UiBuild.Btn(card, "Dugme", string.Empty,
                                            actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                            new Color(0.24f, 0.68f, 0.36f, 1f), 26, () => OnPressed(captured));
+            // Dar ve alcak: hap sanatinin kendi orani 4:1 ve uclari yatayda dilimleniyor. Kartin
+            // tam genisligine yayilinca sekli bozulmadan da olsa cok iri duruyordu; kenarlardan
+            // biraz iceri cekildi.
             UiBuild.Anchor((RectTransform)_action[station].transform,
-                           new Vector2(0.07f, 0.035f), new Vector2(0.93f, 0.175f));
+                           new Vector2(0.105f, 0.040f), new Vector2(0.895f, 0.170f));
+            PillFit.Wrap(_action[station].GetComponent<Image>());
             _actionText[station] = _action[station].GetComponentInChildren<Text>();
         }
 
@@ -263,13 +279,13 @@ namespace Game.UI
             return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
         }
 
-        /// <summary>A small white capsule for the multiplier and the purse.</summary>
+        /// <summary>A graphite capsule for the multiplier and the purse — the HUD's counter pill.</summary>
         private RectTransform Chip(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
         {
-            RectTransform rt = Art(parent, name, cardPanel, aMin, aMax);
+            Sprite art = chipPill != null ? chipPill : cardPanel;
+            RectTransform rt = Art(parent, name, art, aMin, aMax);
             var img = rt.GetComponent<Image>();
-            if (cardPanel != null) { img.type = Image.Type.Sliced; img.preserveAspect = false; }
-            img.pixelsPerUnitMultiplier = 2.4f;   // the card's 44px corner is half a chip tall
+            if (art != null) { img.type = Image.Type.Sliced; img.preserveAspect = false; PillFit.Wrap(img); }
             return rt;
         }
 
@@ -288,9 +304,11 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// The capsule bar. The fill is <see cref="Image.Type.Filled"/> rather than a stretched child,
-        /// so an almost-empty bar shows the sprite's own rounded left cap instead of a squashed
-        /// capsule with both caps crushed into each other.
+        /// The capsule bar: a track, and inside it a fill whose WIDTH is driven — see
+        /// <see cref="Progress"/>. The fill used to be an <see cref="Image.Type.Filled"/> draw, which
+        /// crops a stretched sprite rather than slicing it, so the round left cap arrived as a wedge
+        /// and the right end as a straight cut. Sliced art plus <see cref="PillFit"/> gives a capsule
+        /// that is a capsule at any length.
         /// </summary>
         private Image Bar(RectTransform parent, Vector2 aMin, Vector2 aMax)
         {
@@ -298,20 +316,32 @@ namespace Game.UI
             var bedImage = bed.GetComponent<Image>();
             bedImage.type = Image.Type.Sliced;
             bedImage.preserveAspect = false;
-            bedImage.pixelsPerUnitMultiplier = 3f;
+            PillFit.Wrap(bedImage);
             if (barTrack == null) bedImage.color = cardLocked;
 
+            // Inset by the track's own rim. Flush with the edges the fill covers the rim entirely
+            // and a full bar stops looking like a bar at all — it becomes one solid blue capsule.
+            RectTransform alan = Slot(bed, "DolguAlani", Vector2.zero, Vector2.one);
+            alan.offsetMin = new Vector2(3f, 3f);
+            alan.offsetMax = new Vector2(-3f, -3f);
+
             var go = new GameObject("Dolgu", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(bed, false);
+            go.transform.SetParent(alan, false);
             var img = go.GetComponent<Image>();
             img.sprite = barFill;
-            img.type = Image.Type.Filled;
-            img.fillMethod = Image.FillMethod.Horizontal;
-            img.fillOrigin = 0;
+            img.type = Image.Type.Sliced;
+            img.preserveAspect = false;
             img.raycastTarget = false;
             if (barFill == null) img.color = rareTint;
-            UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, Vector2.one);
+            UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, new Vector2(0f, 1f));
+            PillFit.Wrap(img);
             return img;
+        }
+
+        /// <summary>Drives a bar built by <see cref="Bar"/>: the fill's right anchor is the progress.</summary>
+        private static void Progress(Image fill, float t)
+        {
+            ((RectTransform)fill.transform).anchorMax = new Vector2(Mathf.Clamp01(t), 1f);
         }
 
         /// <summary>Shrinks a label until it fits its box, so a long station name cannot run off the card.</summary>
@@ -398,7 +428,7 @@ namespace Game.UI
             int have = _foremen.DuplicatesOf(s);
             int need = hired && !maxed ? _foremen.DuplicatesToLevel(s) : 0;
             float t = need > 0 ? Mathf.Clamp01(have / (float)need) : (maxed ? 1f : 0f);
-            _fill[s].fillAmount = t;
+            Progress(_fill[s], t);
 
             _cards[s].color = InkFaint;
 

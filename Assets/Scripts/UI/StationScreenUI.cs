@@ -154,8 +154,10 @@ namespace Game.UI
         private bool _landscapeLayout;
         private RectTransform _titleRibbon;
         private RectTransform _goldPill;
-        private readonly Vector2 _stationSheetHome = new Vector2(500f, -360f);
-        private readonly Vector2 _listSheetHome = new Vector2(0f, -420f);
+        // Tepsinin pivotu alt kenarı, o yüzden konum = alt kenar. İki sütun da ContentTop'ta
+        // başlıyor; tepsinin boyu kadar aşağıda bitiyor.
+        private readonly Vector2 _stationSheetHome = new Vector2(500f, ContentTop - LandscapePanelHeight);
+        private readonly Vector2 _listSheetHome = new Vector2(0f, ContentTop - LandscapeListPanelHeight);
 
         private void Awake()
         {
@@ -183,12 +185,7 @@ namespace Game.UI
             _titleRibbon = titleText != null ? titleText.rectTransform.parent as RectTransform : null;
             _goldPill = goldValue != null ? goldValue.rectTransform.parent as RectTransform : null;
 
-            // The selector is one centred header, not part of either content column: ribbon first,
-            // all ten page buttons below it, then the balance. This also leaves both columns with
-            // an identical, quiet top edge instead of making the left side look like a second panel.
-            SetCentered(_titleRibbon, new Vector2(0f, 365f), new Vector2(660f, 150f));
-            SetCentered(stripContent, new Vector2(0f, 245f), new Vector2(860f, 108f));
-            SetCentered(_goldPill, new Vector2(0f, 140f), new Vector2(300f, 86f));
+            LayoutLandscapeHeader();
 
             // Landscape titles use the ribbon only for text. Detailed station art already appears in
             // the selector row and the preview; repeating it here steals the width long translations
@@ -200,7 +197,10 @@ namespace Game.UI
             }
             if (titleText != null)
             {
-                SetCentered(titleText.rectTransform, new Vector2(0f, -6f), new Vector2(540f, 100f));
+                // Şeridin düz bandı sanatın tam ortasında değil: kuyruklar aşağı sarktığı için band
+                // merkezi alttan 0,677'de. Rect'in ortasına yazılan başlık kuyrukların üstüne
+                // düşüyordu. 700 genişlikte şerit 147 yüksekliğe basılıyor, band merkezi +26.
+                SetCentered(titleText.rectTransform, new Vector2(0f, RibbonBandOffset), new Vector2(540f, 96f));
                 titleText.enableAutoSizing = true;
                 titleText.fontSizeMin = 18f;
                 titleText.fontSizeMax = 54f;
@@ -211,15 +211,22 @@ namespace Game.UI
             if (_titleRibbon != null && _titleRibbon.GetComponent<RectMask2D>() == null)
                 _titleRibbon.gameObject.AddComponent<RectMask2D>();
 
-            // Ten compact selectors fit on one line without touching. The selected one still gets
-            // its 1.12x emphasis, but remains inside the row instead of growing over its neighbours.
+            // Ten selectors on one line. They were 74 across, which on a phone held at arm's length
+            // is a thumbnail of a thumbnail — the whole point of the row is telling the buildings
+            // apart at a glance. 100 with 10 of spacing still leaves the selected one room to grow
+            // its 1.12x without touching its neighbours.
             if (stripTemplate != null)
             {
                 RectTransform slotRect = stripTemplate.transform as RectTransform;
-                if (slotRect != null) slotRect.sizeDelta = new Vector2(74f, 74f);
+                if (slotRect != null) slotRect.sizeDelta = new Vector2(SlotSize, SlotSize);
                 Transform slotIcon = stripTemplate.transform.Find("Ikon");
                 RectTransform slotIconRect = slotIcon != null ? slotIcon as RectTransform : null;
-                if (slotIconRect != null) slotIconRect.sizeDelta = new Vector2(56f, 56f);
+                if (slotIconRect != null) slotIconRect.sizeDelta = new Vector2(SlotIconSize, SlotIconSize);
+            }
+            if (stripContent != null)
+            {
+                var strip = stripContent.GetComponent<HorizontalLayoutGroup>();
+                if (strip != null) strip.spacing = 10f;
             }
 
             // Preview on the left, purchase sheet on the right. The phase meter belongs to the
@@ -227,12 +234,14 @@ namespace Game.UI
             // upgrade cards. Its authored children are 900 units wide; scaling the group preserves
             // their spacing while fitting the narrower left column.
             SetCentered(stageGroup != null ? stageGroup.transform as RectTransform : null,
-                        new Vector2(-500f, -100f), new Vector2(760f, 520f));
+                        new Vector2(-500f, ContentMiddle), new Vector2(760f, 470f));
             RectTransform phaseRect = phaseGroup != null ? phaseGroup.transform as RectTransform : null;
-            SetCentered(phaseRect, new Vector2(-500f, -430f), new Vector2(900f, 150f));
+            // Grubun ipucu satırı rect'inin 113 birim altına sarkıyor; merkezi -400'de tutmak onu
+            // ekranın alt kenarından 59 birim yukarıda bırakıyor. Daha aşağıda yazı kesiliyordu.
+            SetCentered(phaseRect, new Vector2(-500f, -400f), new Vector2(900f, 150f));
             if (phaseRect != null) phaseRect.localScale = Vector3.one * 0.82f;
-            SetBottom(sheet, _stationSheetHome, new Vector2(760f, 520f));
-            SetCentered(phaseBanner, new Vector2(-500f, -100f), new Vector2(720f, 170f));
+            SetBottom(sheet, _stationSheetHome, new Vector2(760f, LandscapePanelHeight));
+            SetCentered(phaseBanner, new Vector2(-500f, ContentMiddle), new Vector2(720f, 170f));
 
             // Two compact 220-high cards fill the same-height panel as the preview without forcing
             // text or price controls to overlap; their child anchors already fit this shorter card.
@@ -243,7 +252,23 @@ namespace Game.UI
             }
             VerticalLayoutGroup cardGroup = sheetContent != null
                 ? sheetContent.GetComponent<VerticalLayoutGroup>() : null;
-            if (cardGroup != null) cardGroup.spacing = 12f;
+            if (cardGroup != null) cardGroup.spacing = 14f;
+        }
+
+        /// <summary>
+        /// The header row: title ribbon, the ten page selectors under it, the balance beside the
+        /// ribbon. Called from two places — once at build and again on every page change, because the
+        /// list pages resize the sheet and used to re-stamp their own copy of these numbers. Two
+        /// copies is how the header drifted out of step with itself in the first place.
+        /// </summary>
+        private void LayoutLandscapeHeader()
+        {
+            SetCentered(_titleRibbon, new Vector2(0f, 430f), new Vector2(700f, 150f));
+            SetCentered(stripContent, new Vector2(0f, 268f), new Vector2(1160f, 140f));
+            // Beside the ribbon, not under it. Centred, it sat exactly on the top edge of both content
+            // columns and read as a chip stuck to the panels — and the HUD is already showing the same
+            // balance in the corner, so it was the third thing competing for the middle of the screen.
+            SetCentered(_goldPill, new Vector2(620f, 430f), new Vector2(330f, 92f));
         }
 
         private static void SetCentered(RectTransform rect, Vector2 position, Vector2 size)
@@ -411,9 +436,7 @@ namespace Game.UI
                 sheet.anchoredPosition = sheetHome;
                 _sheetHome = sheetHome;
                 sheet.sizeDelta = new Vector2(listPage ? LandscapeListPanelWidth : 760f, sheet.sizeDelta.y);
-                SetCentered(_titleRibbon, new Vector2(0f, 365f), new Vector2(660f, 150f));
-                SetCentered(stripContent, new Vector2(0f, 245f), new Vector2(860f, 108f));
-                SetCentered(_goldPill, new Vector2(0f, 140f), new Vector2(300f, 86f));
+                LayoutLandscapeHeader();
             }
 
             float height = _landscapeLayout
@@ -845,33 +868,60 @@ namespace Game.UI
 
         if (wide)
         {
-            SetLeftMiddle(row.icon, new Vector2(28f, 18f), new Vector2(82f, 82f));
-            SetLeftMiddle(TextRect(row.name), new Vector2(138f, 48f), new Vector2(640f, 40f));
-            SetLeftMiddle(TextRect(row.level), new Vector2(138f, 8f), new Vector2(640f, 32f));
-            SetLeftMiddle(TextRect(row.detail), new Vector2(138f, -34f), new Vector2(640f, 34f));
-            SetRightMiddle(ObjectRect(row.buyGO), new Vector2(-26f, 17f), new Vector2(250f, 102f));
-            SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-26f, 17f), new Vector2(250f, 102f));
-            FitCardText(row.name, 32f, 19f);
-            FitCardText(row.level, 25f, 17f);
-            FitCardText(row.detail, 22f, 16f);
-            LayoutButtonText(row.price, 68f, 12f, 34f, 22f);
-            LayoutButtonText(row.badgeText, 16f, 16f, 42f, 28f);
+            SetLeftMiddle(row.icon, new Vector2(30f, 22f), new Vector2(96f, 96f));
+            SetLeftMiddle(TextRect(row.name), new Vector2(150f, 58f), new Vector2(560f, 44f));
+            SetLeftMiddle(TextRect(row.level), new Vector2(150f, 18f), new Vector2(560f, 34f));
+            SetLeftMiddle(TextRect(row.detail), new Vector2(150f, -34f), new Vector2(560f, 36f));
+            SetRightMiddle(ObjectRect(row.buyGO), new Vector2(-28f, 22f), new Vector2(WidePrice, 118f));
+            SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-28f, 22f), new Vector2(WidePrice, 118f));
+            FitCardText(row.name, 34f, 20f);
+            FitCardText(row.level, 26f, 18f);
+            FitCardText(row.detail, 23f, 16f);
+            LayoutPriceText(row.price, WidePrice, 38f, 24f);
+            LayoutButtonText(row.badgeText, 18f, 18f, 46f, 30f);
         }
         else
         {
-            SetLeftMiddle(row.icon, new Vector2(20f, 18f), new Vector2(76f, 76f));
-            SetLeftMiddle(TextRect(row.name), new Vector2(112f, 48f), new Vector2(270f, 40f));
-            SetLeftMiddle(TextRect(row.level), new Vector2(112f, 8f), new Vector2(270f, 32f));
-            SetLeftMiddle(TextRect(row.detail), new Vector2(112f, -34f), new Vector2(270f, 34f));
-            SetRightMiddle(ObjectRect(row.buyGO), new Vector2(-18f, 17f), new Vector2(220f, 102f));
-            SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-18f, 17f), new Vector2(220f, 102f));
-            FitCardText(row.name, 31f, 19f);
+            // İstasyon tepsisi 760 geniş ama kaydırma alanının payından sonra kart 637 kalıyor.
+            // Düğme büyüdüğü için ad ve seviye onun soluna sığmak zorunda; ayrıntı satırı ise
+            // düğmenin ALTINDAN geçiyor, o yüzden kartın tam genişliğini kullanabiliyor.
+            SetLeftMiddle(row.icon, new Vector2(24f, 22f), new Vector2(92f, 92f));
+            SetLeftMiddle(TextRect(row.name), new Vector2(128f, 58f), new Vector2(212f, 42f));
+            SetLeftMiddle(TextRect(row.level), new Vector2(128f, 18f), new Vector2(212f, 32f));
+            SetLeftMiddle(TextRect(row.detail), new Vector2(24f, -68f), new Vector2(585f, 34f));
+            SetRightMiddle(ObjectRect(row.buyGO), new Vector2(-20f, 26f), new Vector2(NarrowPrice, 114f));
+            SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-20f, 26f), new Vector2(NarrowPrice, 114f));
+            FitCardText(row.name, 32f, 19f);
             FitCardText(row.level, 25f, 17f);
-            FitCardText(row.detail, 21f, 15f);
-            LayoutButtonText(row.price, 68f, 12f, 34f, 22f);
-            LayoutButtonText(row.badgeText, 16f, 16f, 40f, 27f);
+            FitCardText(row.detail, 22f, 15f);
+            LayoutPriceText(row.price, NarrowPrice, 38f, 24f);
+            LayoutButtonText(row.badgeText, 18f, 18f, 44f, 29f);
         }
     }
+
+        // Fiyat dugmesinin genisligi iki sayfada iki turlu: istasyon sayfasinda kart genis, liste
+        // sayfasinda dar. Yazinin kenar payi da onunla birlikte degismek zorunda -- bkz LayoutPriceText.
+        private const float WidePrice = 290f;
+        private const float NarrowPrice = 262f;
+        // btn_fiyat_yesil'in orta hattindan olculdu: sikke konturuyla birlikte soldan %36,1'de
+        // bitiyor, kapsulun sag kenari %94,9'da. Yazi ikisinin arasina ortalaniyor.
+        private const float PriceCoinEnd = 0.361f;
+        private const float PriceBodyEnd = 0.949f;
+        private const float PriceGap = 8f;
+
+        /// <summary>
+        /// The price text, inset past the coin the button art carries on its left third. Fractions of
+        /// the button rather than pixels: the station page's button is 290 wide and the list page's
+        /// 262, and the one pixel inset that suited the wider one printed the "$" straight on top of
+        /// the coin on the narrower.
+        /// </summary>
+        private static void LayoutPriceText(TMP_Text text, float buttonWidth, float maximum, float minimum)
+        {
+            LayoutButtonText(text,
+                             buttonWidth * PriceCoinEnd + PriceGap,
+                             buttonWidth * (1f - PriceBodyEnd) + PriceGap,
+                             maximum, minimum);
+        }
 
         private static RectTransform TextRect(TMP_Text text) => text != null ? text.rectTransform : null;
         private static RectTransform ObjectRect(GameObject go) => go != null ? go.transform as RectTransform : null;
@@ -1503,10 +1553,24 @@ namespace Game.UI
         private const int ReportPage = -3;
         private const float ExpansionTop = 530f;      // altın hapının altı: tepsi genişletmelerde buraya kadar büyür
         private const float SheetBottom = 26f;
-        private const float LandscapePanelHeight = 520f;
+        // Yatay yerleşimin dikey bütçesi: güvenli alanın merkezine göre yaklaşık -570 ile +505 arası
+        // görünüyor. Başlık şeridi 505'te bitiyor, iki sütun da +170'te başlıyor.
+        private const float ContentTop = 170f;
+        // İki büyük kart artı boşluk. Tepsi bundan yüksek olduğunda CentreCards kartları ortalıyor ve
+        // iki eksenli bir istasyonda kartların altında ve üstünde birer avuç boş beyaz kalıyor —
+        // istasyonların çoğu iki eksenli.
+        private const float LandscapePanelHeight = 560f;
         private const float LandscapeListPanelWidth = 1200f;
-        private const float LandscapeListPanelHeight = 550f;
-        private const float LandscapeCardHeight = 212f;
+        // Genişletme ve zincir sayfalarında sol sütun yok; tepsi tek başına, daha uzun olabiliyor.
+        private const float LandscapeListPanelHeight = 640f;
+        // 212'ydi. Fiyat düğmesi karta göre büyüdüğü için kart da büyüdü.
+        private const float LandscapeCardHeight = 244f;
+        private const float SlotSize = 100f;
+        private const float SlotIconSize = 78f;
+        /// <summary>Önizlemenin ortası: üstü +170'te, altı -300'de.</summary>
+        private const float ContentMiddle = -65f;
+        /// <summary>serit_mavi'nin düz bandının rect merkezine göre kayması, 700x150'lik şeritte.</summary>
+        private const float RibbonBandOffset = 26f;
         private const float SheetStationHeight = 810f;
 
         private static readonly Color SlotIdleIcon = new Color(1f, 1f, 1f, 0.72f);

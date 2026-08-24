@@ -4392,7 +4392,7 @@ MonoBehaviour:
   items:
   - title: 2.5K
     kind: 1
-    icon: {fileID: 21300000, guid: 7fb5c7504fefa6949b1035a2eda090fd, type: 3}
+    icon: {fileID: 21300000, guid: fa542532c74f2814295a345b86173c82, type: 3}
     priceLabel: 60
     sku: gold_2500
     cashAmount: 290000
@@ -4401,7 +4401,7 @@ MonoBehaviour:
     gemCost: 60
   - title: 8K
     kind: 1
-    icon: {fileID: 21300000, guid: d94c16c77545a7a41a92eaf1141781ae, type: 3}
+    icon: {fileID: 21300000, guid: 801adc22daf490743b4778e956a3d17d, type: 3}
     priceLabel: 180
     sku: gold_8000
     cashAmount: 930000
@@ -4410,7 +4410,7 @@ MonoBehaviour:
     gemCost: 180
   - title: 25K
     kind: 1
-    icon: {fileID: 21300000, guid: fdf929e07b0688d4eb1731c709db7e39, type: 3}
+    icon: {fileID: 21300000, guid: bb23e32520477554aaf5b579567869be, type: 3}
     priceLabel: 500
     sku: gold_25000
     cashAmount: 2900000
@@ -4419,7 +4419,7 @@ MonoBehaviour:
     gemCost: 500
   - title: 75K
     kind: 1
-    icon: {fileID: 21300000, guid: 1546777dac247f44897de2569c359529, type: 3}
+    icon: {fileID: 21300000, guid: 926cb82c71294a9428548c436ab351d9, type: 3}
     priceLabel: 1200
     sku: gold_75000
     cashAmount: 8700000
@@ -4428,7 +4428,7 @@ MonoBehaviour:
     gemCost: 1200
   - title: 250K
     kind: 1
-    icon: {fileID: 21300000, guid: 86e105618abf5e04ebe40f0465742eb9, type: 3}
+    icon: {fileID: 21300000, guid: f8bcee77e0a2d174281df2af38f1fd68, type: 3}
     priceLabel: 3000
     sku: gold_250000
     cashAmount: 29000000
@@ -4437,7 +4437,7 @@ MonoBehaviour:
     gemCost: 3000
   - title: 1M
     kind: 1
-    icon: {fileID: 21300000, guid: 19a9912d0954e9d41acaa1d54b17950e, type: 3}
+    icon: {fileID: 21300000, guid: 0c3739fafe783a740b709460bef97e0b, type: 3}
     priceLabel: 8000
     sku: gold_1000000
     cashAmount: 116000000
@@ -4748,7 +4748,7 @@ MonoBehaviour:
     oneTime: 0
     gemPrice: 15
     icon: {fileID: 21300000, guid: cd09ff5451509844ba64d0bc52794fbf, type: 3}
-    hero: {fileID: 21300000, guid: 4b06ff80b74b2fa4c8efcb21b6b2c105, type: 3}
+    hero: {fileID: 21300000, guid: 20005a53dcb5261409d612bf81388ac4, type: 3}
     heroMotion: 1
     title: 30 DK
     description: 
@@ -4771,7 +4771,7 @@ MonoBehaviour:
     oneTime: 0
     gemPrice: 55
     icon: {fileID: 21300000, guid: cd09ff5451509844ba64d0bc52794fbf, type: 3}
-    hero: {fileID: 21300000, guid: 4b06ff80b74b2fa4c8efcb21b6b2c105, type: 3}
+    hero: {fileID: 21300000, guid: fa81d5a07db453c4ab228a049b0b3be7, type: 3}
     heroMotion: 1
     title: 2 SAAT
     description: 
@@ -4794,7 +4794,7 @@ MonoBehaviour:
     oneTime: 0
     gemPrice: 200
     icon: {fileID: 21300000, guid: cd09ff5451509844ba64d0bc52794fbf, type: 3}
-    hero: {fileID: 21300000, guid: 4b06ff80b74b2fa4c8efcb21b6b2c105, type: 3}
+    hero: {fileID: 21300000, guid: b4c1b5256ecc1d440bd70b19725f5846, type: 3}
     heroMotion: 1
     title: 8 SAAT
     description: 
@@ -4868,7 +4868,7 @@ MonoBehaviour:
     title: "\xD72"
     description: "G\xFCnl\xFCk \xF6d\xFCller\nkal\u0131c\u0131 olarak iki kat\u0131"
     incomeMinutes: 0
-  gemIcon: {fileID: 21300000, guid: a20a9f9dbc3cec944b3b4a4504d3c2b5, type: 3}
+  gemIcon: {fileID: 21300000, guid: 9a0ed1473fb90ee48b4dc79cd5eecbe2, type: 3}
   devFreeIAP: 0
   purchaseFx: {fileID: 5059351080587554020}
 --- !u!114 &5059351080587554020
@@ -4886,7 +4886,7 @@ MonoBehaviour:
   layer: {fileID: 7207376578355705702}
   gatherPoint: {fileID: 5574229495832038779}
   coinSprite: {fileID: 21300000, guid: 05abb2eab9f178b44bec447840bcf110, type: 3}
-  gemSprite: {fileID: 21300000, guid: dbe3829665812ac47953360220d749a2, type: 3}
+  gemSprite: {fileID: 21300000, guid: 9a0ed1473fb90ee48b4dc79cd5eecbe2, type: 3}
   iconCount: 9
   iconSize: 66
   flightSeconds: 0.85

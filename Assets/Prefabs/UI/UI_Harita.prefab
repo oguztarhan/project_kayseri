@@ -1495,6 +1495,7 @@ GameObject:
   - component: {fileID: 3714633102217346633}
   - component: {fileID: 8031257234976569213}
   - component: {fileID: 432292273182247240}
+  - component: {fileID: 3656615043320146260}
   m_Layer: 5
   m_Name: Dolgu
   m_TagString: Untagged
@@ -1558,7 +1559,19 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 2.32
+--- !u!114 &3656615043320146260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3223559933226499610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 384792bf7629510438cf9d8ec454ffe0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PillFit
 --- !u!1 &3494011346373669225
 GameObject:
   m_ObjectHideFlags: 0
@@ -4047,6 +4060,7 @@ GameObject:
   - component: {fileID: 5755010939857918329}
   - component: {fileID: 7849699850992069871}
   - component: {fileID: 7715537176918583333}
+  - component: {fileID: 2521220633856308371}
   m_Layer: 5
   m_Name: Yatak
   m_TagString: Untagged
@@ -4111,7 +4125,19 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 2.32
+--- !u!114 &2521220633856308371
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8473714039375610890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 384792bf7629510438cf9d8ec454ffe0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PillFit
 --- !u!1 &8557054195526446815
 GameObject:
   m_ObjectHideFlags: 0

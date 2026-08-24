@@ -2345,6 +2345,12 @@ MonoBehaviour:
   boostValue: {fileID: 8398530136616297070}
   shieldIndicator: {fileID: 6521390068616323707}
   shieldValue: {fileID: 639591158400583689}
+  bottomRow:
+  - {fileID: 2401925873794550296}
+  - {fileID: 2917005833243783941}
+  - {fileID: 757886399648465747}
+  - {fileID: 6473718541971702952}
+  bottomPitch: 220
   upgradeButton: {fileID: 8797148836068495766}
   boostButton: {fileID: 5556939763442564306}
   boostButtonImage: {fileID: 661646733631015625}

@@ -67,6 +67,12 @@ namespace Game.UI
         [Header("Modern tabela")]
         [SerializeField] private bool _modernStyle = true;
         [SerializeField] private Color _borderColor = new Color(1f, 0.66f, 0.12f, 1f);
+        [Tooltip("Tabelanın zemini — MaviSet/panel_beyaz. Doluyken tabela oyunun geri kalanıyla " +
+                 "aynı beyaz panele oturuyor ve gece/gündüz boyaması devre dışı kalıyor: beyaz " +
+                 "panelin üstünde gece yanan sarı yazı okunmuyor.")]
+        [SerializeField] private Sprite _plateArt;
+        [Tooltip("Beyaz panelin üstündeki yazı rengi.")]
+        [SerializeField] private Color _plateText = new Color(0.09f, 0.14f, 0.24f, 1f);
 
         [Header("Bağlanma")]
         [Tooltip("Hangi operasyonun canlı olduğuna bu sıklıkta bakılır.")]
@@ -178,10 +184,17 @@ namespace Game.UI
             rect.pivot = new Vector2(0.5f, 0.5f);
 
             plate = go.GetComponent<Image>();
-            plate.sprite = UiSkin.Pill;
+            plate.sprite = _plateArt != null ? _plateArt : UiSkin.Pill;
             plate.type = Image.Type.Sliced;
-            plate.color = _borderColor;
+            plate.color = _plateArt != null ? Color.white : _borderColor;
             plate.raycastTarget = false;
+            if (_plateArt != null)
+            {
+                // panel_beyaz'ın köşe payı 44; 52 boyundaki bir tabelaya ham hâliyle basılınca
+                // üst ve alt dilim üst üste biniyor ve kenar iki kat çiziliyor.
+                float border = Mathf.Max(_plateArt.border.y, _plateArt.border.w);
+                if (border > 0f) plate.pixelsPerUnitMultiplier = Mathf.Max(1f, border / 16f);
+            }
 
             var shadow = go.AddComponent<Shadow>();
             shadow.effectColor = new Color(0.01f, 0.025f, 0.07f, 0.75f);
@@ -199,6 +212,10 @@ namespace Game.UI
             plate.sprite = UiSkin.Pill;
             plate.type = Image.Type.Sliced;
             plate.raycastTarget = false;
+            // Beyaz panel tek parça: çerçeve + iç zemin iki katmanken panelin kendi kenarı
+            // ikinci bir kenarın altında kalıyordu. İç zemin kapanıyor, boyayacak bir şey de
+            // kalmıyor — Paint() beyaz tabelaya hiç dokunmuyor.
+            if (_plateArt != null) plate.enabled = false;
 
             var textGo = new GameObject("Yazi", typeof(RectTransform), typeof(TextMeshProUGUI));
             var textRect = (RectTransform)textGo.transform;
@@ -224,7 +241,12 @@ namespace Game.UI
             // localised, and "POWER PLANT" and its Turkish are not the same width.
             label.ForceMeshUpdate();
             Vector2 text = label.GetRenderedValues(false);
-            rect.sizeDelta = new Vector2(text.x + 44f, Mathf.Max(52f, text.y + 22f));
+            // Beyaz panelin kenarında kendi yumuşak halesi var; 44'lük payla yazı o halenin
+            // üstüne oturuyor. Panelli tabela her yönden daha geniş bir pay istiyor — ama 86/46
+            // fazlaydı: adaya bakarken tabelalar binaların kendisi kadar yer kaplıyordu.
+            rect.sizeDelta = _plateArt != null
+                ? new Vector2(text.x + 58f, Mathf.Max(62f, text.y + 30f))
+                : new Vector2(text.x + 44f, Mathf.Max(52f, text.y + 22f));
 
             return rect;
         }
@@ -237,18 +259,21 @@ namespace Game.UI
             _appliedNight = night;
 
             var plate = Color.Lerp(_dayPlate, _nightPlate, night);
-            var text = Color.Lerp(_dayText, _nightText, night);
+            var text = _plateArt != null ? _plateText : Color.Lerp(_dayText, _nightText, night);
+            // Beyaz panelin üstünde gece lambası yakmıyoruz: sıcak sarı bir yazı beyaz kâğıtta
+            // okunmuyor, glow da panelin kenarına bulaşıyor.
+            float glow = _plateArt != null ? 0f : night;
 
             for (int i = 0; i < _count; i++)
             {
-                if (_plates[i] != null) _plates[i].color = plate;
+                if (_plates[i] != null && _plates[i].enabled) _plates[i].color = plate;
                 if (_labels[i] == null) continue;
                 _labels[i].color = text;
                 // A lit sign is not just a brighter colour, it spills. The glow rides the night
                 // value so the lettering comes up with the lamps rather than snapping on at dusk.
                 _labels[i].fontMaterial.SetColor(ShaderUtilities.ID_GlowColor, text);
-                _labels[i].fontMaterial.SetFloat(ShaderUtilities.ID_GlowPower, night * 0.7f);
-                _labels[i].fontMaterial.SetFloat(ShaderUtilities.ID_GlowOuter, night * 0.35f);
+                _labels[i].fontMaterial.SetFloat(ShaderUtilities.ID_GlowPower, glow * 0.7f);
+                _labels[i].fontMaterial.SetFloat(ShaderUtilities.ID_GlowOuter, glow * 0.35f);
             }
         }
 

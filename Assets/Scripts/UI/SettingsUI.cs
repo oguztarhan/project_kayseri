@@ -291,6 +291,27 @@ namespace Game.UI
             var grime = BuildStrip("TestKir", 540f, out _grimeImage, out _grimeLabel);
             grime.onClick.AddListener(OnGrime);
             RefreshGrimeButton();
+
+            // Eğitimi tekrar oynatma düğmesi de buraya taşındı; eskiden HUD'un sol kenarında
+            // duruyordu ve telefondan çekilen videoda oyunun üstünde görünüyordu. Durumu olmadığı
+            // için diğerleri gibi bir Refresh'i yok, etiketi bir kez yazılıyor.
+            Image tutorialImage;
+            TMPro.TextMeshProUGUI tutorialLabel;
+            var tutorial = BuildStrip("TestEgitim", 640f, out tutorialImage, out tutorialLabel);
+            tutorialImage.color = TestOffColor;
+            tutorialLabel.text = "EĞİTİMİ TEKRAR OYNAT";
+            tutorial.onClick.AddListener(OnReplayTutorial);
+        }
+
+        /// <summary>Turu baştan başlatır. Pencere kapanmadan başlatmak anlamsız: tur ayar
+        /// panelinin arkasında oynardı.</summary>
+        private void OnReplayTutorial()
+        {
+            var tutorial = FindAnyObjectByType<TutorialUI>();
+            if (tutorial == null) return;
+            if (_haptic != null) _haptic.Light();
+            Hide();
+            tutorial.Replay();
         }
 
         /// <summary>Every test strip's label at once — state one of them changes is state another shows.</summary>

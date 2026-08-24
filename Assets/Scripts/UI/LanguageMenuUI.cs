@@ -28,10 +28,13 @@ namespace Game.UI
         [System.Serializable]
         public struct Skin
         {
-            public Sprite Panel;        // panel_ayarlar
-            public Sprite Ribbon;       // serit_baslik
-            public Sprite Close;        // btn_kapat
-            public Sprite Row;          // satir_ayar
+            public Sprite Panel;        // panel_mavi
+            public Sprite Ribbon;       // serit_baslik — panelin kendi başlık şeridi yoksa
+            public Sprite Close;        // btn_kapat_v3
+            public Sprite Row;          // panel_beyaz
+            [Tooltip("Panelin üstünde kendi mavi başlık şeridi var mı? panel_mavi'de var, " +
+                     "panel_ayarlar'da yok. Varsa başlık oraya yazılır ve ayrı şerit çizilmez.")]
+            public bool HeaderBar;
             public Sprite Medallion;    // madalyon
             public Sprite PipOn;        // rozet_tamam — yaşayan dilin işareti
             public Sprite PipOff;       // pip_bos
@@ -51,6 +54,9 @@ namespace Game.UI
         private const float RibbonWidth = 980f;
         private const float RibbonHeight = 230f;
         private const float RibbonDrop = -33f;      // şerit merkezi panelin üst kenarının bu kadar altında
+        // panel_mavi'nin üst dilimi 100 piksel; başlık ve kapat tuşu o bandın içinde duruyor.
+        private const float HeaderHeight = 100f;
+        private const float HeaderInset = 150f;     // kapat tuşu yazının üstüne binmesin
         private const float CloseSize = 140f;
         private const float CloseRight = -94f;      // ayarların kapatma tuşuyla aynı nokta
         private const float CloseTop = -276f;
@@ -65,6 +71,10 @@ namespace Game.UI
         // 2×420 + 16 = 856, yani görüş alanının tam genişliği
         private const float CellWidth = 420f;
         private const float CellHeight = 150f;
+        // Yatayda on bir dil dört sütuna üç sıra olarak oturuyor ve 150'lik satırlarla panelin alt
+        // yarısı boş kalıyordu. Satırı görüş alanını dolduracak kadar yükseltiyoruz: 26 + 3×200 +
+        // 2×16 + 26 = 684, görüş alanı 696.
+        private const float LandscapeCellHeight = 200f;
         private const float CellSpacing = 16f;
         private const float MedallionSize = 104f;
         private const float PipSize = 44f;
@@ -159,7 +169,7 @@ namespace Game.UI
 
             BuildList(panel);
             BuildRibbon(panel);
-            BuildClose(icerik);
+            BuildClose(icerik, panel);
 
             // Panel sesi kapalıyken takılır, yoksa kuruluşta bir açılış sesi çalar (UiPanelSound'un kuralı).
             _root.gameObject.SetActive(false);
@@ -175,7 +185,9 @@ namespace Game.UI
             view.anchorMax = Vector2.one;
             bool landscape = Screen.width > Screen.height;
             float side = landscape ? 80f : ViewportSide;
-            float top = landscape ? 180f : ViewportTop;
+            // Panelin kendi başlık şeridi 900'ün ~%14'ü; görüş alanı hemen altından başlıyor.
+            // Ayrı şerit çizildiğinde şerit panelin üstüne biniyor ve daha çok yer istiyor.
+            float top = landscape ? (_skin.HeaderBar ? 150f : 180f) : ViewportTop;
             float bottom = landscape ? 54f : ViewportBottom;
             view.offsetMin = new Vector2(side, bottom);
             view.offsetMax = new Vector2(-side, -top);
@@ -191,9 +203,9 @@ namespace Game.UI
             // Izgara: diller yan yana, sonrakiler altına. Tek sütunlu tam genişlikte satırlarken on bir
             // dil ekrana sığmıyordu; iki sütunda hepsi tek bakışta duruyor ve hiç kaydırmak gerekmiyor.
             var grid = _list.gameObject.AddComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(CellWidth, CellHeight);
+            grid.cellSize = new Vector2(CellWidth, landscape ? LandscapeCellHeight : CellHeight);
             grid.spacing = new Vector2(CellSpacing, CellSpacing);
-            float topPad = landscape ? 70f : ListTopPad;
+            float topPad = landscape ? 26f : ListTopPad;
             grid.padding = new RectOffset(0, 0, (int)topPad, (int)topPad);
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             grid.constraintCount = landscape ? LandscapeColumns : Columns;
@@ -224,6 +236,19 @@ namespace Game.UI
             }
         }
 
+        /// <summary>Bu çözünürlükte bir satırın yüksekliği — kenar payı buna göre küçültülüyor.</summary>
+        private static float RowHeight
+            => Screen.width > Screen.height ? LandscapeCellHeight : CellHeight;
+
+        /// <summary>Dilimli bir sanatın kenar payını hedef yüksekliğin ~beşte birine indiren çarpan.</summary>
+        private static float Multiplier(Sprite sprite, float height)
+        {
+            if (sprite == null) return 1f;
+            float border = Mathf.Max(sprite.border.y, sprite.border.w);
+            if (border <= 0f) return 1f;
+            return Mathf.Max(1f, border / (height * 0.21f));
+        }
+
         private void Row(int i, string code, string caption)
         {
             var go = new GameObject("Satir_" + code, typeof(RectTransform), typeof(Image), typeof(Button));
@@ -231,9 +256,11 @@ namespace Game.UI
             rt.SetParent(_list, false);
             _rowArt[i] = go.GetComponent<Image>();
             Art(_rowArt[i], _art ? _skin.Row : UiSkin.ButtonGrey, Color.white);
-            // satir_ayar 560×400 ve dilimleri 60'ar; 150 yüksekliğe basılınca üst ve alt dilim üst üste
-            // biner, çarpan onları küçültüp kenarın yuvarlağını koruyor.
-            _rowArt[i].pixelsPerUnitMultiplier = 1.9f;
+            // Satır sanatının kenar payı satır yüksekliğinin beşte birine ineceği kadar küçültülüyor:
+            // satir_ayar 60'lık paylarla, panel_beyaz 44'lük paylarla geliyor ve ikisi de bu satıra
+            // ham hâliyle basılınca üst ve alt dilim üst üste biniyor. Sabit bir çarpan sanatı
+            // değiştirdiğimiz gün sessizce yanlış oluyordu.
+            _rowArt[i].pixelsPerUnitMultiplier = Multiplier(_rowArt[i].sprite, RowHeight);
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = _rowArt[i];
 
@@ -273,6 +300,23 @@ namespace Game.UI
 
         private void BuildRibbon(RectTransform panel)
         {
+            // panel_mavi'nin üst dilimi 100 piksel ve mavi: başlık şeridi panelin kendisinde basılı.
+            // Üstüne ikinci bir şerit koymak iki başlık bandı üst üste demek olurdu.
+            if (_skin.HeaderBar)
+            {
+                var band = (RectTransform)new GameObject("Baslik", typeof(RectTransform)).transform;
+                band.SetParent(panel, false);
+                band.anchorMin = new Vector2(0f, 1f);
+                band.anchorMax = new Vector2(1f, 1f);
+                band.pivot = new Vector2(0.5f, 1f);
+                band.offsetMin = new Vector2(HeaderInset, -HeaderHeight);
+                band.offsetMax = new Vector2(-HeaderInset, 0f);
+                _title = Text(band, "Yazi", Loc.T("ayarlar.dil"), 58f, TextAlignmentOptions.Center,
+                              Vector2.zero, Vector2.one);
+                _title.color = Color.white;
+                return;
+            }
+
             var go = new GameObject("Serit", typeof(RectTransform), typeof(Image));
             var rt = (RectTransform)go.transform;
             rt.SetParent(panel, false);
@@ -297,17 +341,22 @@ namespace Game.UI
         /// </summary>
         /// <summary>Sağ üste oturuyor, o yüzden karartmanın değil güvenli alanın çocuğu — çentikli bir
         /// telefonda kökün köşesi kesiğin altında kalıyor.</summary>
-        private void BuildClose(RectTransform icerik)
+        private void BuildClose(RectTransform icerik, RectTransform panel)
         {
             var go = new GameObject("BtnKapat", typeof(RectTransform), typeof(Image), typeof(Button));
             var rt = (RectTransform)go.transform;
-            rt.SetParent(icerik, false);
+            // Panelin kendi başlık bandı varsa kapat tuşu da o bandın içinde: ekranın köşesinde
+            // duran bir X, altındaki ayarlar penceresinin X'iyle aynı noktaya düşüyor ve tek
+            // parmak hareketi iki ekranı birden kapatıyor.
+            rt.SetParent(_skin.HeaderBar ? panel : icerik, false);
             rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(CloseSize, CloseSize);
-            rt.anchoredPosition = Screen.width > Screen.height
-                ? new Vector2(-82f, -82f)
-                : new Vector2(CloseRight, CloseTop);
+            rt.sizeDelta = _skin.HeaderBar
+                ? new Vector2(HeaderHeight * 1.04f, HeaderHeight * 1.04f)
+                : new Vector2(CloseSize, CloseSize);
+            rt.anchoredPosition = _skin.HeaderBar ? new Vector2(-64f, -HeaderHeight * 0.5f)
+                                 : Screen.width > Screen.height ? new Vector2(-82f, -82f)
+                                 : new Vector2(CloseRight, CloseTop);
             var img = go.GetComponent<Image>();
             Art(img, _art ? _skin.Close : UiSkin.ButtonGrey, Color.white);
             var b = go.GetComponent<Button>();

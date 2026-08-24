@@ -1153,6 +1153,7 @@ GameObject:
   - component: {fileID: 9205632243210329590}
   - component: {fileID: 8445242594680668805}
   - component: {fileID: 6450968320690837481}
+  - component: {fileID: 2866957174583677370}
   m_Layer: 5
   m_Name: BtnTopla
   m_TagString: Untagged
@@ -1208,8 +1209,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 6b11ab9a0ec27c84cb1a69b36033a89a, type: 3}
-  m_Type: 0
+  m_Sprite: {fileID: 21300000, guid: 8a57c0640e297ec489c468a3394bfa2d, type: 3}
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4
@@ -1217,7 +1218,7 @@ MonoBehaviour:
   m_FillClockwise: 1
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
+  m_PixelsPerUnitMultiplier: 0.8333333
 --- !u!114 &6450968320690837481
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1262,6 +1263,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &2866957174583677370
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1676129379891648152}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 384792bf7629510438cf9d8ec454ffe0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PillFit
 --- !u!1 &1691274193856113464
 GameObject:
   m_ObjectHideFlags: 0
@@ -3691,7 +3704,7 @@ MonoBehaviour:
   tileToday: {fileID: 21300000, guid: ea3d9c8ec52abd64583c2a02297b9249, type: 3}
   tileClaimed: {fileID: 21300000, guid: 46048afcbe0e98d4f93df15600a531f8, type: 3}
   iconGem: {fileID: 21300000, guid: d439da40262d0cf4bbeac29eabf44dce, type: 3}
-  iconGold: {fileID: 21300000, guid: 4b7c0f30781a7dc4e8d667c9f2308edc, type: 3}
+  iconGold: {fileID: 21300000, guid: 547b54ac2e9f5d9408ec0866b0acb520, type: 3}
   claimedIconTint: {r: 0.78, g: 0.82, b: 0.9, a: 1}
   ladder:
   - gems: 5
