@@ -45,8 +45,6 @@ namespace Game.UI
         {
             [Tooltip("Play Console ürün kimliği. Tüketilir olmalı — aynı ürün her adada bir kez satılır.")]
             public string sku = "";
-            [Tooltip("Kartta yazan fiyat, ör. \"₺19,99\". Gerçek tahsilat mağazanın kendi fiyatından yapılır.")]
-            public string priceLabel = "";
             [Tooltip("Başlık satırı: SEFER / VARDİYA / KASA — metinler.txt anahtarı.")]
             public string nameKey = "";
             [Tooltip("Kaç saatlik imparatorluk geliri verir. Sabit tutar değil: oyuncunun kendi hızıyla çarpılır.")]
@@ -104,11 +102,11 @@ namespace Game.UI
         [SerializeField]
         private List<Tier> tiers = new List<Tier>
         {
-            new Tier { sku = "teklif_kucuk", priceLabel = "₺19,99", nameKey = "teklif.sefer",
+            new Tier { sku = "teklif_kucuk", nameKey = "teklif.sefer",
                        incomeHours = 6f,  boostHours = 4f,  gemAmount = 0 },
-            new Tier { sku = "teklif_orta",  priceLabel = "₺49,99", nameKey = "teklif.vardiya",
+            new Tier { sku = "teklif_orta",  nameKey = "teklif.vardiya",
                        incomeHours = 14f, boostHours = 8f,  gemAmount = 150 },
-            new Tier { sku = "teklif_buyuk", priceLabel = "₺99,99", nameKey = "teklif.kasa",
+            new Tier { sku = "teklif_buyuk", nameKey = "teklif.kasa",
                        incomeHours = 30f, boostHours = 24f, gemAmount = 400 },
         };
 
@@ -582,12 +580,22 @@ namespace Game.UI
             Tier pack = tiers[tier];
 
             int island = IslandOf(_data.offerLiveKey);
-            if (islandTitle != null && island >= 0) islandTitle.text = _world.IslandName(island);
+            // Ada adı dil tablosundan gelir, merdivenin içindeki yazılı addan değil. WorldIslands'in
+            // displayName'i bir kimlik etiketi — hep Türkçe, hangi basamağın hangisi olduğunu söylüyor;
+            // çizilecek metin değil. Harita aynı çeviriyi aynı yerden alıyor (IslandMapUI.IslandName).
+            if (islandTitle != null && island >= 0)
+                islandTitle.text = Loc.Id("ada", _world.IslandKey(island));
             if (tierTitle != null) tierTitle.text = Loc.T(pack.nameKey);
+            // Fiyat ve düğme aynı cevaptan gelir: mağaza fiyatı vermediyse pencere "—" gösterir ve
+            // AL kapalı kalır. Prefabdaki ₺99,99 bir yer tutucuydu ve İngilizce oynayan herkese
+            // Türk Lirası gösteriyordu.
+            bool sellable = false;
             if (priceLabel != null)
                 priceLabel.text = store != null
-                    ? store.LocalizedPrice(pack.sku, pack.priceLabel)
-                    : pack.priceLabel;
+                    ? store.PriceFor(pack.sku, out sellable)
+                    : PremiumStoreUI.PriceUnknown;
+            else if (store != null) store.PriceFor(pack.sku, out sellable);
+            if (buyButton != null) buyButton.interactable = sellable;
             if (oreTint != null && island >= 0)
                 // The ore colours are the map's, and coal's is nearly black — lift it, or the ribbon
                 // reads as a hole in the card.

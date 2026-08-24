@@ -75,6 +75,16 @@ namespace Game.UI
         /// </summary>
         private const float RibbonBand = 0.677f;
 
+        /// <summary>
+        /// The decimal separator is the game's, not the handset's. Left to the current culture, a
+        /// Turkish phone draws "×1,50" here while the wallet an inch away draws "1.5K" out of
+        /// <see cref="Game.Core.NumberFormatter"/> — two number languages on one screen. The
+        /// language of this game is the one the player picked, not the one the device was sold in,
+        /// so the formatting has no business coming from the device either.
+        /// </summary>
+        private static readonly System.Globalization.CultureInfo Culture =
+            System.Globalization.CultureInfo.InvariantCulture;
+
         private ForemanService _foremen;
         private WalletService _wallet;
         private RectTransform _root;
@@ -392,7 +402,7 @@ namespace Game.UI
         {
             if (_foremen == null || _root == null || !_root.gameObject.activeSelf) return;
 
-            _multiplier.text = string.Format("×{0:0.00}", _foremen.IncomeMultiplier);
+            _multiplier.text = string.Format(Culture, "×{0:0.00}", _foremen.IncomeMultiplier);
             _balance.text = (_wallet != null ? _wallet.Gems : 0L).ToString();
 
             for (int s = 0; s < Foremen.Count; s++) RefreshCard(s);
@@ -421,8 +431,8 @@ namespace Game.UI
             // and on the empire, because it is literally the same term. See Game.Core.Foremen.
             double perLevel = Foremen.PerLevel(s, _foremen.Tuning);
             _effect[s].text = hired
-                ? string.Format("+{0:0.#}%", perLevel * level * 100d)
-                : string.Format("+{0:0.#}%", perLevel * 100d);
+                ? string.Format(Culture, "+{0:0.#}%", perLevel * level * 100d)
+                : string.Format(Culture, "+{0:0.#}%", perLevel * 100d);
             _effect[s].color = hired ? Darken(TintFor(s)) : InkFaint;
 
             int have = _foremen.DuplicatesOf(s);

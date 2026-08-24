@@ -25,11 +25,16 @@ namespace Game.Systems
         private const string ResourcePath = "Diller/metinler";
 
         /// <summary>
-        /// Turkish: the table is authored in it, so it is the one column that is always filled and the
-        /// right answer for a key another language has not been given yet. It is also where a device we
-        /// do not speak lands — this is a Turkish studio's game before it is anything else.
+        /// English: where a device whose language the game does not speak lands, and what a key another
+        /// language has not been given yet falls back to.
+        ///
+        /// It was Turkish, on the reasoning that the table is authored in Turkish so that column is the
+        /// one always filled. The tracking permission dialog was reasoned about the same way and that
+        /// one cost a rejection — see <c>IOSBuildPostProcess.BaseLanguage</c>. English is the language a
+        /// review specialist anywhere can read, the <c>en</c> column is as complete as the <c>tr</c> one,
+        /// and a Turkish device still gets Turkish through <see cref="FromSystem"/>. Nobody loses.
         /// </summary>
-        private const string FallbackCode = "tr";
+        private const string FallbackCode = "en";
 
         /// <summary>The row whose cells hold each language's own name, for the picker.</summary>
         private const string NameKey = "_dil_adi";
@@ -153,7 +158,7 @@ namespace Game.Systems
 
         // ------------------------------------------------------------------ first run
 
-        /// <summary>Saved choice, else the device language when the game speaks it, else Turkish.</summary>
+        /// <summary>Saved choice, else the device language when the game speaks it, else English.</summary>
         private string Stored()
         {
             string saved = PlayerPrefs.GetString(PrefKey, "");
@@ -178,8 +183,9 @@ namespace Game.Systems
                 case SystemLanguage.Indonesian: return "id";
                 case SystemLanguage.Vietnamese: return "vi";
                 case SystemLanguage.English: return "en";
-                // Konuşmadığımız bir cihaz Türkçe'ye düşer, İngilizce'ye değil — bu oyunun ana dili
-                // Türkçe. Tersini isteyen tek satır: burada FallbackCode yerine "en" yaz.
+                // Konuşmadığımız bir cihaz İngilizce'ye düşer. Japon, Çinli, Arap bir oyuncunun — ve
+                // App Review uzmanının — okuyabileceği tek dil bu; Türk cihaz zaten yukarıdaki
+                // satırdan Türkçe alıyor.
                 default: return FallbackCode;
             }
         }

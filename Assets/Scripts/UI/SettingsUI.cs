@@ -49,7 +49,8 @@ namespace Game.UI
         [SerializeField] private Button privacyOptionsButton;
         [Tooltip("App Store Connect'teki sayısal Apple ID. Boşken uygulama adına göre App Store araması açılır.")]
         [SerializeField] private string iosAppStoreId = "";
-        [Tooltip("Gizlilik politikası adresi — boşken satır hiçbir şey yapmaz.")]
+        [Tooltip("Gizlilik politikası adresi — boşken satır hiçbir şey yapmaz. Dil çapasını "
+                 + "(#tr / #en) kod ekler; buraya sayfanın çıplak adresini yazın.")]
         [SerializeField] private string privacyUrl = "";
 
         [Header("Dil paneli")]
@@ -180,7 +181,22 @@ namespace Game.UI
 
         private void OnPrivacy()
         {
-            if (!string.IsNullOrEmpty(privacyUrl)) Application.OpenURL(privacyUrl);
+            if (string.IsNullOrEmpty(privacyUrl)) return;
+
+            // The policy page is published in English and Turkish and chooses between them off the
+            // URL fragment — "#tr" or "#en", read by a script on the page itself. Given no fragment
+            // it falls back to the browser's language, which is the device's.
+            //
+            // The field used to carry "#en" baked in, which is worse than carrying nothing: it beat
+            // the page's own fallback, so a Turkish player on a Turkish phone was handed the English
+            // policy with the Turkish one sitting in the same file. Sending the language the player
+            // actually chose is better than either — the game's language is a setting in here, not
+            // a property of the handset. The other nine fall to English; it is the only other
+            // language the page speaks, and the game's own fallback besides.
+            int cut = privacyUrl.IndexOf('#');
+            string page = cut >= 0 ? privacyUrl.Substring(0, cut) : privacyUrl;
+            var loc = ServiceLocator.Get<LocalizationService>();
+            Application.OpenURL(page + (loc != null && loc.Code == "tr" ? "#tr" : "#en"));
         }
 
         private void OnPrivacyOptions()

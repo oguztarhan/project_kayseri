@@ -56,6 +56,11 @@ namespace Game.Gameplay
 
         public int Count => islands != null ? islands.Length : 0;
         public int ActiveIndex => _active;
+        /// <summary>
+        /// The ladder's own label for a rung — always Turkish, and NOT the string to draw. The name the
+        /// player reads comes from the text table: <c>Loc.Id("ada", IslandKey(i))</c>. Drawing this one
+        /// put "KÖMÜR ADASI" on the offer window in every language.
+        /// </summary>
         public string IslandName(int i) => Has(i) ? islands[i].displayName : string.Empty;
         public string IslandKey(int i) => Has(i) ? islands[i].key : string.Empty;
         public string RootName(int i) => Has(i) ? islands[i].rootName : string.Empty;

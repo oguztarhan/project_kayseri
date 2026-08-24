@@ -3699,6 +3699,7 @@ MonoBehaviour:
     doneBadge: {fileID: 5636300168664358302}
     dayLabel: {fileID: 2334296681901715906}
     valueLabel: {fileID: 2655665683188390303}
+  heroDayLabel: {fileID: 6240936018796378336}
   heroValueLabel: {fileID: 2131424984684383898}
   tileLocked: {fileID: 21300000, guid: 5aa26b6b0eb44df4889890c4e3fe8980, type: 3}
   tileToday: {fileID: 21300000, guid: ea3d9c8ec52abd64583c2a02297b9249, type: 3}

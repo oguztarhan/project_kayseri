@@ -1831,7 +1831,7 @@ MonoBehaviour:
   restoreButton: {fileID: 2538542893411177590}
   privacyOptionsButton: {fileID: 0}
   iosAppStoreId: 
-  privacyUrl: https://intakeentertainment.com/privacy#en
+  privacyUrl: https://intakeentertainment.com/privacy
   languageSkin:
     Panel: {fileID: 21300000, guid: 62f429fcb3a53fd4eb3e386a96701be1, type: 3}
     Ribbon: {fileID: 21300000, guid: bd636c964d9427f4d8f42b4c0070cee4, type: 3}

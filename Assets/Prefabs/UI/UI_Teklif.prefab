@@ -140,21 +140,18 @@ MonoBehaviour:
   backdropGlow: {fileID: 4142419122980384910}
   tiers:
   - sku: teklif_kucuk
-    priceLabel: "\u20BA19,99"
     nameKey: teklif.sefer
     incomeHours: 6
     boostHours: 4
     boostMultiplier: 2
     gemAmount: 0
   - sku: teklif_orta
-    priceLabel: "\u20BA49,99"
     nameKey: teklif.vardiya
     incomeHours: 14
     boostHours: 8
     boostMultiplier: 2
     gemAmount: 150
   - sku: teklif_buyuk
-    priceLabel: "\u20BA99,99"
     nameKey: teklif.kasa
     incomeHours: 30
     boostHours: 24
@@ -234,7 +231,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u20BA19,99"
+  m_text: "\u2014"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
   m_sharedMaterial: {fileID: 2520262441863566105, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}

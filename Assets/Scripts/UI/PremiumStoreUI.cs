@@ -37,8 +37,6 @@ namespace Game.UI
             public StoreItemKind kind = StoreItemKind.GoldPackGems;
             [Tooltip("Full card sprite (gold_2500, gems_80, ...) — becomes the cell background.")]
             public Sprite icon;
-            [Tooltip("IAP fallback price. Device builds replace it with the store's localized price.")]
-            public string priceLabel = "";
             [Tooltip("IAP product id.")]
             public string sku = "";
             [Tooltip("Cash granted — GoldPackGems. Taban görevi görür: incomeMinutes daha azını " +
@@ -222,12 +220,12 @@ namespace Game.UI
             if (_iap == null || ReferenceEquals(_boundIap, _iap)) return;
             if (_boundIap != null)
             {
-                _boundIap.ProductsUpdated -= RefreshStorePrices;
+                _boundIap.ProductsUpdated -= OnProductsUpdated;
                 _boundIap.EntitlementsUpdated -= RestoreEntitlements;
                 _boundIap.UnfinishedPurchase -= CompleteUnfinishedPurchase;
             }
             _boundIap = _iap;
-            _boundIap.ProductsUpdated += RefreshStorePrices;
+            _boundIap.ProductsUpdated += OnProductsUpdated;
             _boundIap.EntitlementsUpdated += RestoreEntitlements;
             _boundIap.UnfinishedPurchase += CompleteUnfinishedPurchase;
             RestoreEntitlements(_boundIap.Entitlements);
@@ -236,7 +234,7 @@ namespace Game.UI
         private void OnDestroy()
         {
             if (_boundIap == null) return;
-            _boundIap.ProductsUpdated -= RefreshStorePrices;
+            _boundIap.ProductsUpdated -= OnProductsUpdated;
             _boundIap.EntitlementsUpdated -= RestoreEntitlements;
             _boundIap.UnfinishedPurchase -= CompleteUnfinishedPurchase;
         }
@@ -479,8 +477,8 @@ namespace Game.UI
                         }
                         else
                         {
-                            priceTxt.text = item.priceLabel;
-                            TrackIapPrice(priceTxt, item.sku, item.priceLabel);
+                            priceTxt.text = PriceUnknown;
+                            TrackIapPrice(priceTxt, item.sku, go.GetComponent<Button>());
                         }
                     }
                 }
@@ -704,28 +702,79 @@ namespace Game.UI
         private struct IapLabel
         {
             public TMP_Text label;
+            /// <summary>The card this price belongs to, when nothing else owns its interactable.</summary>
+            public Button gate;
             public string sku;
-            public string fallback;
         }
 
         private readonly List<IapLabel> _iapLabels = new List<IapLabel>();
 
-        private void TrackIapPrice(TMP_Text label, string sku, string fallback)
+        /// <summary>
+        /// What a price reads before the platform store has answered.
+        ///
+        /// Never a currency. The only currency string this game may draw is one StoreKit or Play handed
+        /// it, in the shopper's own currency at the shopper's own price point. The cards used to fall
+        /// back to the amount typed on the component — "₺19,99" — which is wrong for everyone outside
+        /// Turkey, and which an App Review specialist reads as a price that does not match the store.
+        /// </summary>
+        public const string PriceUnknown = "—";
+
+        private void TrackIapPrice(TMP_Text label, string sku, Button gate)
         {
             if (label == null || string.IsNullOrEmpty(sku)) return;
-            _iapLabels.Add(new IapLabel { label = label, sku = sku, fallback = fallback });
+            _iapLabels.Add(new IapLabel { label = label, gate = gate, sku = sku });
         }
 
-        public string LocalizedPrice(string sku, string fallback)
-            => _iap != null ? _iap.LocalizedPrice(sku, fallback) : fallback;
+        /// <summary>True once the platform has given us a real price for <paramref name="sku"/>.</summary>
+        private bool PriceKnown(string sku)
+        {
+            return _iap != null && !string.IsNullOrEmpty(_iap.LocalizedPrice(sku, null));
+        }
 
+        /// <summary>Whether real money may be taken for <paramref name="sku"/> right now.</summary>
+        private bool Sellable(string sku) => PriceKnown(sku) || CanBuyWithoutPrice;
+
+        /// <summary>
+        /// The price to draw for <paramref name="sku"/>, and whether the card showing it may be bought.
+        /// The single authority: the store's own cells, the hierarchy offer cards and the offer popup
+        /// all ask here, so no screen can invent a currency the platform did not hand us.
+        /// </summary>
+        public string PriceFor(string sku, out bool sellable)
+        {
+            string price = _iap != null ? _iap.LocalizedPrice(sku, null) : null;
+            sellable = Sellable(sku);
+            return string.IsNullOrEmpty(price) ? PriceUnknown : price;
+        }
+
+        /// <summary>
+        /// Whether a card the store has not priced may still be pressed. Only in the editor, and only
+        /// with <see cref="devFreeIAP"/> on — that is the one path that finishes a purchase without a
+        /// store (see PurchaseFlow), and gating it would leave the store untestable in play mode.
+        /// </summary>
+        private bool CanBuyWithoutPrice => devFreeIAP && Application.isEditor;
+
+        /// <summary>
+        /// Prices every card, and closes the ones the store has not priced yet.
+        ///
+        /// An unpriced card is not a card with an unknown price — it is a card the store cannot sell.
+        /// Left live, a tap on it either does nothing or charges a sum the player was never shown.
+        /// </summary>
         private void RefreshStorePrices()
         {
             for (int i = 0; i < _iapLabels.Count; i++)
             {
                 IapLabel row = _iapLabels[i];
-                if (row.label != null) row.label.text = LocalizedPrice(row.sku, row.fallback);
+                bool sellable;
+                string price = PriceFor(row.sku, out sellable);
+                if (row.label != null) row.label.text = price;
+                if (row.gate != null) row.gate.interactable = sellable;
             }
+        }
+
+        private void OnProductsUpdated()
+        {
+            RefreshStorePrices();
+            RefreshOffers();   // teklif kartlarının düğmesi Grey()'de; fiyat artık oranın ölçütlerinden
         }
 
         /// <summary>Finds the amount label authored on each hierarchy offer card. Runs once, at build.</summary>
@@ -746,8 +795,18 @@ namespace Game.UI
                             activeIslandOnly = StarterOfferState.IsStarterSku(offer.sku),
                         });
                     }
+                    else if (found[t].name == "DegerElmas" && offer.gemAmount > 0L)
+                        // Elmas sayısı da nakit gibi koddan yazılır. Prefabda "1.400" duruyordu:
+                        // Türkçe binlik ayracı, yani İngiliz bir oyuncuya "bir virgül dört". Aynı
+                        // kartın hemen üstündeki DegerAltin zaten NumberFormatter'dan geçiyor.
+                        found[t].text = NumberFormatter.Format(new BigDouble(offer.gemAmount));
                     else if (found[t].name == "Fiyat" && offer.gemPrice <= 0)
-                        TrackIapPrice(found[t], offer.sku, found[t].text);
+                    {
+                        // Prefab'daki yazı bir yer tutucu (₺99,99); ilk çizimde üzerine yazılıyor.
+                        // Kartın kendi düğmesini Grey() yönetiyor, kapı o yüzden burada null.
+                        found[t].text = PriceUnknown;
+                        TrackIapPrice(found[t], offer.sku, null);
+                    }
                 }
             }
         }
@@ -764,7 +823,7 @@ namespace Game.UI
                 ServiceLocator.Get<HapticService>()?.Medium();
                 RefreshOffers();
             }
-            else
+            else if (Sellable(item.sku))
                 PurchaseFlow(item.sku, (ok, transactionId) =>
                 {
                     if (!ok) return;
@@ -1005,7 +1064,10 @@ namespace Game.UI
                 OfferBinding o = list[i];
                 if (o == null || o.button == null) continue;
                 bool spent = Owned(o) || (o.removeAds && AdsRemoved)
-                             || (o.gemPrice > 0 && (gems < o.gemPrice || NothingToGrant(o)));
+                             || (o.gemPrice > 0 && (gems < o.gemPrice || NothingToGrant(o)))
+                             // Gerçek parayla satılan kart, mağaza fiyatı gelene kadar kapalı: üzerinde
+                             // "—" yazan bir düğmeye basılıp para çekilmesi bir iade sebebi.
+                             || (o.gemPrice <= 0 && !Sellable(o.sku));
                 o.button.interactable = !spent;
                 // The disabled tint latches when the panel opens and the state changes in the same
                 // frame; push the right colour straight away, as the other screens do.

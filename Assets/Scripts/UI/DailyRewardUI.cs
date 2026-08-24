@@ -51,6 +51,9 @@ namespace Game.UI
 
         [Header("Gün karoları (1..6) + 7. gün kartı")]
         [SerializeField] private List<DayTile> tiles = new List<DayTile>();
+        [Tooltip("7. gün kartının gün başlığı (Gun7/GunEtiketi). Karo dizisine girmiyor: o kartın "
+                 + "kendi sanatı ve yerleşimi var, karo alanlarının hiçbiri ona uymuyor.")]
+        [SerializeField] private TMP_Text heroDayLabel;
         [SerializeField] private TMP_Text heroValueLabel;
         [SerializeField] private Sprite tileLocked;    // kart_gun
         [SerializeField] private Sprite tileToday;     // kart_gun_bugun
@@ -164,6 +167,11 @@ namespace Game.UI
                 if (t.dayLabel != null) t.dayLabel.text = string.Format(Loc.T("gunluk.gun"), i + 1);
                 if (t.valueLabel != null) t.valueLabel.text = ValueText(i);
             }
+            // The seventh card is drawn apart from the six, so its day label is set apart from theirs.
+            // It carried a baked "7. GÜN" for exactly as long as nobody set it — the one Turkish line an
+            // English player met on this screen.
+            if (heroDayLabel != null)
+                heroDayLabel.text = string.Format(Loc.T("gunluk.gun"), DailyRewardService.CycleDays);
             if (heroValueLabel != null) heroValueLabel.text = ValueText(DailyRewardService.CycleDays - 1);
 
             if (claimButton != null)
