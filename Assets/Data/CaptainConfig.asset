@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 709603a8b0094480396ca11a2950ff84, type: 3}
+  m_Name: CaptainConfig
+  m_EditorClassIdentifier: Game.Data::Game.Data.CaptainConfig
+  commonPerLevel: 0.04
+  rarePerLevel: 0.06
+  epicPerLevel: 0.09
+  legendaryPerLevel: 0.13
+  mythicPerLevel: 0.18
+  bosunRiskCommon: 0.002
+  bosunRiskRare: 0.003
+  bosunRiskEpic: 0.004
+  bosunRiskLegendary: 0.005
+  bosunRiskMythic: 0.006
+  minRepairFraction: 0.25
+  duplicateBase: 2
+  duplicateStep: 2
+  commonWeight: 0.6
+  rareWeight: 0.26
+  epicWeight: 0.105
+  legendaryWeight: 0.03
+  mythicWeight: 0.005
+  epicPity: 10
+  legendaryPity: 70
+  softPityStart: 45
+  softPityStep: 0.01
+  chartCost: 100
+  bulkCount: 10
+  bulkChartCost: 900

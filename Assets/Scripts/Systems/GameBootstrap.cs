@@ -20,6 +20,14 @@ namespace Game.Systems
                  "bağlayıp Enabled'ı kapat.")]
         [SerializeField] private MaintenanceConfig maintenanceConfig;
         [SerializeField] private ForemanConfig foremanConfig;
+        [SerializeField] private VoyageConfig voyageConfig;
+        [Tooltip("Bölüm eşikleri ve ödülleri. Boş bırakılırsa varsayılanlarla ÇALIŞIR — " +
+                 "asset, sayıları yeniden derlemeden ayarlamak için, özelliği açmak için değil.")]
+        [SerializeField] private ChapterConfig chapterConfig;
+        [Tooltip("Kaptan kadrosu ve sandık oranları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
+        [SerializeField] private CaptainConfig captainConfig;
+        [Tooltip("Deniz çatışması ayarları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
+        [SerializeField] private SeaCombatConfig seaCombatConfig;
         [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
@@ -53,6 +61,10 @@ namespace Game.Systems
         public MaintenanceService Maintenance { get; private set; }
         public ForemanService Foremen { get; private set; }
         public GoalService Goals { get; private set; }
+        public VoyageService Voyages { get; private set; }
+        public ChapterService Chapters { get; private set; }
+        public CaptainService Captains { get; private set; }
+        public ExpeditionService Expeditions { get; private set; }
 
         private TimeService _time;
         private NotificationService _notifications;
@@ -209,10 +221,42 @@ namespace Game.Systems
             // the yards and the contracts because both of them report into it.
             Goals = new GoalService(Data, Wallet, Foremen, _time);
             ServiceLocator.Register(Goals);
+
+            // The spine over the island ladder. After the roster and the wallet because a beat pays
+            // gems and foreman cards, and after nothing else: chapters OBSERVE the save rather than
+            // being reported into, so no other service has to be built first — or has to know.
+            Chapters = new ChapterService(Data, Wallet, Foremen,
+                chapterConfig != null ? chapterConfig.ToTuning() : Game.Core.Chapters.Tuning.Default);
+            ServiceLocator.Register(Chapters);
             Maintenance.Goals = Goals;   // built before this, and evaluated before this on purpose
 
             Market = new MarketService(Data, Wallet, boost, Maintenance, Foremen, Goals);
             ServiceLocator.Register(Market);
+
+            // The sea roster, BEFORE the dock: a voyage settles a captain's charts and asks a bosun
+            // what the risk is, so the dock is handed one rather than looking for it later. Needs
+            // nothing but the save — charts are earned at sea and spent on crates, and neither end of
+            // that loop touches the wallet.
+            Captains = new CaptainService(Data,
+                captainConfig != null ? captainConfig.ToTuning() : Game.Core.Captains.Tuning.Default,
+                captainConfig != null ? captainConfig.ToCrateTuning() : Game.Core.CaptainCrate.Tuning.Default);
+            ServiceLocator.Register(Captains);
+
+            // The dock. After the yards because it pulls bars off their pads, and after the roster
+            // because that is who the cards it brings home belong to. It is the game's second
+            // destination for a bar — the first being the counter, which was the only one.
+            Voyages = new VoyageService(Data, Market, Foremen, Wallet, _time,
+                voyageConfig != null ? voyageConfig.ToTuning() : Game.Core.Voyages.Tuning.Default,
+                Captains);
+            ServiceLocator.Register(Voyages);
+
+            // Going out WITH a ship rather than watching a bar fill. Holds no save state of its own —
+            // standing on a deck is not progress, the voyage is, and the dock already persists all of
+            // it on the wall clock. Registered after the dock because it only ever reads from it.
+            Expeditions = new ExpeditionService(Voyages, _time, Data, Captains,
+                seaCombatConfig != null ? seaCombatConfig.ToTuning()
+                                        : Game.Core.SeaCombat.Tuning.Default);
+            ServiceLocator.Register(Expeditions);
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
@@ -291,6 +335,9 @@ namespace Game.Systems
             // Here rather than on any scene object: the yards have to keep settling while the player is
             // on an island, in the market, or watching a loading screen between the two.
             Market?.Tick(dt);
+            // Strictly after the yards: a hold pulls off the pads, and the pads have to have taken
+            // this tick's deliveries first or the dock is always one frame behind the lorries.
+            Voyages?.Tick(dt);
             // Same reason: a repair the player started before sailing away has to keep running while
             // they are somewhere else, and it is the crew's own clock that finishes it.
             Maintenance?.Tick(dt);

@@ -96,6 +96,7 @@ namespace Game.Gameplay
 
             BuildLoop(spots, ore, player);
             BuildPads(carry);
+            BuildDock(carry);
             SpawnExistingStaff();
 
             // Built shut, and the hall opens exactly one of them straight afterwards. Built running was
@@ -203,6 +204,119 @@ namespace Game.Gameplay
         }
 
         private const float CustomerHeight = 0.95f;
+
+        /// <summary>
+        /// Where the dock stands: the north-west quarter, on the one patch of floor nothing else uses.
+        ///
+        /// Deliberately NOT beside the stock pad, which is the obvious place and the wrong one — the
+        /// player crosses that slab constantly with a full back, and a dock there would load the ship
+        /// every time he walked past on his way to the counter. Going to sea has to be somewhere he
+        /// goes.
+        ///
+        /// MEASURED, not guessed. This was z 11 first, from a clearance note that read "the ramp is at
+        /// z 15" — which is the ramp's ANCHOR. Its geometry runs z 12 to 18, so a 7-deep jetty at z 11
+        /// reached z 14.5 and the moored hull stood inside the ramp. Take extents from the renderers,
+        /// never from the anchor a piece was placed by.
+        ///
+        ///   Rampa        x[-14.0, 14.0]  z[12.0, 18.0]   <- the one that bit
+        ///   Rampa_Serit                  z[11.8, 12.0]
+        ///   StokPedi     x[  1.5, 18.5]  z[-5.5,  9.5]
+        ///   pad rank     x -17.5, reaching about x -15.5
+        ///   CounterShelf                 z ~ -3
+        ///
+        /// At (-8, 4.5) the jetty occupies x[-11.5, -4.5] z[1.0, 8.0] and the hull x[-3.9, -1.7],
+        /// which clears every one of them.
+        /// </summary>
+        private static readonly Vector3 DockSpot = new Vector3(-8f, 0f, 4.5f);
+
+        /// <summary>
+        /// The mooring post, on the jetty's water edge toward the moored hull. Clear of the pad's
+        /// trigger (3.6 wide, so it reaches x 1.8) and inside the deck (7 wide, so it ends at x 3.5).
+        /// </summary>
+        private static readonly Vector3 BollardSpot = new Vector3(2.7f, 0f, 2.5f);
+
+        /// <summary>
+        /// The dock, and the second thing a bar can be. Built like every other station in here: a slab
+        /// you can see, a post that tells you something is waiting, and a trigger you stand in.
+        /// </summary>
+        private void BuildDock(CarryStack carry)
+        {
+            var voyages = ServiceLocator.Get<VoyageService>();
+            if (voyages == null) return;      // the feature is off; the yard is simply the yard
+
+            var go = new GameObject("Rihtim");
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = DockSpot;
+
+            // Authored art where it has been wired, the greybox box where it has not — the same
+            // bargain MarketPrefabs strikes everywhere else in this yard, and what keeps the dock
+            // runnable while the models are still being made.
+            Transform post, hull;
+
+            if (_prefabs != null && _prefabs.DockJetty != null)
+                Piece(go.transform, _prefabs.DockJetty, "RihtimZemini", Vector3.zero);
+            else
+                Grey(go.transform, "RihtimZemini", new Vector3(0f, 0.08f, 0f), new Vector3(7f, 0.16f, 7f));
+
+            // Off the centre of the pad, at the water edge where a mooring post actually belongs. It
+            // was at (0,0,0), which is also the middle of the trigger the player stands in — so every
+            // time he used the dock he was standing inside the post, and the one piece that signals a
+            // ship is home was the one piece hidden behind his body.
+            post = _prefabs != null && _prefabs.DockBollard != null
+                ? Piece(go.transform, _prefabs.DockBollard, "RihtimIsareti", BollardSpot)
+                : Grey(go.transform, "RihtimIsareti", BollardSpot + new Vector3(0f, 1.5f, 0f),
+                       new Vector3(0.6f, 3f, 0.6f));
+
+            // Sized like an upgrade pad's: the player's capsule adds 1.14 of radius, so this reaches
+            // about the edge of the slab and no further. See the note on Pad().
+            var box = go.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.center = new Vector3(0f, 1.5f, 0f);
+            box.size = new Vector3(3.6f, 3f, 3.6f);
+
+            // The hull, alongside. Docs/VOYAGES.md §9 put this in the island's harbour, where
+            // CoalOperation already berths a contract ship — but the player is standing HERE when he
+            // loads her, and the island is a different scene entirely. A ship that is only absent
+            // somewhere the player is not is a signal nobody receives. It also keeps the change out of
+            // CoalOperation, which hard-disables its whole island if a landmark name is missed.
+            //
+            // 5.2 out: half the jetty (3.5) plus half her beam (1.1) plus a channel of open floor, so
+            // she lies alongside rather than through the deck. The greybox box kept its old 4.6, which
+            // is where the two overlapped and why the authored one had to move.
+            hull = _prefabs != null && _prefabs.DockLaunch != null
+                ? Piece(go.transform, _prefabs.DockLaunch, "Tekne", new Vector3(5.2f, -0.18f, 0f))
+                : Grey(go.transform, "Tekne", new Vector3(4.6f, 0.7f, 0f), new Vector3(2.2f, 1.4f, 6.4f));
+
+            var dock = go.AddComponent<DockPad>();
+            dock.Configure(voyages, IslandKey, carry, post, hull);
+        }
+
+        /// <summary>
+        /// Drops an authored model in as a child, stripped of colliders. The dock's own trigger is the
+        /// whole interaction, and a mesh collider on a moored boat is something to walk into.
+        /// </summary>
+        private static Transform Piece(Transform parent, GameObject prefab, string name, Vector3 at)
+        {
+            GameObject go = Instantiate(prefab, parent, false);
+            go.name = name;
+            go.transform.localPosition = at;
+            go.transform.localRotation = Quaternion.identity;
+            var hits = go.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < hits.Length; i++) Destroy(hits[i]);
+            return go.transform;
+        }
+
+        /// <summary>The greybox stand-in for a dock piece nobody has wired art into yet.</summary>
+        private static Transform Grey(Transform parent, string name, Vector3 at, Vector3 size)
+        {
+            GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = at;
+            go.transform.localScale = size;
+            return go.transform;
+        }
 
         /// <summary>
         /// The floor pads: one rank of six down the west wall, three either side of the doorway in it,

@@ -214,3 +214,31 @@ Companion to [GDD.md](GDD.md) and [PLAN.md](PLAN.md). Every 3D asset the game ne
 - **M2 · Gem-tier Ore Pile** — the storage/wagon heap currently reuses the grey rock `SM_Ore_Pile*` for every tier; a **faceted crystal heap** version (tintable) would make Ruby/Emerald/Sapphire/Diamond mountains read as gems. **Prompt:** *"a low-poly heap of small faceted gem crystals (like a pile of cut-gem shards), one tintable material so it recolours per gem tier; sized to sit in a wagon or storage bin."* (<220 tris, pivot base-centre.)
 - **M3 · Parallel-lane road/rail decals** — when the player buys "+1 Road"/"+1 Rail Line" the extra lane is currently just an offset with no ground art. A **2-lane road** and a **double-track rail** variant of the E-kit would make the widened lanes look intentional. **Prompt:** *"modular 2-unit segments: (a) a wider two-lane dirt road, (b) a double-track railway (two parallel tracks on one shared gravel bed); match the existing single road/rail kit; origin at segment centre."* (<160 tris each.)
 - **M4 · Per-mine mini-train (optional)** — the six unlockable mountains feed storage directly (no train yet). A **smaller ore cart / mine locomotive** could visualise each new mountain's haul without crowding the map. **Prompt:** *"a small low-poly mine cart + tiny pusher loco, ~1.5 u long, chunky wheels, an open ore bed; cuter/smaller than the main line's engine."* (<400 tris, pivot centre-bottom.)
+
+---
+
+## H · Harbour dock *(market yard — Voyages, Docs/VOYAGES.md §20)*
+
+Built 2026-08-26. Source script: `Tools/blender/dock.py`. Exported `.fbx` to `Assets/Art/Models/`,
+wired into `MarketPrefabs` on Market.unity's boot object. Every slot is optional — an empty one falls
+back to the greybox box, the same bargain the rest of `MarketPrefabs` strikes.
+
+### H1 · `SM_Harbor_Jetty` — 240 tris, 7×7×0.5, pivot base-centre
+**Look:** a plank deck over a dark base, the gaps showing through as grooves; light cross-boards
+trimming both ends; a steel kerb along the water edge.
+**Note:** the first pass alternated two wood tones across nine wide boards and read as deck-chair
+stripes rather than a deck. Many thin boards in **one** tone over a dark base is what reads as
+planking at this scale.
+
+### H2 · `SM_Harbor_Bollard` — 72 tris, 0.62×0.62×2.92, pivot base-centre
+**Look:** a mooring post with a steel rope collar and a warm gold lantern on top.
+**Note:** the lantern is the only bright material in the set on purpose — `DockPad` bobs this piece
+when a ship is home, and it is what the player reads from across the yard without a HUD.
+
+### H3 · `SM_Harbor_Launch` — 164 tris, 2.20×2.70×6.53, pivot centre-bottom, bow −Y
+**Look:** a chunky cargo launch: lofted hull, pointed stem, **open hold**, wheelhouse and funnel aft,
+mast with a lamp matching the bollard's.
+**Note:** the hold is open by construction, the way ASSETS.md leaves the hopper wagon open — the one
+thing this mesh has to say is "there is a hold here and it is empty". Two earlier passes tapered a
+primitive cube in bmesh and both collapsed at the bow, reading as detached flat panels from the game
+camera. It is lofted from a plan outline instead, so every face is well-formed.

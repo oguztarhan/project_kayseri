@@ -65,6 +65,7 @@ namespace Game.UI
 
         private MarketService _market;
         private MarketHudUI _hud;
+        private VoyageUI _dock;
         private Transform _player;
         private CarryStack _carry;
         private Transform _playerBody;
@@ -109,6 +110,16 @@ namespace Game.UI
             _hud = new GameObject("MarketHud").AddComponent<MarketHudUI>();
             _hud.transform.SetParent(transform, false);
             _hud.Build(player, _market, _yardKey, arrival != null ? arrival.Pads : null, Leave);
+
+            // The dock, on its own canvas above the HUD. Its own canvas rather than a fifth card on
+            // MarketHudUI: the yard HUD's layout is right, and this feature has not been played yet.
+            var voyages = ServiceLocator.Get<VoyageService>();
+            if (voyages != null)
+            {
+                _dock = new GameObject("SeferPaneli").AddComponent<VoyageUI>();
+                _dock.transform.SetParent(transform, false);
+                _dock.Build(voyages, _market, _yardKey);
+            }
 
             // Price tags on every pad in the hall, not just this yard's. They used to be readable
             // through the doorway, which was the reason for doing all of them at once; now a shut yard's
@@ -305,6 +316,7 @@ namespace Game.UI
                 if (live && _carry != null && i < _tints.Count) _carry.SetMaterial(_tints[i]);
             }
             if (_hud != null) _hud.SetYard(_yardKey, yard.Pads);
+            if (_dock != null) _dock.SetYard(_yardKey);
         }
 
         /// <summary>Every pad in the hall, flattened — the label layer draws them all at once.</summary>

@@ -69,23 +69,33 @@ namespace Game.UI
         /// Returns true if the curtain took the job. False means one is already up, and that is the answer
         /// to a double tap: the caller has nothing left to do.
         /// </summary>
-        public static bool Cover(string sceneName, Color accent, string caption)
+        /// <param name="parkCurrent">
+        /// Whether the scene being left may be PARKED rather than unloaded. True is the shipped
+        /// behaviour and only ever applies on the way into the market, which is the one swap where
+        /// what is being left (Main) is expensive to rebuild.
+        ///
+        /// The sea passes false on its way back. The market is small and built in code, so rebuilding
+        /// it costs almost nothing — and parking the sea under it would leave a whole scene resident
+        /// behind a screen the player has walked away from, which is the opposite of what parking is
+        /// for.
+        /// </param>
+        public static bool Cover(string sceneName, Color accent, string caption, bool parkCurrent = true)
         {
             if (string.IsNullOrEmpty(sceneName) || _live != null) return false;
             var go = new GameObject("SahneOrtusu");
             _live = go.AddComponent<SceneCurtain>();
-            _live.Begin(sceneName, accent, caption);
+            _live.Begin(sceneName, accent, caption, parkCurrent);
             return true;
         }
 
         /// <summary>True while a swap is in flight, for anything that has to stop doing its job.</summary>
         public static bool Busy => _live != null;
 
-        private void Begin(string sceneName, Color accent, string caption)
+        private void Begin(string sceneName, Color accent, string caption, bool parkCurrent)
         {
             DontDestroyOnLoad(gameObject);
             Build(accent, caption);
-            StartCoroutine(Run(sceneName));
+            StartCoroutine(Run(sceneName, parkCurrent));
         }
 
         private void Build(Color accent, string caption)
@@ -191,7 +201,7 @@ namespace Game.UI
         /// Unscaled time throughout: a swap has to work from a paused game, and the market pauses nothing
         /// but the island's popups do.
         /// </summary>
-        private IEnumerator Run(string sceneName)
+        private IEnumerator Run(string sceneName, bool parkCurrent)
         {
             float curtainShownAt = Time.unscaledTime;
             // Paint the curtain before asking Unity to read anything. Starting LoadSceneAsync in the
@@ -216,7 +226,7 @@ namespace Game.UI
             if (restoringParkedIsland)
                 yield return RestoreParkedIsland();
             else
-                yield return LoadScene(sceneName, sceneName == MarketScene);
+                yield return LoadScene(sceneName, parkCurrent && sceneName == MarketScene);
 
             Application.backgroundLoadingPriority = previousPriority;
 

@@ -162,6 +162,9 @@ MonoBehaviour:
     bar: {fileID: 919132149155446097, guid: d4fd05922971a4f01b5cf5ce50cd3416, type: 3}
     cash: {fileID: 919132149155446097, guid: b85e11ee940ef4e9e81af81f32a8c87e, type: 3}
     personScale: 1.75
+    dockJetty: {fileID: 919132149155446097, guid: 6a879f3b3a48945cd9df9a21e35c60a8, type: 3}
+    dockBollard: {fileID: 919132149155446097, guid: 8d4a692391fcf488280c3aafb4f93dd0, type: 3}
+    dockLaunch: {fileID: 919132149155446097, guid: 392e40ffe39974814a812196154180f9, type: 3}
   bodyRadius: 0.65
   bodyHeight: 2.1
   signFontSize: 7.5

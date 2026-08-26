@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 499f0cc48a378472b81fdb593d796585, type: 3}
+  m_Name: SeaCombatConfig
+  m_EditorClassIdentifier: Game.Data::Game.Data.SeaCombatConfig
+  energyMax: 30
+  energyRegenSeconds: 300
+  searchSeconds: 0.9
+  approachSeconds: 1.2
+  turnAimSeconds: 0.55
+  turnFlightSeconds: 0.45
+  playerShotBase: 18
+  shotPerCrewLevel: 0.06
+  gunnerFightBonus: 2
+  baseNerve: 100
+  nervePerCrewLevel: 8
+  enemyShotScale: 3.4
+  critMult: 2
+  burnTurns: 3
+  burnFrac: 0.06
+  roleSecFactor: 0.12
+  raiderCrit: 0.22
+  beastStun: 0.25
+  fireshipBurn: 0.4
+  ghostDodge: 0.3
+  ghostMend: 0.03
+  broadsideMult: 2.2
+  broadsideCdTurns: 3
+  braceFactor: 0.35
+  braceCdTurns: 3
+  hookCdTurns: 4
+  encounterChartShare: 0.12
+  encounterSalvageShare: 0.12
+  dropCommon: 0.52
+  dropRare: 0.27
+  dropEpic: 0.13
+  dropLegendary: 0.06
+  dropMythic: 0.02
+  dropTierBonus: 0.35
+  dropLuckBonus: 0.04
+  powerHullWeight: 0.55
+  powerShotWeight: 3.2
+  powerSecWeight: 0.9
+  dangerRatio: 1.15
+  easyRatio: 0.7

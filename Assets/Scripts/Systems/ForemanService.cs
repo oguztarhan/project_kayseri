@@ -210,5 +210,41 @@ namespace Game.Systems
             GrantDuplicates(pick, count);
             return pick;
         }
+
+        /// <summary>
+        /// Award cards to the hired foreman who is FURTHEST BEHIND — lowest level, then fewest
+        /// duplicates, then lowest slot. This is what a purser aboard a voyage buys
+        /// (<see cref="Game.Core.Captains.Purser"/>): the same cards, aimed instead of scattered.
+        ///
+        /// Aimed at the one furthest behind rather than at one the player nominates, because a
+        /// nomination is a screen, a saved choice and a thing to forget to change, and the answer it
+        /// would nearly always be set to is this one. Ninety duplicates per foreman is a long enough
+        /// road that a card landing where it is shortest is worth as much as an extra card, and it
+        /// costs the balance nothing at all — the count is unchanged.
+        ///
+        /// Falls back to <see cref="GrantRandomDuplicates"/> before anyone is hired, for the reason
+        /// that method already gives: cards for a foreman nobody has hired read as nothing.
+        /// </summary>
+        public int GrantDirectedDuplicates(int count)
+        {
+            if (_data == null || count <= 0) return -1;
+            if (HiredCount <= 0) return GrantRandomDuplicates(count);
+
+            int pick = -1;
+            for (int s = 0; s < Foremen.Count; s++)
+            {
+                if (_data.foremanLevels[s] <= Foremen.NotHired) continue;
+                if (pick < 0) { pick = s; continue; }
+
+                if (_data.foremanLevels[s] < _data.foremanLevels[pick]
+                    || (_data.foremanLevels[s] == _data.foremanLevels[pick]
+                        && _data.foremanDuplicates[s] < _data.foremanDuplicates[pick]))
+                    pick = s;
+            }
+
+            if (pick < 0) return GrantRandomDuplicates(count);
+            GrantDuplicates(pick, count);
+            return pick;
+        }
     }
 }

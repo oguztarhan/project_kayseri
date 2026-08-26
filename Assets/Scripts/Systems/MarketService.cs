@@ -227,6 +227,29 @@ namespace Game.Systems
             if (overflow > 0d) y.overflowedThisTick = true;
         }
 
+        /// <summary>
+        /// Bars going back onto the pads that were never a delivery — a voyage the player abandoned at
+        /// the dock before it sailed.
+        ///
+        /// Deliberately NOT <see cref="Deliver"/>, which is the one thing that would look right here.
+        /// Deliver feeds the delivery meter, and that meter is the ONLY thing the next launch's offline
+        /// grant is computed from — so refunding through it would bank the same bars as income twice
+        /// and leave the saved rate reading high for a minute afterwards. A refund is a correction to
+        /// the pads, not a lorry arriving.
+        ///
+        /// Overflow is dropped. The pads have a size and the player chose to put these back; a refund
+        /// is not a reason to let a yard hold more than it can.
+        /// </summary>
+        public void ReturnToStock(string islandKey, double bars)
+        {
+            if (bars <= 0d || string.IsNullOrEmpty(islandKey)) return;
+            Yard y = Get(islandKey);
+            double capacity = MarketFlow.StockCapacity(SupplyPerSecond(y), y.save.depositSlots);
+            if (capacity <= 0d) { y.save.stock += bars; return; }
+            double overflow;
+            y.save.stock = MarketFlow.AddStock(y.save.stock, bars, capacity, out overflow);
+        }
+
         // ------------------------------------------------------------------ reading
         /// <summary>What an island earns per minute right now — the figure the top bar and the map show.</summary>
         public double RatePerMin(string islandKey)

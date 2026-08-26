@@ -446,6 +446,7 @@ MonoBehaviour:
   offlineConfig: {fileID: 11400000, guid: dc74bd4795524e34ea87d583cc982a4b, type: 2}
   maintenanceConfig: {fileID: 0}
   foremanConfig: {fileID: 11400000, guid: 964ec14f0f8fc4d1c9369292300b4503, type: 2}
+  voyageConfig: {fileID: 11400000, guid: c0742c772ab5843d7857b93153aaa136, type: 2}
   contractConfig: {fileID: 11400000, guid: 786d965aa072ec7408e2e2092c56fc3e, type: 2}
   qualityConfig: {fileID: 11400000, guid: efcbe199e112c0f4698f74cd8d89063a, type: 2}
   audioConfig: {fileID: 11400000, guid: 91d15cd85764725469814094f92f7627, type: 2}

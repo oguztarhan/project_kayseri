@@ -389,3 +389,161 @@ gorev.metrik.ada	Ada satın al	Buy islands	Inseln kaufen	Acheter des îles	Compr
 gorev.metrik.ustabasi	Ustabaşı seviyesi	Foreman levels	Vorarbeiter-Stufen	Niveaux de contremaître	Niveles de capataz	Níveis de contramestre	Livelli capisquadra	Poziomy brygadzisty	Уровни бригадира	Level mandor	Cấp quản đốc
 # ios — oyunda gosterilmez, iOS derlemesinde InfoPlist.strings dosyalarina yazilir
 ios.att_izin	Reklamların sana daha uygun olması için kullanılır. İzin vermezsen reklamlar yine gösterilir.	Used to make the ads you see more relevant. If you decline, you will still see ads.	Wird verwendet, um dir passendere Werbung zu zeigen. Wenn du ablehnst, siehst du trotzdem Werbung.	Sert à vous proposer des publicités plus pertinentes. Si vous refusez, vous verrez quand même des publicités.	Se usa para mostrarte anuncios más relevantes. Si no lo permites, seguirás viendo anuncios.	Usado para mostrar anúncios mais relevantes para você. Se você não permitir, continuará vendo anúncios.	Serve a mostrarti annunci più pertinenti. Se non dai il consenso, continuerai comunque a vedere annunci.	Służy do wyświetlania trafniejszych reklam. Jeśli nie wyrazisz zgody, reklamy nadal będą wyświetlane.	Используется, чтобы показывать более подходящую рекламу. Если вы откажетесь, реклама всё равно будет показываться.	Digunakan agar iklan yang kamu lihat lebih relevan. Jika kamu tidak mengizinkan, iklan tetap ditampilkan.	Dùng để hiển thị quảng cáo phù hợp hơn với bạn. Nếu bạn từ chối, quảng cáo vẫn sẽ xuất hiện.
+sefer.baslik	SEFERLER	VOYAGES	FAHRTEN	EXPÉDITIONS	EXPEDICIONES	EXPEDIÇÕES	SPEDIZIONI	REJSY	РЕЙСЫ	PELAYARAN	CHUYẾN TÀU
+sefer.bos	RIHTIM BOŞ	BERTH EMPTY	LIEGEPLATZ FREI	QUAI LIBRE	AMARRE LIBRE	ATRACADOURO LIVRE	ORMEGGIO LIBERO	WOLNE NABRZEŻE	ПРИЧАЛ СВОБОДЕН	DERMAGA KOSONG	BẾN TRỐNG
+sefer.ac	SEFER AÇ	START VOYAGE	FAHRT STARTEN	LANCER	ABRIR EXPEDICIÓN	ABRIR EXPEDIÇÃO	AVVIA SPEDIZIONE	ROZPOCZNIJ REJS	НАЧАТЬ РЕЙС	MULAI PELAYARAN	MỞ CHUYẾN
+sefer.yukleniyor	YÜKLENİYOR	LOADING	WIRD BELADEN	CHARGEMENT	CARGANDO	CARREGANDO	IN CARICO	ŁADOWANIE	ЗАГРУЗКА	MEMUAT	ĐANG XẾP HÀNG
+sefer.yolaCik	YOLA ÇIK	SET SAIL	AUSLAUFEN	APPAREILLER	ZARPAR	ZARPAR	SALPA	WYPŁYŃ	ОТПЛЫТЬ	BERLAYAR	NHỔ NEO
+sefer.vazgec	VAZGEÇ	UNLOAD	ABBRECHEN	ANNULER	CANCELAR	CANCELAR	ANNULLA	ANULUJ	ОТМЕНИТЬ	BATALKAN	HỦY
+sefer.denizde	DENİZDE	AT SEA	AUF SEE	EN MER	EN EL MAR	NO MAR	IN MARE	NA MORZU	В МОРЕ	DI LAUT	NGOÀI KHƠI
+sefer.bekle	BEKLENİYOR	EN ROUTE	UNTERWEGS	EN ROUTE	EN CAMINO	A CAMINHO	IN VIAGGIO	W DRODZE	В ПУТИ	DALAM PERJALANAN	ĐANG ĐI
+sefer.dondu	GEMİ DÖNDÜ	SHIP RETURNED	SCHIFF ZURÜCK	NAVIRE RENTRÉ	BARCO DE VUELTA	NAVIO VOLTOU	NAVE RIENTRATA	STATEK WRÓCIŁ	КОРАБЛЬ ВЕРНУЛСЯ	KAPAL KEMBALI	TÀU ĐÃ VỀ
+sefer.topla	TOPLA	COLLECT	EINSAMMELN	RÉCUPÉRER	RECOGER	COLETAR	RITIRA	ODBIERZ	ЗАБРАТЬ	AMBIL	NHẬN
+sefer.kart	KART	CARDS	KARTEN	CARTES	CARTAS	CARTAS	CARTE	KARTY	КАРТ	KARTU	THẺ
+sefer.yuk	YÜK	CARGO	LADUNG	CARGAISON	CARGA	CARGA	CARICO	ŁADUNEK	ГРУЗ	MUATAN	HÀNG
+sefer.stoksuz	BU AVLU HENÜZ MAL SEVK ETMEDİ	THIS YARD HAS SHIPPED NOTHING YET	DIESER HOF HAT NOCH NICHTS VERSCHIFFT	CE DÉPÔT N’A RIEN EXPÉDIÉ	ESTE PATIO NO HA ENVIADO NADA	ESTE PÁTIO AINDA NÃO ENVIOU NADA	QUESTO PIAZZALE NON HA ANCORA SPEDITO	TEN SKŁAD NIC JESZCZE NIE WYSŁAŁ	ЭТОТ ДВОР ЕЩЁ НИЧЕГО НЕ ОТГРУЗИЛ	GUDANG INI BELUM MENGIRIM APA PUN	KHO NÀY CHƯA XUẤT HÀNG
+sefer.hazir	SEFER HAZIR	VOYAGE READY	FAHRT BEREIT	EXPÉDITION PRÊTE	EXPEDICIÓN LISTA	EXPEDIÇÃO PRONTA	SPEDIZIONE PRONTA	REJS GOTOWY	РЕЙС ГОТОВ	PELAYARAN SIAP	CHUYẾN SẴN SÀNG
+sefer.rota0	KIYI SEFERİ	COASTAL RUN	KÜSTENFAHRT	CABOTAGE	RUTA COSTERA	ROTA COSTEIRA	ROTTA COSTIERA	REJS PRZYBRZEŻNY	КАБОТАЖ	RUTE PANTAI	TUYẾN VEN BỜ
+sefer.rota1	AÇIK SU	OPEN WATER	OFFENES MEER	HAUTE MER	MAR ABIERTO	MAR ABERTO	MARE APERTO	OTWARTE WODY	ОТКРЫТОЕ МОРЕ	LAUT LEPAS	VÙNG BIỂN MỞ
+sefer.rota2	DERİN DENİZ	DEEP SEA	TIEFSEE	HAUTE PROFONDEUR	MAR PROFUNDO	MAR PROFUNDO	MARE PROFONDO	GŁĘBIA	ГЛУБОКОЕ МОРЕ	LAUT DALAM	BIỂN SÂU
+sefer.rota3	UZAK DİYAR	THE FAR REACH	DIE FERNE	LE GRAND LARGE	EL CONFÍN	O CONFIM	L’ESTREMO	DALEKI KRES	ДАЛЬНИЙ ПРЕДЕЛ	BATAS JAUH	MIỀN XA
+sefer.risk	RİSK	RISK	RISIKO	RISQUE	RIESGO	RISCO	RISCHIO	RYZYKO	РИСК	RISIKO	RỦI RO
+sefer.formen	FORMEN	FOREMAN	VORARBEITER	CONTREMAÎTRE	CAPATAZ	ENCARREGADO	CAPOSQUADRA	BRYGADZISTA	БРИГАДИР	MANDOR	QUẢN ĐỐC
+sefer.kimseYok	YOK	NONE	KEINER	AUCUN	NINGUNO	NENHUM	NESSUNO	BRAK	НЕТ	TIDAK ADA	KHÔNG
+sefer.hasarli	GEMİ ONARILIYOR	SHIP UNDER REPAIR	SCHIFF IN REPARATUR	NAVIRE EN RÉPARATION	BARCO EN REPARACIÓN	NAVIO EM REPARO	NAVE IN RIPARAZIONE	STATEK W NAPRAWIE	КОРАБЛЬ В РЕМОНТЕ	KAPAL DIPERBAIKI	TÀU ĐANG SỬA
+sefer.tamir	ONARIMDA	REPAIRING	REPARATUR	EN RÉPARATION	REPARANDO	EM REPARO	IN RIPARAZIONE	W NAPRAWIE	В РЕМОНТЕ	DIPERBAIKI	ĐANG SỬA
+sefer.basarisiz	SEFER AKSADI	VOYAGE CAME UP SHORT	FAHRT MISSGLÜCKT	EXPÉDITION ÉCOURTÉE	EXPEDICIÓN FALLIDA	EXPEDIÇÃO FALHOU	SPEDIZIONE FALLITA	REJS SIĘ NIE UDAŁ	РЕЙС СОРВАЛСЯ	PELAYARAN GAGAL	CHUYẾN THẤT BẠI
+sefer.kilitli	KİLİTLİ	LOCKED	GESPERRT	VERROUILLÉ	BLOQUEADO	BLOQUEADO	BLOCCATO	ZABLOKOWANE	ЗАКРЫТО	TERKUNCI	ĐÃ KHÓA
+sefer.tersane	TERSANE	SHIPYARD	WERFT	CHANTIER	ASTILLERO	ESTALEIRO	CANTIERE	STOCZNIA	ВЕРФЬ	GALANGAN	XƯỞNG TÀU
+sefer.hurda	HURDA	SALVAGE	BERGEGUT	RÉCUP	CHATARRA	SUCATA	RECUPERO	ZŁOM	УТИЛЬ	BESI TUA	PHẾ LIỆU
+sefer.elmas	ELMAS	GEMS	EDELSTEINE	GEMMES	GEMAS	GEMAS	GEMME	KLEJNOTY	КРИСТАЛЛЫ	PERMATA	NGỌC
+sefer.ambar	AMBAR	HOLD	LADERAUM	CALE	BODEGA	PORÃO	STIVA	ŁADOWNIA	ТРЮМ	PALKA	KHOANG
+sefer.hiz	HIZ	SPEED	TEMPO	VITESSE	VELOCIDAD	VELOCIDADE	VELOCITÀ	PRĘDKOŚĆ	СКОРОСТЬ	KECEPATAN	TỐC ĐỘ
+sefer.murettebat	MÜRETTEBAT	CREW	BESATZUNG	ÉQUIPAGE	TRIPULACIÓN	TRIPULAÇÃO	EQUIPAGGIO	ZAŁOGA	ЭКИПАЖ	AWAK	THỦY THỦ
+sefer.rihtim	RIHTIM	BERTHS	LIEGEPLÄTZE	POSTES	AMARRES	ATRACADOUROS	ORMEGGI	NABRZEŻA	ПРИЧАЛЫ	DERMAGA	BẾN
+sefer.azami	AZAMİ	MAXED	MAXIMAL	AU MAX	AL MÁXIMO	NO MÁXIMO	AL MASSIMO	MAKSIMUM	МАКСИМУМ	MAKSIMAL	TỐI ĐA
+sefer.simdiBitir	REKLAM İZLE · HEMEN GETİR	WATCH AD · BRING HER IN	WERBUNG · SOFORT EINLAUFEN	PUB · RENTRER MAINTENANT	VER ANUNCIO · TRAER YA	VER ANÚNCIO · TRAZER JÁ	GUARDA ANNUNCIO · RIENTRA	OBEJRZYJ · SPROWADŹ	РЕКЛАМА · ВЕРНУТЬ	TONTON IKLAN · PULANGKAN	XEM QUẢNG CÁO · GỌI VỀ
+sefer.hemenOnar	HEMEN ONAR	REPAIR NOW	SOFORT REPARIEREN	RÉPARER	REPARAR YA	REPARAR JÁ	RIPARA ORA	NAPRAW TERAZ	ПОЧИНИТЬ	PERBAIKI	SỬA NGAY
+# bolumler -- ada merdiveninin uzerindeki omurga (ChapterUI / Game.Core.Chapters)
+bolum.baslik	BÖLÜMLER	CHAPTERS	KAPITEL	CHAPITRES	CAPÍTULOS	CAPÍTULOS	CAPITOLI	ROZDZIAŁY	ГЛАВЫ	BAB	CHƯƠNG
+bolum.bolum	Bölüm	Chapter	Kapitel	Chapitre	Capítulo	Capítulo	Capitolo	Rozdział	Глава	Bab	Chương
+bolum.tamamlandi	BÖLÜM TAMAMLANDI	CHAPTER COMPLETE	KAPITEL ABGESCHLOSSEN	CHAPITRE TERMINÉ	CAPÍTULO COMPLETADO	CAPÍTULO COMPLETO	CAPITOLO COMPLETATO	ROZDZIAŁ UKOŃCZONY	ГЛАВА ЗАВЕРШЕНА	BAB SELESAI	HOÀN THÀNH CHƯƠNG
+bolum.kilitli	Bu ada henüz senin değil	You do not own this island yet	Diese Insel gehört dir noch nicht	Cette île ne vous appartient pas encore	Todavía no es tu isla	Esta ilha ainda não é sua	Quest'isola non è ancora tua	Ta wyspa nie jest jeszcze twoja	Этот остров ещё не ваш	Pulau ini belum jadi milikmu	Bạn chưa sở hữu đảo này
+bolum.hepsiniAl	HEPSİNİ AL	CLAIM ALL	ALLES ABHOLEN	TOUT RÉCLAMER	RECLAMAR TODO	RESGATAR TUDO	RISCUOTI TUTTO	ODBIERZ WSZYSTKO	ЗАБРАТЬ ВСЁ	AMBIL SEMUA	NHẬN TẤT CẢ
+bolum.sonraki	Sıradaki ada	Next island	Nächste Insel	Île suivante	Siguiente isla	Próxima ilha	Isola successiva	Następna wyspa	Следующий остров	Pulau berikutnya	Đảo tiếp theo
+bolum.asama.0	KARAYA ÇIKIŞ	LANDFALL	ANLANDUNG	DÉBARQUEMENT	DESEMBARCO	DESEMBARQUE	APPRODO	LĄDOWANIE	ВЫСАДКА	PENDARATAN	CẬP BỜ
+bolum.asama.1	İLK DUMAN	FIRST SMOKE	ERSTER RAUCH	PREMIÈRE FUMÉE	PRIMER HUMO	PRIMEIRA FUMAÇA	PRIMO FUMO	PIERWSZY DYM	ПЕРВЫЙ ДЫМ	ASAP PERTAMA	LÀN KHÓI ĐẦU
+bolum.asama.2	TESİSLER	THE WORKS	DIE ANLAGEN	LES INSTALLATIONS	LAS INSTALACIONES	AS INSTALAÇÕES	GLI IMPIANTI	ZAKŁADY	ПОСТРОЙКИ	FASILITAS	CÔNG TRÌNH
+bolum.asama.3	AVLU	THE YARD	DER HOF	LA COUR	EL PATIO	O PÁTIO	IL CORTILE	PLAC	ДВОР	HALAMAN	SÂN HÀNG
+bolum.asama.4	TAM YOL	FULL STEAM	VOLLDAMPF	PLEINE VAPEUR	A TODO VAPOR	A TODO VAPOR	A TUTTO VAPORE	CAŁA NAPRZÓD	ПОЛНЫЙ ХОД	UAP PENUH	HẾT TỐC LỰC
+bolum.asama.0.not	Adayı satın al	Buy the island	Kaufe die Insel	Achetez l'île	Compra la isla	Compre a ilha	Compra l'isola	Kup wyspę	Купите остров	Beli pulau	Mua đảo
+bolum.asama.1.not	{0} yükseltme seviyesi al	Buy {0} upgrade levels	Kaufe {0} Upgrade-Stufen	Achetez {0} niveaux d'amélioration	Compra {0} niveles de mejora	Compre {0} níveis de melhoria	Compra {0} livelli di potenziamento	Kup {0} poziomów ulepszeń	Купите {0} уровней улучшений	Beli {0} level peningkatan	Mua {0} cấp nâng cấp
+bolum.asama.2.not	{0} tesis kur	Raise {0} buildings	Errichte {0} Gebäude	Construisez {0} bâtiments	Levanta {0} edificios	Erga {0} edifícios	Costruisci {0} edifici	Postaw {0} budynków	Постройте {0} зданий	Dirikan {0} bangunan	Dựng {0} công trình
+bolum.asama.3.not	Avludaki üç işi de sonuna kadar doldur	Staff every job in the yard	Besetze jede Arbeit im Hof	Pourvoyez chaque poste de la cour	Cubre todos los puestos del patio	Preencha todos os postos do pátio	Assegna tutti i ruoli del cortile	Obsadź każde stanowisko na placu	Наймите работников на все посты двора	Isi semua pekerjaan di halaman	Thuê đủ mọi vị trí trong sân
+bolum.asama.4.not	{0} seviye ve {1} tesis	{0} levels and {1} buildings	{0} Stufen und {1} Gebäude	{0} niveaux et {1} bâtiments	{0} niveles y {1} edificios	{0} níveis e {1} edifícios	{0} livelli e {1} edifici	{0} poziomów i {1} budynków	{0} уровней и {1} зданий	{0} level dan {1} bangunan	{0} cấp và {1} công trình
+bolum.hikaye.coal	Her şey burada başlıyor. Tek damar, tek hat, tek tezgâh.	Everything starts here. One seam, one line, one counter.	Alles beginnt hier. Ein Flöz, eine Strecke, ein Tresen.	Tout commence ici. Un filon, une ligne, un comptoir.	Todo empieza aquí. Una veta, una línea, un mostrador.	Tudo começa aqui. Um veio, uma linha, um balcão.	Tutto comincia qui. Un filone, una linea, un bancone.	Wszystko zaczyna się tutaj. Jedno złoże, jedna linia, jedna lada.	Всё начинается здесь. Один пласт, одна линия, один прилавок.	Semua bermula di sini. Satu urat, satu jalur, satu meja.	Mọi thứ bắt đầu ở đây. Một vỉa, một tuyến, một quầy.
+bolum.hikaye.copper	Kendi seçtiğin ilk ada. Bakır, geri kalanını bulacak gemilerin parasını öder.	The first island you chose. Copper pays for the ships that find the rest.	Die erste Insel, die du gewählt hast. Kupfer bezahlt die Schiffe, die den Rest finden.	La première île que vous avez choisie. Le cuivre paie les navires qui trouveront le reste.	La primera isla que elegiste. El cobre paga los barcos que hallarán el resto.	A primeira ilha que você escolheu. O cobre paga os navios que acharão o resto.	La prima isola che hai scelto. Il rame paga le navi che troveranno il resto.	Pierwsza wyspa, którą wybrałeś. Miedź płaci za statki, które znajdą resztę.	Первый остров, выбранный вами. Медь оплачивает корабли, что найдут остальные.	Pulau pertama pilihanmu. Tembaga membiayai kapal yang mencari sisanya.	Hòn đảo đầu tiên bạn chọn. Đồng trả tiền cho những con tàu tìm ra phần còn lại.
+bolum.hikaye.iron	Vinçler demirden yapılır. Burayı kur, sonraki her şey ucuzlar.	Iron is what the cranes are made of. Build here and everything after is cheaper.	Aus Eisen sind die Kräne. Bau hier, und alles Weitere wird billiger.	Le fer, c'est ce dont sont faites les grues. Bâtissez ici et tout le reste coûtera moins cher.	De hierro son las grúas. Construye aquí y todo lo demás saldrá más barato.	De ferro são os guindastes. Construa aqui e tudo depois sai mais barato.	Di ferro sono fatte le gru. Costruisci qui e tutto il resto costerà meno.	Z żelaza są dźwigi. Zbuduj tutaj, a wszystko dalsze będzie tańsze.	Из железа сделаны краны. Стройте здесь — и всё дальнейшее обойдётся дешевле.	Derek terbuat dari besi. Bangun di sini, semua setelahnya jadi lebih murah.	Cần cẩu được làm từ sắt. Xây ở đây và mọi thứ sau đó sẽ rẻ hơn.
+bolum.hikaye.silver	Gelgit burada bembeyaz akar. Gümüş, korunmaya değer ilk cevher.	The tide runs white here. Silver is the first ore worth guarding.	Hier läuft die Flut weiß. Silber ist das erste Erz, das Bewachung lohnt.	Ici la marée est blanche. L'argent est le premier minerai qui mérite d'être gardé.	Aquí la marea corre blanca. La plata es el primer mineral que vale la pena custodiar.	Aqui a maré corre branca. A prata é o primeiro minério que vale guardar.	Qui la marea scorre bianca. L'argento è il primo minerale che vale la pena sorvegliare.	Tutaj przypływ jest biały. Srebro to pierwsza ruda warta pilnowania.	Здесь прилив идёт белым. Серебро — первая руда, которую стоит охранять.	Pasang di sini berwarna putih. Perak adalah bijih pertama yang layak dijaga.	Thủy triều ở đây trắng xóa. Bạc là quặng đầu tiên đáng để canh giữ.
+bolum.hikaye.gold	Limandaki her harita bu körfeze çizilmiştir. Artık senin.	Every chart in the harbour is drawn to this bay. Now it is yours.	Jede Seekarte im Hafen führt in diese Bucht. Jetzt gehört sie dir.	Toutes les cartes du port mènent à cette baie. Elle est à vous.	Todas las cartas del puerto llevan a esta bahía. Ahora es tuya.	Todas as cartas do porto levam a esta baía. Agora é sua.	Ogni carta nel porto porta a questa baia. Ora è tua.	Każda mapa w porcie prowadzi do tej zatoki. Teraz jest twoja.	Все карты в порту ведут в эту бухту. Теперь она ваша.	Setiap peta di pelabuhan menuju teluk ini. Kini milikmu.	Mọi hải đồ trong cảng đều dẫn về vịnh này. Giờ nó là của bạn.
+bolum.hikaye.ruby	Boğaz akşamüstü kızıla yanar. Taşı, taşıyan gemiden değerli.	The straits burn red at dusk. Stone worth more than the ship carrying it.	Die Meerenge glüht rot in der Dämmerung. Steine, mehr wert als das Schiff, das sie trägt.	Le détroit s'embrase au crépuscule. Une pierre qui vaut plus que le navire qui la porte.	El estrecho arde rojo al anochecer. Piedra que vale más que el barco que la lleva.	O estreito arde vermelho ao entardecer. Pedra que vale mais que o navio que a leva.	Lo stretto brucia rosso al tramonto. Pietra che vale più della nave che la porta.	Cieśnina płonie czerwienią o zmierzchu. Kamień wart więcej niż statek, który go wiezie.	Пролив горит красным на закате. Камень дороже корабля, что его везёт.	Selat menyala merah saat senja. Batu yang lebih berharga dari kapal pengangkutnya.	Eo biển rực đỏ lúc hoàng hôn. Đá quý đáng giá hơn con tàu chở nó.
+bolum.hikaye.emerald	Suyun altında yeşil bir ışık. Haritadaki en eski ocaklar.	Green light under the water. The oldest workings on the map.	Grünes Licht unter Wasser. Die ältesten Gruben der Karte.	Une lumière verte sous l'eau. Les plus vieilles galeries de la carte.	Una luz verde bajo el agua. Las labores más antiguas del mapa.	Uma luz verde sob a água. As lavras mais antigas do mapa.	Una luce verde sott'acqua. Gli scavi più antichi della mappa.	Zielone światło pod wodą. Najstarsze wyrobiska na mapie.	Зелёный свет под водой. Древнейшие выработки на карте.	Cahaya hijau di bawah air. Galian tertua di peta.	Ánh sáng xanh dưới mặt nước. Những hầm mỏ lâu đời nhất trên bản đồ.
+bolum.hikaye.diamond	En uç nokta, denizin bittiği yer. Buradan sonra alınacak bir şey yok — yalnızca kurulacak.	The far edge, where the sea stops. Nothing left to buy after this — only to build.	Der äußerste Rand, wo das Meer endet. Danach gibt es nichts mehr zu kaufen — nur zu bauen.	L'extrême bord, là où la mer s'arrête. Plus rien à acheter après — seulement à bâtir.	El borde más lejano, donde acaba el mar. Después de esto no queda nada que comprar, solo que construir.	A borda extrema, onde o mar acaba. Depois disto não há mais o que comprar — só o que construir.	Il margine estremo, dove il mare finisce. Dopo questo non resta nulla da comprare — solo da costruire.	Najdalszy skraj, gdzie kończy się morze. Potem nie ma już czego kupować — tylko co budować.	Дальний край, где кончается море. После этого покупать нечего — только строить.	Tepi terjauh, tempat laut berakhir. Setelah ini tak ada lagi yang dibeli — hanya yang dibangun.	Rìa xa nhất, nơi biển dừng lại. Sau đây không còn gì để mua — chỉ còn để dựng xây.
+# kaptanlar -- deniz kadrosu ve sandik (CaptainRosterUI / Game.Core.Captains)
+kaptan.baslik	KAPTANLAR	CAPTAINS	KAPITÄNE	CAPITAINES	CAPITANES	CAPITÃES	CAPITANI	KAPITANOWIE	КАПИТАНЫ	KAPTEN	THUYỀN TRƯỞNG
+kaptan.sandik	SANDIK	CRATE	KISTE	CAISSE	CAJA	CAIXA	CASSA	SKRZYNIA	СУНДУК	PETI	RƯƠNG
+kaptan.harita	HARİTA	CHARTS	SEEKARTEN	CARTES	CARTAS	CARTAS	CARTE	MAPY	КАРТЫ	PETA	HẢI ĐỒ
+kaptan.ac	AÇ	OPEN	ÖFFNEN	OUVRIR	ABRIR	ABRIR	APRI	OTWÓRZ	ОТКРЫТЬ	BUKA	MỞ
+kaptan.acCok	{0} AÇ	OPEN {0}	{0} ÖFFNEN	OUVRIR {0}	ABRIR {0}	ABRIR {0}	APRI {0}	OTWÓRZ {0}	ОТКРЫТЬ {0}	BUKA {0}	MỞ {0}
+kaptan.yukselt	SEVİYE ATLA	LEVEL UP	AUFSTUFEN	MONTER	SUBIR NIVEL	SUBIR NÍVEL	SALI DI LIVELLO	AWANSUJ	ПОВЫСИТЬ	NAIK LEVEL	LÊN CẤP
+kaptan.bulunmadi	Henüz bulunmadı	Not found yet	Noch nicht gefunden	Pas encore trouvé	Aún no encontrado	Ainda não encontrado	Non ancora trovato	Jeszcze nieodnaleziony	Ещё не найден	Belum ditemukan	Chưa tìm thấy
+kaptan.denizde	Denizde	At sea	Auf See	En mer	En el mar	No mar	In mare	Na morzu	В море	Di laut	Ngoài khơi
+kaptan.kopya	Kopya	Copies	Kopien	Copies	Copias	Cópias	Copie	Kopie	Копии	Salinan	Bản sao
+kaptan.nereden	Harita seferlerden gelir	Charts come home from voyages	Seekarten bringen die Fahrten mit	Les cartes reviennent des expéditions	Las cartas vuelven de las expediciones	As cartas voltam das expedições	Le carte tornano dalle spedizioni	Mapy przywożą rejsy	Карты привозят из рейсов	Peta datang dari pelayaran	Hải đồ theo chuyến tàu trở về
+kaptan.toplandi	{0}/{1} kaptan	{0}/{1} captains	{0}/{1} Kapitäne	{0}/{1} capitaines	{0}/{1} capitanes	{0}/{1} capitães	{0}/{1} capitani	{0}/{1} kapitanów	{0}/{1} капитанов	{0}/{1} kapten	{0}/{1} thuyền trưởng
+kaptan.derece.0	SIRADAN	COMMON	GEWÖHNLICH	COMMUN	COMÚN	COMUM	COMUNE	POSPOLITY	ОБЫЧНЫЙ	BIASA	THƯỜNG
+kaptan.derece.1	NADİR	RARE	SELTEN	RARE	RARO	RARO	RARO	RZADKI	РЕДКИЙ	LANGKA	HIẾM
+kaptan.derece.2	DESTANSI	EPIC	EPISCH	ÉPIQUE	ÉPICO	ÉPICO	EPICO	EPICKI	ЭПИЧЕСКИЙ	EPIK	SỬ THI
+kaptan.derece.3	EFSANEVİ	LEGENDARY	LEGENDÄR	LÉGENDAIRE	LEGENDARIO	LENDÁRIO	LEGGENDARIO	LEGENDARNY	ЛЕГЕНДАРНЫЙ	LEGENDARIS	HUYỀN THOẠI
+kaptan.derece.4	MİTİK	MYTHIC	MYTHISCH	MYTHIQUE	MÍTICO	MÍTICO	MITICO	MITYCZNY	МИФИЧЕСКИЙ	MITOS	THẦN THOẠI
+kaptan.rol.0	Levazımcı	Quartermaster	Proviantmeister	Commissaire	Intendente	Intendente	Furiere	Kwatermistrz	Интендант	Juru Bekal	Quản lương
+kaptan.rol.1	Topçu	Gunner	Stückmeister	Canonnier	Artillero	Artilheiro	Cannoniere	Kanonier	Канонир	Juru Meriam	Pháo thủ
+kaptan.rol.2	Lostromo	Bosun	Bootsmann	Maître d'équipage	Contramaestre	Contramestre	Nostromo	Bosman	Боцман	Serang	Thủy thủ trưởng
+kaptan.rol.3	Yazman	Purser	Zahlmeister	Commis	Sobrecargo	Comissário	Commissario	Pisarz	Судовой писарь	Juru Tulis	Thư ký tàu
+kaptan.rol.0.not	Sefer başına +%{0} harita	+{0}% charts per voyage	+{0}% Seekarten pro Fahrt	+{0}% de cartes par expédition	+{0}% de cartas por expedición	+{0}% de cartas por expedição	+{0}% carte per spedizione	+{0}% map na rejs	+{0}% карт за рейс	+{0}% peta per pelayaran	+{0}% hải đồ mỗi chuyến
+kaptan.rol.1.not	Sefer başına +%{0} hurda	+{0}% salvage per voyage	+{0}% Bergegut pro Fahrt	+{0}% de récupération par expédition	+{0}% de chatarra por expedición	+{0}% de sucata por expedição	+{0}% recupero per spedizione	+{0}% złomu na rejs	+{0}% лома за рейс	+{0}% rongsokan per pelayaran	+{0}% phế liệu mỗi chuyến
+kaptan.rol.2.not	Risk −{0} puan · onarım −%{1}	−{0} risk points · repair −{1}%	−{0} Risikopunkte · Reparatur −{1}%	−{0} points de risque · réparation −{1}%	−{0} puntos de riesgo · reparación −{1}%	−{0} pontos de risco · reparo −{1}%	−{0} punti di rischio · riparazione −{1}%	−{0} pkt ryzyka · naprawa −{1}%	−{0} очков риска · ремонт −{1}%	−{0} poin risiko · perbaikan −{1}%	−{0} điểm rủi ro · sửa chữa −{1}%
+kaptan.rol.3.not	Kartların %{0} kadarı en geride kalan formene	{0}% of cards go to your furthest-behind foreman	{0}% der Karten gehen an den zurückliegendsten Vorarbeiter	{0}% des cartes vont au contremaître le plus en retard	{0}% de las cartas van al capataz más rezagado	{0}% das cartas vão para o contramestre mais atrasado	{0}% delle carte va al capisquadra più indietro	{0}% kart trafia do najbardziej zapóźnionego brygadzisty	{0}% карт достаётся самому отстающему бригадиру	{0}% kartu untuk mandor yang paling tertinggal	{0}% thẻ về tay quản đốc tụt lại xa nhất
+kaptan.ad.kemal	Terazi Kemal	Kemal the Scales	Kemal die Waage	Kemal la Balance	Kemal la Balanza	Kemal da Balança	Kemal la Bilancia	Kemal Waga	Кемаль Весы	Kemal si Timbangan	Kemal Cán Cân
+kaptan.ad.selim	Barut Selim	Selim Powderhorn	Pulver-Selim	Selim Poudrière	Selim Pólvora	Selim Pólvora	Selim Polvere	Selim Prochownik	Селим Пороховой	Selim si Mesiu	Selim Thuốc Súng
+kaptan.ad.musa	Halat Musa	Musa Ropehand	Tau-Musa	Musa Cordage	Musa Cabo	Musa Cabo	Musa Cordame	Musa Linowy	Муса Канат	Musa si Tali	Musa Tay Thừng
+kaptan.ad.derya	Kalem Derya	Derya Quill	Feder-Derya	Derya la Plume	Derya Pluma	Derya Pena	Derya Penna	Derya Pióro	Дерья Перо	Derya si Pena	Derya Ngòi Bút
+kaptan.ad.zehra	Ambar Zehra	Zehra of the Hold	Zehra vom Laderaum	Zehra de la Cale	Zehra de la Bodega	Zehra do Porão	Zehra della Stiva	Zehra z Ładowni	Зехра Трюмная	Zehra si Palka	Zehra Khoang Hàng
+kaptan.ad.baran	Defter Baran	Baran Ledger	Kontor-Baran	Baran le Registre	Baran Libreta	Baran Registro	Baran Registro	Baran Rejestr	Баран Гроссбух	Baran si Buku Besar	Baran Sổ Cái
+kaptan.ad.orhan	Demir Orhan	Iron Orhan	Eisen-Orhan	Orhan de Fer	Orhan de Hierro	Orhan de Ferro	Orhan di Ferro	Żelazny Orhan	Железный Орхан	Orhan si Besi	Orhan Sắt
+kaptan.ad.nihal	Pusula Nihal	Nihal Compass	Kompass-Nihal	Nihal la Boussole	Nihal Brújula	Nihal Bússola	Nihal Bussola	Nihal Kompas	Нихаль Компас	Nihal si Kompas	Nihal La Bàn
+kaptan.ad.husrev	Gülle Hüsrev	Hüsrev Roundshot	Kugel-Hüsrev	Hüsrev Boulet	Hüsrev Bala Rasa	Hüsrev Bala	Hüsrev Palla	Hüsrev Kula	Хюсрев Ядро	Hüsrev si Peluru	Hüsrev Đạn Tròn
+kaptan.ad.ates	Karayel Ateş	Ateş Northwester	Nordwest-Ateş	Ateş le Noroît	Ateş Cierzo	Ateş Noroeste	Ateş Maestrale	Ateş Północny Wiatr	Атеш Северо-Западный	Ateş si Angin Barat Laut	Ateş Gió Tây Bắc
+sefer.kaptan	KAPTAN	CAPTAIN	KAPITÄN	CAPITAINE	CAPITÁN	CAPITÃO	CAPITANO	KAPITAN	КАПИТАН	KAPTEN	THUYỀN TRƯỞNG
+kaptan.teselli	{0}: en geç {1} çekilişte	{0}: within {1} pulls	{0}: in höchstens {1} Ziehungen	{0} : d'ici {1} tirages	{0}: en {1} tiradas como máximo	{0}: em até {1} aberturas	{0}: entro {1} estrazioni	{0}: najdalej za {1} losowań	{0}: не позже чем через {1}	{0}: paling lama {1} tarikan	{0}: trong vòng {1} lượt
+# deniz -- aktif sefer sahnesi (SeaSceneBoot / Game.Core.Expedition)
+deniz.baslik	AÇIK DENİZ	AT SEA	AUF SEE	EN MER	EN EL MAR	NO MAR	IN MARE	NA MORZU	В МОРЕ	DI LAUT	NGOÀI KHƠI
+deniz.rihtim	RIHTIM	THE DOCK	DER KAI	LE QUAI	EL MUELLE	O CAIS	IL MOLO	NABRZEŻE	ПРИЧАЛ	DERMAGA	BẾN TÀU
+deniz.karaya	KARAYA ÇIK	GO ASHORE	AN LAND	DÉBARQUER	BAJAR A TIERRA	IR PARA TERRA	SBARCA	ZEJDŹ NA LĄD	НА БЕРЕГ	KE DARAT	LÊN BỜ
+deniz.gidis	GİDİŞ	OUTWARD	HINFAHRT	ALLER	IDA	IDA	ANDATA	W DROGĘ	ТУДА	BERANGKAT	LƯỢT ĐI
+deniz.donus	DÖNÜŞ	HOMEWARD	RÜCKFAHRT	RETOUR	REGRESO	VOLTA	RITORNO	POWRÓT	ОБРАТНО	PULANG	LƯỢT VỀ
+deniz.varis	Varış {0}	Arrives in {0}	Ankunft in {0}	Arrivée dans {0}	Llega en {0}	Chega em {0}	Arrivo tra {0}	Przybycie za {0}	Прибытие через {0}	Tiba dalam {0}	Cập bến sau {0}
+deniz.gemiYok	Denizde gemi yok	No ship at sea	Kein Schiff auf See	Aucun navire en mer	No hay barco en el mar	Nenhum navio no mar	Nessuna nave in mare	Brak statku na morzu	В море нет судна	Tak ada kapal di laut	Không có tàu ngoài khơi
+deniz.saatDk	{0}sa {1}dk	{0}h {1}m	{0}Std {1}min	{0}h {1}min	{0}h {1}min	{0}h {1}min	{0}h {1}min	{0}godz {1}min	{0}ч {1}мин	{0}j {1}mnt	{0}g {1}p
+sefer.denizeCik	GEMİYLE ÇIK	SAIL WITH HER	MITFAHREN	EMBARQUER	EMBARCAR	EMBARCAR	IMBARCATI	PŁYŃ Z NIĄ	ОТПРАВИТЬСЯ С НЕЙ	IKUT BERLAYAR	RA KHƠI CÙNG
+# deniz catismasi -- karsilasmalar ve yetenekler (SeaFightUI / Game.Core.SeaCombat)
+deniz.tehdit.0	KORSAN TEKNESİ	RAIDER SLOOP	PIRATENBOOT	SLOOP PIRATE	BALANDRO PIRATA	ESCUNA PIRATA	SCIALUPPA PIRATA	ŁÓDŹ PIRACKA	ПИРАТСКИЙ ШЛЮП	PERAHU PEROMPAK	THUYỀN CƯỚP BIỂN
+deniz.tehdit.1	DENİZ CANAVARI	SEA BEAST	SEEUNGEHEUER	BÊTE DES MERS	BESTIA MARINA	FERA DO MAR	BESTIA DEL MARE	BESTIA MORSKA	МОРСКОЙ ЗВЕРЬ	MONSTER LAUT	THỦY QUÁI
+deniz.tehdit.2	SAHİPSİZ ENKAZ	DERELICT HULK	GEISTERWRACK	ÉPAVE ABANDONNÉE	PECIO A LA DERIVA	CASCO À DERIVA	RELITTO ALLA DERIVA	OPUSZCZONY WRAK	БРОШЕННЫЙ ОСТОВ	BANGKAI TERLANTAR	XÁC TÀU VÔ CHỦ
+deniz.yetenek.borda	BORDA	BROADSIDE	BREITSEITE	BORDÉE	ANDANADA	BORDADA	BORDATA	SALWA	ЗАЛП	TEMBAKAN	PHÁO MẠN
+deniz.yetenek.siper	SİPER	BRACE	DECKUNG	PARER	CUBRIRSE	PROTEGER	RIPARO	OSŁONA	УКРЫТЬСЯ	LINDUNG	NÚP CHẮN
+deniz.yetenek.kanca	KANCA	GRAPPLE	ENTERHAKEN	GRAPPIN	GARFIO	ARPÉU	RAMPINO	HAK	КРЮК	KAIT	MÓC NEO
+deniz.batti	BATTI!	SUNK!	VERSENKT!	COULÉ !	¡HUNDIDO!	AFUNDOU!	AFFONDATO!	ZATOPIONY!	ПОТОПЛЕН!	TENGGELAM!	ĐÃ CHÌM!
+deniz.kacti	KAÇTI	GOT AWAY	ENTKOMMEN	ENFUI	ESCAPÓ	ESCAPOU	FUGGITO	UCIEKŁ	УШЁЛ	KABUR	CHẠY THOÁT
+deniz.ganimet	+{0} harita · +{1} hurda	+{0} charts · +{1} salvage	+{0} Seekarten · +{1} Bergegut	+{0} cartes · +{1} récupération	+{0} cartas · +{1} chatarra	+{0} cartas · +{1} sucata	+{0} carte · +{1} recupero	+{0} map · +{1} złomu	+{0} карт · +{1} лома	+{0} peta · +{1} rongsokan	+{0} hải đồ · +{1} phế liệu
+deniz.cesaret	CESARET	NERVE	NERVEN	SANG-FROID	TEMPLE	FIRMEZA	SANGUE FREDDO	OPANOWANIE	ВЫДЕРЖКА	NYALI	BẢN LĨNH
+deniz.ara	DÜŞMAN ARA	SEARCH FOR ENEMIES	FEIND SUCHEN	CHERCHER L'ENNEMI	BUSCAR ENEMIGOS	PROCURAR INIMIGOS	CERCA NEMICI	SZUKAJ WROGA	ИСКАТЬ ВРАГА	CARI MUSUH	TÌM ĐỊCH
+deniz.enerji	ENERJİ	ENERGY	ENERGIE	ÉNERGIE	ENERGÍA	ENERGIA	ENERGIA	ENERGIA	ЭНЕРГИЯ	ENERGI	NĂNG LƯỢNG
+deniz.giydir	GİYDİR	EQUIP	ANLEGEN	ÉQUIPER	EQUIPAR	EQUIPAR	EQUIPAGGIA	ZAŁÓŻ	НАДЕТЬ	PAKAI	TRANG BỊ
+deniz.sok	SÖK  +{0} hurda	SCRAP  +{0} salvage	VERSCHROTTEN  +{0}	FERRAILLER  +{0}	DESGUAZAR  +{0}	SUCATEAR  +{0}	DEMOLISCI  +{0}	ZŁOMUJ  +{0}	НА ЛОМ  +{0}	BESITUA  +{0}	THÁO DỠ  +{0}
+deniz.yeni	YENİ	NEW	NEU	NOUVEAU	NUEVO	NOVO	NUOVO	NOWY	НОВЫЙ	BARU	MỚI
+deniz.mevcut	MEVCUT	CURRENT	AKTUELL	ACTUEL	ACTUAL	ATUAL	ATTUALE	OBECNY	ТЕКУЩИЙ	SEKARANG	HIỆN TẠI
+deniz.bos	BOŞ	EMPTY	LEER	VIDE	VACÍO	VAZIO	VUOTO	PUSTY	ПУСТО	KOSONG	TRỐNG
+deniz.yenildik	PÜSKÜRTÜLDÜK	DRIVEN OFF	ABGEDRÄNGT	REPOUSSÉS	RECHAZADOS	REPELIDOS	RESPINTI	ODPARCI	НАС ОТОГНАЛИ	TERPUKUL MUNDUR	BỊ ĐẨY LÙI
+deniz.slot.0	TOP	CANNON	KANONE	CANON	CAÑÓN	CANHÃO	CANNONE	DZIAŁO	ПУШКА	MERIAM	PHÁO
+deniz.slot.1	ZIRH	PLATING	PANZERUNG	BLINDAGE	BLINDAJE	BLINDAGEM	CORAZZA	PANCERZ	ОБШИВКА	LAPISAN	GIÁP
+deniz.slot.2	DÜRBÜN	SPYGLASS	FERNROHR	LONGUE-VUE	CATALEJO	LUNETA	CANNOCCHIALE	LUNETA	ПОДЗОРНАЯ ТРУБА	TEROPONG	ỐNG NHÒM
+deniz.slot.3	TILSIM	CHARM	TALISMAN	TALISMAN	TALISMÁN	TALISMÃ	TALISMANO	TALIZMAN	ОБЕРЕГ	JIMAT	BÙA HỘ MỆNH
+deniz.guc	GÜÇ	POWER	STÄRKE	PUISSANCE	PODER	PODER	POTENZA	MOC	МОЩЬ	KEKUATAN	SỨC MẠNH
+deniz.biz	BİZ	US	WIR	NOUS	NOSOTROS	NÓS	NOI	MY	МЫ	KITA	TA
+deniz.govde	GÖVDE	HULL	RUMPF	COQUE	CASCO	CASCO	SCAFO	KADŁUB	КОРПУС	LAMBUNG	THÂN TÀU
+deniz.st.kritik	KRİTİK	CRIT	KRIT	CRIT	CRÍT	CRÍT	CRIT	KRYT	КРИТ	KRITIS	CHÍ MẠNG
+deniz.st.manevra	MANEVRA	DODGE	AUSWEICHEN	ESQUIVE	ESQUIVA	ESQUIVA	SCHIVATA	UNIK	УКЛОНЕНИЕ	HINDAR	NÉ ĐÒN
+deniz.st.salvo	SALVO	SALVO	SALVE	SALVE	SALVA	SALVA	SALVA	SALWA	СЕРИЯ	SALVO	LOẠT BẮN
+deniz.st.sersem	SERSEM	STUN	BETÄUBUNG	ÉTOURDIR	ATURDIR	ATORDOAR	STORDIRE	OGŁUSZENIE	ОГЛУШЕНИЕ	STUN	CHOÁNG
+deniz.st.onarim	ONARIM	REPAIR	REPARATUR	RÉPARATION	REPARACIÓN	REPARO	RIPARAZIONE	NAPRAWA	ПОЧИНКА	PERBAIKAN	SỬA CHỮA
+deniz.st.yagma	YAĞMA	PLUNDER	PLÜNDERN	PILLAGE	SAQUEO	SAQUE	SACCHEGGIO	GRABIEŻ	ГРАБЁЖ	JARAH	CƯỚP BÓC
+deniz.st.yangin	YANGIN	BURN	BRAND	BRÛLURE	QUEMADURA	QUEIMADURA	USTIONE	PODPALENIE	ПОДЖОГ	BAKAR	THIÊU ĐỐT
+deniz.tehdit.3	ALEV GEMİSİ	FIRE SHIP	BRANDER	BRÛLOT	BRULOTE	BRULOTE	BRULOTTO	BRANDER	БРАНДЕР	KAPAL API	TÀU LỬA
+deniz.tehdit.4	HAYALET GEMİ	GHOST SHIP	GEISTERSCHIFF	VAISSEAU FANTÔME	BARCO FANTASMA	NAVIO FANTASMA	NAVE FANTASMA	STATEK WIDMO	КОРАБЛЬ-ПРИЗРАК	KAPAL HANTU	TÀU MA
+deniz.tehlikeli	TEHLİKELİ	DANGEROUS	GEFÄHRLICH	DANGEREUX	PELIGROSO	PERIGOSO	PERICOLOSO	GROŹNY	ОПАСНЫЙ	BERBAHAYA	NGUY HIỂM
+deniz.kolay	KOLAY	EASY	LEICHT	FACILE	FÁCIL	FÁCIL	FACILE	ŁATWY	ЛЁГКИЙ	MUDAH	DỄ
+deniz.savunmasiz	SAVUNMASIZ	DEFENSELESS	WEHRLOS	SANS DÉFENSE	INDEFENSO	INDEFESO	INDIFESO	BEZBRONNY	БЕЗЗАЩИТНЫЙ	TAK BERDAYA	VÔ HẠI
+deniz.savas	SAVAŞ!	FIGHT!	KAMPF!	COMBAT !	¡LUCHAR!	LUTAR!	COMBATTI!	DO WALKI!	В БОЙ!	SERANG!	CHIẾN!
+deniz.vazgec	VAZGEÇ	PASS	LASSEN	PASSER	PASAR	PASSAR	LASCIA	ODPUŚĆ	ПРОПУСТИТЬ	LEWATI	BỎ QUA
+deniz.oto	OTO	AUTO	AUTO	AUTO	AUTO	AUTO	AUTO	AUTO	АВТО	AUTO	TỰ ĐỘNG
+deniz.iska	ISKA!	MISS!	DANEBEN!	RATÉ !	¡FALLO!	ERROU!	MANCATO!	PUDŁO!	МИМО!	MELESET!	TRƯỢT!
+deniz.kritikvur	KRİTİK!	CRITICAL!	KRITISCH!	CRITIQUE !	¡CRÍTICO!	CRÍTICO!	CRITICO!	KRYTYCZNE!	КРИТ!	KRITIS!	CHÍ MẠNG!
+deniz.sersem	SERSEMLEDİ!	STUNNED!	BETÄUBT!	ÉTOURDI !	¡ATURDIDO!	ATORDOADO!	STORDITO!	OGŁUSZONY!	ОГЛУШЁН!	PINGSAN!	CHOÁNG!
+deniz.yanginvur	YANGIN!	ABLAZE!	BRENNT!	EN FEU !	¡EN LLAMAS!	EM CHAMAS!	IN FIAMME!	PŁONIE!	ГОРИТ!	TERBAKAR!	BỐC CHÁY!
+deniz.salvovur	SALVO!	SALVO!	SALVE!	SALVE !	¡SALVA!	SALVA!	SALVA!	SALWA!	СЕРИЯ!	SALVO!	LOẠT BẮN!
+deniz.odul	ÖDÜL	REWARDS	BELOHNUNG	BUTIN	BOTÍN	RECOMPENSA	BOTTINO	ŁUP	НАГРАДА	HADIAH	PHẦN THƯỞNG
+deniz.odulsatir	TEÇHİZAT · HARİTA · HURDA	GEAR · CHARTS · SALVAGE	AUSRÜSTUNG · SEEKARTEN · BERGEGUT	ÉQUIPEMENT · CARTES · RÉCUP	EQUIPO · CARTAS · CHATARRA	EQUIPAMENTO · CARTAS · SUCATA	EQUIPAGGIAMENTO · CARTE · RECUPERO	EKWIPUNEK · MAPY · ZŁOM	СНАРЯЖЕНИЕ · КАРТЫ · УТИЛЬ	PERLENGKAPAN · PETA · BESI TUA	TRANG BỊ · HẢI ĐỒ · PHẾ LIỆU
+deniz.kaptanyok	KAPTANSIZ	NO CAPTAIN	KEIN KAPITÄN	SANS CAPITAINE	SIN CAPITÁN	SEM CAPITÃO	SENZA CAPITANO	BEZ KAPITANA	БЕЗ КАПИТАНА	TANPA KAPTEN	KHÔNG THUYỀN TRƯỞNG
+deniz.kapat	KAPAT	CLOSE	SCHLIESSEN	FERMER	CERRAR	FECHAR	CHIUDI	ZAMKNIJ	ЗАКРЫТЬ	TUTUP	ĐÓNG
+deniz.dusmandanduser	Düşmanlardan düşer	Drops from enemies	Fällt von Feinden	Lâché par les ennemis	Cae de los enemigos	Cai dos inimigos	Cade dai nemici	Wypada z wrogów	Выпадает с врагов	Jatuh dari musuh	Rơi từ kẻ địch

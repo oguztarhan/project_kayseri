@@ -1,0 +1,23 @@
+{
+    "name": "Game.Systems",
+    "rootNamespace": "Game.Systems",
+    "references": [
+        "Game.Core",
+        "Game.Data",
+        "Unity.TextMeshPro",
+        "Unity.Purchasing",
+        "Unity.Services.Core",
+        "Unity.Notifications.Android",
+        "Unity.Notifications.iOS",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

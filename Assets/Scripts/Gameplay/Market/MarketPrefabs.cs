@@ -61,6 +61,20 @@ namespace Game.Gameplay
         public GameObject Bar => bar;
         public GameObject Cash => cash;
 
+        [Tooltip("Rıhtım güvertesi (SM_Harbor_Jetty). Boşsa düz bir kutu.")]
+        [SerializeField] private GameObject dockJetty;
+
+        [Tooltip("Bağlama babası ve feneri (SM_Harbor_Bollard). Gemi döndüğünde zıplayan parça budur. " +
+                 "Boşsa ince bir kutu.")]
+        [SerializeField] private GameObject dockBollard;
+
+        [Tooltip("Yük teknesi (SM_Harbor_Launch). Sefer denizdeyken gizlenir. Boşsa uzun bir kutu.")]
+        [SerializeField] private GameObject dockLaunch;
+
+        public GameObject DockJetty => dockJetty;
+        public GameObject DockBollard => dockBollard;
+        public GameObject DockLaunch => dockLaunch;
+
         /// <summary>
         /// Instantiates <paramref name="prefab"/> under <paramref name="parent"/>, or builds a primitive
         /// of <paramref name="fallback"/> shape at <paramref name="fallbackScale"/> when none is wired.

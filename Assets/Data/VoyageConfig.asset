@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 984dcf082999e49268aa41a5b07ac193, type: 3}
+  m_Name: VoyageConfig
+  m_EditorClassIdentifier: Game.Data::Game.Data.VoyageConfig
+  divertShare: 0.35
+  holdMinutesBase: 3
+  holdMinutesPerLevel: 0.6
+  baseVoyageMinutes: 35
+  speedPerLevel: 0.04
+  cardRate: 1
+  crewPerLevel: 0.05
+  minLaunchFraction: 0.25
+  foremanRiskPerLevel: 0.02
+  failPayout: 0.4
+  repairFraction: 0.25
+  maxDivertShare: 0.5
+  salvageRate: 1.5
+  shipCostBase: 20
+  shipCostGrowth: 1.45
+  berthSalvageCost: 250
+  thirdBerthGems: 1200
+  fourthBerthGems: 3000
+  repairSkipGems: 120
