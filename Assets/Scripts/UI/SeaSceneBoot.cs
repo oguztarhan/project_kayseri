@@ -19,15 +19,16 @@ namespace Game.UI
     /// which also means there is exactly one place where the voyage's clock becomes a position, and
     /// exactly one place S2 has to hook into to make an encounter hold the ship still.
     ///
-    /// LEAVING IS ALWAYS ALLOWED. The voyage carries on without the player, at the same speed and
-    /// with the same odds. That is the rule the layer rests on (Docs/FIVE_LAYERS.md §4) and the
-    /// reason the back button needs no confirmation: nothing is being abandoned.
+    /// LEAVING IS ALWAYS ALLOWED. Nothing out here is a commitment — the ship is the player's own,
+    /// moored at their island's port between trips — so the back button needs no confirmation:
+    /// nothing is being abandoned.
     /// </summary>
     public sealed class SeaSceneBoot : MonoBehaviour
     {
         [Header("Sahneler")]
-        [Tooltip("Karaya çıkınca dönülecek sahne. Rıhtım orada.")]
-        [SerializeField] private string marketSceneName = "Market";
+        [Tooltip("Karaya çıkınca dönülecek sahne — adanın kendisi. Ada Sea'nin altında park " +
+                 "halinde beklediği için dönüş onu uyandırır, yeniden kurmaz.")]
+        [SerializeField] private string homeSceneName = "Main";
 
         [Header("Işık")]
         [SerializeField] private Vector3 sunAngles = new Vector3(42f, 200f, 0f);
@@ -103,11 +104,6 @@ namespace Game.UI
         {
             if (_leaving) return;
             Place(false);
-
-            // She came home while the player was watching. There is nothing left to look at and the
-            // cards are waiting on the dock, so the scene takes them back to it rather than leaving
-            // them on an empty sea wondering whether the button is broken.
-            if (_sea != null && !_sea.Active) Ashore();
         }
 
         private void Place(bool snap)
@@ -198,16 +194,18 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// Back to the dock. Guarded like MarketSceneBoot's Leave is, and for the same reason: the
+        /// Back to the island. Guarded like MarketSceneBoot's Leave is, and for the same reason: the
         /// curtain answers on the first frame but the button is still a button.
         /// </summary>
         public void Ashore()
         {
             if (_leaving) return;
-            // parkCurrent: false. The market is cheap and code-built, so it is rebuilt rather than
-            // parked — and parking the SEA under it would leave a whole scene resident behind a
-            // screen the player has left.
-            if (!SceneCurtain.Cover(marketSceneName, HomeTint(), Loc.T("deniz.rihtim"), false)) return;
+            // parkCurrent: false. The island is parked UNDER this scene, so the curtain wakes it
+            // rather than loading anything — and parking the SEA on the way out would leave a whole
+            // scene resident behind a screen the player has left.
+            string key = _sea != null ? _sea.IslandKey : null;
+            string caption = string.IsNullOrEmpty(key) ? Loc.T("deniz.rihtim") : Loc.Id("ada", key);
+            if (!SceneCurtain.Cover(homeSceneName, HomeTint(), caption, false)) return;
             _leaving = true;
             _sea?.Ashore();
         }

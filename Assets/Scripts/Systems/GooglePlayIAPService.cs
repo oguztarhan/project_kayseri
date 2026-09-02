@@ -39,6 +39,7 @@ namespace Game.Systems
         private StoreController _store;
         private Action<bool, string> _waiting;   // success + transaction id still owed to the tap
         private string _waitingSku;
+        private float _waitingFor;               // seconds the tap has been out with the platform
         private bool _ready;
         private readonly List<string> _entitlements = new List<string>();
         private readonly List<PendingOrder> _unfinishedOrders = new List<PendingOrder>();
@@ -118,11 +119,7 @@ namespace Game.Systems
                            (failure != null ? failure.Message : "sebep bildirilmedi") +
                            " (tekrar denenebilir: " + (failure != null && failure.IsRetryable) + ")");
 
-            if (_waiting == null) return;
-            Action<bool, string> done = _waiting;
-            _waiting = null;
-            _waitingSku = null;
-            done(false, null);
+            if (_waiting != null) Resolve(false, null);
         }
 
         /// <summary>
@@ -134,12 +131,8 @@ namespace Game.Systems
         {
             string sku = SkuOf(order);
             Debug.Log("[IAP] satın alma onay bekliyor (deferred): " + sku);
-            if (_waiting == null || sku != _waitingSku) return;
-
-            Action<bool, string> done = _waiting;
-            _waiting = null;
-            _waitingSku = null;
-            done(false, null);
+            if (!Answers(sku)) return;
+            Resolve(false, null);
         }
 
         private void OnConnected()
@@ -197,6 +190,57 @@ namespace Game.Systems
             _store.FetchPurchases();
         }
 
+        /// <summary>
+        /// How long a tap may sit with the platform before the game gives up waiting for it. StoreKit
+        /// and Play normally answer in seconds; a sheet that closes without ever reporting a result
+        /// answers never, and the tap that opened it then stayed unresolved for the rest of the
+        /// session — a buy button disabled forever, and every later purchase refused by the
+        /// in-flight guard below.
+        ///
+        /// Long on purpose. The store sheet is modal over the game, so this clock effectively only
+        /// runs while the player is back in the app, and signing into a sandbox account takes a while.
+        /// </summary>
+        private const float WaitTimeoutSeconds = 120f;
+
+        /// <summary>
+        /// Hands the in-flight tap its answer and reopens the till. EVERY way out of a purchase goes
+        /// through here: a tap that is never answered leaves the button that started it disabled and
+        /// blocks every later purchase at the in-flight guard in <see cref="Purchase"/>.
+        /// </summary>
+        private void Resolve(bool ok, string transactionId)
+        {
+            Action<bool, string> done = _waiting;
+            _waiting = null;
+            _waitingSku = null;
+            _waitingFor = 0f;
+            if (done != null) done(ok, transactionId);
+        }
+
+        /// <summary>
+        /// Whether an order the store just handed back answers the tap we are holding.
+        ///
+        /// An order with no cart reports no sku at all — StoreKit does this on some failures — and a
+        /// strict comparison then left that tap unanswered for the rest of the session. A failure we
+        /// cannot attribute is still a failure, and the only purchase it can belong to is the one
+        /// already in flight.
+        /// </summary>
+        private bool Answers(string sku)
+            => _waiting != null && (sku == _waitingSku || string.IsNullOrEmpty(sku));
+
+        /// <summary>
+        /// Driven by <see cref="GameBootstrap"/>; the store has no scene object of its own. Only the
+        /// watchdog above needs it.
+        /// </summary>
+        public void Tick(float dt)
+        {
+            if (_waiting == null) return;
+            _waitingFor += dt;
+            if (_waitingFor < WaitTimeoutSeconds) return;
+            Debug.LogWarning("[IAP] mağaza " + WaitTimeoutSeconds + " saniyedir cevap vermedi, " +
+                             "dokunuş serbest bırakıldı: " + _waitingSku);
+            Resolve(false, null);
+        }
+
         public void Purchase(string sku, Action<bool, string> onDone)
         {
             if (!_ready || _store == null)
@@ -214,6 +258,7 @@ namespace Game.Systems
 
             _waitingSku = sku;
             _waiting = onDone;
+            _waitingFor = 0f;
             _store.PurchaseProduct(product);
         }
 
@@ -304,13 +349,9 @@ namespace Game.Systems
                 return;
             }
 
-            Action<bool, string> done = _waiting;
-            _waiting = null;
-            _waitingSku = null;
-
             // Ödül önce, onay sonra. Onay ağ üzerinden gider ve düşebilir; o sırada ödül çoktan
             // verilmiş olur ve sipariş bekleyip iade edilir. Ters sırada oyuncu parayı kaybederdi.
-            done(true, TransactionKey(order));
+            Resolve(true, TransactionKey(order));
             _store.ConfirmPurchase(order);
         }
 
@@ -359,12 +400,8 @@ namespace Game.Systems
             string sku = SkuOf(order);
             Debug.LogWarning("[IAP] alım başarısız (" + sku + "): " + order.FailureReason + " " + order.Details);
 
-            if (_waiting == null || sku != _waitingSku) return;
-
-            Action<bool, string> done = _waiting;
-            _waiting = null;
-            _waitingSku = null;
-            done(false, null);
+            if (!Answers(sku)) return;
+            Resolve(false, null);
         }
 
         /// <summary>

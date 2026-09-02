@@ -5,15 +5,16 @@ using Game.Systems;
 namespace Game.Tests
 {
     /// <summary>
-    /// The sea adventure. The groups that matter most: the exchange LADDER — tier 0 falls to
-    /// watching, tier 1 to the buttons, tier 2 resists the buttons alone, tier 3 falls to gear —
-    /// which is the grind the drops feed; the PROCS, each pinned through the rolls-as-arguments
-    /// door so every fight is replayable; the ENERGY maths, the governor on all of it; and the
-    /// GEAR rules, which keep every item's power inside the fight and out of the economy.
+    /// The sea adventure. The groups that matter most: the exchange LADDER — each rung falls only
+    /// to the gear the rung below drops, which is the whole grind, and with NO ability buttons
+    /// left there is nothing else it could fall to; the PROCS, each pinned through the
+    /// rolls-as-arguments door so every fight is replayable; the ENERGY maths, the governor on all
+    /// of it; and the GEAR rules, which keep every item's power inside the fight and out of the
+    /// economy.
     ///
-    /// The ladder is pinned PROC-FREE (every roll 1, so nothing procs) — the deterministic
-    /// skeleton under the noise. Live fights sit on both sides of it: enemy signatures push down,
-    /// our secondaries push up.
+    /// The ladder is pinned PROC-FREE (every roll 1, so nothing procs, and Common items carry no
+    /// secondary at all) — the deterministic skeleton under the noise. Live fights sit on both
+    /// sides of it: enemy signatures push down, our secondaries push up.
     /// </summary>
     public class SeaCombatTests
     {
@@ -22,40 +23,41 @@ namespace Game.Tests
 
         private static SeaCombat.Stats Bare => SeaCombat.OurStats(-1, 0, 0, null, CT, T);
 
-        private static SeaCombat.Item[] MythicLoadout(int tier)
+        private static SeaCombat.Item[] Loadout(int tier, int grade)
         {
             var gear = new SeaCombat.Item[SeaCombat.SlotCount];
             for (int slot = 0; slot < SeaCombat.SlotCount; slot++)
-                gear[slot] = SeaCombat.ItemFor(slot, tier, (int)Captains.Grade.Mythic, 0.3d, T);
+                gear[slot] = SeaCombat.ItemFor(slot, tier, grade, 0.3d, T);
             return gear;
         }
 
-        /// <summary>A whole exchange with the dice removed (rolls of 1 proc nothing), optionally
-        /// slamming every button the moment it lights.</summary>
-        private static SeaCombat.Fight Exchange(int tier, int kind, SeaCombat.Stats ours, bool abilities)
+        /// <summary>A full set of that route's COMMONS — the honest rung measure, because a Common
+        /// carries no secondary and so cannot smuggle a proc into a proc-free pin.</summary>
+        private static SeaCombat.Stats Commons(int tier)
+            => SeaCombat.OurStats(-1, 0, 0, Loadout(tier, (int)Captains.Grade.Common), CT, T);
+
+        /// <summary>
+        /// A whole exchange with the dice removed (rolls of 1 proc nothing). SÜRAT picks who opens,
+        /// exactly as <see cref="SeaCombat.Begin"/> settled it, and the sides then alternate — the
+        /// same order <see cref="Game.Gameplay.EncounterController"/> steps through.
+        /// </summary>
+        private static SeaCombat.Fight Exchange(int tier, int kind, SeaCombat.Stats ours)
         {
             SeaCombat.Fight f = SeaCombat.Begin(tier, kind, ours, T);
             SeaCombat.ShotRolls none = SeaCombat.ShotRolls.None;
-            for (int turn = 0; turn < 400 && !f.Over; turn++)
+            bool our = f.UsOpen;
+            for (int step = 0; step < 2000 && !f.Over; step++)
             {
-                SeaCombat.TurnStart(ref f, true, T);
+                SeaCombat.TurnStart(ref f, our, T);
                 if (f.Over) break;
-                if (f.Us.Stunned) SeaCombat.TurnSkipped(ref f, true);
-                else
+                if (our)
                 {
-                    if (abilities)
-                    {
-                        SeaCombat.TryBroadside(ref f, T);
-                        SeaCombat.TryBrace(ref f, T);
-                        SeaCombat.TryGrapple(ref f, T);
-                    }
-                    SeaCombat.ShotLands(ref f, true, none, T);
-                    if (f.Over) break;
+                    if (f.Us.Stunned) SeaCombat.TurnSkipped(ref f, true);
+                    else SeaCombat.ShotLands(ref f, true, none, T);
                 }
-                SeaCombat.TurnStart(ref f, false, T);
-                if (f.Over) break;
-                if (!SeaCombat.EnemyWillFire(f)) SeaCombat.TurnSkipped(ref f, false);
+                else if (!SeaCombat.EnemyWillFire(f)) SeaCombat.TurnSkipped(ref f, false);
                 else SeaCombat.ShotLands(ref f, false, none, T);
+                our = !our;
             }
             Assert.That(f.Over, Is.True, "an exchange must always end");
             return f;
@@ -67,36 +69,46 @@ namespace Game.Tests
         public void TierZeroFallsToWatchingWhateverPopsUp()
         {
             for (int kind = 0; kind < SeaCombat.KindCount; kind++)
-                Assert.That(Exchange(0, kind, Bare, false).Won, Is.True,
+                Assert.That(Exchange(0, kind, Bare).Won, Is.True,
                             "kind " + kind + " beat a bare, untended ship on tier 0");
         }
 
         [Test]
-        public void TierOneWantsTheButtons()
+        public void EveryRungAboveTheFirstNeedsTheRungBelowsGear()
         {
-            Assert.That(Exchange(1, SeaCombat.Raider, Bare, false).Won, Is.False,
-                        "the premise: tier 1 does not fall to watching");
-            Assert.That(Exchange(1, SeaCombat.Raider, Bare, true).Won, Is.True,
-                        "tier 1 with every button pressed still lost — the buttons are pointless");
-        }
+            // The whole economy in one table: what you are wearing is the ONLY thing that decides
+            // the rung, now that there are no buttons to lean on. Each row is "this route refuses
+            // the gear from two routes back, and yields to the gear from one."
+            Assert.That(Exchange(1, SeaCombat.Raider, Bare).Won, Is.False,
+                        "tier 1 fell to a bare ship — tier 0's drops have nothing to sell");
+            Assert.That(Exchange(1, SeaCombat.Raider, Commons(0)).Won, Is.True,
+                        "tier 0's own commons do not clear tier 1 — the ladder has a gap");
 
-        [Test]
-        public void TierTwoResistsTheButtonsAlone()
-        {
-            // The rung between: buttons carry tier 1, gear carries the rest. Without this pin the
-            // whole drop economy is decoration.
-            Assert.That(Exchange(2, SeaCombat.Raider, Bare, true).Won, Is.False,
-                        "tier 2 fell to a bare ship with buttons; the grind has nothing to sell");
-        }
+            Assert.That(Exchange(2, SeaCombat.Raider, Commons(0)).Won, Is.False,
+                        "tier 2 fell to tier-0 gear; the middle of the grind is decoration");
+            Assert.That(Exchange(2, SeaCombat.Raider, Commons(1)).Won, Is.True,
+                        "tier 1's commons do not clear tier 2 — the ladder has a gap");
 
-        [Test]
-        public void TheFarReachOnlyFallsToGear()
-        {
-            Assert.That(Exchange(3, SeaCombat.Raider, Bare, true).Won, Is.False,
-                        "tier 3 fell to a bare ship; gear has nothing left to buy");
-            SeaCombat.Stats geared = SeaCombat.OurStats(-1, 0, 0, MythicLoadout(3), CT, T);
-            Assert.That(Exchange(3, SeaCombat.Raider, geared, false).Won, Is.True,
+            Assert.That(Exchange(3, SeaCombat.Raider, Commons(2)).Won, Is.False,
+                        "the far reach fell to tier-2 gear; the last rung buys nothing");
+            Assert.That(Exchange(3, SeaCombat.Raider, Commons(3)).Won, Is.True,
                         "tier-3 gear does not clear tier 3 — the ladder has no top");
+        }
+
+        [Test]
+        public void TheOpeningBallIsBoughtWithSurat()
+        {
+            // SÜRAT's whole meaning, and the reason the spyglass is not just a luck stat: a bare
+            // ship is second to fire on every real route, and one set of commons buys the ball back.
+            Assert.That(SeaCombat.Begin(0, SeaCombat.Raider, Bare, T).UsOpen, Is.True,
+                        "the home route must not open against a starting ship");
+            for (int tier = 1; tier < Voyages.TierCount; tier++)
+            {
+                Assert.That(SeaCombat.Begin(tier, SeaCombat.Raider, Bare, T).UsOpen, Is.False,
+                            "tier " + tier + ": a bare ship should be outrun");
+                Assert.That(SeaCombat.Begin(tier, SeaCombat.Raider, Commons(tier), T).UsOpen, Is.True,
+                            "tier " + tier + ": that route's own gear must win the opening ball");
+            }
         }
 
         [Test]
@@ -104,7 +116,7 @@ namespace Game.Tests
         {
             SeaCombat.Fight f = SeaCombat.Begin(2, SeaCombat.Derelict, Bare, T);
             Assert.That(SeaCombat.EnemyWillFire(f), Is.False);
-            SeaCombat.Fight done = Exchange(3, SeaCombat.Derelict, Bare, false);
+            SeaCombat.Fight done = Exchange(3, SeaCombat.Derelict, Bare);
             Assert.That(done.Won, Is.True, "a fight nobody shoots back in can only be won");
             Assert.That(done.Us.Hull, Is.EqualTo(done.Us.HullMax), "and it must cost nothing to win");
         }
@@ -112,87 +124,62 @@ namespace Game.Tests
         // ---- the exchange ------------------------------------------------------------------------
 
         [Test]
-        public void DamageIsAppliedPerShotNotPerSecond()
+        public void DamageIsPerShotAndSavunmaComesOffEveryBall()
         {
+            SeaCombat.Stats them = SeaCombat.ThreatStats(1, SeaCombat.Raider, T);
             SeaCombat.Fight f = SeaCombat.Begin(1, SeaCombat.Raider, Bare, T);
             double hull = f.Them.Hull;
             SeaCombat.ShotLands(ref f, true, SeaCombat.ShotRolls.None, T);
-            Assert.That(hull - f.Them.Hull, Is.EqualTo(T.PlayerShotBase).Within(1e-9));
+            Assert.That(hull - f.Them.Hull, Is.EqualTo(T.PlayerShotBase - them.Def).Within(0.05d),
+                        "their SAVUNMA must come off our ball");
 
             double nerve = f.Us.Hull;
             SeaCombat.ShotLands(ref f, false, SeaCombat.ShotRolls.None, T);
-            Assert.That(nerve - f.Us.Hull,
-                        Is.EqualTo(SeaCombat.ThreatStats(1, SeaCombat.Raider, T).Shot).Within(0.05d));
+            Assert.That(nerve - f.Us.Hull, Is.EqualTo(them.Shot).Within(0.05d),
+                        "a bare ship has no SAVUNMA to shave theirs with");
         }
 
         [Test]
-        public void BroadsideArmsTheNextShotOnceAndWaitsInTurns()
+        public void SavunmaShavesTheBallButCanNeverEatItWhole()
         {
-            SeaCombat.Stats s = Bare; s.Hull = 10_000d;
-            SeaCombat.Fight f = SeaCombat.Begin(3, SeaCombat.Raider, s, T);
-            Assert.That(SeaCombat.TryBroadside(ref f, T), Is.True);
-            Assert.That(SeaCombat.TryBroadside(ref f, T), Is.False, "armed is armed — no stacking");
+            // The anti-stalemate rule. Without the floor, a defence stack taller than the other
+            // side's TOP would make the fight unwinnable in both directions and simply never end.
+            SeaCombat.Stats them = SeaCombat.ThreatStats(3, SeaCombat.Derelict, T);
+            Assert.That(them.Def, Is.GreaterThan(T.PlayerShotBase),
+                        "the premise: this hulk out-armours a bare ship's whole shot");
 
+            SeaCombat.Fight f = SeaCombat.Begin(3, SeaCombat.Derelict, Bare, T);
             double hull = f.Them.Hull;
             SeaCombat.ShotLands(ref f, true, SeaCombat.ShotRolls.None, T);
-            Assert.That(hull - f.Them.Hull, Is.EqualTo(T.PlayerShotBase * T.BroadsideMult).Within(1e-9));
-
-            hull = f.Them.Hull;
-            SeaCombat.ShotLands(ref f, true, SeaCombat.ShotRolls.None, T);
-            Assert.That(hull - f.Them.Hull, Is.EqualTo(T.PlayerShotBase).Within(1e-9), "the arming is spent");
-            Assert.That(SeaCombat.TryBroadside(ref f, T), Is.False, "and the cooldown counts turns");
+            Assert.That(hull - f.Them.Hull,
+                        Is.EqualTo(T.PlayerShotBase * T.MinShotFrac).Within(0.05d),
+                        "a ball must always land for at least its floor");
         }
 
         [Test]
-        public void BraceSoftensExactlyTheShotItWasArmedFor()
+        public void TheFasterSheetOpensAndATieGoesToUs()
         {
-            SeaCombat.Stats s = Bare; s.Hull = 10_000d;
-            SeaCombat.Fight f = SeaCombat.Begin(3, SeaCombat.Raider, s, T);
-            SeaCombat.TryBrace(ref f, T);
-            double full = SeaCombat.ThreatStats(3, SeaCombat.Raider, T).Shot;
+            SeaCombat.Stats quick = Bare; quick.Spd = 500d;
+            Assert.That(SeaCombat.Begin(3, SeaCombat.Ghost, quick, T).UsOpen, Is.True);
 
-            double nerve = f.Us.Hull;
-            SeaCombat.ShotLands(ref f, false, SeaCombat.ShotRolls.None, T);
-            Assert.That(nerve - f.Us.Hull, Is.EqualTo(full * T.BraceFactor).Within(0.06d));
+            SeaCombat.Stats slow = Bare; slow.Spd = 0d;
+            Assert.That(SeaCombat.Begin(3, SeaCombat.Ghost, slow, T).UsOpen, Is.False);
 
-            nerve = f.Us.Hull;
-            SeaCombat.ShotLands(ref f, false, SeaCombat.ShotRolls.None, T);
-            Assert.That(nerve - f.Us.Hull, Is.EqualTo(full).Within(0.05d), "the next one lands whole");
-        }
-
-        [Test]
-        public void TheHookHoldsExactlyOneTurn()
-        {
-            SeaCombat.Fight f = SeaCombat.Begin(3, SeaCombat.Raider, Bare, T);
-            Assert.That(SeaCombat.TryGrapple(ref f, T), Is.True);
-            Assert.That(SeaCombat.EnemyWillFire(f), Is.False, "the held turn must not fire");
-            Assert.That(SeaCombat.TryGrapple(ref f, T), Is.False, "a held enemy cannot be held again");
-            SeaCombat.TurnSkipped(ref f, false);
-            Assert.That(SeaCombat.EnemyWillFire(f), Is.True, "and only that one turn");
-            Assert.That(SeaCombat.TryGrapple(ref f, T), Is.False, "the cooldown counts their turns");
-        }
-
-        [Test]
-        public void AHeldTurnStillTicksTheirCooldowns()
-        {
-            SeaCombat.Fight f = SeaCombat.Begin(0, SeaCombat.Derelict, Bare, T);
-            SeaCombat.TryBrace(ref f, T);
-            f.BraceArmed = false;                       // spend the arming; the cd is what we watch
-            int cd = f.BraceCd;
-            SeaCombat.TurnSkipped(ref f, false);
-            Assert.That(f.BraceCd, Is.EqualTo(cd - 1),
-                        "a derelict fight would otherwise freeze every their-side cooldown");
+            SeaCombat.Stats tied = Bare;
+            tied.Spd = SeaCombat.ThreatStats(2, SeaCombat.Raider, T).Spd;
+            Assert.That(SeaCombat.Begin(2, SeaCombat.Raider, tied, T).UsOpen, Is.True,
+                        "a dead heat belongs to the player");
         }
 
         [Test]
         public void AFinishedFightCannotBeMoved()
         {
-            SeaCombat.Fight f = Exchange(0, SeaCombat.Raider, Bare, false);
+            SeaCombat.Fight f = Exchange(0, SeaCombat.Raider, Bare);
             SeaCombat.Fight before = f;
             SeaCombat.ShotLands(ref f, true, SeaCombat.ShotRolls.None, T);
             SeaCombat.ShotLands(ref f, false, SeaCombat.ShotRolls.None, T);
             SeaCombat.TurnSkipped(ref f, false);
-            Assert.That(SeaCombat.TryBroadside(ref f, T), Is.False);
+            SeaCombat.TurnStart(ref f, true, T);
             Assert.That(f.Them.Hull, Is.EqualTo(before.Them.Hull));
             Assert.That(f.Us.Hull, Is.EqualTo(before.Us.Hull));
         }
@@ -200,29 +187,40 @@ namespace Game.Tests
         // ---- the procs ---------------------------------------------------------------------------
 
         [Test]
-        public void ACritMultipliesTheBall()
+        public void ACritMultipliesTheBallItLandsOn()
         {
+            // Measured against the plain ball rather than against TOP, because SAVUNMA has already
+            // come off by the time the crit multiplies anything.
             SeaCombat.Stats s = Bare; s.Crit = 0.5d;
             SeaCombat.Fight f = SeaCombat.Begin(3, SeaCombat.Raider, s, T);
-            var rolls = SeaCombat.ShotRolls.None; rolls.Crit = 0d;
+
             double hull = f.Them.Hull;
+            SeaCombat.ShotLands(ref f, true, SeaCombat.ShotRolls.None, T);
+            double plain = hull - f.Them.Hull;
+
+            var rolls = SeaCombat.ShotRolls.None; rolls.Crit = 0d;
+            hull = f.Them.Hull;
             SeaCombat.ShotReport r = SeaCombat.ShotLands(ref f, true, rolls, T);
             Assert.That(r.Crit, Is.True);
-            Assert.That(hull - f.Them.Hull, Is.EqualTo(T.PlayerShotBase * T.CritMult).Within(1e-9));
+            Assert.That(hull - f.Them.Hull, Is.EqualTo(plain * T.CritMult).Within(0.06d));
         }
 
         [Test]
-        public void ADodgedShotDoesNothingAndSpendsNoBrace()
+        public void ADodgedShotDoesNothingAtAll()
         {
             SeaCombat.Stats s = Bare; s.Dodge = 0.5d;
             SeaCombat.Fight f = SeaCombat.Begin(1, SeaCombat.Raider, s, T);
-            SeaCombat.TryBrace(ref f, T);
-            var rolls = SeaCombat.ShotRolls.None; rolls.Dodge = 0d;
+            var rolls = SeaCombat.ShotRolls.None;
+            rolls.Dodge = 0d;
+            // Every rider is armed: a voided ball must carry none of them through.
+            rolls.Crit = 0d; rolls.Stun = 0d; rolls.Burn = 0d; rolls.Poison = 0d;
             double nerve = f.Us.Hull;
             SeaCombat.ShotReport r = SeaCombat.ShotLands(ref f, false, rolls, T);
             Assert.That(r.Dodged, Is.True);
             Assert.That(f.Us.Hull, Is.EqualTo(nerve), "a dodged ball must not bite");
-            Assert.That(f.BraceArmed, Is.True, "SİPER waits for a ball that actually lands");
+            Assert.That(r.Damage, Is.Zero);
+            Assert.That(f.Us.Stunned, Is.False, "nor stun");
+            Assert.That(f.Us.BurnLeft + f.Us.PoisonLeft, Is.Zero, "nor set anything alight");
         }
 
         [Test]
@@ -299,6 +297,61 @@ namespace Game.Tests
         }
 
         [Test]
+        public void APoisonBitesTheSameAmountEveryTurnThenClears()
+        {
+            SeaCombat.Stats s = Bare; s.Poison = 0.5d;
+            SeaCombat.Fight f = SeaCombat.Begin(3, SeaCombat.Raider, s, T);
+            var rolls = SeaCombat.ShotRolls.None; rolls.Poison = 0d;
+            Assert.That(SeaCombat.ShotLands(ref f, true, rolls, T).PoisonProc, Is.True);
+            Assert.That(f.Them.PoisonLeft, Is.EqualTo(T.PoisonTurns));
+
+            double bite = System.Math.Round(T.PlayerShotBase * T.PoisonFrac * 10d) / 10d;
+            for (int i = 0; i < T.PoisonTurns; i++)
+                Assert.That(SeaCombat.TurnStart(ref f, false, T).PoisonDamage,
+                            Is.EqualTo(bite).Within(1e-9), "tick " + i);
+            Assert.That(SeaCombat.TurnStart(ref f, false, T).PoisonDamage, Is.Zero,
+                        "the venom runs out");
+        }
+
+        [Test]
+        public void BurnScalesWithTheVictimAndPoisonWithThePoisoner()
+        {
+            // The whole reason both fires exist. A burn is worth more the bigger the thing you set
+            // alight; a poison is worth what YOUR guns are worth, whoever swallowed it.
+            SeaCombat.TurnReport Bite(int tier)
+            {
+                SeaCombat.Stats s = Bare; s.Burn = 0.5d; s.Poison = 0.5d;
+                SeaCombat.Fight f = SeaCombat.Begin(tier, SeaCombat.Raider, s, T);
+                var rolls = SeaCombat.ShotRolls.None; rolls.Burn = 0d; rolls.Poison = 0d;
+                SeaCombat.ShotLands(ref f, true, rolls, T);
+                return SeaCombat.TurnStart(ref f, false, T);
+            }
+
+            SeaCombat.TurnReport near = Bite(0), far = Bite(3);
+            Assert.That(far.BurnDamage, Is.GreaterThan(near.BurnDamage),
+                        "a fatter hull must burn for more");
+            Assert.That(far.PoisonDamage, Is.EqualTo(near.PoisonDamage).Within(1e-9),
+                        "the same guns must poison for the same, whatever swallowed it");
+        }
+
+        [Test]
+        public void LifestealHealsOffTheBallAndNeverPastFull()
+        {
+            SeaCombat.Stats s = Bare; s.Steal = 0.5d;
+            SeaCombat.Fight f = SeaCombat.Begin(3, SeaCombat.Raider, s, T);
+            f.Us.Hull = 10d;                            // hurt, so there is room to patch
+
+            SeaCombat.ShotReport r = SeaCombat.ShotLands(ref f, true, SeaCombat.ShotRolls.None, T);
+            Assert.That(r.Damage, Is.GreaterThan(0d));
+            Assert.That(r.Stolen, Is.EqualTo(r.Damage * 0.5d).Within(0.06d));
+            Assert.That(f.Us.Hull, Is.EqualTo(10d + r.Stolen).Within(1e-9));
+
+            f.Us.Hull = f.Us.HullMax;
+            Assert.That(SeaCombat.ShotLands(ref f, true, SeaCombat.ShotRolls.None, T).Stolen, Is.Zero,
+                        "a whole hull has nothing to steal into");
+        }
+
+        [Test]
         public void ASalvoOffersAnotherBall()
         {
             SeaCombat.Stats s = Bare; s.Salvo = 0.5d; s.Shot = 1d;
@@ -337,6 +390,26 @@ namespace Game.Tests
         }
 
         [Test]
+        public void TheCoreStatsCarryTheirOwnKindFlavour()
+        {
+            // SAVUNMA and SÜRAT are read straight off the details card, so each kind has to mean
+            // something in them: the hulk is armour that cannot move, the ghost speed with no armour.
+            for (int tier = 0; tier < Voyages.TierCount; tier++)
+            {
+                Assert.That(SeaCombat.ThreatStats(tier, SeaCombat.Derelict, T).Spd, Is.Zero,
+                            "tier " + tier + ": a drifting hulk must never win the opening ball");
+                Assert.That(SeaCombat.ThreatStats(tier, SeaCombat.Ghost, T).Def, Is.Zero,
+                            "tier " + tier + ": there is nothing solid to a ghost");
+                Assert.That(SeaCombat.ThreatStats(tier, SeaCombat.Ghost, T).Spd,
+                            Is.GreaterThan(SeaCombat.ThreatStats(tier, SeaCombat.Beast, T).Spd),
+                            "tier " + tier + ": the ghost must outrun the beast");
+                Assert.That(SeaCombat.ThreatStats(tier, SeaCombat.Beast, T).Def,
+                            Is.GreaterThan(SeaCombat.ThreatStats(tier, SeaCombat.Fireship, T).Def),
+                            "tier " + tier + ": the beast must be the harder hide");
+            }
+        }
+
+        [Test]
         public void AllFiveKindsActuallyTurnUp()
         {
             var kinds = new System.Collections.Generic.HashSet<int>();
@@ -360,8 +433,10 @@ namespace Game.Tests
         {
             Assert.That(Bare.Shot, Is.EqualTo(T.PlayerShotBase).Within(1e-9));
             Assert.That(Bare.Hull, Is.EqualTo(T.BaseNerve).Within(1e-9));
+            Assert.That(Bare.Def, Is.EqualTo(T.PlayerDefBase).Within(1e-9));
+            Assert.That(Bare.Spd, Is.EqualTo(T.PlayerSpdBase).Within(1e-9));
             Assert.That(Bare.Crit + Bare.Dodge + Bare.Stun + Bare.Mend + Bare.Burn
-                        + Bare.Plunder + Bare.Salvo, Is.Zero);
+                        + Bare.Plunder + Bare.Salvo + Bare.Steal + Bare.Poison, Is.Zero);
         }
 
         [Test]
@@ -370,10 +445,12 @@ namespace Game.Tests
             var gear = new SeaCombat.Item[SeaCombat.SlotCount];
             for (int i = 0; i < gear.Length; i++) gear[i] = new SeaCombat.Item { Slot = i, Grade = -1 };
             gear[SeaCombat.SlotCannon] = new SeaCombat.Item
-                { Slot = SeaCombat.SlotCannon, Grade = 0, Hull = 6d, Shot = 12d };
+                { Slot = SeaCombat.SlotCannon, Grade = 0, Hull = 6d, Shot = 12d, Def = 4d, Spd = 7d };
             SeaCombat.Stats s = SeaCombat.OurStats(-1, 0, 0, gear, CT, T);
             Assert.That(s.Shot, Is.EqualTo(T.PlayerShotBase + 12d).Within(1e-9));
             Assert.That(s.Hull, Is.EqualTo(T.BaseNerve + 6d).Within(1e-9));
+            Assert.That(s.Def, Is.EqualTo(T.PlayerDefBase + 4d).Within(1e-9));
+            Assert.That(s.Spd, Is.EqualTo(T.PlayerSpdBase + 7d).Within(1e-9));
         }
 
         [Test]
@@ -405,13 +482,38 @@ namespace Game.Tests
         }
 
         [Test]
-        public void TheChanceStatsAreCapped()
+        public void EveryChanceStatIsCapped()
         {
-            var gear = new SeaCombat.Item[1];
-            gear[0] = new SeaCombat.Item { Slot = 0, Grade = 4, Sec = SeaCombat.SecCrit, SecAmt = 5d };
-            Assert.That(SeaCombat.OurStats(-1, 0, 0, gear, CT, T).Crit,
-                        Is.EqualTo(SeaCombat.CritCap),
-                        "an uncapped chance stat turns the far reach into a coin with one face");
+            double Stacked(int sec)
+            {
+                var gear = new SeaCombat.Item[1];
+                gear[0] = new SeaCombat.Item { Slot = 0, Grade = 4, Sec = sec, SecAmt = 5d };
+                SeaCombat.Stats s = SeaCombat.OurStats(-1, 0, 0, gear, CT, T);
+                switch (sec)
+                {
+                    case SeaCombat.SecCrit:    return s.Crit;
+                    case SeaCombat.SecDodge:   return s.Dodge;
+                    case SeaCombat.SecStun:    return s.Stun;
+                    case SeaCombat.SecMend:    return s.Mend;
+                    case SeaCombat.SecBurn:    return s.Burn;
+                    case SeaCombat.SecPlunder: return s.Plunder;
+                    case SeaCombat.SecSalvo:   return s.Salvo;
+                    case SeaCombat.SecSteal:   return s.Steal;
+                    default:                   return s.Poison;
+                }
+            }
+
+            // An uncapped chance stat turns the far reach into a coin with one face — and an
+            // uncapped ONARIM or CAN ÇALMA is worse: the fight simply never ends.
+            Assert.That(Stacked(SeaCombat.SecCrit), Is.EqualTo(SeaCombat.CritCap));
+            Assert.That(Stacked(SeaCombat.SecDodge), Is.EqualTo(SeaCombat.DodgeCap));
+            Assert.That(Stacked(SeaCombat.SecStun), Is.EqualTo(SeaCombat.StunCap));
+            Assert.That(Stacked(SeaCombat.SecMend), Is.EqualTo(SeaCombat.MendCap));
+            Assert.That(Stacked(SeaCombat.SecBurn), Is.EqualTo(SeaCombat.BurnCap));
+            Assert.That(Stacked(SeaCombat.SecPlunder), Is.EqualTo(SeaCombat.PlunderCap));
+            Assert.That(Stacked(SeaCombat.SecSalvo), Is.EqualTo(SeaCombat.SalvoCap));
+            Assert.That(Stacked(SeaCombat.SecSteal), Is.EqualTo(SeaCombat.StealCap));
+            Assert.That(Stacked(SeaCombat.SecPoison), Is.EqualTo(SeaCombat.PoisonCap));
         }
 
         [Test]
@@ -430,10 +532,25 @@ namespace Game.Tests
             double baseline = SeaCombat.PowerFor(s, T);
             SeaCombat.Stats hull = s; hull.Hull += 50d;
             SeaCombat.Stats shot = s; shot.Shot += 10d;
-            SeaCombat.Stats sec = s; sec.Crit = 0.2d;
+            SeaCombat.Stats def = s; def.Def += 10d;
+            SeaCombat.Stats spd = s; spd.Spd += 10d;
             Assert.That(SeaCombat.PowerFor(hull, T), Is.GreaterThan(baseline));
             Assert.That(SeaCombat.PowerFor(shot, T), Is.GreaterThan(baseline));
-            Assert.That(SeaCombat.PowerFor(sec, T), Is.GreaterThan(baseline));
+            Assert.That(SeaCombat.PowerFor(def, T), Is.GreaterThan(baseline), "SAVUNMA is power");
+            Assert.That(SeaCombat.PowerFor(spd, T), Is.GreaterThan(baseline), "SÜRAT is power");
+
+            // Every proc has to move the headline too, or the sheet is lying about what it weighs.
+            // Measured on an item with a real core, because PowerFor scales secondaries BY the core.
+            var plain = new SeaCombat.Item { Slot = 0, Grade = 0, Hull = 10d, Shot = 5d };
+            for (int sec = SeaCombat.SecNone + 1; sec < SeaCombat.SecCount; sec++)
+            {
+                SeaCombat.Item item = plain;
+                item.Sec = sec;
+                item.SecAmt = 0.2d;
+                Assert.That(SeaCombat.ItemScore(item, T),
+                            Is.GreaterThan(SeaCombat.ItemScore(plain, T)),
+                            "secondary " + sec + " weighs nothing on the headline");
+            }
         }
 
         // ---- energy ------------------------------------------------------------------------------
@@ -490,11 +607,22 @@ namespace Game.Tests
                 SeaCombat.Item common = SeaCombat.ItemFor(slot, 0, 0, 0d, T);
                 SeaCombat.Item mythic = SeaCombat.ItemFor(slot, 0, 4, 0d, T);
                 SeaCombat.Item far = SeaCombat.ItemFor(slot, 3, 0, 0d, T);
-                Assert.That(mythic.Hull + mythic.Shot, Is.GreaterThan(common.Hull + common.Shot),
-                            "slot " + slot + " grade");
-                Assert.That(far.Hull + far.Shot, Is.GreaterThan(common.Hull + common.Shot),
-                            "slot " + slot + " tier");
+                double Core(SeaCombat.Item i) => i.Hull + i.Shot + i.Def + i.Spd;
+                Assert.That(Core(mythic), Is.GreaterThan(Core(common)), "slot " + slot + " grade");
+                Assert.That(Core(far), Is.GreaterThan(Core(common)), "slot " + slot + " tier");
+
+                // Every piece carries all four, so no slot is dead weight in a stat the sheet shows.
+                Assert.That(common.Hull, Is.GreaterThan(0d), "slot " + slot + " hull");
+                Assert.That(common.Shot, Is.GreaterThan(0d), "slot " + slot + " shot");
+                Assert.That(common.Def, Is.GreaterThan(0d), "slot " + slot + " def");
+                Assert.That(common.Spd, Is.GreaterThan(0d), "slot " + slot + " spd");
             }
+
+            // And each slot keeps its nature: the glass is the lookout, the plating the wall.
+            Assert.That(SeaCombat.ItemFor(SeaCombat.SlotSpyglass, 2, 0, 0d, T).Spd,
+                        Is.GreaterThan(SeaCombat.ItemFor(SeaCombat.SlotPlating, 2, 0, 0d, T).Spd));
+            Assert.That(SeaCombat.ItemFor(SeaCombat.SlotPlating, 2, 0, 0d, T).Def,
+                        Is.GreaterThan(SeaCombat.ItemFor(SeaCombat.SlotSpyglass, 2, 0, 0d, T).Def));
         }
 
         [Test]
@@ -625,6 +753,32 @@ namespace Game.Tests
         }
 
         [Test]
+        public void APreDefenceItemGrowsTheNewCoreStatsInPlace()
+        {
+            // The build before this one had no SAVUNMA or SÜRAT on items. A save from it must not
+            // arrive with a worn Legendary that is slower and softer than a fresh Common — which is
+            // exactly what an unmigrated zero would mean now that both stats decide fights.
+            var data = new SaveData();
+            data.seaGearGrade = new[] { 0, 4, 0, 0 };        // a Legendary plating...
+            data.seaGearHull = new[] { 0d, 240d, 0d, 0d };   // ...with the old two-stat body
+            data.seaGearShot = new[] { 0d, 3d, 0d, 0d };
+            data.seaGearDef = null;
+            data.seaGearSpd = null;
+            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+
+            SeaCombat.Item plating = sea.GearItem(SeaCombat.SlotPlating);
+            Assert.That(plating.Grade, Is.EqualTo(3), "the grade survives");
+            Assert.That(plating.Hull, Is.EqualTo(240d), "and so does everything it already had");
+            SeaCombat.Item fresh = SeaCombat.ItemFor(SeaCombat.SlotPlating, 0, 0, 0d, T);
+            Assert.That(plating.Def, Is.GreaterThanOrEqualTo(fresh.Def),
+                        "an owned Legendary must not be softer than a fresh Common");
+            Assert.That(plating.Spd, Is.GreaterThanOrEqualTo(fresh.Spd),
+                        "nor slower");
+            Assert.That(sea.GearScore(SeaCombat.SlotPlating), Is.GreaterThan(0),
+                        "the score is re-derived over the grown block");
+        }
+
+        [Test]
         public void APreFeatureSaveArrivesSafely()
         {
             var data = new SaveData();
@@ -632,10 +786,14 @@ namespace Game.Tests
             data.seaGearPower = null;
             data.seaGearSec = null;
             data.seaGearSecAmt = null;
+            data.seaGearDef = null;
+            data.seaGearSpd = null;
             data.seaEnergy = -1;
             var sea = new ExpeditionService(null, new TimeService(), data, null, T);
             Assert.That(data.seaGearGrade.Length, Is.EqualTo(SeaCombat.SlotCount));
             Assert.That(data.seaGearSecAmt.Length, Is.EqualTo(SeaCombat.SlotCount));
+            Assert.That(data.seaGearDef.Length, Is.EqualTo(SeaCombat.SlotCount));
+            Assert.That(data.seaGearSpd.Length, Is.EqualTo(SeaCombat.SlotCount));
             Assert.That(sea.Energy, Is.EqualTo(T.EnergyMax),
                         "the first thing a returning player sees must not be a wait");
         }
@@ -679,7 +837,7 @@ namespace Game.Tests
             SaveData data; MarketService market; VoyageService dock; CaptainService captains;
             ExpeditionService sea = Rig(out data, out market, out dock, out captains);
             Sail(dock, market);
-            sea.Board(0);
+            sea.SetSail("coal");
 
             VoyageState v = dock.At(0);
             long returns = v.returnsUnix; double held = v.held; int cards = v.payoutCards;

@@ -421,11 +421,13 @@ namespace Game.Gameplay
         [SerializeField] private int stationWorkerLevelsPer = 18;
         [Tooltip("İstasyon elemanlarının yürüme hızı.")]
         [SerializeField] private float stationWalkSpeed = 1.8f;
-        [Tooltip("Ustabaşı, işçilere göre kaç kat büyük dursun. Onu kalabalıktan ayıran şey bu ve " +
-                 "duruşu; ayrı bir modeli yok.")]
+        [Tooltip("Usta, işçilere göre kaç kat büyük dursun. Onu kalabalıktan ayıran şey bu, duruşu ve " +
+                 "kademesi; ayrı bir modeli yok. Kademe başına ayrıca %5 büyür.")]
         [SerializeField] private float foremanScaleMultiplier = 1.18f;
-        [Tooltip("Ustabaşının istasyon çapasından ada merkezine doğru kaç birim geride duracağı.")]
+        [Tooltip("Ustanın istasyon çapasından ada merkezine doğru kaç birim geride duracağı.")]
         [SerializeField] private float foremanStandOffset = 7f;
+        [Tooltip("Ustanın ayağının altındaki kademe renkli diskin yarıçapı (birim).")]
+        [SerializeField] private float foremanPlinthRadius = 1.5f;
         [Tooltip("Elemanların noktalarından ne kadar uzağa gezinebileceği. 0 = hiç kıpırdamaz.")]
         [SerializeField] private float stationDriftRange = 2.5f;
         [Tooltip("Yayaların kamyona yol vermesi için kaldırıma çekildiği mesafe.")]
@@ -934,6 +936,28 @@ namespace Game.Gameplay
         {
             world = _portBadgeAt;
             return _contractShip != null;
+        }
+
+        /// <summary>
+        /// Where the player's own fighting ship lies: at anchor in the roads off the contract berth,
+        /// bow to the island. Seaward of the moor so it is open water by construction, and offset
+        /// along the quay so the contract ship's own sail-in line never runs through her. False on
+        /// an island whose harbour never built, the same answer <see cref="PortAnchor"/> gives.
+        /// </summary>
+        public bool OurShipBerth(out Vector3 pos, out Vector3 heading, out Transform parent)
+        {
+            pos = Vector3.zero;
+            heading = Vector3.forward;
+            parent = _islandRoot;
+            if (_contractShip == null || _islandRoot == null) return false;
+            Vector3 seaward = Flat(_contractHorizon - _contractMoor);
+            if (seaward.sqrMagnitude < 0.01f) return false;
+            seaward.Normalize();
+            pos = _contractMoor + seaward * (_contractHullHalf + 14f)
+                + _contractAlong * (_contractBeamHalf + 10f);
+            pos.y = _waterY;
+            heading = -seaward;
+            return true;
         }
 
         /// <summary>
@@ -6200,13 +6224,18 @@ namespace Game.Gameplay
                 Busy = DistrictBusy,
             };
 
-            // The hired foremen. Same bodies as the crew, posted off the station anchors rather than
-            // the district art — see StationForemen for why those are not the same thing.
+            // The masters. Same bodies as the crew, posted off the station anchors rather than the
+            // district art — see StationForemen for why those are not the same thing. The plinth
+            // colours come from the roster service so the tint under his feet is the same one his card
+            // is drawn in; the material is cloned off the island's own art, like every other piece of
+            // generated geometry here, so nothing new has to be wired on eight components.
             _bosses = new StationForemen(_islandRoot, bodies, StationList.Length,
-                                         workerScale * foremanScaleMultiplier)
+                                         workerScale * foremanScaleMultiplier,
+                                         ForemanPlinthMaterials(), foremanPlinthRadius)
             {
                 Hired = ForemanHired,
                 Post = ForemanPost,
+                Stars = ForemanStars,
             };
             // StationCrew refreshes inside its own constructor; this one cannot, because the two
             // delegates above are assigned by the initialiser that runs after it. SettleCrew would get
@@ -6258,6 +6287,23 @@ namespace Game.Gameplay
         }
 
         private bool ForemanHired(int station) => _foremen != null && _foremen.IsHired(station);
+
+        private int ForemanStars(int station) => _foremen != null ? _foremen.LevelOf(station) : 0;
+
+        /// <summary>
+        /// One plinth material per tier, cloned off the island's own art so they batch with it and
+        /// tinted from the roster service's palette — the same colours the roster screen paints its
+        /// card frames with. Null when there is no roster to ask, which leaves the masters standing on
+        /// bare ground rather than breaking them.
+        /// </summary>
+        private Material[] ForemanPlinthMaterials()
+        {
+            if (_foremen == null) return null;
+            var mats = new Material[Game.Core.Foremen.TierCount];
+            for (int t = 0; t < mats.Length; t++)
+                mats[t] = MakeMat(_srcMat, _foremen.TierTint((Game.Core.Foremen.Tier)t));
+            return mats;
+        }
 
         /// <summary>
         /// Where a station's foreman stands: a few paces off his station's anchor toward the middle of

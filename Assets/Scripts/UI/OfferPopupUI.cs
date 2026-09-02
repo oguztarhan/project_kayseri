@@ -524,7 +524,14 @@ namespace Game.UI
         private void Settle(string key, bool ok)
         {
             if (buyButton != null) buyButton.interactable = true;
-            if (!ok) return;
+            if (!ok)
+            {
+                // The button is live again, but a window that just swallows a tap still reads as
+                // broken. The store owns the wording so the pop-up and the shelf cannot disagree.
+                if (store != null)
+                    store.SayWhyNotSold(panelRoot != null ? panelRoot.transform as RectTransform : null);
+                return;
+            }
 
             _data.islandOffersBought.Add(key);
             _data.offerDeclineStreak = 0;

@@ -603,8 +603,31 @@ namespace Game.UI
             // run there made test purchases indistinguishable from paid rewards and could stack them
             // after a reinstall. Editor-only keeps the balancing shortcut without shipping a free till.
             if (devFreeIAP && Application.isEditor) { onDone(true, null); return; }
-            if (_iap != null) _iap.Purchase(sku, onDone);
+            // The callback is a promise. Whoever tapped has already disabled the button that only
+            // comes back when it fires, so dropping it here left the offer pop-up's AL permanently
+            // dead — which is exactly what App Review reported as an unresponsive purchase.
+            if (_iap == null) { onDone(false, null); return; }
+            _iap.Purchase(sku, onDone);
         }
+
+        /// <summary>True when the platform store has answered and can actually take money.</summary>
+        public bool StoreReachable => _iap != null && _iap.Ready;
+
+        /// <summary>
+        /// Says why nothing was sold, on whichever panel the player is looking at. Silence is what a
+        /// reviewer reads as a frozen app: a card that refuses without a word is indistinguishable
+        /// from a card that does not work.
+        /// </summary>
+        public void SayWhyNotSold(RectTransform panel)
+        {
+            StoreNotice.Show(panel, Line(StoreReachable ? "magaza.hata.alim" : "magaza.hata.magaza_yok",
+                                         StoreReachable ? "PURCHASE NOT COMPLETED."
+                                                        : "STORE UNAVAILABLE. TRY AGAIN LATER."));
+        }
+
+        /// <summary>The store's own panel, as the notice's parent.</summary>
+        private RectTransform PanelRect => panelRoot != null
+            ? panelRoot.transform as RectTransform : null;
 
         private bool TransactionProcessed(string transactionId)
         {
@@ -826,7 +849,7 @@ namespace Game.UI
             else if (Sellable(item.sku))
                 PurchaseFlow(item.sku, (ok, transactionId) =>
                 {
-                    if (!ok) return;
+                    if (!ok) { SayWhyNotSold(PanelRect); return; }
                     if (TransactionProcessed(transactionId)) return;
                     if (_wallet != null) _wallet.AddGems(item.gemAmount);
                     // Sipariş çoktan onaylandı; ödenmiş elmas diskte olmadan bir kare bile beklemez.
@@ -870,6 +893,8 @@ namespace Game.UI
                         // Keep the captured island. "false" also covers Ask-to-Buy/deferred orders,
                         // which can be approved after the player has travelled somewhere else.
                         // A later starter tap overwrites this value, so an ordinary cancellation is safe.
+                        // The pop-up says its own piece; this covers a tap on the store's own cards.
+                        if (onDone == null) SayWhyNotSold(PanelRect);
                         onDone?.Invoke(false);
                         return;
                     }

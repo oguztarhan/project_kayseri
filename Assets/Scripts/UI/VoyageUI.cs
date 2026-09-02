@@ -23,9 +23,6 @@ namespace Game.UI
     public sealed class VoyageUI : MonoBehaviour
     {
         [SerializeField] private int sortingOrder = 120;   // above MarketHudUI's 100
-
-        /// <summary>The scene the board button loads. Its own constant so the string is in one place.</summary>
-        private const string SeaScene = "Sea";
         [SerializeField] private float refreshInterval = 0.25f;
 
         private static readonly Color Chrome  = new Color(0.13f, 0.16f, 0.23f, 0.96f);
@@ -36,7 +33,6 @@ namespace Game.UI
         private MarketService _market;
         private ForemanService _foremen;
         private CaptainService _captainsSvc;
-        private ExpeditionService _seaSvc;
         private string _yardKey;
 
         private RectTransform _panel;
@@ -51,8 +47,6 @@ namespace Game.UI
         private TMP_Text _crewLabel;
         private Button _captainBtn;
         private TMP_Text _captainLabel;
-        private Button _board;
-        private TMP_Text _boardLabel;
 
         private RectTransform _voyageView, _yardView;
         private Button _tabVoyage, _tabYard;
@@ -78,7 +72,7 @@ namespace Game.UI
         // rebuilds the mesh whether or not the string changed, and this screen refreshes four times a
         // second — see CLAUDE.md on allocations in repeating paths.
         private string _lastState, _lastDetail, _lastPrimary, _lastSecondary, _lastChip,
-                       _lastCrew, _lastCaptain, _lastBoard;
+                       _lastCrew, _lastCaptain;
         private readonly string[] _lastTier = new string[Voyages.TierCount];
         private readonly bool[] _tierSelected = new bool[Voyages.TierCount];
         private readonly bool[] _tierOpen = new bool[Voyages.TierCount];
@@ -90,7 +84,6 @@ namespace Game.UI
             _yardKey = yardKey;
             _foremen = ServiceLocator.Get<ForemanService>();
             _captainsSvc = ServiceLocator.Get<CaptainService>();
-            _seaSvc = ServiceLocator.Get<ExpeditionService>();
 
             RectTransform canvas = UiBuild.Canvas(transform, "SeferKanvas", sortingOrder);
             UiBuild.EnsureEventSystem(canvas);
@@ -172,12 +165,6 @@ namespace Game.UI
             Span(_captainBtn, 0.51f, 0.92f);
             _primary = Action(_voyageView, "AnaDugme", UiSkin.ButtonGreen, 0.20f, 0.31f, OnPrimary, out _primaryLabel);
             _secondary = Action(_voyageView, "YanDugme", UiSkin.ButtonGrey, 0.06f, 0.17f, OnSecondary, out _secondaryLabel);
-
-            // GO OUT WITH HER. Only ever offered for a ship that is actually at sea — a hold still
-            // filling at the dock has nowhere to take anybody — and it changes nothing about the
-            // voyage. Docs/FIVE_LAYERS.md §4: the sea is a window, and sailing it may only ever add.
-            _board = Action(_voyageView, "DenizeCik", UiSkin.ButtonYellow, 0.06f, 0.17f, OnBoard, out _boardLabel);
-            Span(_board, 0.52f, 0.92f);
 
             // Built with Action rather than UiBuild.Btn: Btn parents a legacy Text child, and one Arial
             // glyph on a screen set in Baloo2 is exactly the one that shows.
@@ -482,18 +469,6 @@ namespace Game.UI
             Refresh();
         }
 
-        /// <summary>
-        /// Board the ship in berth 0 and go to sea with her. Nothing about the voyage changes — the
-        /// clock, the route and the odds are identical for a player who never presses this. If the
-        /// curtain refuses (one is already up), the boarding is undone rather than left half-made.
-        /// </summary>
-        private void OnBoard()
-        {
-            if (_seaSvc == null || !_seaSvc.Board(0)) return;
-            ServiceLocator.Get<HapticService>()?.Medium();
-            if (!SceneCurtain.Cover(SeaScene, Fill, Loc.T("deniz.baslik"), false)) _seaSvc.Ashore();
-        }
-
         /// <summary>Hired, and not already at sea on something else.</summary>
         private bool FreeForeman(int station)
             => _foremen != null && _foremen.IsHired(station) && !_voyages.ForemanBusy(station);
@@ -591,7 +566,6 @@ namespace Game.UI
             RefreshTiers(v);
             RefreshCrew(v);
             RefreshCaptain(v);
-            RefreshBoard(v);
 
             string state, detail, primary, secondary;
             float fill;
@@ -757,24 +731,6 @@ namespace Game.UI
             if (text != _lastCaptain) { _captainLabel.text = text; _lastCaptain = text; }
 
             _captainBtn.interactable = v == null || v.sailedUnix <= 0L;
-        }
-
-        /// <summary>
-        /// The way out to sea. Shown only for a ship that has actually sailed: a hold filling at the
-        /// dock has nowhere to take anybody, and a live button that answers "not yet" is worse than
-        /// no button at all.
-        /// </summary>
-        private void RefreshBoard(VoyageState v)
-        {
-            if (_board == null) return;
-            bool canGo = _seaSvc != null && _seaSvc.CanBoard(0);
-            _board.gameObject.SetActive(canGo);
-            if (canGo) Push(_boardLabel, Loc.T("sefer.denizeCik"), ref _lastBoard);
-
-            // The bottom row is shared. The secondary keeps the whole width when there is nowhere to
-            // sail to — a button that shrinks to make room for one that is not there would read as a
-            // layout that had lost something.
-            if (_secondary != null) Span(_secondary, 0.08f, canGo ? 0.48f : 0.92f);
         }
 
         private static string Percent(double v) => Mathf.RoundToInt((float)(v * 100d)) + "%";

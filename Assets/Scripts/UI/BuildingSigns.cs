@@ -75,6 +75,21 @@ namespace Game.UI
         [Tooltip("Beyaz panelin üstündeki yazı rengi.")]
         [SerializeField] private Color _plateText = new Color(0.09f, 0.14f, 0.24f, 1f);
 
+        // Tabelalar UZAKTAN işe yarar: hangi binanın ne olduğunu söylerler. Yakın planda bina zaten
+        // tanınıyor ve her çatının üstünde ayrıca yükseltme rozeti ile tamir anahtarı duruyor — üç
+        // katman üst üste binince ada okunmaz oluyor. Kamera içeri girdikçe tabelalar siliniyor,
+        // yerlerini binanın yanında duran ustanın kendisi alıyor.
+        // Ölçüm: açılış karesi bu bandın ALT çeyreğinde oturuyor — kamera mesafesi
+        // groundToCentre + 0.8925*defaultZoomFraction*survey, yani ZoomT sahnedeki 0.21 ile ~0.26,
+        // yeni 0.14 ile ~0.12. Band bilerek ikisinin de üstünde başlıyor: açılışta tabela YOK,
+        // oyuncu ada geneline bakmak için geri çekildiğinde geliyor. Bandı 0.26'nın altına
+        // indirirseniz tabelalar varsayılan karede geri gelir ve temiz görünüm bozulur.
+        [Header("Yakınlaşınca sönme")]
+        [Tooltip("Bu yakınlık oranının altında tabelalar tamamen görünmez (0 = tam yakın, 1 = tam uzak).")]
+        [SerializeField] private float _fadeInStartT = 0.30f;
+        [Tooltip("Bu oranın üstünde tamamen görünür.")]
+        [SerializeField] private float _fadeInEndT = 0.50f;
+
         [Header("Bağlanma")]
         [Tooltip("Hangi operasyonun canlı olduğuna bu sıklıkta bakılır.")]
         [SerializeField] private float _rebindSeconds = 0.5f;
@@ -82,6 +97,8 @@ namespace Game.UI
         private static readonly int NightId = Shader.PropertyToID("_KayseriNight");
 
         private Camera _camera;
+        private CameraController _rig;
+        private CanvasGroup _fade;
         private CoalOperation _operation;
         private RectTransform _canvas;
 
@@ -110,7 +127,8 @@ namespace Game.UI
                 _nightText = new Color(1f, 0.82f, 0.38f, 1f);
             }
 
-            var go = new GameObject("BinaTabelalariKanvas", typeof(Canvas), typeof(CanvasScaler));
+            var go = new GameObject("BinaTabelalariKanvas", typeof(Canvas), typeof(CanvasScaler),
+                                    typeof(CanvasGroup));
             go.transform.SetParent(transform, false);
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -120,6 +138,10 @@ namespace Game.UI
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             scaler.matchWidthOrHeight = 0.5f;
             _canvas = (RectTransform)go.transform;
+            _fade = go.GetComponent<CanvasGroup>();
+            // Signs never take a tap; without this a faded-out sign would still swallow one.
+            _fade.blocksRaycasts = false;
+            _fade.interactable = false;
 
             _loc = ServiceLocator.Get<LocalizationService>();
             if (_loc != null) _loc.Changed += OnLanguageChanged;
@@ -147,8 +169,24 @@ namespace Game.UI
             Rebind();
             if (_count == 0) return;
 
+            FadeWithZoom();
+            if (_fade != null && _fade.alpha <= 0.001f) return;   // invisible: nothing to lay out
+
             Paint(Shader.GetGlobalFloat(NightId));
             Place();
+        }
+
+        /// <summary>
+        /// Fades the whole board in as the camera pulls back. No rig to ask (the market and sea scenes
+        /// have their own cameras) means full opacity — never a silent blank board.
+        /// </summary>
+        private void FadeWithZoom()
+        {
+            if (_fade == null) return;
+            if (_rig == null) { _fade.alpha = 1f; return; }
+
+            float t = Mathf.InverseLerp(_fadeInStartT, _fadeInEndT, _rig.ZoomT);
+            _fade.alpha = Mathf.Clamp01(t);
         }
 
         /// <summary>Travelling to another island enables a different <see cref="CoalOperation"/>, so
@@ -160,6 +198,9 @@ namespace Game.UI
             _rebindIn = Mathf.Max(0.1f, _rebindSeconds);
 
             if (_camera == null) _camera = Camera.main;
+            // The pan/pinch rig lives on the island camera itself. Re-read alongside the camera so a
+            // scene swap picks up the new one rather than fading against a destroyed rig.
+            if (_camera != null && _rig == null) _rig = _camera.GetComponent<CameraController>();
             if (_operation != null && _operation.enabled) return;
 
             CoalOperation live = null;

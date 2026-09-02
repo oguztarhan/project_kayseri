@@ -37,7 +37,7 @@ namespace Game.Core
         /// The island each chapter belongs to, mirroring <c>Game.Gameplay.WorldIslands.DefaultLadder()</c>.
         ///
         /// Authored here rather than read from the ladder because Game.Systems cannot see
-        /// Game.Gameplay — the same reason <see cref="Foremen.Slots"/> restates
+        /// Game.Gameplay — the same reason <see cref="Foremen.Count"/> restates the length of
         /// <see cref="IslandEconomy.Stations"/>. ChaptersTests pins the order against this comment;
         /// if the ladder is ever re-cut, that test is what fails first.
         /// </summary>

@@ -393,6 +393,9 @@ namespace Game.UI
             {
                 var save = ServiceLocator.Get<SaveService>();
                 if (save != null) save.Suspended = true;   // yapışkan: bir kez çalıştıysa bu oturum kayıt yazmaz
+                // Atölye ancak puanla denenebilir ve puanlar oyunda damla damla gelir; test modu
+                // bir kerede bolca verir. Kayıt zaten askıda, kalıcı bir şey bağışlanmış olmuyor.
+                ServiceLocator.Get<CraftingService>()?.AddPoints(200L);
             }
             if (_haptic != null) _haptic.Light();
             RefreshTestButton();

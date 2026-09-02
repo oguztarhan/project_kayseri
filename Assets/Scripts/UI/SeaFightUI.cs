@@ -10,7 +10,7 @@ namespace Game.UI
     /// <summary>
     /// The adventure screen, in the reference game's shape fitted to landscape: the 2D sea STAGE on
     /// the left two-thirds, and a persistent SHEET PANEL on the right — the POWER headline, the
-    /// nine stats, the four worn items with their grade stars, who captains, the energy pill, and
+    /// whole stat block, the four worn items with their grade stars, who captains, the energy pill, and
     /// the SEARCH and AUTO buttons. The sheet is on from the moment the player is aboard; fights
     /// come and go on the stage beside it.
     ///
@@ -38,7 +38,6 @@ namespace Game.UI
         private static readonly Color HullFillTint = new Color(0.92f, 0.30f, 0.26f, 0.95f);
         private static readonly Color NerveFillTint = new Color(0.36f, 0.74f, 0.99f, 0.95f);
         private static readonly Color EnergyTint = new Color(0.99f, 0.82f, 0.28f, 1f);
-        private static readonly Color Veil = new Color(0f, 0f, 0f, 0.62f);
         private static readonly Color Win = new Color(0.55f, 0.95f, 0.55f, 1f);
         private static readonly Color Loss = new Color(0.95f, 0.75f, 0.45f, 1f);
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
@@ -50,6 +49,8 @@ namespace Game.UI
         private static readonly Color MendTint = new Color(0.45f, 0.95f, 0.55f, 1f);
         private static readonly Color StunTint = new Color(0.80f, 0.55f, 1f, 1f);
         private static readonly Color PlunderTint = new Color(0.40f, 0.95f, 0.90f, 1f);
+        private static readonly Color PoisonTint = new Color(0.55f, 0.88f, 0.25f, 1f);
+        private static readonly Color StealTint = new Color(1f, 0.50f, 0.65f, 1f);
 
         /// <summary>Grade tints — the same ladder the captain screen wears.</summary>
         private static readonly Color[] GradeTint =
@@ -64,7 +65,8 @@ namespace Game.UI
         private const int BallPool = 8;
         private const int FlashPool = 6;
         private const int FloatPool = 14;
-        private const int StatCount = 9;
+        private const int CoreStatCount = 4;
+        private const int StatCount = 13;
 
         private EncounterController _fights;
         private ExpeditionService _sea;
@@ -78,7 +80,6 @@ namespace Game.UI
         private RectTransform _shipRoot, _threatRoot;
         private CanvasGroup _threatGroup;
         private Image _threatImage;
-        private RectTransform _shield, _hook;
 
         private RectTransform _hullTrack, _hullFill, _nerveTrack, _nerveFill;
         private TMP_Text _threatName, _banner;
@@ -91,10 +92,6 @@ namespace Game.UI
         private Button _search, _autoBtn;
         private TMP_Text _searchLabel, _autoLabel;
         private Image _autoImage;
-
-        // Fight chrome.
-        private readonly Button[] _ability = new Button[3];
-        private readonly RectTransform[] _veil = new RectTransform[3];
 
         // The details card (Found).
         private RectTransform _foundCard;
@@ -131,7 +128,7 @@ namespace Game.UI
 
         private int _seenStamp, _seenEvent, _seenBall, _seenKind = -1;
         private EncounterController.Phase _seenPhase = EncounterController.Phase.Idle;
-        private float _toast, _shipWobble, _threatWobble, _hookShow = 9f, _energyTick, _sheetTick;
+        private float _toast, _shipWobble, _threatWobble, _energyTick, _sheetTick;
         private double _sheetPowerSeen = -1d;
         private string _lastEnergy, _lastSearch, _lastPower, _lastCaptain;
         private bool _lastAuto;
@@ -165,7 +162,6 @@ namespace Game.UI
             _threatGroup = _threatRoot.gameObject.AddComponent<CanvasGroup>();
             _threatGroup.alpha = 0f;
             _threatImage = _threatRoot.GetChild(0).GetComponent<Image>();
-            BuildOrnaments();
             BuildFrontWaves();
             BuildBars();
             BuildPools();
@@ -174,12 +170,6 @@ namespace Game.UI
             _banner.fontStyle = FontStyles.Bold;
 
             BuildPanel();
-            BuildAbility(0, "Borda", "deniz.yetenek.borda", UiSkin.ButtonYellow,
-                         new Vector2(0.040f, 0.030f), new Vector2(0.235f, 0.150f), OnBroadside);
-            BuildAbility(1, "Siper", "deniz.yetenek.siper", UiSkin.ButtonBlue,
-                         new Vector2(0.250f, 0.030f), new Vector2(0.430f, 0.150f), OnBrace);
-            BuildAbility(2, "Kanca", "deniz.yetenek.kanca", UiSkin.ButtonGreen,
-                         new Vector2(0.445f, 0.030f), new Vector2(0.625f, 0.150f), OnGrapple);
             BuildFoundCard();
             BuildLootCard();
             BuildGearCard();
@@ -250,26 +240,6 @@ namespace Game.UI
             return rt;
         }
 
-        private void BuildOrnaments()
-        {
-            _shield = Ornament(_shipRoot, "Kalkan", S("kalkan"));
-            _hook = Ornament(_stage, "Kanca", S("kanca"));
-        }
-
-        private RectTransform Ornament(RectTransform parent, string name, Sprite sprite)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>();
-            img.sprite = sprite != null ? sprite : UiSkin.Flat;
-            img.preserveAspect = true;
-            img.raycastTarget = false;
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            go.SetActive(false);
-            return rt;
-        }
-
         private void BuildBars()
         {
             _hullTrack = BarTrack("TehditCani", out _hullFill, HullFillTint);
@@ -337,8 +307,8 @@ namespace Game.UI
         // ------------------------------------------------------------- the sheet
         /// <summary>
         /// The right-hand panel — the reference game's bottom sheet turned on its side for
-        /// landscape: POWER, the nine stats, the worn items, the captain, and the two buttons that
-        /// drive the whole loop.
+        /// landscape: POWER, the four core stats big, the nine procs under them, the worn items,
+        /// the captain, and the two buttons that drive the whole loop.
         /// </summary>
         private void BuildPanel()
         {
@@ -352,21 +322,34 @@ namespace Game.UI
             _powerLabel.fontStyle = FontStyles.Bold;
             _powerLabel.color = EnergyTint;
 
+            // The four CORE stats read big across the top; the nine PROCS grid under them. One
+            // array, core first — RefreshSheet fills them in the same order.
             string[] labels =
             {
-                Loc.T("deniz.cesaret"), Loc.T("deniz.slot.0"), Loc.T("deniz.st.kritik"),
-                Loc.T("deniz.st.manevra"), Loc.T("deniz.st.salvo"), Loc.T("deniz.st.sersem"),
-                Loc.T("deniz.st.onarim"), Loc.T("deniz.st.yagma"), Loc.T("deniz.st.yangin"),
+                Loc.T("deniz.cesaret"), Loc.T("deniz.slot.0"),
+                Loc.T("deniz.st.savunma"), Loc.T("deniz.st.surat"),
+                Loc.T("deniz.st.kritik"), Loc.T("deniz.st.manevra"), Loc.T("deniz.st.salvo"),
+                Loc.T("deniz.st.sersem"), Loc.T("deniz.st.onarim"), Loc.T("deniz.st.cancalma"),
+                Loc.T("deniz.st.yagma"), Loc.T("deniz.st.yangin"), Loc.T("deniz.st.zehir"),
             };
-            for (int i = 0; i < StatCount; i++)
+            for (int i = 0; i < CoreStatCount; i++)
             {
-                int col = i % 3, row = i / 3;
-                float x0 = 0.04f + col * 0.315f, x1 = x0 + 0.30f;
-                float y1 = 0.895f - row * 0.094f, y0 = y1 - 0.086f;
-                TMP_Text label = Line(_panel, "Ist" + i, 17f, new Vector2(x0, y0 + 0.044f), new Vector2(x1, y1));
+                float x0 = 0.035f + i * 0.2375f, x1 = x0 + 0.22f;
+                TMP_Text label = Line(_panel, "Ist" + i, 15f, new Vector2(x0, 0.862f), new Vector2(x1, 0.900f));
                 label.text = labels[i];
                 label.color = Faded;
-                _statValue[i] = Line(_panel, "Deger" + i, 23f, new Vector2(x0, y0), new Vector2(x1, y0 + 0.046f));
+                _statValue[i] = Line(_panel, "Deger" + i, 24f, new Vector2(x0, 0.814f), new Vector2(x1, 0.860f));
+                _statValue[i].fontStyle = FontStyles.Bold;
+            }
+            for (int i = CoreStatCount; i < StatCount; i++)
+            {
+                int col = (i - CoreStatCount) % 3, row = (i - CoreStatCount) / 3;
+                float x0 = 0.04f + col * 0.315f, x1 = x0 + 0.30f;
+                float y1 = 0.800f - row * 0.063f, y0 = y1 - 0.058f;
+                TMP_Text label = Line(_panel, "Ist" + i, 14f, new Vector2(x0, y0 + 0.030f), new Vector2(x1, y1));
+                label.text = labels[i];
+                label.color = Faded;
+                _statValue[i] = Line(_panel, "Deger" + i, 18f, new Vector2(x0, y0), new Vector2(x1, y0 + 0.032f));
                 _statValue[i].fontStyle = FontStyles.Bold;
             }
 
@@ -449,36 +432,6 @@ namespace Game.UI
             b.targetGraphic = image;
             b.onClick.AddListener(onClick);
             return b;
-        }
-
-        private void BuildAbility(int i, string name, string locKey, Sprite art,
-                                  Vector2 aMin, Vector2 aMax, UnityEngine.Events.UnityAction onClick)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(_root, false);
-            var image = go.GetComponent<Image>();
-            image.sprite = art != null ? art : UiSkin.Flat;
-            image.type = Image.Type.Sliced;
-            image.color = UiSkin.HasArt ? Color.white : Chrome;
-            UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
-
-            TMP_Text label = Line((RectTransform)go.transform, "Yazi", 24f,
-                                  new Vector2(0.05f, 0.1f), new Vector2(0.95f, 0.9f));
-            label.text = Loc.T(locKey);
-
-            var veil = new GameObject("Perde", typeof(RectTransform), typeof(Image));
-            veil.transform.SetParent(go.transform, false);
-            var vi = veil.GetComponent<Image>();
-            vi.sprite = UiSkin.Flat;
-            vi.type = Image.Type.Sliced;
-            vi.color = Veil;
-            vi.raycastTarget = false;
-            _veil[i] = UiBuild.Anchor((RectTransform)veil.transform, new Vector2(0f, 1f), Vector2.one);
-
-            var button = go.GetComponent<Button>();
-            button.targetGraphic = image;
-            button.onClick.AddListener(onClick);
-            _ability[i] = button;
         }
 
         // ------------------------------------------------------------ the cards
@@ -634,25 +587,6 @@ namespace Game.UI
             ServiceLocator.Get<HapticService>()?.Light();
         }
 
-        private void OnBroadside()
-        {
-            if (_fights == null || !_fights.TryBroadside()) return;
-            ServiceLocator.Get<HapticService>()?.Medium();
-        }
-
-        private void OnBrace()
-        {
-            if (_fights == null || !_fights.TryBrace()) return;
-            ServiceLocator.Get<HapticService>()?.Medium();
-        }
-
-        private void OnGrapple()
-        {
-            if (_fights == null || !_fights.TryGrapple()) return;
-            ServiceLocator.Get<HapticService>()?.Medium();
-            _hookShow = 0f;
-        }
-
         private void OnEquip()
         {
             if (_fights == null || !_fights.EquipDrop()) return;
@@ -746,17 +680,7 @@ namespace Game.UI
             DriveBalls(dt);
             DriveFlashes(dt);
             DriveFloats(dt, h);
-            DriveOrnaments(phase, w, h, dt);
             DriveSheet(phase, dt);
-
-            if (phase == EncounterController.Phase.Fight)
-            {
-                SeaCombat.Fight f = _fights.Current;
-                SeaCombat.Tuning ct = _fights.Combat;
-                Cooldown(0, f.VolleyArmed, f.VolleyCd, ct.BroadsideCdTurns);
-                Cooldown(1, f.BraceArmed, f.BraceCd, ct.BraceCdTurns);
-                Cooldown(2, f.Them.Stunned, f.HookCd, ct.HookCdTurns);
-            }
         }
 
         private void DriveShip(float w, float h, float t, float dt)
@@ -878,11 +802,7 @@ namespace Game.UI
 
             if (_fights.TurnStep == EncounterController.Step.OurBall)
             {
-                // BORDA's picture: the armed shot flies as a tight trio. One number, three balls.
-                int balls = _fights.Current.VolleyArmed ? 3 : 1;
-                for (int i = 0; i < balls; i++)
-                    Fire(ours + new Vector2(-w * 0.012f * i, h * 0.008f * i),
-                         theirs + new Vector2(w * 0.010f * i, 0f), flight, h * 0.10f);
+                Fire(ours, theirs, flight, h * 0.10f);
             }
             else if (_fights.TurnStep == EncounterController.Step.TheirBall)
             {
@@ -906,21 +826,16 @@ namespace Game.UI
                 switch (ev.Kind)
                 {
                     case EncounterController.EvHit:
-                        Impact(ev.OnUs, w, h, false);
+                        Impact(ev.OnUs, w, h);
                         Float("-" + N(ev.Amount), ev.OnUs ? Danger : Paper, at, 1f);
                         if (!ev.OnUs) _threatWobble = Random.Range(4.5f, 7f) * Sign();
                         else _shipWobble = Random.Range(3.5f, 6f) * Sign();
                         break;
                     case EncounterController.EvCrit:
-                        Impact(ev.OnUs, w, h, false);
+                        Impact(ev.OnUs, w, h);
                         Float(Loc.T("deniz.kritikvur") + " -" + N(ev.Amount), CritTint, at, 1.35f);
                         if (!ev.OnUs) _threatWobble = Random.Range(6f, 9f) * Sign();
                         else _shipWobble = Random.Range(5f, 8f) * Sign();
-                        break;
-                    case EncounterController.EvBraced:
-                        // The softened hit lands on the shield and the hull holds still.
-                        Impact(true, w, h, true);
-                        Float("-" + N(ev.Amount), NerveFillTint, at, 0.9f);
                         break;
                     case EncounterController.EvDodge:
                         Float(Loc.T("deniz.iska"), Faded, at, 1f);
@@ -928,14 +843,26 @@ namespace Game.UI
                     case EncounterController.EvBurnTick:
                         Float("-" + N(ev.Amount), BurnTint, at + new Vector2(w * 0.03f, 0f), 0.85f);
                         break;
+                    case EncounterController.EvPoisonTick:
+                        Float("-" + N(ev.Amount), PoisonTint, at + new Vector2(w * 0.05f, 0f), 0.85f);
+                        break;
                     case EncounterController.EvMend:
                         Float("+" + N(ev.Amount), MendTint, at + new Vector2(-w * 0.03f, 0f), 0.85f);
+                        break;
+                    case EncounterController.EvSteal:
+                        // The vampiric ball: the heal floats over whoever fired it.
+                        Float("+" + N(ev.Amount), StealTint,
+                              (ev.OnUs ? _shipRoot.anchoredPosition : _threatRoot.anchoredPosition)
+                              + new Vector2(-w * 0.02f, h * 0.36f), 0.9f);
                         break;
                     case EncounterController.EvStunProc:
                         Float(Loc.T("deniz.sersem"), StunTint, at + new Vector2(0f, h * 0.07f), 1.1f);
                         break;
                     case EncounterController.EvBurnProc:
                         Float(Loc.T("deniz.yanginvur"), BurnTint, at + new Vector2(0f, h * 0.07f), 1.1f);
+                        break;
+                    case EncounterController.EvPoisonProc:
+                        Float(Loc.T("deniz.zehirvur"), PoisonTint, at + new Vector2(0f, h * 0.07f), 1.1f);
                         break;
                     case EncounterController.EvPlunder:
                         Float("+" + (long)ev.Amount + " " + Loc.T("sefer.hurda"), PlunderTint,
@@ -946,8 +873,7 @@ namespace Game.UI
                               _shipRoot.anchoredPosition + new Vector2(0f, h * 0.38f), 1f);
                         break;
                     case EncounterController.EvHeld:
-                        if (ev.OnUs) Float(Loc.T("deniz.sersem"), StunTint, at, 1.1f);
-                        else _hookShow = 0f;
+                        Float(Loc.T("deniz.sersem"), StunTint, at, 1.1f);
                         break;
                 }
             }
@@ -972,11 +898,10 @@ namespace Game.UI
             }
         }
 
-        private void Impact(bool onUs, float w, float h, bool onShield)
+        private void Impact(bool onUs, float w, float h)
         {
             Vector2 at = (onUs ? _shipRoot.anchoredPosition : _threatRoot.anchoredPosition)
                        + new Vector2(onUs ? w * 0.01f : -w * 0.02f, h * 0.05f);
-            if (onShield) at += new Vector2(h * 0.10f, 0f);
             for (int i = 0; i < FlashPool; i++)
             {
                 if (_flashT[i] >= 0f) continue;
@@ -1062,33 +987,6 @@ namespace Game.UI
             }
         }
 
-        private void DriveOrnaments(EncounterController.Phase phase, float w, float h, float dt)
-        {
-            bool braced = phase == EncounterController.Phase.Fight && _fights.Current.BraceArmed;
-            _shield.gameObject.SetActive(braced);
-            if (braced)
-            {
-                _shield.sizeDelta = new Vector2(h * 0.16f, h * 0.17f);
-                _shield.anchoredPosition = new Vector2(h * 0.16f, h * 0.10f);
-                _shield.localScale = Vector3.one * (1f + Mathf.Sin(Time.time * 9f) * 0.04f);
-            }
-
-            if (_hookShow < 0.4f)
-            {
-                _hookShow += dt;
-                float a = Mathf.Clamp01(_hookShow / 0.35f);
-                _hook.gameObject.SetActive(a < 1f);
-                _hook.sizeDelta = new Vector2(h * 0.07f, h * 0.07f);
-                Vector2 from = _shipRoot.anchoredPosition + new Vector2(w * 0.06f, h * 0.10f);
-                Vector2 to = _threatRoot.anchoredPosition + new Vector2(-w * 0.03f, h * 0.06f);
-                Vector2 at = Vector2.Lerp(from, to, a);
-                at.y += h * 0.06f * Mathf.Sin(a * Mathf.PI);
-                _hook.anchoredPosition = at;
-                _hook.localRotation = Quaternion.Euler(0f, 0f, -260f * a);
-            }
-            else _hook.gameObject.SetActive(false);
-        }
-
         // -------------------------------------------------------------- the sheet
         /// <summary>The sheet's slow tick: the pill counts down every quarter second, the whole
         /// sheet re-derives every half — cheap, and never inside the ball maths.</summary>
@@ -1142,13 +1040,17 @@ namespace Game.UI
 
             _statValue[0].text = N(s.Hull);
             _statValue[1].text = N(s.Shot);
-            _statValue[2].text = Pct(s.Crit);
-            _statValue[3].text = Pct(s.Dodge);
-            _statValue[4].text = Pct(s.Salvo);
-            _statValue[5].text = Pct(s.Stun);
-            _statValue[6].text = Pct(s.Mend);
-            _statValue[7].text = Pct(s.Plunder);
-            _statValue[8].text = Pct(s.Burn);
+            _statValue[2].text = D(s.Def);
+            _statValue[3].text = D(s.Spd);
+            _statValue[4].text = Pct(s.Crit);
+            _statValue[5].text = Pct(s.Dodge);
+            _statValue[6].text = Pct(s.Salvo);
+            _statValue[7].text = Pct(s.Stun);
+            _statValue[8].text = Pct(s.Mend);
+            _statValue[9].text = Pct(s.Steal);
+            _statValue[10].text = Pct(s.Plunder);
+            _statValue[11].text = Pct(s.Burn);
+            _statValue[12].text = Pct(s.Poison);
 
             for (int slot = 0; slot < SeaCombat.SlotCount; slot++)
             {
@@ -1160,14 +1062,14 @@ namespace Game.UI
                     stars[g].gameObject.SetActive(grade >= 0 && g <= grade);
             }
 
-            VoyageState v = _sea.Voyage;
+            int aboard = _sea.CaptainAboard;
             string captain;
-            if (v != null && v.captain >= 0 && _captains != null && _captains.Owned(v.captain))
-                captain = Loc.T("sefer.kaptan") + " · " + Loc.T("kaptan.ad." + Captains.IdOf(v.captain))
-                        + " (" + Loc.T("kaptan.rol." + Captains.RoleOf(v.captain)) + ")";
+            if (aboard >= 0 && _captains != null && _captains.Owned(aboard))
+                captain = Loc.T("sefer.kaptan") + " · " + Loc.T("kaptan.ad." + Captains.IdOf(aboard))
+                        + " (" + Loc.T("kaptan.rol." + Captains.RoleOf(aboard)) + ")";
             else captain = Loc.T("deniz.kaptanyok");
             Push(_captainLabel, captain, ref _lastCaptain);
-            _captainLabel.color = v != null && v.captain >= 0 ? Paper : Faded;
+            _captainLabel.color = aboard >= 0 ? Paper : Faded;
         }
 
         // -------------------------------------------------------------- the cards
@@ -1193,8 +1095,16 @@ namespace Game.UI
                              + "   ·   " + Loc.T("deniz.biz") + " " + N(_fights.OurPower);
             _foundPower.color = menace == 2 ? Danger : Paper;
 
+            // The whole core block, and SÜRAT's verdict: whose ball goes up first.
+            bool usFirst = _fights.UsOpensFirst;
+            string opener = usFirst
+                ? "<color=#8CEB8C>" + Loc.T("deniz.biz") + "</color>"
+                : "<color=#FA5C52>" + Loc.T("deniz.onlar") + "</color>";
             _foundStats.text = Loc.T("deniz.govde") + "  " + N(them.Hull)
-                             + "      " + Loc.T("deniz.slot.0") + "  " + N(them.Shot);
+                             + "      " + Loc.T("deniz.slot.0") + "  " + N(them.Shot) + "\n"
+                             + Loc.T("deniz.st.savunma") + "  " + D(them.Def)
+                             + "      " + Loc.T("deniz.st.surat") + "  " + D(them.Spd) + "\n"
+                             + Loc.T("deniz.ilkatis") + ": " + opener;
             _foundReward.text = Loc.T("deniz.odul") + ": " + Loc.T("deniz.odulsatir");
         }
 
@@ -1236,24 +1146,29 @@ namespace Game.UI
             _scrapLabel.text = string.Format(Loc.T("deniz.sok"), SeaCombat.ScrapFor(drop.Grade));
         }
 
-        /// <summary>An item's three rows. On the NEW side each row is tinted by how it compares —
-        /// the reference game's red and green arrows, done in ink.</summary>
+        /// <summary>An item's five rows — the whole core block and the secondary. On the NEW side
+        /// each row is tinted by how it compares — the reference game's red and green arrows,
+        /// done in ink.</summary>
         private string ItemRows(in SeaCombat.Item item, in SeaCombat.Item against, bool compare)
         {
             string up = "<color=#8CEB8C>", down = "<color=#FA5C52>", end = "</color>";
             string hull = Loc.T("deniz.cesaret") + "  +" + N(item.Hull);
             string shot = Loc.T("deniz.slot.0") + "  +" + N(item.Shot);
+            string def = Loc.T("deniz.st.savunma") + "  +" + D(item.Def);
+            string spd = Loc.T("deniz.st.surat") + "  +" + D(item.Spd);
             string sec = item.Sec == SeaCombat.SecNone
                 ? "—" : Loc.T(SecKey(item.Sec)) + "  +" + Pct(item.SecAmt);
             if (compare)
             {
                 hull = (item.Hull >= against.Hull ? up : down) + hull + end;
                 shot = (item.Shot >= against.Shot ? up : down) + shot + end;
+                def = (item.Def >= against.Def ? up : down) + def + end;
+                spd = (item.Spd >= against.Spd ? up : down) + spd + end;
                 double curSec = against.Grade < 0 ? 0d : against.SecAmt;
                 if (item.Sec != SeaCombat.SecNone || curSec > 0d)
                     sec = (SecWorth(item) >= curSec ? up : down) + sec + end;
             }
-            return hull + "\n" + shot + "\n" + sec;
+            return hull + "\n" + shot + "\n" + def + "\n" + spd + "\n" + sec;
         }
 
         private static double SecWorth(in SeaCombat.Item item)
@@ -1279,19 +1194,10 @@ namespace Game.UI
             _gearScrapLabel.text = string.Format(Loc.T("deniz.sok"), SeaCombat.ScrapFor(item.Grade));
         }
 
-        private void Cooldown(int i, bool armed, int cd, int cdMax)
-        {
-            float frac = cdMax > 0 ? Mathf.Clamp01(cd / (float)cdMax) : 0f;
-            _veil[i].anchorMin = new Vector2(0f, 1f - (armed ? 0f : frac));
-            _ability[i].interactable = !armed && cd <= 0;
-        }
-
         /// <summary>Which chrome belongs to which phase — never two decisions at once. The sheet
-        /// panel stays; only the stage's cards and buttons trade places.</summary>
+        /// panel stays; only the stage's cards trade places.</summary>
         private void SetChrome(EncounterController.Phase phase)
         {
-            bool fight = phase == EncounterController.Phase.Fight;
-            for (int i = 0; i < _ability.Length; i++) _ability[i].gameObject.SetActive(fight);
             _foundCard.gameObject.SetActive(phase == EncounterController.Phase.Found);
             _lootCard.gameObject.SetActive(phase == EncounterController.Phase.Loot);
             if (phase != EncounterController.Phase.Idle) OnGearClose();
@@ -1309,6 +1215,8 @@ namespace Game.UI
                 case SeaCombat.SecBurn:    return "deniz.st.yangin";
                 case SeaCombat.SecPlunder: return "deniz.st.yagma";
                 case SeaCombat.SecSalvo:   return "deniz.st.salvo";
+                case SeaCombat.SecSteal:   return "deniz.st.cancalma";
+                case SeaCombat.SecPoison:  return "deniz.st.zehir";
                 default:                   return "deniz.bos";
             }
         }
@@ -1323,6 +1231,8 @@ namespace Game.UI
                 case SeaCombat.SecMend:    return MendTint;
                 case SeaCombat.SecBurn:    return BurnTint;
                 case SeaCombat.SecPlunder: return PlunderTint;
+                case SeaCombat.SecSteal:   return StealTint;
+                case SeaCombat.SecPoison:  return PoisonTint;
                 default:                   return CritTint;
             }
         }
@@ -1348,6 +1258,9 @@ namespace Game.UI
         }
 
         private static string Pct(double v) => Mathf.RoundToInt((float)(v * 100d)) + "%";
+
+        /// <summary>Defence and speed ink: one decimal, because the items carry one.</summary>
+        private static string D(double v) => (System.Math.Round(v * 10d) / 10d).ToString("0.#");
 
         private static void Push(TMP_Text label, string value, ref string last)
         {

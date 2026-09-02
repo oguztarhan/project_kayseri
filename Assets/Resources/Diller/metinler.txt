@@ -210,6 +210,8 @@ magaza.gem_daily_x2.aciklama	Günlük ödüller kalıcı ×2	Daily rewards doubl
 magaza.gem_shield_8h.aciklama	Binalar %100 sağlıkta kalır	Buildings stay at 100% health	Gebäude bleiben bei 100%	Bâtiments à 100% garantis	Edificios siempre al 100%	Prédios sempre a 100%	Edifici sempre al 100%	Budynki stale w 100%	Здания остаются на 100%	Bangunan tetap 100%	Công trình luôn 100%
 magaza.gem_shield_12h.aciklama	Binalar %100 sağlıkta kalır	Buildings stay at 100% health	Gebäude bleiben bei 100%	Bâtiments à 100% garantis	Edificios siempre al 100%	Prédios sempre a 100%	Edifici sempre al 100%	Budynki stale w 100%	Здания остаются на 100%	Bangunan tetap 100%	Công trình luôn 100%
 magaza.gem_shield_24h.aciklama	Binalar %100 sağlıkta kalır	Buildings stay at 100% health	Gebäude bleiben bei 100%	Bâtiments à 100% garantis	Edificios siempre al 100%	Prédios sempre a 100%	Edifici sempre al 100%	Budynki stale w 100%	Здания остаются на 100%	Bangunan tetap 100%	Công trình luôn 100%
+magaza.hata.magaza_yok	MAĞAZAYA ULAŞILAMIYOR. BAĞLANTINI KONTROL EDİP TEKRAR DENE.	STORE UNAVAILABLE. CHECK YOUR CONNECTION AND TRY AGAIN.	STORE NICHT ERREICHBAR. VERBINDUNG PRÜFEN UND ERNEUT VERSUCHEN.	BOUTIQUE INDISPONIBLE. VÉRIFIE TA CONNEXION ET RÉESSAIE.	TIENDA NO DISPONIBLE. COMPRUEBA TU CONEXIÓN E INTÉNTALO DE NUEVO.	LOJA INDISPONÍVEL. VERIFIQUE SUA CONEXÃO E TENTE NOVAMENTE.	NEGOZIO NON DISPONIBILE. CONTROLLA LA CONNESSIONE E RIPROVA.	SKLEP NIEDOSTĘPNY. SPRAWDŹ POŁĄCZENIE I SPRÓBUJ PONOWNIE.	МАГАЗИН НЕДОСТУПЕН. ПРОВЕРЬТЕ СОЕДИНЕНИЕ И ПОПРОБУЙТЕ СНОВА.	TOKO TIDAK TERSEDIA. PERIKSA KONEKSI DAN COBA LAGI.	CỬA HÀNG KHÔNG KHẢ DỤNG. KIỂM TRA KẾT NỐI VÀ THỬ LẠI.
+magaza.hata.alim	SATIN ALMA TAMAMLANMADI.	PURCHASE NOT COMPLETED.	KAUF NICHT ABGESCHLOSSEN.	ACHAT NON FINALISÉ.	COMPRA NO COMPLETADA.	COMPRA NÃO CONCLUÍDA.	ACQUISTO NON COMPLETATO.	ZAKUP NIEUKOŃCZONY.	ПОКУПКА НЕ ЗАВЕРШЕНА.	PEMBELIAN TIDAK SELESAI.	GIAO DỊCH CHƯA HOÀN TẤT.
 # egitim
 egitim.atla	ATLA	SKIP	ÜBERSPRINGEN	PASSER	SALTAR	PULAR	SALTA	POMIŃ	ПРОПУСТИТЬ	LEWATI	BỎ QUA
 egitim.devam	DEVAM	CONTINUE	WEITER	CONTINUER	CONTINUAR	CONTINUAR	CONTINUA	DALEJ	ДАЛЕЕ	LANJUT	TIẾP TỤC
@@ -366,12 +368,8 @@ rapor.kalici_hiz	Kalıcı hız ×{0}	Permanent speed ×{0}	Dauertempo ×{0}	Vite
 degerlendirme.baslik	GÖRÜŞÜN BİZİM İÇİN DEĞERLİ	YOUR FEEDBACK MATTERS	DEINE MEINUNG ZÄHLT	TON AVIS COMPTE	TU OPINIÓN IMPORTA	A TUA OPINIÃO CONTA	LA TUA OPINIONE CONTA	TWOJA OPINIA SIĘ LICZY	ВАШЕ МНЕНИЕ ВАЖНО	PENDAPATMU BERARTI	Ý KIẾN CỦA BẠN RẤT QUAN TRỌNG
 degerlendirme.metin	Island Mining Tycoon'u geliştirmemize yardım et. Mağazada kısa bir değerlendirme bırakabilirsin.	Help us improve Island Mining Tycoon. Leave a quick rating in the store.	Hilf uns, Island Mining Tycoon zu verbessern. Bewerte das Spiel kurz im Store.	Aide-nous à améliorer Island Mining Tycoon. Laisse une courte note sur le store.	Ayúdanos a mejorar Island Mining Tycoon. Déjanos una valoración rápida en la tienda.	Ajuda-nos a melhorar Island Mining Tycoon. Deixa uma avaliação rápida na loja.	Aiutaci a migliorare Island Mining Tycoon. Lascia una breve valutazione nello store.	Pomóż nam ulepszyć Island Mining Tycoon. Zostaw krótką ocenę w sklepie.	Помогите нам улучшить Island Mining Tycoon. Оставьте короткую оценку в магазине.	Bantu kami meningkatkan Island Mining Tycoon. Berikan penilaian singkat di toko.	Hãy giúp chúng tôi cải thiện Island Mining Tycoon. Để lại đánh giá nhanh trên cửa hàng.
 degerlendirme.sonra	SONRA	LATER	SPÄTER	PLUS TARD	MÁS TARDE	MAIS TARDE	PIÙ TARDI	PÓŹNIEJ	ПОЗЖЕ	NANTI	ĐỂ SAU
-# ustabasilar -- kadro ekrani (ForemanRosterUI); isimler istasyon.* satirlarindan gelir
-ustabasi.baslik	USTABAŞILAR	FOREMEN	VORARBEITER	CONTREMAÎTRES	CAPATACES	CONTRAMESTRES	CAPISQUADRA	BRYGADZIŚCI	БРИГАДИРЫ	MANDOR	QUẢN ĐỐC
-ustabasi.isealt	İŞE AL	HIRE	ANHEUERN	EMBAUCHER	CONTRATAR	CONTRATAR	ASSUMI	ZATRUDNIJ	НАНЯТЬ	REKRUT	THUÊ
-ustabasi.seviyeatla	SEVİYE ATLA	LEVEL UP	AUFSTUFEN	AMÉLIORER	SUBIR NIVEL	SUBIR NÍVEL	POTENZIA	ULEPSZ	ПОВЫСИТЬ	NAIKKAN	NÂNG CẤP
+# ustabasi -- ustalarin kart sayaci; ekranin kendisi usta.* satirlarini kullanir
 ustabasi.azami	AZAMİ	MAX	MAX	MAX	MÁX	MÁX	MAX	MAKS	МАКС	MAKS	TỐI ĐA
-ustabasi.kiralikdegil	BOŞ	NOT HIRED	FREI	NON EMBAUCHÉ	SIN CONTRATAR	NÃO CONTRATADO	NON ASSUNTO	WOLNY	НЕ НАНЯТ	KOSONG	CHƯA THUÊ
 ustabasi.kart	kart	cards	Karten	cartes	cartas	cartas	carte	karty	карт	kartu	thẻ
 # gorevler -- gunluk gorevler ve basarimlar (GoalsUI / Game.Core.Goals)
 gorev.baslik	GÖREVLER	TASKS	AUFGABEN	MISSIONS	MISIONES	MISSÕES	MISSIONI	ZADANIA	ЗАДАНИЯ	MISI	NHIỆM VỤ
@@ -489,20 +487,17 @@ kaptan.teselli	{0}: en geç {1} çekilişte	{0}: within {1} pulls	{0}: in höchs
 # deniz -- aktif sefer sahnesi (SeaSceneBoot / Game.Core.Expedition)
 deniz.baslik	AÇIK DENİZ	AT SEA	AUF SEE	EN MER	EN EL MAR	NO MAR	IN MARE	NA MORZU	В МОРЕ	DI LAUT	NGOÀI KHƠI
 deniz.rihtim	RIHTIM	THE DOCK	DER KAI	LE QUAI	EL MUELLE	O CAIS	IL MOLO	NABRZEŻE	ПРИЧАЛ	DERMAGA	BẾN TÀU
+deniz.acil	DENİZE AÇIL	SET SAIL	IN SEE STECHEN	PRENDRE LA MER	ZARPAR	ZARPAR	SALPA	WYPŁYŃ	ОТПЛЫТЬ	BERLAYAR	RA KHƠI
 deniz.karaya	KARAYA ÇIK	GO ASHORE	AN LAND	DÉBARQUER	BAJAR A TIERRA	IR PARA TERRA	SBARCA	ZEJDŹ NA LĄD	НА БЕРЕГ	KE DARAT	LÊN BỜ
 deniz.gidis	GİDİŞ	OUTWARD	HINFAHRT	ALLER	IDA	IDA	ANDATA	W DROGĘ	ТУДА	BERANGKAT	LƯỢT ĐI
 deniz.donus	DÖNÜŞ	HOMEWARD	RÜCKFAHRT	RETOUR	REGRESO	VOLTA	RITORNO	POWRÓT	ОБРАТНО	PULANG	LƯỢT VỀ
 deniz.varis	Varış {0}	Arrives in {0}	Ankunft in {0}	Arrivée dans {0}	Llega en {0}	Chega em {0}	Arrivo tra {0}	Przybycie za {0}	Прибытие через {0}	Tiba dalam {0}	Cập bến sau {0}
 deniz.gemiYok	Denizde gemi yok	No ship at sea	Kein Schiff auf See	Aucun navire en mer	No hay barco en el mar	Nenhum navio no mar	Nessuna nave in mare	Brak statku na morzu	В море нет судна	Tak ada kapal di laut	Không có tàu ngoài khơi
 deniz.saatDk	{0}sa {1}dk	{0}h {1}m	{0}Std {1}min	{0}h {1}min	{0}h {1}min	{0}h {1}min	{0}h {1}min	{0}godz {1}min	{0}ч {1}мин	{0}j {1}mnt	{0}g {1}p
-sefer.denizeCik	GEMİYLE ÇIK	SAIL WITH HER	MITFAHREN	EMBARQUER	EMBARCAR	EMBARCAR	IMBARCATI	PŁYŃ Z NIĄ	ОТПРАВИТЬСЯ С НЕЙ	IKUT BERLAYAR	RA KHƠI CÙNG
-# deniz catismasi -- karsilasmalar ve yetenekler (SeaFightUI / Game.Core.SeaCombat)
+# deniz catismasi -- karsilasmalar ve istatistik blogu (SeaFightUI / Game.Core.SeaCombat)
 deniz.tehdit.0	KORSAN TEKNESİ	RAIDER SLOOP	PIRATENBOOT	SLOOP PIRATE	BALANDRO PIRATA	ESCUNA PIRATA	SCIALUPPA PIRATA	ŁÓDŹ PIRACKA	ПИРАТСКИЙ ШЛЮП	PERAHU PEROMPAK	THUYỀN CƯỚP BIỂN
 deniz.tehdit.1	DENİZ CANAVARI	SEA BEAST	SEEUNGEHEUER	BÊTE DES MERS	BESTIA MARINA	FERA DO MAR	BESTIA DEL MARE	BESTIA MORSKA	МОРСКОЙ ЗВЕРЬ	MONSTER LAUT	THỦY QUÁI
 deniz.tehdit.2	SAHİPSİZ ENKAZ	DERELICT HULK	GEISTERWRACK	ÉPAVE ABANDONNÉE	PECIO A LA DERIVA	CASCO À DERIVA	RELITTO ALLA DERIVA	OPUSZCZONY WRAK	БРОШЕННЫЙ ОСТОВ	BANGKAI TERLANTAR	XÁC TÀU VÔ CHỦ
-deniz.yetenek.borda	BORDA	BROADSIDE	BREITSEITE	BORDÉE	ANDANADA	BORDADA	BORDATA	SALWA	ЗАЛП	TEMBAKAN	PHÁO MẠN
-deniz.yetenek.siper	SİPER	BRACE	DECKUNG	PARER	CUBRIRSE	PROTEGER	RIPARO	OSŁONA	УКРЫТЬСЯ	LINDUNG	NÚP CHẮN
-deniz.yetenek.kanca	KANCA	GRAPPLE	ENTERHAKEN	GRAPPIN	GARFIO	ARPÉU	RAMPINO	HAK	КРЮК	KAIT	MÓC NEO
 deniz.batti	BATTI!	SUNK!	VERSENKT!	COULÉ !	¡HUNDIDO!	AFUNDOU!	AFFONDATO!	ZATOPIONY!	ПОТОПЛЕН!	TENGGELAM!	ĐÃ CHÌM!
 deniz.kacti	KAÇTI	GOT AWAY	ENTKOMMEN	ENFUI	ESCAPÓ	ESCAPOU	FUGGITO	UCIEKŁ	УШЁЛ	KABUR	CHẠY THOÁT
 deniz.ganimet	+{0} harita · +{1} hurda	+{0} charts · +{1} salvage	+{0} Seekarten · +{1} Bergegut	+{0} cartes · +{1} récupération	+{0} cartas · +{1} chatarra	+{0} cartas · +{1} sucata	+{0} carte · +{1} recupero	+{0} map · +{1} złomu	+{0} карт · +{1} лома	+{0} peta · +{1} rongsokan	+{0} hải đồ · +{1} phế liệu
@@ -529,6 +524,13 @@ deniz.st.sersem	SERSEM	STUN	BETÄUBUNG	ÉTOURDIR	ATURDIR	ATORDOAR	STORDIRE	OGŁU
 deniz.st.onarim	ONARIM	REPAIR	REPARATUR	RÉPARATION	REPARACIÓN	REPARO	RIPARAZIONE	NAPRAWA	ПОЧИНКА	PERBAIKAN	SỬA CHỮA
 deniz.st.yagma	YAĞMA	PLUNDER	PLÜNDERN	PILLAGE	SAQUEO	SAQUE	SACCHEGGIO	GRABIEŻ	ГРАБЁЖ	JARAH	CƯỚP BÓC
 deniz.st.yangin	YANGIN	BURN	BRAND	BRÛLURE	QUEMADURA	QUEIMADURA	USTIONE	PODPALENIE	ПОДЖОГ	BAKAR	THIÊU ĐỐT
+deniz.st.savunma	SAVUNMA	DEFENSE	VERTEIDIGUNG	DÉFENSE	DEFENSA	DEFESA	DIFESA	OBRONA	ЗАЩИТА	PERTAHANAN	PHÒNG THỦ
+deniz.st.surat	SÜRAT	SPEED	TEMPO	VITESSE	VELOCIDAD	VELOCIDADE	VELOCITÀ	SZYBKOŚĆ	СКОРОСТЬ	KECEPATAN	TỐC ĐỘ
+deniz.st.cancalma	CAN ÇALMA	LIFESTEAL	LEBENSRAUB	VOL DE VIE	ROBO DE VIDA	ROUBO DE VIDA	RUBAVITA	WAMPIRYZM	ВАМПИРИЗМ	CURI NYAWA	HÚT MÁU
+deniz.st.zehir	ZEHİR	POISON	GIFT	POISON	VENENO	VENENO	VELENO	TRUCIZNA	ЯД	RACUN	ĐỘC
+deniz.zehirvur	ZEHİRLENDİ!	POISONED!	VERGIFTET!	EMPOISONNÉ !	¡ENVENENADO!	ENVENENADO!	AVVELENATO!	ZATRUTY!	ОТРАВЛЕН!	TERACUNI!	TRÚNG ĐỘC!
+deniz.ilkatis	İLK ATIŞ	FIRST SHOT	ERSTER SCHUSS	PREMIER TIR	PRIMER DISPARO	PRIMEIRO TIRO	PRIMO COLPO	PIERWSZY STRZAŁ	ПЕРВЫЙ ВЫСТРЕЛ	TEMBAKAN PERTAMA	PHÁT ĐẦU
+deniz.onlar	ONLAR	THEY	SIE	EUX	ELLOS	ELES	LORO	ONI	ОНИ	MEREKA	HỌ
 deniz.tehdit.3	ALEV GEMİSİ	FIRE SHIP	BRANDER	BRÛLOT	BRULOTE	BRULOTE	BRULOTTO	BRANDER	БРАНДЕР	KAPAL API	TÀU LỬA
 deniz.tehdit.4	HAYALET GEMİ	GHOST SHIP	GEISTERSCHIFF	VAISSEAU FANTÔME	BARCO FANTASMA	NAVIO FANTASMA	NAVE FANTASMA	STATEK WIDMO	КОРАБЛЬ-ПРИЗРАК	KAPAL HANTU	TÀU MA
 deniz.tehlikeli	TEHLİKELİ	DANGEROUS	GEFÄHRLICH	DANGEREUX	PELIGROSO	PERIGOSO	PERICOLOSO	GROŹNY	ОПАСНЫЙ	BERBAHAYA	NGUY HIỂM
@@ -547,3 +549,33 @@ deniz.odulsatir	TEÇHİZAT · HARİTA · HURDA	GEAR · CHARTS · SALVAGE	AUSRÜS
 deniz.kaptanyok	KAPTANSIZ	NO CAPTAIN	KEIN KAPITÄN	SANS CAPITAINE	SIN CAPITÁN	SEM CAPITÃO	SENZA CAPITANO	BEZ KAPITANA	БЕЗ КАПИТАНА	TANPA KAPTEN	KHÔNG THUYỀN TRƯỞNG
 deniz.kapat	KAPAT	CLOSE	SCHLIESSEN	FERMER	CERRAR	FECHAR	CHIUDI	ZAMKNIJ	ЗАКРЫТЬ	TUTUP	ĐÓNG
 deniz.dusmandanduser	Düşmanlardan düşer	Drops from enemies	Fällt von Feinden	Lâché par les ennemis	Cae de los enemigos	Cai dos inimigos	Cade dai nemici	Wypada z wrogów	Выпадает с врагов	Jatuh dari musuh	Rơi từ kẻ địch
+# atolye
+atolye.baslik	ATÖLYE	WORKSHOP	WERKSTATT	ATELIER	TALLER	OFICINA	OFFICINA	WARSZTAT	МАСТЕРСКАЯ	BENGKEL	XƯỞNG
+atolye.puan	{0} PUAN	{0} PTS	{0} PKT	{0} PTS	{0} PTS	{0} PTS	{0} PT	{0} PKT	{0} ОЧК	{0} POIN	{0} ĐIỂM
+atolye.uret	ÜRET	CRAFT	FERTIGEN	FABRIQUER	CREAR	CRIAR	CREA	WYTWÓRZ	СОЗДАТЬ	BUAT	CHẾ TẠO
+atolye.seviye	SEVİYE {0}	LEVEL {0}	STUFE {0}	NIVEAU {0}	NIVEL {0}	NÍVEL {0}	LIVELLO {0}	POZIOM {0}	УРОВЕНЬ {0}	LEVEL {0}	CẤP {0}
+atolye.kademe	KADEME {0}	TIER {0}	RANG {0}	RANG {0}	RANGO {0}	GRAU {0}	RANGO {0}	RANGA {0}	РАНГ {0}	TIER {0}	BẬC {0}
+atolye.oranlar	OLASILIKLAR	ODDS	CHANCEN	CHANCES	PROBABILIDADES	PROBABILIDADES	PROBABILITÀ	SZANSE	ШАНСЫ	PELUANG	TỈ LỆ
+atolye.acilir	SV. {0}'DA AÇILIR	UNLOCKS AT LV. {0}	AB STUFE {0}	DÈS NIV. {0}	DESDE NV. {0}	A PARTIR DO NV. {0}	DAL LIV. {0}	OD POZ. {0}	С УР. {0}	TERBUKA DI LV. {0}	MỞ Ở CẤP {0}
+atolye.yenileniyor	ATÖLYE YENİLENİYOR	RETOOLING	UMRÜSTUNG	RÉOUTILLAGE	REEQUIPANDO	REEQUIPANDO	RIATTREZZAMENTO	PRZEZBRAJANIE	ПЕРЕОСНАЩЕНИЕ	PERKAKAS ULANG	ĐANG NÂNG CẤP
+atolye.birikiyor	XP BİRİKİYOR	XP BANKS	EP SAMMELN SICH	L'XP S'ACCUMULE	LA EXP SE ACUMULA	O XP ACUMULA	GLI XP SI ACCUMULANO	PD SIĘ GROMADZĄ	ОП КОПЯТСЯ	XP TERKUMPUL	XP TÍCH LŨY
+atolye.xp	XP	XP	EP	XP	EXP	XP	XP	PD	ОП	XP	XP
+atolye.maks	EN YÜKSEK SEVİYE	MAX LEVEL	HÖCHSTSTUFE	NIVEAU MAX	NIVEL MÁX.	NÍVEL MÁX.	LIVELLO MAX	MAKS. POZIOM	МАКС. УРОВЕНЬ	LEVEL MAKS	CẤP TỐI ĐA
+atolye.sok	SÖK  +{0} hurda · +{1} XP	SCRAP  +{0} salvage · +{1} XP	VERSCHROTTEN  +{0} · +{1} EP	FERRAILLER  +{0} · +{1} XP	DESGUAZAR  +{0} · +{1} EXP	SUCATEAR  +{0} · +{1} XP	DEMOLISCI  +{0} · +{1} XP	ZŁOMUJ  +{0} · +{1} PD	НА ЛОМ  +{0} · +{1} ОП	BESITUA  +{0} · +{1} XP	THÁO DỠ  +{0} · +{1} XP
+atolye.nereden	Puan: deniz zaferleri + sefer ödülleri	Points: sea wins + voyage rewards	Punkte: Seesiege + Reiselohn	Points : victoires en mer + voyages	Puntos: victorias en el mar + viajes	Pontos: vitórias no mar + viagens	Punti: vittorie in mare + viaggi	Punkty: bitwy morskie + rejsy	Очки: морские победы + рейсы	Poin: menang di laut + pelayaran	Điểm: thắng trên biển + chuyến đi
+# ustalar -- sandik ve kadro ekrani (ForemanRosterUI); isimler istasyon.* satirlarindan gelir
+usta.baslik	USTALAR	MASTERS	MEISTER	MAÎTRES	MAESTROS	MESTRES	MAESTRI	MISTRZOWIE	МАСТЕРА	MAESTRO	CAO THỦ
+usta.kademe.0	SIRADAN	COMMON	GEWÖHNLICH	COMMUN	COMÚN	COMUM	COMUNE	POSPOLITY	ОБЫЧНЫЙ	BIASA	THƯỜNG
+usta.kademe.1	NADİR	RARE	SELTEN	RARE	RARO	RARO	RARO	RZADKI	РЕДКИЙ	LANGKA	HIẾM
+usta.kademe.2	DESTANSI	EPIC	EPISCH	ÉPIQUE	ÉPICO	ÉPICO	EPICO	EPICKI	ЭПИЧЕСКИЙ	EPIK	SỬ THI
+usta.kademe.3	EFSANEVİ	LEGENDARY	LEGENDÄR	LÉGENDAIRE	LEGENDARIO	LENDÁRIO	LEGGENDARIO	LEGENDARNY	ЛЕГЕНДАРНЫЙ	LEGENDARIS	HUYỀN THOẠI
+usta.kademe.4	MİTİK	MYTHIC	MYTHISCH	MYTHIQUE	MÍTICO	MÍTICO	MITICO	MITYCZNY	МИФИЧЕСКИЙ	MITOS	THẦN THOẠI
+usta.yildizatla	YILDIZ EKLE	STAR UP	STERN +	AJOUTER ÉTOILE	SUBIR ESTRELLA	SUBIR ESTRELA	AGGIUNGI STELLA	DODAJ GWIAZDKĘ	ЗВЕЗДА +	TAMBAH BINTANG	THÊM SAO
+usta.bulunmadi	HENÜZ YOK	NOT FOUND	NOCH NICHT DA	PAS ENCORE	AÚN NO	AINDA NÃO	NON ANCORA	JESZCZE NIE	ЕЩЁ НЕТ	BELUM ADA	CHƯA CÓ
+usta.sandiktan	sandıktan çıkar	found in chests	aus Truhen	trouvé en coffre	sale de los cofres	vem dos baús	esce dai forzieri	znajdziesz w skrzyniach	выпадает из сундуков	muncul dari peti	có trong rương
+usta.sandik	USTA SANDIĞI	MASTER CHEST	MEISTERTRUHE	COFFRE DE MAÎTRE	COFRE DE MAESTRO	BAÚ DE MESTRE	FORZIERE DEL MAESTRO	SKRZYNIA MISTRZA	СУНДУК МАСТЕРА	PETI MAESTRO	RƯƠNG CAO THỦ
+usta.ac	AÇ	OPEN	ÖFFNEN	OUVRIR	ABRIR	ABRIR	APRI	OTWÓRZ	ОТКРЫТЬ	BUKA	MỞ
+usta.bedava	BEDAVA	FREE	GRATIS	GRATUIT	GRATIS	GRÁTIS	GRATIS	ZA DARMO	БЕСПЛАТНО	GRATIS	MIỄN PHÍ
+usta.yeni	YENİ USTA!	NEW MASTER!	NEUER MEISTER!	NOUVEAU MAÎTRE !	¡NUEVO MAESTRO!	NOVO MESTRE!	NUOVO MAESTRO!	NOWY MISTRZ!	НОВЫЙ МАСТЕР!	MAESTRO BARU!	CAO THỦ MỚI!
+usta.devam	devam etmek için dokun	tap to continue	zum Fortfahren tippen	touchez pour continuer	toca para continuar	toque para continuar	tocca per continuare	dotknij, aby kontynuować	нажмите, чтобы продолжить	ketuk untuk lanjut	chạm để tiếp tục
+usta.nereden	Kart: sandıklar + görevler + seferler	Cards: chests + goals + voyages	Karten: Truhen + Ziele + Reisen	Cartes : coffres + objectifs + voyages	Cartas: cofres + objetivos + viajes	Cartas: baús + metas + viagens	Carte: forzieri + obiettivi + viaggi	Karty: skrzynie + cele + rejsy	Карты: сундуки + цели + рейсы	Kartu: peti + misi + pelayaran	Thẻ: rương + nhiệm vụ + chuyến đi

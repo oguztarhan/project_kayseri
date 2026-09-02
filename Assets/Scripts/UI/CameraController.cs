@@ -253,6 +253,13 @@ namespace Game.UI
         public void SetGroundY(float y) { groundY = y; }
 
         /// <summary>Set the zoom range and re-clamp the current zoom into it.</summary>
+        /// <summary>
+        /// Where the camera sits in its own zoom band: 0 fully in, 1 fully out. The band is solved per
+        /// island by OperationCameraBoot and handed over through <see cref="SetZoomRange"/>, so a raw
+        /// distance means nothing on its own — anything that wants to fade with zoom wants this.
+        /// </summary>
+        public float ZoomT => Mathf.InverseLerp(minSize, maxSize, CurrentZoom);
+
         public void SetZoomRange(float min, float max)
         {
             minSize = min; maxSize = max;

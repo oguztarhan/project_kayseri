@@ -34,8 +34,15 @@ namespace Game.Data
         [Tooltip("Cesaret. Biterse püskürtülürüz — enerji gitti, sefer hiçbir şey hissetmez.")]
         [SerializeField] private double baseNerve = 100d;
         [SerializeField] private double nervePerCrewLevel = 8d;
+        [Tooltip("SAVUNMA ve SÜRAT'ın taban değerleri. İkisi de esasen teçhizattan gelir: savunma " +
+                 "her gülleyi tıraşlar, hızlı olan taraf ilk atışı yapar.")]
+        [SerializeField] private double playerDefBase = 0d;
+        [SerializeField] private double playerSpdBase = 10d;
         [Tooltip("Düşmanın ATIŞ başına hasarı = tehdit tablosu x bu.")]
         [SerializeField] private double enemyShotScale = 3.4d;
+        [Tooltip("Hiçbir savunma yığını gülleyi tümden yutamaz: isabet eden atış en az TOP'un bu " +
+                 "oranı kadar vurur.")]
+        [SerializeField] private double minShotFrac = 0.25d;
 
         [Header("İkincil istatistikler")]
         [Tooltip("Kritik vuruşun çarpanı; yangının kurbanın turlarıyla süresi ve tur başına " +
@@ -43,6 +50,10 @@ namespace Game.Data
         [SerializeField] private double critMult = 2.0d;
         [SerializeField] private int burnTurns = 3;
         [SerializeField] private double burnFrac = 0.06d;
+        [Tooltip("Zehrin süresi ve tur başına ısırığı = ZEHİRLEYENİN topu x bu oran, bulaştığı " +
+                 "anda mühürlenir. Yangın kurbanla ölçeklenir, zehir saldırganla — fark bu.")]
+        [SerializeField] private int poisonTurns = 4;
+        [SerializeField] private double poisonFrac = 0.35d;
         [Tooltip("Kaptan rolünün ikincil istatistiği = kadro değeri x bu. Topçu KRİTİK, Levazımcı " +
                  "MANEVRA, Lostromo ONARIM, Yazman YAĞMA.")]
         [SerializeField] private double roleSecFactor = 0.12d;
@@ -53,16 +64,6 @@ namespace Game.Data
         [SerializeField] private double fireshipBurn = 0.40d;
         [SerializeField] private double ghostDodge = 0.30d;
         [SerializeField] private double ghostMend = 0.03d;
-
-        [Header("Yetenekler — bekleme TUR sayar")]
-        [Tooltip("BORDA: SIRADAKİ atışımız bu çarpanla.")]
-        [SerializeField] private double broadsideMult = 2.2d;
-        [SerializeField] private int broadsideCdTurns = 3;
-        [Tooltip("SİPER: sıradaki İSABET EDEN atış bu çarpanla; ıskalanan atış harcamaz.")]
-        [SerializeField] private double braceFactor = 0.35d;
-        [SerializeField] private int braceCdTurns = 3;
-        [Tooltip("KANCA: düşmanın sıradaki turu hiç olmaz.")]
-        [SerializeField] private int hookCdTurns = 4;
 
         [Header("Ganimet — damla (esas ödül TEÇHİZATTIR)")]
         [Tooltip("Batırma başına, dolu ambarın payı olarak harita ve hurda. Küçük: kaptan " +
@@ -85,6 +86,8 @@ namespace Game.Data
         [Header("GÜÇ göstergesi — bir okuma, asla bir kural")]
         [SerializeField] private double powerHullWeight = 0.55d;
         [SerializeField] private double powerShotWeight = 3.2d;
+        [SerializeField] private double powerDefWeight = 2.2d;
+        [SerializeField] private double powerSpdWeight = 0.8d;
         [SerializeField] private double powerSecWeight = 0.9d;
         [Tooltip("Düşman gücü / bizimki bu oranın üstündeyse TEHLİKELİ, altındakinde KOLAY yazar.")]
         [SerializeField] private double dangerRatio = 1.15d;
@@ -103,21 +106,21 @@ namespace Game.Data
             GunnerFightBonus      = gunnerFightBonus,
             BaseNerve             = baseNerve,
             NervePerCrewLevel     = nervePerCrewLevel,
+            PlayerDefBase         = playerDefBase,
+            PlayerSpdBase         = playerSpdBase,
             EnemyShotScale        = enemyShotScale,
+            MinShotFrac           = minShotFrac,
             CritMult              = critMult,
             BurnTurns             = burnTurns,
             BurnFrac              = burnFrac,
+            PoisonTurns           = poisonTurns,
+            PoisonFrac            = poisonFrac,
             RoleSecFactor         = roleSecFactor,
             RaiderCrit            = raiderCrit,
             BeastStun             = beastStun,
             FireshipBurn          = fireshipBurn,
             GhostDodge            = ghostDodge,
             GhostMend             = ghostMend,
-            BroadsideMult         = broadsideMult,
-            BroadsideCdTurns      = broadsideCdTurns,
-            BraceFactor           = braceFactor,
-            BraceCdTurns          = braceCdTurns,
-            HookCdTurns           = hookCdTurns,
             EncounterChartShare   = encounterChartShare,
             EncounterSalvageShare = encounterSalvageShare,
             DropCommon            = dropCommon,
@@ -129,6 +132,8 @@ namespace Game.Data
             DropLuckBonus         = dropLuckBonus,
             PowerHullWeight       = powerHullWeight,
             PowerShotWeight       = powerShotWeight,
+            PowerDefWeight        = powerDefWeight,
+            PowerSpdWeight        = powerSpdWeight,
             PowerSecWeight        = powerSecWeight,
             DangerRatio           = dangerRatio,
             EasyRatio             = easyRatio,

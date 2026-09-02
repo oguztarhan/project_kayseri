@@ -43,22 +43,82 @@ namespace Game.Tests
             // Saves address foremen by station index. If these ever drift apart, every roster in the
             // wild silently points at the wrong station.
             Assert.That(Foremen.Count, Is.EqualTo(IslandEconomy.Stations.Length));
-            Assert.That(Foremen.Slots.Length, Is.EqualTo(Foremen.Count));
         }
 
-        // ---- what a level is worth ----------------------------------------------------------------
+        // ---- stars promote tiers -----------------------------------------------------------------
 
         [Test]
-        public void OneLevel_IsWorthItsRarity()
+        public void EveryTier_IsTwoStarsWide()
         {
-            Assert.That(Foremen.StationMultiplier(With(IslandEconomy.Mine, 1), IslandEconomy.Mine, T),
-                        Is.EqualTo(1d + T.EpicPerLevel).Within(1e-9));
-            Assert.That(Foremen.StationMultiplier(With(IslandEconomy.Train, 1), IslandEconomy.Train, T),
-                        Is.EqualTo(1d + T.CommonPerLevel).Within(1e-9));
+            Assert.That(Foremen.TierOf(1), Is.EqualTo(Foremen.Tier.Common));
+            Assert.That(Foremen.TierOf(2), Is.EqualTo(Foremen.Tier.Common));
+            Assert.That(Foremen.TierOf(3), Is.EqualTo(Foremen.Tier.Rare));
+            Assert.That(Foremen.TierOf(4), Is.EqualTo(Foremen.Tier.Rare));
+            Assert.That(Foremen.TierOf(5), Is.EqualTo(Foremen.Tier.Epic));
+            Assert.That(Foremen.TierOf(6), Is.EqualTo(Foremen.Tier.Epic));
+            Assert.That(Foremen.TierOf(7), Is.EqualTo(Foremen.Tier.Legendary));
+            Assert.That(Foremen.TierOf(8), Is.EqualTo(Foremen.Tier.Legendary));
+            Assert.That(Foremen.TierOf(9), Is.EqualTo(Foremen.Tier.Mythic));
+            Assert.That(Foremen.TierOf(Foremen.MaxLevel), Is.EqualTo(Foremen.Tier.Mythic));
         }
 
         [Test]
-        public void AForeman_OnlySpeedsTheirOwnStation()
+        public void TheTopStar_IsTheTopTier()
+        {
+            // The card frames, the plinth and his size on the island all index a tint array by tier.
+            // If MaxLevel ever moves past the last tier floor, every one of them reads out of range.
+            Assert.That((int)Foremen.TierOf(Foremen.MaxLevel), Is.EqualTo(Foremen.TierCount - 1));
+            Assert.That((int)Foremen.TierOf(Foremen.MaxLevel * 100), Is.EqualTo(Foremen.TierCount - 1));
+        }
+
+        [Test]
+        public void AnEmptySlot_ReadsAsTheLockedColour()
+        {
+            Assert.That(Foremen.TierOf(0), Is.EqualTo(Foremen.Tier.Common));
+            Assert.That(Foremen.TierOfStation(Empty(), IslandEconomy.Mine), Is.EqualTo(Foremen.Tier.Common));
+            Assert.That(Foremen.IsHired(Empty(), IslandEconomy.Mine), Is.False);
+        }
+
+        // ---- what a star is worth ------------------------------------------------------------------
+
+        [Test]
+        public void LegendaryTopsOutAtTripleOutput()
+        {
+            // +300% at the last Legendary star is the number the card advertises and the one the
+            // feature was asked for. A tuning change that moves it is changing the promise.
+            Assert.That(Foremen.Boost(8, T), Is.EqualTo(3.00d).Within(1e-9));
+            Assert.That(Foremen.StationMultiplier(With(IslandEconomy.Mine, 8), IslandEconomy.Mine, T),
+                        Is.EqualTo(4.00d).Within(1e-9));
+        }
+
+        [Test]
+        public void EveryStar_IsWorthMoreThanTheOneBelow()
+        {
+            double prev = 0d;
+            for (int stars = 1; stars <= Foremen.MaxLevel; stars++)
+            {
+                double boost = Foremen.Boost(stars, T);
+                Assert.That(boost, Is.GreaterThan(prev), "star " + stars);
+                prev = boost;
+            }
+        }
+
+        [Test]
+        public void APromotion_IsWorthMoreThanAStarInsideATier()
+        {
+            // The second star of a tier should be a step and the first star of the next should be a
+            // jump — that is what makes a promotion something the player feels rather than reads.
+            for (int tier = 0; tier < Foremen.TierCount - 1; tier++)
+            {
+                int lastOfTier = 2 * tier + 2;                          // 2, 4, 6, 8
+                double inside = Foremen.Boost(lastOfTier, T) - Foremen.Boost(lastOfTier - 1, T);
+                double across = Foremen.Boost(lastOfTier + 1, T) - Foremen.Boost(lastOfTier, T);
+                Assert.That(across, Is.GreaterThan(inside), "promotion into tier " + (tier + 1));
+            }
+        }
+
+        [Test]
+        public void AMaster_OnlySpeedsTheirOwnStation()
         {
             var l = With(IslandEconomy.Smelter, Foremen.MaxLevel);
             Assert.That(Foremen.StationMultiplier(l, IslandEconomy.Smelter, T), Is.GreaterThan(1d));
@@ -66,26 +126,34 @@ namespace Game.Tests
         }
 
         [Test]
-        public void IncomeMultiplier_IsTheWholeRosterAdded()
+        public void IncomeMultiplier_IsAShareOfTheWholeRoster()
         {
             var l = Foremen.NewLevels();
-            l[IslandEconomy.Mine] = 3;      // epic
-            l[IslandEconomy.Train] = 5;     // common
-            double expected = 1d + T.EpicPerLevel * 3 + T.CommonPerLevel * 5;
+            l[IslandEconomy.Mine] = 3;
+            l[IslandEconomy.Train] = 5;
+            double expected = 1d + (Foremen.Boost(3, T) + Foremen.Boost(5, T)) * T.IncomeShare;
             Assert.That(Foremen.IncomeMultiplier(l, T), Is.EqualTo(expected).Within(1e-9));
         }
 
         [Test]
-        public void FullRoster_LandsOnTheIntendedSecondGear()
+        public void AllLegendary_LandsOnTheIntendedSecondGear()
         {
-            // The roster is the replacement for a retired prestige, and it is deliberately an order of
-            // magnitude smaller than the 70x prestige used to hand out at coal. If a tuning change
-            // moves this far, the ladder needs re-solving with it.
+            // The roster replaced a retired prestige that handed out 70x at coal, which the economy
+            // pass measured as the thing breaking the ladder. A Legendary roster must land where the
+            // old maxed roster did — 3.4x — because that is where the ladder was solved.
+            var l = Foremen.NewLevels();
+            for (int s = 0; s < Foremen.Count; s++) l[s] = 8;
+            Assert.That(Foremen.IncomeMultiplier(l, T), Is.EqualTo(3.4d).Within(0.05d));
+        }
+
+        [Test]
+        public void FullMythic_StretchesTheTailWithoutBreakingIt()
+        {
             var l = Foremen.NewLevels();
             for (int s = 0; s < Foremen.Count; s++) l[s] = Foremen.MaxLevel;
             double m = Foremen.IncomeMultiplier(l, T);
-            Assert.That(m, Is.GreaterThan(2.5d));
-            Assert.That(m, Is.LessThan(4.5d));
+            Assert.That(m, Is.GreaterThan(4.5d));
+            Assert.That(m, Is.LessThan(5.5d), "still an order of magnitude below the 70x that broke the ladder");
         }
 
         // ---- levels are clamped, not trusted ------------------------------------------------------
@@ -134,10 +202,9 @@ namespace Game.Tests
         }
 
         [Test]
-        public void AMaxedForeman_CostsNothingFurther()
+        public void AMaxedMaster_CostsNothingFurther()
         {
             Assert.That(Foremen.DuplicatesToLevel(Foremen.MaxLevel, T), Is.Zero);
-            Assert.That(Foremen.GemsToLevel(Foremen.MaxLevel, T), Is.Zero);
         }
 
         [Test]
@@ -150,12 +217,13 @@ namespace Game.Tests
         }
 
         [Test]
-        public void RarerSlots_CostMoreToHire()
+        public void TheCardCurve_IsUnchangedFromBeforeTheMastersRework()
         {
-            Assert.That(Foremen.HireGems(IslandEconomy.Mine, T),      // epic
-                        Is.GreaterThan(Foremen.HireGems(IslandEconomy.Smelter, T)));   // rare
-            Assert.That(Foremen.HireGems(IslandEconomy.Smelter, T),   // rare
-                        Is.GreaterThan(Foremen.HireGems(IslandEconomy.Train, T)));     // common
+            // Live saves carry banked cards against this exact curve, and every roster screen in the
+            // wild is drawing a have/need bar from it. Ninety per master is the number those bars were
+            // filled against — moving it would silently rewrite how far along every player is.
+            Assert.That(Foremen.DuplicatesToMax(T), Is.EqualTo(90));
+            Assert.That(Foremen.DuplicatesToLevel(1, T), Is.EqualTo(2));
         }
 
         // ---- completion --------------------------------------------------------------------------

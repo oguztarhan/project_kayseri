@@ -50,11 +50,13 @@ namespace Game.UI
         private static SceneCurtain _live;
 
         private const string MarketScene = "Market";
+        private const string SeaScene = "Sea";
         private const string MarketBackdropResource = "UI/Transitions/market_transition";
 
         // Main is expensive because the live operation builds its vehicles, tracks and dressing in
-        // Start. Keep that already-built scene parked while the tiny market scene is open. Returning to
-        // the island then wakes the existing objects instead of constructing the whole operation again.
+        // Start. Keep that already-built scene parked while the tiny market or sea scene is open.
+        // Returning to the island then wakes the existing objects instead of constructing the whole
+        // operation again.
         private static Scene _parkedIslandScene;
         private static readonly List<GameObject> ParkedIslandRoots = new List<GameObject>();
 
@@ -71,8 +73,8 @@ namespace Game.UI
         /// </summary>
         /// <param name="parkCurrent">
         /// Whether the scene being left may be PARKED rather than unloaded. True is the shipped
-        /// behaviour and only ever applies on the way into the market, which is the one swap where
-        /// what is being left (Main) is expensive to rebuild.
+        /// behaviour and only ever applies on the way into the market or out to sea — the two swaps
+        /// where what is being left (Main) is expensive to rebuild.
         ///
         /// The sea passes false on its way back. The market is small and built in code, so rebuilding
         /// it costs almost nothing — and parking the sea under it would leave a whole scene resident
@@ -226,7 +228,8 @@ namespace Game.UI
             if (restoringParkedIsland)
                 yield return RestoreParkedIsland();
             else
-                yield return LoadScene(sceneName, parkCurrent && sceneName == MarketScene);
+                yield return LoadScene(sceneName,
+                    parkCurrent && (sceneName == MarketScene || sceneName == SeaScene));
 
             Application.backgroundLoadingPriority = previousPriority;
 

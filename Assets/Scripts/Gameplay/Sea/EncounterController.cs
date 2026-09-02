@@ -7,17 +7,19 @@ namespace Game.Gameplay
     /// <summary>
     /// The sea adventure's state machine, one press wide at every stop: SEARCH pays the energy and
     /// sweeps → the find slides in → the DETAILS CARD holds it at gunpoint (name, signature, power
-    /// against ours, the fight-or-pass decision) → the exchange, shot for shot with its procs →
-    /// sunk with a drop on the LOOT CARD, or driven off with nothing — back to idle. The maths is
-    /// all <see cref="SeaCombat"/>; the picture is all <see cref="Game.UI.SeaFightUI"/>.
+    /// against ours, who fires first, the fight-or-pass decision) → the exchange, one ball at a
+    /// time with its procs — THERE ARE NO ABILITY BUTTONS, the sheet is the fight — → sunk with a
+    /// drop on the LOOT CARD, or driven off with nothing — back to idle. The maths is all
+    /// <see cref="SeaCombat"/>; the picture is all <see cref="Game.UI.SeaFightUI"/>.
     ///
     /// THE DETAILS CARD IS NEW to this shape and it changes what the energy buys: a search buys the
     /// SIGHTING. Declining the fight sails the find away and refunds nothing — the player paid to
     /// know what was out there, and the card is what they paid for.
     ///
-    /// EVERYTHING THE FIGHT DOES IS AN EVENT. Crits, dodges, burns, mends, stuns, plunder — each
-    /// lands in a fixed ring buffer the UI drains for its floating numbers. The controller owns
-    /// WHEN (damage on the ball's impact frame, afflictions at turn starts); Core owns WHAT.
+    /// EVERYTHING THE FIGHT DOES IS AN EVENT. Crits, dodges, burns, poisons, mends, steals, stuns,
+    /// plunder — each lands in a fixed ring buffer the UI drains for its floating numbers. The
+    /// controller owns WHEN (damage on the ball's impact frame, afflictions at turn starts); Core
+    /// owns WHAT. SÜRAT owns the opening: the faster sheet's side takes the first step.
     ///
     /// OTOMATİK is the reference game's Auto: search, confirm, fight, and settle each drop the safe
     /// way (strictly better is worn, the rest is scrapped), until the pool runs dry. It presses the
@@ -37,9 +39,9 @@ namespace Game.Gameplay
             public bool OnUs;
         }
 
-        public const int EvHit = 0, EvCrit = 1, EvBraced = 2, EvDodge = 3, EvBurnTick = 4,
-                         EvMend = 5, EvStunProc = 6, EvBurnProc = 7, EvPlunder = 8, EvSalvo = 9,
-                         EvHeld = 10;
+        public const int EvHit = 0, EvCrit = 1, EvDodge = 2, EvBurnTick = 3, EvPoisonTick = 4,
+                         EvMend = 5, EvSteal = 6, EvStunProc = 7, EvBurnProc = 8, EvPoisonProc = 9,
+                         EvPlunder = 10, EvSalvo = 11, EvHeld = 12;
 
         private const int EventRing = 16;
 
@@ -109,6 +111,10 @@ namespace Game.Gameplay
         public double OurPower => _previewOurPower;
         public int MenaceLevel => SeaCombat.Menace(_previewOurPower, _previewTheirPower, Combat);
 
+        /// <summary>Who the opening ball would belong to — SÜRAT's answer, said on the card
+        /// before the fight is taken.</summary>
+        public bool UsOpensFirst => SeaCombat.UsOpens(_previewOurs, _previewTheirs);
+
         public void Init()
         {
             _sea = ServiceLocator.Get<ExpeditionService>();
@@ -121,20 +127,21 @@ namespace Game.Gameplay
         {
             if (_phase != Phase.Idle || _sea == null || !_sea.Active) return false;
             if (!_sea.TrySpendEnergy()) return false;
-            _spawnKind = SeaCombat.KindFor(_sea.Voyage.sailedUnix, _sea.Finds);
+            _spawnKind = SeaCombat.KindFor(_sea.SailedUnix, _sea.Finds);
             _sea.CountFind();
             Enter(Phase.Searching);
             return true;
         }
 
-        /// <summary>The details card's SAVAŞ! — the fight starts from the sighting's numbers.</summary>
+        /// <summary>The details card's SAVAŞ! — the fight starts from the sighting's numbers, and
+        /// the faster sheet takes the opening ball.</summary>
         public bool Confirm()
         {
             if (_phase != Phase.Found || _sea == null || !_sea.Active) return false;
             _fight = SeaCombat.Begin(_sea.Tier, _spawnKind, _previewOurs, _sea.Combat);
             _plunder = 0L;
             Enter(Phase.Fight);
-            EnterStep(Step.OurAim);
+            EnterStep(_fight.UsOpen ? Step.OurAim : Step.TheirAim);
             return true;
         }
 
@@ -149,15 +156,6 @@ namespace Game.Gameplay
 
         /// <summary>OTOMATİK. Turns itself off when the pool runs dry.</summary>
         public void SetAuto(bool on) => _auto = on;
-
-        public bool TryBroadside()
-            => _phase == Phase.Fight && _sea != null && SeaCombat.TryBroadside(ref _fight, _sea.Combat);
-
-        public bool TryBrace()
-            => _phase == Phase.Fight && _sea != null && SeaCombat.TryBrace(ref _fight, _sea.Combat);
-
-        public bool TryGrapple()
-            => _phase == Phase.Fight && _sea != null && SeaCombat.TryGrapple(ref _fight, _sea.Combat);
 
         /// <summary>Wear the drop. Whatever the slot held is scrapped into salvage on the way out.</summary>
         public bool EquipDrop()
@@ -242,9 +240,7 @@ namespace Game.Gameplay
         /// card shows exactly the numbers the fight would start from.</summary>
         private void Sighted()
         {
-            VoyageState v = _sea.Voyage;
-            if (v == null) { Enter(Phase.Idle); return; }
-            _previewTheirs = SeaCombat.ThreatStats(v.tier, _spawnKind, _sea.Combat);
+            _previewTheirs = SeaCombat.ThreatStats(_sea.Tier, _spawnKind, _sea.Combat);
             _previewOurs = _sea.ShipStats();
             _previewTheirPower = SeaCombat.PowerFor(_previewTheirs, _sea.Combat);
             _previewOurPower = SeaCombat.PowerFor(_previewOurs, _sea.Combat);
@@ -252,9 +248,10 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// The exchange: our turn opens (burn bites, mend patches, a stun steals it), our ball
-        /// lands, then theirs by the same rules. Damage lands at each ball's arrival; the ring
-        /// buffer narrates every roll for the floating numbers.
+        /// The exchange: a turn opens (fires bite, mend patches, a stun steals it), its ball
+        /// lands, then the other side by the same rules. Who goes first was settled by SÜRAT in
+        /// <see cref="Confirm"/>. Damage lands at each ball's arrival; the ring buffer narrates
+        /// every roll for the floating numbers.
         /// </summary>
         private void TickExchange(float dt)
         {
@@ -304,8 +301,8 @@ namespace Game.Gameplay
                         {
                             bool held = _fight.Them.Stunned;
                             SeaCombat.TurnSkipped(ref _fight, false);
-                            // The derelict's silence is not worth narrating every turn; a HELD
-                            // turn — hook or stun — is.
+                            // The derelict's silence is not worth narrating every turn; a turn
+                            // our SERSEMLETME stole is.
                             if (held) Emit(EvHeld, 0d, false);
                             EnterStep(Step.OurAim);
                             break;
@@ -329,11 +326,12 @@ namespace Game.Gameplay
             }
         }
 
-        /// <summary>A turn's opening ledger. True when the burn just ended the fight.</summary>
+        /// <summary>A turn's opening ledger. True when a fire just ended the fight.</summary>
         private bool OpenTurn(bool ours, in SeaCombat.Tuning t)
         {
             SeaCombat.TurnReport report = SeaCombat.TurnStart(ref _fight, ours, t);
             if (report.BurnDamage > 0d) Emit(EvBurnTick, report.BurnDamage, ours);
+            if (report.PoisonDamage > 0d) Emit(EvPoisonTick, report.PoisonDamage, ours);
             if (report.Mended > 0d) Emit(EvMend, report.Mended, ours);
             if (!_fight.Over) return false;
             Resolve();
@@ -346,6 +344,7 @@ namespace Game.Gameplay
             Crit = Random.value,
             Stun = Random.value,
             Burn = Random.value,
+            Poison = Random.value,
             Plunder = Random.value,
             Salvo = Random.value,
         };
@@ -355,9 +354,11 @@ namespace Game.Gameplay
         {
             bool victimUs = !ours;
             if (report.Dodged) { Emit(EvDodge, 0d, victimUs); return; }
-            Emit(report.Crit ? EvCrit : report.Braced ? EvBraced : EvHit, report.Damage, victimUs);
+            Emit(report.Crit ? EvCrit : EvHit, report.Damage, victimUs);
+            if (report.Stolen > 0d) Emit(EvSteal, report.Stolen, ours);
             if (report.StunProc) Emit(EvStunProc, 0d, victimUs);
             if (report.BurnProc) Emit(EvBurnProc, 0d, victimUs);
+            if (report.PoisonProc) Emit(EvPoisonProc, 0d, victimUs);
             if (report.Plundered > 0L)
             {
                 _plunder += report.Plundered;

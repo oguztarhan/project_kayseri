@@ -48,6 +48,10 @@ namespace Game.Systems
         /// <summary>A voyage just came home and has cards on it. The berth index. For juice and badges.</summary>
         public event Action<int> Returned;
 
+        /// <summary>Set by the bootstrap, like <c>Maintenance.Goals</c>: a claimed voyage pays the
+        /// workshop its flat craft points. The dock works exactly as before when it is not wired.</summary>
+        public CraftingService Crafting { get; set; }
+
         public VoyageService(SaveData data, MarketService market, ForemanService foremen,
                              WalletService wallet, TimeService time, Voyages.Tuning tuning,
                              CaptainService captains = null)
@@ -527,6 +531,7 @@ namespace Game.Systems
             }
             if (v.payoutSalvage > 0 && _data != null) _data.salvage += v.payoutSalvage;
             if (v.payoutCharts > 0 && _captains != null) _captains.AddCharts(v.payoutCharts);
+            Crafting?.OnVoyageClaimed();
 
             _data.voyages.Remove(v);
             Changed?.Invoke();

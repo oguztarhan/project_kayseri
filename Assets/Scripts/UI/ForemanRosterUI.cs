@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Data;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
@@ -7,20 +8,22 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The foreman roster screen: eight cards, one per station, each showing who is hired, how far
-    /// they are levelled, and what the next step costs.
+    /// The masters screen: the chest down the left, eight cards on the right — one per station, each
+    /// showing how many stars its master carries, what tier that puts him in, and how many cards are
+    /// left to the next one.
     ///
     /// BUILT IN CODE rather than authored as a prefab, the same way <see cref="UiBuild"/>'s other
     /// screens are. That is a deliberate trade: an authored sheet would look better, but the roster
     /// is exactly eight identical cards driven off <see cref="Foremen"/>'s own tables, and a prefab
-    /// would mean eight hand-wired copies that fall out of step the moment a slot's rarity changes.
-    /// The card layout here reads the tables, so it cannot disagree with the maths.
+    /// would mean eight hand-wired copies that fall out of step the moment the tuning changes. The
+    /// card layout here reads the tables, so it cannot disagree with the maths.
     ///
-    /// The art is the only thing wired in the Inspector — the white card, the blue title ribbon, the
-    /// eight portraits. Everything else is fractions of the parent, so the sheet fits any aspect.
+    /// THE TIER COLOUR IS NOT WIRED HERE. It comes from <see cref="ForemanService.TierTint"/>, which
+    /// the plinth under the master's feet on the island reads too — a Legendary that is gold on the
+    /// card and purple on the ground is worse than no colour at all.
     ///
-    /// Refreshed on open and on <see cref="ForemanService.RosterChanged"/> — never per frame. Nothing
-    /// on this screen animates, and the wallet only moves when the player presses something on it.
+    /// Refreshed on open and on <see cref="ForemanService.RosterChanged"/>. The only per-frame work is
+    /// the free chest's countdown and the reveal's flips, and both stop the moment the screen closes.
     /// </summary>
     public sealed class ForemanRosterUI : MonoBehaviour
     {
@@ -49,15 +52,18 @@ namespace Game.UI
         [SerializeField] private Sprite purseGem;
         [Tooltip("Sekiz portre, istasyon sırasıyla: maden, tren, depo, cevher kamyonu, fabrika, yük kamyonu, pazar, enerji santrali.")]
         [SerializeField] private Sprite[] portraits;
+        [Tooltip("Sandık görseli — Ikonlar/ikon_sandik.")]
+        [SerializeField] private Sprite chestIcon;
 
         [Header("Renkler")]
         [SerializeField] private Color scrim = new Color(0.04f, 0.05f, 0.08f, 0.86f);
         [SerializeField] private Color cardHired = new Color(0.16f, 0.19f, 0.27f, 1f);
         [SerializeField] private Color cardLocked = new Color(0.11f, 0.12f, 0.17f, 1f);
-        [Tooltip("Sıradanlık renkleri: Common, Rare, Epic.")]
-        [SerializeField] private Color commonTint = new Color(0.62f, 0.68f, 0.78f, 1f);
-        [SerializeField] private Color rareTint = new Color(0.33f, 0.62f, 0.92f, 1f);
-        [SerializeField] private Color epicTint = new Color(0.72f, 0.45f, 0.95f, 1f);
+
+        // Kademe renkleri BURADA DEĞİL: ForemanConfig'de, adadaki kaideyle aynı yerde. Bkz. sınıf notu.
+        /// <summary>The progress bar's own blue, used only when no bar art is wired. Not a tier
+        /// colour — the bar means "cards toward the next star" at every tier.</summary>
+        private static readonly Color BarBlue = new Color(0.33f, 0.62f, 0.92f, 1f);
 
         /// <summary>The rail button's icon, loaded at runtime — this screen has no Inspector to wire.</summary>
         private const string OpenerIconResource = "UI/Buttons/ustabasi";
@@ -99,13 +105,40 @@ namespace Game.UI
         private readonly Text[] _level = new Text[Foremen.Count];
         private readonly Text[] _effect = new Text[Foremen.Count];
         private readonly Text[] _cards = new Text[Foremen.Count];
-        private readonly Text[] _cost = new Text[Foremen.Count];
         private readonly Button[] _action = new Button[Foremen.Count];
         private readonly Text[] _actionText = new Text[Foremen.Count];
         private readonly Image[] _card = new Image[Foremen.Count];
         private readonly Image[] _portrait = new Image[Foremen.Count];
         private readonly Image[] _fill = new Image[Foremen.Count];
-        private readonly Image[] _gem = new Image[Foremen.Count];
+        private readonly Image[] _rule = new Image[Foremen.Count];
+
+        // ---- the chest shelf ----
+        private Text _chestTitle, _chestBlurb, _chestSingle, _chestBulk, _freeLabel;
+        private Button _singleButton, _bulkButton, _freeButton;
+        private float _clockTick;
+
+        // ---- the reveal ----
+        // Eight tiles is the most a batch can ever show: cards are aggregated per master, and there
+        // are eight masters. Built once, hidden, and reused for every open.
+        private RectTransform _reveal;
+        private readonly Image[] _tile = new Image[Foremen.Count];
+        private readonly Image[] _tileArt = new Image[Foremen.Count];
+        private readonly Text[] _tileName = new Text[Foremen.Count];
+        private readonly Text[] _tileCount = new Text[Foremen.Count];
+        private readonly RectTransform[] _tileRect = new RectTransform[Foremen.Count];
+        private readonly int[] _tileSlot = new int[Foremen.Count];
+        private readonly bool[] _tileFresh = new bool[Foremen.Count];
+        private readonly bool[] _tileTurned = new bool[Foremen.Count];
+        private readonly int[] _batch = new int[Foremen.Count];
+        private readonly int[] _starsBefore = new int[Foremen.Count];
+        private Text _revealTitle, _revealHint;
+        private ConfettiBurst _confetti;
+        private int _tilesShown;
+        private float _revealClock;
+        private bool _revealing;
+
+        private const float FlipSeconds = 0.34f;
+        private const float FlipStagger = 0.13f;
 
         private void Awake()
         {
@@ -133,7 +166,7 @@ namespace Game.UI
         /// </summary>
         private void OnLanguageChanged()
         {
-            if (_titleLabel != null) _titleLabel.text = Loc.T("ustabasi.baslik");
+            if (_titleLabel != null) _titleLabel.text = Loc.T("usta.baslik");
             Refresh();
             RefreshOpener();
         }
@@ -167,7 +200,18 @@ namespace Game.UI
         }
 
         public void Show() { if (_root != null) _root.gameObject.SetActive(true); Refresh(); }
-        public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }
+
+        /// <summary>
+        /// Closes the screen, and the reveal with it. The ceremony lives on its OWN canvas so it can
+        /// out-sort the HUD, which means hiding this screen does not hide it — closed from anywhere
+        /// else while a chest was still turning over, it would be left painted across the game.
+        /// </summary>
+        public void Hide()
+        {
+            _revealing = false;
+            if (_reveal != null) _reveal.gameObject.SetActive(false);
+            if (_root != null) _root.gameObject.SetActive(false);
+        }
         public void Toggle()
         {
             if (_root == null) return;
@@ -181,11 +225,14 @@ namespace Game.UI
             _root = UiBuild.Flat(canvas, "Karartma", scrim, Vector2.zero, Vector2.one);
 
             BuildHeader();
+            BuildChestShelf();
 
             int rows = (Foremen.Count + columns - 1) / columns;
-            const float left = 0.035f, right = 0.965f, top = 0.845f, bottom = 0.035f;
+            // The grid starts where the chest shelf ends. The shelf is the reason to come back to this
+            // screen once the roster is complete, so it gets the reading position rather than a corner.
+            const float left = 0.305f, right = 0.965f, top = 0.845f, bottom = 0.035f;
             float cellW = (right - left) / columns, cellH = (top - bottom) / rows;
-            const float padX = 0.007f, padY = 0.014f;
+            const float padX = 0.006f, padY = 0.014f;
 
             for (int s = 0; s < Foremen.Count; s++)
             {
@@ -194,6 +241,54 @@ namespace Game.UI
                 var aMax = new Vector2(left + (col + 1) * cellW - padX, top - row * cellH - padY);
                 BuildCard(s, aMin, aMax);
             }
+
+            BuildReveal();
+        }
+
+        /// <summary>
+        /// The chest: one column down the left, three ways to open it. The free one carries its own
+        /// countdown as its label, so the screen answers "is there anything for me right now" before
+        /// the player has read a single card.
+        /// </summary>
+        private void BuildChestShelf()
+        {
+            RectTransform shelf = Art(_root, "Sandik", cardPanel,
+                                      new Vector2(0.035f, 0.035f), new Vector2(0.288f, 0.845f));
+            if (cardPanel == null) shelf.GetComponent<Image>().color = cardHired;
+
+            _chestTitle = UiBuild.Label(Slot(shelf, "Baslik", new Vector2(0.06f, 0.885f), new Vector2(0.94f, 0.975f)),
+                                        "Text", Loc.T("usta.sandik"), 30, TextAnchor.MiddleCenter);
+            _chestTitle.color = Ink;
+            Fit(_chestTitle, 18, 30);
+
+            Icon(shelf, "Gorsel", chestIcon != null ? chestIcon : cardPanel,
+                 new Vector2(0.13f, 0.520f), new Vector2(0.87f, 0.875f));
+
+            _chestBlurb = UiBuild.Label(Slot(shelf, "Aciklama", new Vector2(0.07f, 0.425f), new Vector2(0.93f, 0.510f)),
+                                        "Text", string.Empty, 19, TextAnchor.UpperCenter);
+            _chestBlurb.color = InkFaint;
+
+            _singleButton = ShelfButton(shelf, "Tek", new Vector2(0.075f, 0.285f), new Vector2(0.925f, 0.400f),
+                                        () => Open(1), out _chestSingle);
+            _bulkButton = ShelfButton(shelf, "Toplu", new Vector2(0.075f, 0.155f), new Vector2(0.925f, 0.270f),
+                                      () => Open(_foremen != null ? _foremen.ChestTuning.BulkCount : 10),
+                                      out _chestBulk);
+            _freeButton = ShelfButton(shelf, "Bedava", new Vector2(0.075f, 0.025f), new Vector2(0.925f, 0.140f),
+                                      () => Open(0), out _freeLabel);
+        }
+
+        /// <summary>One pill on the chest shelf. Returns the button and hands back its label.</summary>
+        private Button ShelfButton(RectTransform parent, string name, Vector2 aMin, Vector2 aMax,
+                                   UnityEngine.Events.UnityAction onClick, out Text label)
+        {
+            Button b = UiBuild.Btn(parent, name, string.Empty,
+                                   actionButton != null ? actionButton : UiSkin.ButtonGreen,
+                                   new Color(0.24f, 0.68f, 0.36f, 1f), 24, onClick);
+            UiBuild.Anchor((RectTransform)b.transform, aMin, aMax);
+            PillFit.Wrap(b.GetComponent<Image>());
+            label = b.GetComponentInChildren<Text>();
+            Fit(label, 15, 26);
+            return b;
         }
 
         /// <summary>The blue ribbon across the top, the income multiplier left of it, the purse right.</summary>
@@ -202,7 +297,7 @@ namespace Game.UI
             RectTransform band = Art(_root, "Serit", ribbon, new Vector2(0.355f, 0.855f), new Vector2(0.645f, 0.995f));
             _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
                                         new Vector2(0.87f, RibbonBand + 0.13f)),
-                                   "Text", Loc.T("ustabasi.baslik"), 38, TextAnchor.MiddleCenter);
+                                   "Text", Loc.T("usta.baslik"), 38, TextAnchor.MiddleCenter);
 
             // Both chips are the HUD's own graphite pill. They sit on the same line as the HUD's
             // money and gem counters and used to be white, so the top of the screen read as two
@@ -237,11 +332,13 @@ namespace Game.UI
             _card[station] = card.GetComponent<Image>();
             if (cardPanel == null) _card[station].color = cardHired;
 
-            // The rarity mark. Fixed per slot, so it is set once here and never refreshed. It is a
-            // rule under the name rather than a tab on the card's edge: the white panel's rim carries
-            // its own soft glow, and anything laid across it reads as a stray rectangle.
-            UiBuild.Flat(card, "Sirad", TintFor(station),
-                         new Vector2(0.575f, 0.752f), new Vector2(0.820f, 0.768f));
+            // The tier mark. It used to be fixed per slot and set once; a master's tier now moves every
+            // second star, so it is kept and repainted. It is a rule under the name rather than a tab
+            // on the card's edge: the white panel's rim carries its own soft glow, and anything laid
+            // across it reads as a stray rectangle.
+            _rule[station] = UiBuild.Flat(card, "Sirad", InkFaint,
+                                          new Vector2(0.575f, 0.752f), new Vector2(0.820f, 0.768f))
+                                    .GetComponent<Image>();
 
             _portrait[station] = Icon(card, "Portre", Portrait(station),
                                       new Vector2(0.01f, 0.245f), new Vector2(0.44f, 0.900f));
@@ -265,17 +362,11 @@ namespace Game.UI
             // duplicates cannot, so this is the line that actually paces the roster.
             _fill[station] = Bar(card, new Vector2(0.455f, 0.435f), new Vector2(0.955f, 0.510f));
 
+            // Cards toward the next star. No price line any more: gems are spent at the chest, and a
+            // star costs the cards on this bar and nothing else.
             _cards[station] = UiBuild.Label(
-                Slot(card, "Kartlar", new Vector2(0.44f, 0.320f), new Vector2(0.955f, 0.425f)),
-                "Text", string.Empty, 22, TextAnchor.MiddleCenter);
-
-            // Price, with the gem in front of the number rather than the word after it — a 150 with
-            // no icon on a white card reads as a level, not a cost.
-            RectTransform bedel = Slot(card, "Bedel", new Vector2(0.44f, 0.185f), new Vector2(0.955f, 0.310f));
-            _gem[station] = Icon(bedel, "Elmas", gemIcon, new Vector2(0.16f, 0.06f), new Vector2(0.42f, 0.94f));
-            _cost[station] = UiBuild.Label(
-                Slot(bedel, "Yazi", new Vector2(0.45f, 0f), new Vector2(0.96f, 1f)),
-                "Text", string.Empty, 28, TextAnchor.MiddleLeft);
+                Slot(card, "Kartlar", new Vector2(0.44f, 0.245f), new Vector2(0.955f, 0.395f)),
+                "Text", string.Empty, 24, TextAnchor.MiddleCenter);
 
             int captured = station;
             _action[station] = UiBuild.Btn(card, "Dugme", string.Empty,
@@ -288,6 +379,78 @@ namespace Game.UI
                            new Vector2(0.105f, 0.040f), new Vector2(0.895f, 0.170f));
             PillFit.Wrap(_action[station].GetComponent<Image>());
             _actionText[station] = _action[station].GetComponentInChildren<Text>();
+        }
+
+        /// <summary>
+        /// The chest-open ceremony: up to eight cards face down, turning over one after another.
+        ///
+        /// ON ITS OWN CANVAS, at a sorting order above the HUD's settings gear. The gear draws at 120
+        /// and this screen at 105, which is already why the close button had to be pulled in from the
+        /// corner — a reveal at the roster's own order would have the gear punched through it.
+        ///
+        /// Built once and reused. Everything about a turn is a scale on a pre-made rect, so the
+        /// ceremony allocates nothing while it plays.
+        /// </summary>
+        private void BuildReveal()
+        {
+            RectTransform canvas = UiBuild.Canvas(transform, "UstaSandikKanvas", sortingOrder + 25);
+            _reveal = UiBuild.Flat(canvas, "Karartma", new Color(0.03f, 0.04f, 0.07f, 0.93f),
+                                   Vector2.zero, Vector2.one);
+
+            // The whole sheet is the skip target — a reveal you have to aim at to get past is a
+            // reveal that stops being a reward the second time you see it.
+            var skip = _reveal.gameObject.AddComponent<Button>();
+            skip.transition = Selectable.Transition.None;
+            skip.onClick.AddListener(OnRevealTapped);
+
+            _revealTitle = UiBuild.Label(Slot(_reveal, "Baslik", new Vector2(0.1f, 0.845f), new Vector2(0.9f, 0.945f)),
+                                         "Text", string.Empty, 44, TextAnchor.MiddleCenter);
+            _revealTitle.color = Paper;
+
+            _revealHint = UiBuild.Label(Slot(_reveal, "Devam", new Vector2(0.1f, 0.045f), new Vector2(0.9f, 0.125f)),
+                                        "Text", string.Empty, 24, TextAnchor.MiddleCenter);
+            _revealHint.color = InkFaint;
+
+            const int cols = 4;
+            const float left = 0.09f, right = 0.91f, top = 0.800f, bottom = 0.170f;
+            float cellW = (right - left) / cols, cellH = (top - bottom) / 2f;
+
+            for (int t = 0; t < _tile.Length; t++)
+            {
+                int col = t % cols, row = t / cols;
+                var aMin = new Vector2(left + col * cellW + 0.012f, top - (row + 1) * cellH + 0.022f);
+                var aMax = new Vector2(left + (col + 1) * cellW - 0.012f, top - row * cellH - 0.022f);
+
+                RectTransform tile = Art(_reveal, "Kart_" + t, cardPanel, aMin, aMax);
+                _tileRect[t] = tile;
+                _tile[t] = tile.GetComponent<Image>();
+                _tileArt[t] = Icon(tile, "Portre", null, new Vector2(0.10f, 0.30f), new Vector2(0.90f, 0.94f));
+                _tileName[t] = UiBuild.Label(
+                    Slot(tile, "Ad", new Vector2(0.05f, 0.155f), new Vector2(0.95f, 0.285f)),
+                    "Text", string.Empty, 22, TextAnchor.MiddleCenter);
+                _tileName[t].color = Paper;
+                Fit(_tileName[t], 13, 22);
+                _tileCount[t] = UiBuild.Label(
+                    Slot(tile, "Adet", new Vector2(0.05f, 0.030f), new Vector2(0.95f, 0.150f)),
+                    "Text", string.Empty, 30, TextAnchor.MiddleCenter);
+                _tileCount[t].color = Paper;
+
+                tile.gameObject.SetActive(false);
+            }
+
+            _reveal.gameObject.SetActive(false);
+
+            // The celebration lives on THIS canvas, added last so its pieces draw over the tiles.
+            //
+            // Not the shared pools: the three ConfettiBursts in the scene sit at sorting order 108-109,
+            // under an all-but-opaque reveal sheet at 130, so a burst fired from a turning card would
+            // have played entirely behind it. Two of the three also belong to screens that are switched
+            // off while this one is open, and a pool on a disabled object never ticks — so hunting for
+            // one with FindAnyObjectByType could pick a burst that simply never animates.
+            //
+            // It hangs off the canvas rather than off the reveal sheet so it still runs for a tier
+            // promotion, which happens with the sheet down.
+            _confetti = canvas.gameObject.AddComponent<ConfettiBurst>();
         }
 
         // ------------------------------------------------------------------ pieces
@@ -359,7 +522,7 @@ namespace Game.UI
             img.type = Image.Type.Sliced;
             img.preserveAspect = false;
             img.raycastTarget = false;
-            if (barFill == null) img.color = rareTint;
+            if (barFill == null) img.color = BarBlue;
             UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, new Vector2(0f, 1f));
             PillFit.Wrap(img);
             return img;
@@ -392,26 +555,186 @@ namespace Game.UI
             return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
         }
 
-        /// <summary>A rarity tint deep enough to read as text on white, alpha untouched.</summary>
+        /// <summary>A tier tint deep enough to read as text on white, alpha untouched.</summary>
         private static Color Darken(Color c) => new Color(c.r * 0.68f, c.g * 0.68f, c.b * 0.68f, 1f);
 
+        /// <summary>The tier's colour, from the one place both this screen and the island read.</summary>
         private Color TintFor(int station)
+            => _foremen != null ? _foremen.TierTintOf(station) : InkFaint;
+
+        /// <summary>h:mm:ss while the wait is long, mm:ss once it is short — eight hours of "480:00"
+        /// is a number nobody can read as a time.</summary>
+        private static string Countdown(long seconds)
         {
-            switch (Foremen.Slot(station))
-            {
-                case Foremen.Rarity.Epic: return epicTint;
-                case Foremen.Rarity.Rare: return rareTint;
-                default:                  return commonTint;
-            }
+            if (seconds < 0L) seconds = 0L;
+            long h = seconds / 3600L, m = (seconds % 3600L) / 60L, s = seconds % 60L;
+            return h > 0L ? h + ":" + m.ToString("00") + ":" + s.ToString("00")
+                          : m + ":" + s.ToString("00");
         }
 
         // ------------------------------------------------------------------ press
         private void OnPressed(int station)
         {
             if (_foremen == null) return;
-            bool done = _foremen.IsHired(station) ? _foremen.TryLevelUp(station) : _foremen.TryHire(station);
-            if (done) ServiceLocator.Get<HapticService>()?.Light();
+
+            Foremen.Tier was = _foremen.TierOf(station);
+            if (!_foremen.TryLevelUp(station)) { Refresh(); return; }
+
+            // A promotion is the moment the card, the plinth and his size on the island all change at
+            // once — worth more than the tap feedback a plain star gets.
+            if (_foremen.TierOf(station) != was)
+            {
+                ServiceLocator.Get<HapticService>()?.Medium();
+                ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
+                Confetti();
+            }
+            else ServiceLocator.Get<HapticService>()?.Light();
+
             Refresh();   // RosterChanged already refreshes on success; this covers the refusal too
+        }
+
+        // ----------------------------------------------------------------- chest
+        /// <summary>
+        /// Opens chests. <paramref name="chests"/> of 0 means the free one. The stars are snapshotted
+        /// first because the service unlocks a master as his first card lands, and "NEW" is the only
+        /// thing on the reveal worth a confetti burst — after the call there is no way to tell an
+        /// unlock from a card that merely arrived.
+        /// </summary>
+        private void Open(int chests)
+        {
+            if (_foremen == null) return;
+            for (int s = 0; s < Foremen.Count; s++) _starsBefore[s] = _foremen.LevelOf(s);
+
+            int[] got = chests > 0 ? _foremen.TryOpenChest(chests) : _foremen.TryClaimFreeChest();
+            if (got == null || got.Length == 0)
+            {
+                ServiceLocator.Get<HapticService>()?.Light();
+                Refresh();
+                return;
+            }
+            BeginReveal(got);
+        }
+
+        private void BeginReveal(int[] got)
+        {
+            for (int s = 0; s < Foremen.Count; s++) _batch[s] = 0;
+            for (int i = 0; i < got.Length; i++)
+            {
+                int slot = got[i];
+                if (slot >= 0 && slot < Foremen.Count) _batch[slot]++;
+            }
+
+            _tilesShown = 0;
+            for (int s = 0; s < Foremen.Count && _tilesShown < _tile.Length; s++)
+            {
+                if (_batch[s] <= 0) continue;
+                int t = _tilesShown++;
+                _tileSlot[t] = s;
+                _tileFresh[t] = _starsBefore[s] <= Foremen.NotHired;
+                _tileTurned[t] = false;
+                _tileArt[t].sprite = Portrait(s);
+                _tileArt[t].enabled = false;               // face down until it turns
+                _tileName[t].text = string.Empty;
+                _tileCount[t].text = string.Empty;
+                _tile[t].color = cardLocked;
+                _tileRect[t].localScale = Vector3.one;
+                _tileRect[t].gameObject.SetActive(true);
+            }
+            for (int t = _tilesShown; t < _tile.Length; t++) _tileRect[t].gameObject.SetActive(false);
+
+            // Both written per open rather than at build, so a language change between chests lands.
+            _revealTitle.text = Loc.T("usta.sandik");
+            _revealHint.text = Loc.T("usta.devam");
+            _revealClock = 0f;
+            _revealing = true;
+            _reveal.gameObject.SetActive(true);
+            ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
+        }
+
+        /// <summary>
+        /// Turns a tile face up. Called from the flip once it is edge-on, and by the skip tap for
+        /// every tile still face down, so a player who taps through sees the same cards.
+        /// </summary>
+        private void TurnTile(int t)
+        {
+            if (_tileTurned[t]) return;
+            _tileTurned[t] = true;
+
+            int s = _tileSlot[t];
+            _tileArt[t].enabled = _tileArt[t].sprite != null;
+            _tileArt[t].color = Color.white;
+            _tile[t].color = TintFor(s);
+            _tileName[t].text = _tileFresh[t]
+                ? Loc.T("usta.yeni")
+                : Loc.Id("istasyon", IslandEconomy.Stations[s]);
+            _tileCount[t].text = "x" + _batch[s];
+
+            if (_tileFresh[t])
+            {
+                ServiceLocator.Get<HapticService>()?.Medium();
+                Confetti();
+            }
+            else ServiceLocator.Get<HapticService>()?.Light();
+        }
+
+        private void DismissReveal()
+        {
+            _revealing = false;
+            if (_reveal != null) _reveal.gameObject.SetActive(false);
+            Refresh();
+        }
+
+        /// <summary>First tap finishes the flips, second one closes.</summary>
+        private void OnRevealTapped()
+        {
+            bool pending = false;
+            for (int t = 0; t < _tilesShown; t++) if (!_tileTurned[t]) pending = true;
+
+            if (!pending) { DismissReveal(); return; }
+            for (int t = 0; t < _tilesShown; t++)
+            {
+                TurnTile(t);
+                _tileRect[t].localScale = Vector3.one;
+            }
+            _revealing = false;
+        }
+
+        /// <summary>This screen's own burst — see <see cref="BuildReveal"/> for why it is not shared.</summary>
+        private void Confetti()
+        {
+            if (_confetti != null) _confetti.Play();
+        }
+
+        private void Update()
+        {
+            if (_root == null || !_root.gameObject.activeSelf) return;
+
+            if (_revealing)
+            {
+                _revealClock += Time.unscaledDeltaTime;
+                bool anyLeft = false;
+                for (int t = 0; t < _tilesShown; t++)
+                {
+                    float local = _revealClock - t * FlipStagger;
+                    if (local <= 0f) { anyLeft = true; _tileRect[t].localScale = Vector3.one; continue; }
+                    if (local >= FlipSeconds) { TurnTile(t); _tileRect[t].localScale = Vector3.one; continue; }
+
+                    anyLeft = true;
+                    float half = FlipSeconds * 0.5f;
+                    if (local >= half) TurnTile(t);
+                    // Edge-on at the halfway point, so the face swap is hidden inside the turn.
+                    float x = Mathf.Abs(local - half) / half;
+                    _tileRect[t].localScale = new Vector3(Mathf.Max(x, 0.02f), 1f, 1f);
+                }
+                if (!anyLeft) _revealing = false;
+                return;
+            }
+
+            // The free chest's countdown. Once a second is as often as a clock label can change.
+            _clockTick += Time.unscaledDeltaTime;
+            if (_clockTick < 1f) return;
+            _clockTick = 0f;
+            RefreshChest();
         }
 
         // ---------------------------------------------------------------- refresh
@@ -422,73 +745,100 @@ namespace Game.UI
             _multiplier.text = string.Format(Culture, "×{0:0.00}", _foremen.IncomeMultiplier);
             _balance.text = (_wallet != null ? _wallet.Gems : 0L).ToString();
 
+            RefreshChest();
             for (int s = 0; s < Foremen.Count; s++) RefreshCard(s);
+        }
+
+        private void RefreshChest()
+        {
+            if (_foremen == null || _singleButton == null) return;
+
+            long one = _foremen.ChestCost(1);
+            int bulk = _foremen.ChestTuning.BulkCount;
+
+            _chestTitle.text = Loc.T("usta.sandik");
+            _chestBlurb.text = Loc.T("usta.nereden");
+            _chestSingle.text = string.Format("{0} x1   {1}", Loc.T("usta.ac"), one);
+            _chestBulk.text = string.Format("{0} x{1}   {2}", Loc.T("usta.ac"), bulk, _foremen.ChestCost(bulk));
+
+            Dress(_singleButton, _chestSingle, _foremen.CanOpenChest(1));
+            Dress(_bulkButton, _chestBulk, _foremen.CanOpenChest(bulk));
+
+            bool free = _foremen.FreeChestReady;
+            _freeLabel.text = free
+                ? Loc.T("usta.bedava")
+                : string.Format("{0}   {1}", Loc.T("usta.bedava"), Countdown(_foremen.FreeChestSecondsLeft));
+            Dress(_freeButton, _freeLabel, free);
         }
 
         private void RefreshCard(int s)
         {
-            bool hired = _foremen.IsHired(s);
+            bool owned = _foremen.IsHired(s);
             bool maxed = _foremen.IsMaxed(s);
-            int level = _foremen.LevelOf(s);
+            int stars = _foremen.LevelOf(s);
+            Color tint = TintFor(s);
 
-            if (cardPanel == null) _card[s].color = hired ? cardHired : cardLocked;
-            // A locked foreman keeps his own portrait, greyed — the card is white, so blanking him
-            // leaves a hole where the only thing worth looking at should be.
-            _portrait[s].color = hired ? Color.white : new Color(0.62f, 0.66f, 0.73f, 0.85f);
+            if (cardPanel == null) _card[s].color = owned ? cardHired : cardLocked;
+            // A master you do not have yet keeps his own portrait, greyed — the card is white, so
+            // blanking him leaves a hole where the only thing worth looking at should be.
+            _portrait[s].color = owned ? Color.white : new Color(0.62f, 0.66f, 0.73f, 0.85f);
+            _rule[s].color = owned ? tint : InkFaint;
 
             _name[s].text = Loc.Id("istasyon", IslandEconomy.Stations[s]);
-            _name[s].color = hired ? Ink : InkSoft;
+            _name[s].color = owned ? Ink : InkSoft;
 
-            _level[s].text = hired
-                ? string.Format(Loc.T("yukseltme.seviye"), level)
-                : Loc.T("ustabasi.kiralikdegil");
-            _level[s].color = InkSoft;
+            // Stars and the word they add up to. The tier is what the player talks about; the stars
+            // are how far into it he is.
+            _level[s].text = owned
+                ? new string('★', stars) + "  " + Loc.T("usta.kademe." + (int)_foremen.TierOf(s))
+                : Loc.T("usta.bulunmadi");
+            _level[s].color = owned ? Darken(tint) : InkSoft;
+            Fit(_level[s], 12, 26);
 
-            // What this foreman is worth right now, as a percentage — the same number on the station
-            // and on the empire, because it is literally the same term. See Game.Core.Foremen.
-            double perLevel = Foremen.PerLevel(s, _foremen.Tuning);
-            _effect[s].text = hired
-                ? string.Format(Culture, "+{0:0.#}%", perLevel * level * 100d)
-                : string.Format(Culture, "+{0:0.#}%", perLevel * 100d);
-            _effect[s].color = hired ? Darken(TintFor(s)) : InkFaint;
+            // What this master is worth to his own station right now. The empire gets a share of the
+            // same number rather than a second one — see Game.Core.Foremen.
+            _effect[s].text = string.Format(Culture, "+{0:0.#}%", Foremen.Boost(stars, _foremen.Tuning) * 100d);
+            _effect[s].color = owned ? Darken(tint) : InkFaint;
 
             int have = _foremen.DuplicatesOf(s);
-            int need = hired && !maxed ? _foremen.DuplicatesToLevel(s) : 0;
+            int need = owned && !maxed ? _foremen.DuplicatesToLevel(s) : 0;
             float t = need > 0 ? Mathf.Clamp01(have / (float)need) : (maxed ? 1f : 0f);
             Progress(_fill[s], t);
-
             _cards[s].color = InkFaint;
 
             if (maxed)
             {
                 _cards[s].text = string.Format("{0} / {0} {1}", need > 0 ? need : have, Loc.T("ustabasi.kart"));
-                _gem[s].enabled = false;
-                _cost[s].text = string.Empty;
                 _actionText[s].text = Loc.T("ustabasi.azami");
                 _action[s].interactable = false;
             }
-            else if (hired)
+            else if (owned)
             {
                 _cards[s].text = string.Format("{0} / {1} {2}", have, need, Loc.T("ustabasi.kart"));
-                _gem[s].enabled = gemIcon != null;
-                _cost[s].text = _foremen.GemsToLevel(s).ToString();
-                _actionText[s].text = Loc.T("ustabasi.seviyeatla");
+                _actionText[s].text = Loc.T("usta.yildizatla");
                 _action[s].interactable = _foremen.CanLevel(s);
             }
             else
             {
-                _cards[s].text = string.Empty;
-                _gem[s].enabled = gemIcon != null;
-                _cost[s].text = _foremen.HireGems(s).ToString();
-                _actionText[s].text = Loc.T("ustabasi.isealt");
-                _action[s].interactable = _foremen.CanHire(s);
+                // Nothing to press and no price to quote: a master arrives in a chest, not at a till.
+                _cards[s].text = Loc.T("usta.sandiktan");
+                _actionText[s].text = Loc.T("usta.bulunmadi");
+                _action[s].interactable = false;
             }
 
-            _cost[s].color = _action[s].interactable ? Ink : InkFaint;
-            // The blue button is one pre-coloured sprite, so an unaffordable slot is greyed by tint
-            // rather than by swapping to a second piece of art the kit does not have.
-            _action[s].GetComponent<Image>().color =
-                _action[s].interactable ? Color.white : new Color(0.72f, 0.75f, 0.80f, 1f);
+            Dress(_action[s], _actionText[s], _action[s].interactable);
+        }
+
+        /// <summary>
+        /// Greys a pill and its label together. The blue button is one pre-coloured sprite, so an
+        /// unaffordable press is dimmed by tint rather than by swapping to a second piece of art the
+        /// kit does not have.
+        /// </summary>
+        private static void Dress(Button b, Text label, bool live)
+        {
+            b.interactable = live;
+            b.GetComponent<Image>().color = live ? Color.white : new Color(0.72f, 0.75f, 0.80f, 1f);
+            if (label != null) label.color = live ? Paper : new Color(0.88f, 0.90f, 0.93f, 1f);
         }
     }
 }

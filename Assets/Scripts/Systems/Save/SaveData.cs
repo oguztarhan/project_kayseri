@@ -165,6 +165,33 @@ namespace Game.Systems
         public double[] seaGearShot = new double[Game.Core.SeaCombat.SlotCount];
         public int[] seaGearSec = new int[Game.Core.SeaCombat.SlotCount];
         public double[] seaGearSecAmt = new double[Game.Core.SeaCombat.SlotCount];
+        // Defence and speed arrived when items grew the full core-stat block. An older item
+        // (grade set, both zero) is grown in place by ExpeditionService.Normalise from its
+        // slot's Common table, so nobody's drop gets slower or softer than a fresh Common.
+        public double[] seaGearDef = new double[Game.Core.SeaCombat.SlotCount];
+        public double[] seaGearSpd = new double[Game.Core.SeaCombat.SlotCount];
+
+        // ---- atölye (CraftingService) ----------------------------------------------------------
+        // The workshop bench: points are its closed currency (earned at sea and on the dock, spent
+        // only here), XP is LIFETIME salvage learning — the level is always recomputed from it, so
+        // the pair cannot drift. Added WITHOUT a save-version bump like every block above; a save
+        // from before the bench arrives all-zero, which is a player who has never crafted.
+        public long craftPoints;
+        public long craftXp;
+        public int craftGatesCleared;                // retooling stops passed (levels 10/20/30)
+        public long craftGateEndUnix;                // the running stop's wall-clock deadline; 0 = none
+        // The crafted-but-undecided item, one cell in the seaGear shape (grade+1, 0 = empty). The
+        // point is spent and THIS is what it bought, saved in the same breath — an app killed
+        // between crafting and choosing must find the item on the bench, not an empty slot and a
+        // missing point.
+        public int craftPendingGrade;
+        public int craftPendingSlot;
+        public int craftPendingSec;
+        public double craftPendingHull;
+        public double craftPendingShot;
+        public double craftPendingDef;
+        public double craftPendingSpd;
+        public double craftPendingSecAmt;
 
         // ---- chapters (ChapterService) ---------------------------------------------------------
         // Added WITHOUT a save-version bump, on the same precedent as the voyages block above. One
@@ -174,6 +201,18 @@ namespace Game.Systems
         // list, which is a player who has claimed nothing; because beats are OBSERVED rather than
         // reported (see ChapterService), their existing islands light up whatever they already earned.
         public List<ChapterState> chapters = new List<ChapterState>();
+
+        // ---- usta sandigi (ForemanService) ------------------------------------------------------
+        // The master chest's two pieces of state. Added WITHOUT a save-version bump, on the same
+        // precedent as every block above. The roster itself needs no new field: stars ARE
+        // foremanLevels, so a save written before the masters rework arrives with its foremen already
+        // at the right stars and its banked cards already counted against the same curve.
+        //
+        // The free chest is stored as WHEN THE LAST ONE WAS TAKEN rather than as a countdown, so it
+        // ticks while the app is shut and cannot be farmed by leaving it open — the same shape as
+        // boosts, repairs and sea energy. 0 means never claimed, which reads as one waiting.
+        public long masterFreeChestClaimUnix;
+        public int masterChestsOpened;               // lifetime, for the chest shelf's own readout
     }
 
     /// <summary>

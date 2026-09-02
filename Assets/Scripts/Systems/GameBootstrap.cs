@@ -28,6 +28,8 @@ namespace Game.Systems
         [SerializeField] private CaptainConfig captainConfig;
         [Tooltip("Deniz çatışması ayarları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
         [SerializeField] private SeaCombatConfig seaCombatConfig;
+        [Tooltip("Atölye (zanaat) ayarları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
+        [SerializeField] private CraftingConfig craftingConfig;
         [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
@@ -65,12 +67,14 @@ namespace Game.Systems
         public ChapterService Chapters { get; private set; }
         public CaptainService Captains { get; private set; }
         public ExpeditionService Expeditions { get; private set; }
+        public CraftingService Crafting { get; private set; }
 
         private TimeService _time;
         private NotificationService _notifications;
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
         private AdMobService _ads;
         private UmpConsentService _consent;
+        private MobileIAPService _iap;
 #endif
 
         private void Awake()
@@ -131,7 +135,8 @@ namespace Game.Systems
             // devFreeIAP anahtarı. Kuralı gevşetip editörde de açarsak, UGS bağlantısı olmadığı her
             // oturumda konsol bir başlatma hatası yazar.
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
-            ServiceLocator.Register<IIAPService>(new MobileIAPService());
+            _iap = new MobileIAPService();
+            ServiceLocator.Register<IIAPService>(_iap);
 #else
             ServiceLocator.Register<IIAPService>(new StubIAPService());
 #endif
@@ -211,10 +216,14 @@ namespace Game.Systems
             // offline grant so the pads can be advanced for the absence in the same breath as paying
             // for it, and driven from Update below so it keeps settling across a scene load.
             // The roster, before the yards: MarketService reads its income multiplier every tick, and
-            // an island's stations read its speeds every frame. Gems are what buy it, which is the
-            // first thing in the game they have been able to buy outside the store.
+            // an island's stations read its speeds every frame. Gems are what buy its chests, which is
+            // the first thing in the game they have been able to buy outside the store. The clock is
+            // handed over for the free chest's deadline — it is registered well above this.
             Foremen = new ForemanService(Data, Wallet,
-                foremanConfig != null ? foremanConfig.ToTuning() : Game.Core.Foremen.Tuning.Default);
+                foremanConfig != null ? foremanConfig.ToTuning() : Game.Core.Foremen.Tuning.Default,
+                foremanConfig != null ? foremanConfig.ToChestTuning() : Game.Core.MasterChest.Tuning.Default,
+                _time,
+                foremanConfig != null ? foremanConfig.TierTint : null);
             ServiceLocator.Register(Foremen);
 
             // The checklist. After the roster because a goal can pay out foreman cards, and before
@@ -250,6 +259,15 @@ namespace Game.Systems
                 Captains);
             ServiceLocator.Register(Voyages);
 
+            // The workshop bench. Before the sea service because both ends of its loop attach to
+            // one: scraps teach it and wins drop its points. Needs only the save and the clock —
+            // points and XP are a third closed loop beside salvage and charts.
+            Crafting = new CraftingService(Data, Save, _time,
+                craftingConfig != null ? craftingConfig.ToTuning() : Game.Core.Crafting.Tuning.Default,
+                seaCombatConfig != null ? seaCombatConfig.ToTuning() : Game.Core.SeaCombat.Tuning.Default);
+            ServiceLocator.Register(Crafting);
+            Voyages.Crafting = Crafting;   // a claimed voyage pays its flat points
+
             // Going out WITH a ship rather than watching a bar fill. Holds no save state of its own —
             // standing on a deck is not progress, the voyage is, and the dock already persists all of
             // it on the wall clock. Registered after the dock because it only ever reads from it.
@@ -257,6 +275,8 @@ namespace Game.Systems
                 seaCombatConfig != null ? seaCombatConfig.ToTuning()
                                         : Game.Core.SeaCombat.Tuning.Default);
             ServiceLocator.Register(Expeditions);
+            Expeditions.Crafting = Crafting;   // scraps teach the bench, wins can drop a point
+            Crafting.Expeditions = Expeditions;   // wearing a crafted item goes through the sea's Equip
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
@@ -346,6 +366,9 @@ namespace Game.Systems
             _ads?.Tick(dt);
             // ATT izni ilk kareden önce sorulamaz; rıza akışının kalan adımı buradan sürülür.
             _consent?.Tick(dt);
+            // Bir dokunuşun mağazada süresiz asılı kalmasına karşı bekçi: cevapsız kalan alım
+            // hem onu başlatan düğmeyi hem de sonraki bütün alımları kilitliyordu.
+            _iap?.Tick(dt);
 #endif
         }
 

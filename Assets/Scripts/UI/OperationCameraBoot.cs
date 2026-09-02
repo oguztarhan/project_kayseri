@@ -35,8 +35,13 @@ namespace Game.UI
         // This fraction, and the usable band below it, are the only two things that set how big a
         // building actually reads — see the field-of-view note above for why the lens does not.
         // At 0.30 a station was about forty pixels tall on a 1284-high screen, which is under half
-        // what the genre opens on; 0.21 puts it near sixty.
-        [SerializeField] private float defaultZoomFraction = 0.21f;
+        // what the genre opens on; 0.21 put it near sixty, and 0.14 near ninety, which is where the
+        // reference titles open. Nothing is taken away by coming in this close: zoomOutFactor still
+        // reaches the old survey view on a pinch, so the whole loop is one gesture away.
+        //
+        // NOTE: this default is not what the game runs. Every field on this component is serialised
+        // into Main.unity, and the scene wins — changing the number here alone does nothing.
+        [SerializeField] private float defaultZoomFraction = 0.14f;
 
         [Header("HUD-safe area")]
         // Landscape measurements. These were authored against the portrait sheet, where the bars are

@@ -29,6 +29,14 @@ namespace Game.Core
     /// MarketService, so a player near their cap — exactly the player who has been playing long enough
     /// to own foremen — would see a bonus do nothing at all. Lifting the ceiling is the half that pays;
     /// the throughput is the half you can watch.
+    ///
+    /// RARITY IS EARNED, NOT ROLLED. The slots used to carry a fixed rarity apiece — the mine foreman
+    /// was Epic because the mine is important — which made rarity a fact about the station rather than
+    /// anything the player did. It is now a fact about the MASTER: stars 1-10 promote him up five tiers
+    /// (see <see cref="TierOf"/>), so a Legendary mine master is one you took there. That is what makes
+    /// a chest worth opening after the roster is complete, and what the card frames, the plinth under
+    /// his feet and his size on the island are all reading from. It also means a card is never dead:
+    /// every master is reachable from the first chest and every card moves somebody up.
     /// </summary>
     public static class Foremen
     {
@@ -36,36 +44,37 @@ namespace Game.Core
         /// reordered — it is <see cref="IslandEconomy.Stations"/>'s order and stays tied to it.</summary>
         public const int Count = 8;
 
-        /// <summary>Not hired. Level 1 is a hire; there is no level 0 foreman.</summary>
+        /// <summary>Nobody there. The first card for an empty slot puts a master at one star; there is
+        /// no zero-star master. Kept as a name rather than a literal because saves are full of it.</summary>
         public const int NotHired = 0;
 
-        /// <summary>How far a foreman can be levelled. Reaching it is meant to take months of
-        /// duplicates, not a weekend of gems.</summary>
+        /// <summary>How far a master can be taken. Reaching it is meant to take months of cards, not a
+        /// weekend of gems.</summary>
         public const int MaxLevel = 10;
 
-        /// <summary>How rare a slot's foreman is. Fixed per slot rather than rolled, because a roster
-        /// you cannot plan for is a roster you cannot save toward.</summary>
-        public enum Rarity { Common = 0, Rare = 1, Epic = 2 }
+        /// <summary>How far along a master is, as the word the player sees. Two stars per tier.</summary>
+        public enum Tier { Common = 0, Rare = 1, Epic = 2, Legendary = 3, Mythic = 4 }
+
+        public const int TierCount = 5;
+
+        /// <summary>The first star of each tier. Two stars apiece, so the promotion lands every other
+        /// star-up and a card is never more than one star away from changing how a master looks.</summary>
+        private static readonly int[] TierFloorStar = { 1, 3, 5, 7, 9 };
 
         /// <summary>
-        /// Which rarity sits in which slot, indexed by station. The two ends of the chain are the
-        /// expensive ones: MINE is where everything starts and MARKET is where the money is actually
-        /// made, so those are the slots worth saving for. POWER PLANT is Epic because it multiplies
-        /// both income and speed on the island and is the last thing a player unlocks.
+        /// Which tier a master at this many stars is in. An empty slot reads as Common — it is the
+        /// colour a locked card is drawn in, not a claim that somebody is standing there; ask
+        /// <see cref="IsHired"/> for that.
         /// </summary>
-        public static readonly Rarity[] Slots =
+        public static Tier TierOf(int stars)
         {
-            Rarity.Epic,    // MINE
-            Rarity.Common,  // TRAIN
-            Rarity.Common,  // STORAGE
-            Rarity.Rare,    // ORE TRUCKS
-            Rarity.Rare,    // SMELTER
-            Rarity.Rare,    // CARGO TRUCKS
-            Rarity.Epic,    // MARKET
-            Rarity.Common,  // POWER PLANT
-        };
+            if (stars > MaxLevel) stars = MaxLevel;
+            for (int tier = TierCount - 1; tier > 0; tier--)
+                if (stars >= TierFloorStar[tier]) return (Tier)tier;
+            return Tier.Common;
+        }
 
-        // A foreman's NAME is their station's name — the loc table already carries all eight in
+        // A master's NAME is their station's name — the loc table already carries all eight in
         // eleven languages under istasyon.*, so the UI asks for those rather than duplicating them.
 
         // ------------------------------------------------------------------ tuning
@@ -73,61 +82,76 @@ namespace Game.Core
         /// decisions. Mirrors the shape of <see cref="IslandEconomy.Tuning"/>.</summary>
         public struct Tuning
         {
-            /// <summary>What one level of a foreman is worth, per rarity. Applied to that station's
-            /// throughput and added into the empire income multiplier.</summary>
-            public double CommonPerLevel, RarePerLevel, EpicPerLevel;
+            /// <summary>What a master at each star is worth to his own station's throughput, as a
+            /// fraction added to 1.0. Two per tier, written out rather than derived, because the jump
+            /// between tiers is the thing being tuned and a formula would hide it.</summary>
+            public double CommonBoost1, CommonBoost2;
+            public double RareBoost1, RareBoost2;
+            public double EpicBoost1, EpicBoost2;
+            public double LegendaryBoost1, LegendaryBoost2;
+            public double MythicBoost1, MythicBoost2;
 
-            /// <summary>Gems to hire, per rarity.</summary>
-            public long CommonHireGems, RareHireGems, EpicHireGems;
+            /// <summary>How much of a master's boost also lifts the empire income ceiling. The whole
+            /// boost would be enormous across eight masters; a tenth of it is the half that pays.</summary>
+            public double IncomeShare;
 
-            /// <summary>Duplicates needed to go from level L to L+1: Base + Step * (L - 1).</summary>
+            /// <summary>Cards needed to go from star L to L+1: Base + Step * (L - 1).</summary>
             public int DuplicateBase, DuplicateStep;
-
-            /// <summary>Gems charged alongside the duplicates, growing the same way.</summary>
-            public long LevelGemBase, LevelGemStep;
 
             public static Tuning Default => new Tuning
             {
-                // A maxed roster of 3 Common, 3 Rare, 2 Epic lands at
-                //   1 + 3(0.020x10) + 3(0.030x10) + 2(0.045x10) = 3.4x
-                // which is the size the second gear is meant to be. Prestige used to hand out 70x at
-                // coal, and the economy pass measured that as the thing breaking the ladder — this is
-                // deliberately an order of magnitude smaller and earned over far longer.
-                CommonPerLevel = 0.020d,
-                RarePerLevel   = 0.030d,
-                EpicPerLevel   = 0.045d,
+                // Legendary's top star is +300% exactly — that is the number the feature was asked for
+                // and the one the card advertises. The curve accelerates rather than stepping evenly,
+                // so a promotion is always felt: the second star of a tier is worth more than the
+                // first, and the first star of the next tier is worth more again.
+                CommonBoost1    = 0.10d, CommonBoost2    = 0.20d,
+                RareBoost1      = 0.45d, RareBoost2      = 0.70d,
+                EpicBoost1      = 1.10d, EpicBoost2      = 1.60d,
+                LegendaryBoost1 = 2.30d, LegendaryBoost2 = 3.00d,
+                MythicBoost1    = 4.00d, MythicBoost2    = 5.00d,
 
-                CommonHireGems = 150,
-                RareHireGems   = 400,
-                EpicHireGems   = 900,
+                // Eight Legendary masters land the empire at 1 + 8(3.0 x 0.10) = 3.4x, which is exactly
+                // where the old maxed roster landed and where the ladder was solved. Mythic stretches
+                // the tail to 5.0x rather than moving the floor. Prestige used to hand out 70x at coal
+                // and the economy pass measured that as the thing breaking the ladder; this stays an
+                // order of magnitude below it and is earned over months.
+                IncomeShare = 0.10d,
 
-                DuplicateBase = 2, DuplicateStep = 2,     // 2,4,6,… = 90 duplicates to max one foreman
-                LevelGemBase  = 60, LevelGemStep = 45,
+                DuplicateBase = 2, DuplicateStep = 2,     // 2,4,6,… = 90 cards to max one master
             };
         }
 
         // ------------------------------------------------------------------ worth
-        /// <summary>What one level is worth in a given slot.</summary>
-        public static double PerLevel(int station, in Tuning t)
+        /// <summary>
+        /// What a master at <paramref name="stars"/> is worth, as a fraction added to 1.0. Zero for an
+        /// empty slot, so an empty roster changes nothing anywhere and the whole feature can be
+        /// switched off by leaving it empty. Clamped at both ends — a hand-edited save must not be able
+        /// to buy itself a bigger multiplier than the top tier.
+        /// </summary>
+        public static double Boost(int stars, in Tuning t)
         {
-            switch (Slot(station))
+            if (stars <= NotHired) return 0d;
+            if (stars > MaxLevel) stars = MaxLevel;
+            switch (stars)
             {
-                case Rarity.Epic: return t.EpicPerLevel;
-                case Rarity.Rare: return t.RarePerLevel;
-                default:          return t.CommonPerLevel;
+                case 1:  return t.CommonBoost1;
+                case 2:  return t.CommonBoost2;
+                case 3:  return t.RareBoost1;
+                case 4:  return t.RareBoost2;
+                case 5:  return t.EpicBoost1;
+                case 6:  return t.EpicBoost2;
+                case 7:  return t.LegendaryBoost1;
+                case 8:  return t.LegendaryBoost2;
+                case 9:  return t.MythicBoost1;
+                default: return t.MythicBoost2;
             }
         }
 
         /// <summary>
-        /// One station's throughput multiplier. 1.0 when nobody is hired, so an empty roster changes
-        /// nothing anywhere and the whole feature can be switched off by leaving it empty.
+        /// One station's throughput multiplier. 1.0 when the slot is empty.
         /// </summary>
         public static double StationMultiplier(int[] levels, int station, in Tuning t)
-        {
-            int level = LevelOf(levels, station);
-            if (level <= NotHired) return 1d;
-            return 1d + PerLevel(station, t) * level;
-        }
+            => 1d + Boost(LevelOf(levels, station), t);
 
         /// <summary>
         /// What the whole roster is worth to income, as one multiplier on the empire. This is the half
@@ -138,44 +162,20 @@ namespace Game.Core
             if (levels == null) return 1d;
             double sum = 0d;
             int n = levels.Length < Count ? levels.Length : Count;
-            for (int s = 0; s < n; s++)
-            {
-                int level = levels[s];
-                if (level <= NotHired) continue;
-                if (level > MaxLevel) level = MaxLevel;
-                sum += PerLevel(s, t) * level;
-            }
-            return 1d + sum;
+            for (int s = 0; s < n; s++) sum += Boost(levels[s], t);
+            return 1d + sum * t.IncomeShare;
         }
 
         // ------------------------------------------------------------------ price
-        /// <summary>Gems to hire the foreman in this slot. Only meaningful while they are unhired.</summary>
-        public static long HireGems(int station, in Tuning t)
-        {
-            switch (Slot(station))
-            {
-                case Rarity.Epic: return t.EpicHireGems;
-                case Rarity.Rare: return t.RareHireGems;
-                default:          return t.CommonHireGems;
-            }
-        }
-
-        /// <summary>Duplicates to take a foreman from <paramref name="level"/> to the next one.</summary>
+        /// <summary>Cards to take a master from <paramref name="level"/> to the next star.</summary>
         public static int DuplicatesToLevel(int level, in Tuning t)
         {
             if (level < 1 || level >= MaxLevel) return 0;
             return t.DuplicateBase + t.DuplicateStep * (level - 1);
         }
 
-        /// <summary>Gems charged alongside those duplicates.</summary>
-        public static long GemsToLevel(int level, in Tuning t)
-        {
-            if (level < 1 || level >= MaxLevel) return 0;
-            return t.LevelGemBase + t.LevelGemStep * (level - 1);
-        }
-
-        /// <summary>Every duplicate a foreman will ever need, for a progress readout that does not lie
-        /// about how long the road is.</summary>
+        /// <summary>Every card a master will ever need, for a progress readout that does not lie about
+        /// how long the road is.</summary>
         public static int DuplicatesToMax(in Tuning t)
         {
             int total = 0;
@@ -184,8 +184,9 @@ namespace Game.Core
         }
 
         // ------------------------------------------------------------------ state
-        public static Rarity Slot(int station)
-            => station >= 0 && station < Slots.Length ? Slots[station] : Rarity.Common;
+        /// <summary>Which tier the master in this slot is at. The whole of a card's colour, his plinth
+        /// and his size on the island read from here.</summary>
+        public static Tier TierOfStation(int[] levels, int station) => TierOf(LevelOf(levels, station));
 
         public static int LevelOf(int[] levels, int station)
         {
@@ -202,7 +203,7 @@ namespace Game.Core
         /// <summary>A fresh, empty roster.</summary>
         public static int[] NewLevels() => new int[Count];
 
-        /// <summary>True once every slot is hired and levelled out — the end of the collection.</summary>
+        /// <summary>True once every slot is filled and starred out — the end of the collection.</summary>
         public static bool RosterComplete(int[] levels)
         {
             if (levels == null || levels.Length < Count) return false;
@@ -211,7 +212,7 @@ namespace Game.Core
             return true;
         }
 
-        /// <summary>How many slots are hired at all. The number worth putting on a collection screen.</summary>
+        /// <summary>How many masters you have at all. The number worth putting on a collection screen.</summary>
         public static int HiredCount(int[] levels)
         {
             if (levels == null) return 0;

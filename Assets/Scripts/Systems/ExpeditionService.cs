@@ -4,17 +4,19 @@ using Game.Core;
 namespace Game.Systems
 {
     /// <summary>
-    /// Which voyage the player has gone out with, and where she is. The maths is in
-    /// <see cref="Expedition"/> and <see cref="SeaCombat"/>; this holds the adventure's persistent
-    /// state — the energy pool and the four worn items — and answers questions about it.
+    /// The player's own fighting ship: whether she is out from the port, and everything the fights
+    /// run on. The maths is in <see cref="Expedition"/> and <see cref="SeaCombat"/>; this holds the
+    /// adventure's persistent state — the energy pool and the four worn items — and answers
+    /// questions about it.
     ///
-    /// NOTHING SESSION-SHAPED IS SAVED, deliberately. Standing on a deck is not progress — the
-    /// voyage is, and <see cref="VoyageService"/> already persists all of it on the wall clock.
+    /// SHE SAILS FROM THE ISLAND'S HARBOUR, NOT WITH A VOYAGE. The dock's cargo ships and their
+    /// clocks are <see cref="VoyageService"/>'s business and this service never touches them —
+    /// tapping the ship at the pier is the whole ticket. The one thing still read from the dock is
+    /// <see cref="Tier"/>: the furthest route the fleet has opened is which waters the fights are
+    /// priced for, so combat climbs the same ladder the voyages do.
     ///
-    /// IT CANNOT CHANGE A VOYAGE. Every write below aims AWAY from the voyage: kills and plunder
-    /// bank charts and salvage into their own closed loops, gear changes only these fights.
-    /// Docs/FIVE_LAYERS.md §4 is the reason: active sailing may only ever ADD to an outcome, and
-    /// the safest way to hold a rule like that is to build the window with no handles on it.
+    /// NOTHING SESSION-SHAPED IS SAVED, deliberately. Standing on a deck is not progress — what a
+    /// fight banked is, and charts, salvage and gear are all written the moment they are won.
     ///
     /// ENERGY IS THE GOVERNOR, AND IT IS SAVED. One search costs one energy; the pool refills on
     /// the wall clock (SeaCombat.EnergyAt), so it comes back while the app is shut and cannot be
@@ -27,6 +29,14 @@ namespace Game.Systems
     /// </summary>
     public sealed class ExpeditionService
     {
+        /// <summary>
+        /// One out-and-back lap past the harbour, in seconds — what the scene's crossing runs on
+        /// now that no voyage clock is aboard. Ten minutes matches the pace the shortest real
+        /// voyage gave the scene, which is what the lane and the hop-per-second clock were tuned
+        /// against; when the lap ends she turns at the home port and puts out again.
+        /// </summary>
+        private const double PatrolSeconds = 600d;
+
         private readonly VoyageService _voyages;
         private readonly TimeService _time;
         private readonly SaveData _data;
@@ -39,15 +49,24 @@ namespace Game.Systems
         /// <summary>The worn items, rebuilt from the save on demand. One fixed array, zero churn.</summary>
         private readonly SeaCombat.Item[] _loadout = new SeaCombat.Item[SeaCombat.SlotCount];
 
-        /// <summary>Finds made this session, per voyage — only the seed index for KindFor.</summary>
-        private VoyageState _findVoyage;
+        /// <summary>Finds made since she put out — only the seed index for KindFor.</summary>
         private int _finds;
 
-        /// <summary>Which berth the player went out with. -1 = nobody is at sea with anyone.</summary>
-        private int _berth = -1;
+        /// <summary>Whether the player is out from the port, and since when. The stamp seeds the
+        /// finds and drives the patrol lap; ashore it means nothing.</summary>
+        private bool _atSea;
+        private long _sailedUnix;
 
-        /// <summary>Raised when the player boards or comes ashore, or the gear or pool changes.</summary>
+        /// <summary>The island whose port she put out from — what the home port is a picture of.</summary>
+        private string _islandKey = string.Empty;
+
+        /// <summary>Raised when the player puts out or comes ashore, or the gear or pool changes.</summary>
         public event Action Changed;
+
+        /// <summary>Set by the bootstrap. Every scrap teaches the workshop bench, and a won
+        /// encounter can drop a craft point — both ride through here when it is wired, and the
+        /// sea works exactly as before when it is not.</summary>
+        public CraftingService Crafting { get; set; }
 
         public ExpeditionService(VoyageService voyages, TimeService time,
                                  SaveData data = null, CaptainService captains = null,
@@ -62,11 +81,11 @@ namespace Game.Systems
         }
 
         /// <summary>
-        /// Pads every gear array, gives a pre-feature save its full pool, and grows a pre-STAT item
-        /// (grade set, stats zero — the first build baked one power number) into today's shape: the
-        /// old power becomes the slot's nature (a cannon's was shot, a plating's was protection),
-        /// no secondary, score recomputed. The wearer keeps their item — the padding-on-load
-        /// contract every other block keeps.
+        /// Pads every gear array, gives a pre-feature save its full pool, and grows older items in
+        /// place: a pre-STAT item (grade set, stats zero — the first build baked one power number)
+        /// gets its old power spread by the slot's nature, and a pre-DEF/SPD item (hull or shot
+        /// set, both new stats zero) gets its slot's Common defence and speed scaled by its grade.
+        /// The wearer keeps their item — the padding-on-load contract every other block keeps.
         /// </summary>
         private void Normalise()
         {
@@ -77,6 +96,8 @@ namespace Game.Systems
             _data.seaGearHull = Fit(_data.seaGearHull, SeaCombat.SlotCount);
             _data.seaGearShot = Fit(_data.seaGearShot, SeaCombat.SlotCount);
             _data.seaGearSecAmt = Fit(_data.seaGearSecAmt, SeaCombat.SlotCount);
+            _data.seaGearDef = Fit(_data.seaGearDef, SeaCombat.SlotCount);
+            _data.seaGearSpd = Fit(_data.seaGearSpd, SeaCombat.SlotCount);
 
             for (int slot = 0; slot < SeaCombat.SlotCount; slot++)
             {
@@ -94,6 +115,16 @@ namespace Game.Systems
                 }
                 _data.seaGearSec[slot] = SeaCombat.SecNone;
                 _data.seaGearSecAmt[slot] = 0d;
+            }
+
+            for (int slot = 0; slot < SeaCombat.SlotCount; slot++)
+            {
+                if (_data.seaGearGrade[slot] <= SeaCombat.GearEmpty) continue;
+                if (_data.seaGearDef[slot] > 0d || _data.seaGearSpd[slot] > 0d) continue;
+                int grade = Math.Min(_data.seaGearGrade[slot] - 1, SeaCombat.GradeMult.Length - 1);
+                double mult = SeaCombat.GradeMult[grade];
+                _data.seaGearDef[slot] = Math.Round(SeaCombat.SlotDef[slot][0] * mult * 10d) / 10d;
+                _data.seaGearSpd[slot] = Math.Round(SeaCombat.SlotSpd[slot][0] * mult * 10d) / 10d;
                 _data.seaGearPower[slot] = SeaCombat.ItemScore(GearItem(slot), _combat);
             }
 
@@ -136,87 +167,62 @@ namespace Game.Systems
             : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         // ------------------------------------------------------------------ state
-        public int Berth => _berth;
-
-        /// <summary>The voyage the player is out with, or null.</summary>
-        public VoyageState Voyage
-        {
-            get
-            {
-                if (_berth < 0 || _voyages == null) return null;
-                VoyageState v = _voyages.At(_berth);
-                // She may have come home and been claimed while the scene was open, and a berth can be
-                // re-let to a different voyage entirely. Either way the ship the player boarded is gone.
-                return v != null && v.sailedUnix > 0L ? v : null;
-            }
-        }
-
-        public bool Active => Voyage != null;
+        public bool Active => _atSea;
 
         /// <summary>
-        /// True when this berth can be sailed with: there is a ship in it and she is actually at sea.
-        /// A hold still filling at the dock has nowhere to take anybody.
+        /// Put out from this island's port. Always allowed — the ship is the player's own and is
+        /// never away on anything else; asking again while already out just answers yes.
         /// </summary>
-        public bool CanBoard(int berth)
+        public bool SetSail(string islandKey)
         {
-            if (_voyages == null) return false;
-            VoyageState v = _voyages.At(berth);
-            return v != null && v.sailedUnix > 0L && !v.settled;
-        }
-
-        /// <summary>Go out with the ship in this berth. Refused when there is nothing sailing there.</summary>
-        public bool Board(int berth)
-        {
-            if (!CanBoard(berth)) return false;
-            _berth = berth;
+            if (_atSea) return true;
+            _atSea = true;
+            _islandKey = islandKey ?? string.Empty;
+            _sailedUnix = NowUnix();
+            _finds = 0;
             Changed?.Invoke();
             return true;
         }
 
-        /// <summary>Come ashore. Always allowed — the voyage carries on without the player.</summary>
+        /// <summary>Come ashore. Always allowed — nothing out there is abandoned by leaving.</summary>
         public void Ashore()
         {
-            if (_berth < 0) return;
-            _berth = -1;
+            if (!_atSea) return;
+            _atSea = false;
             Changed?.Invoke();
         }
 
+        /// <summary>When she put out, for seeding the finds. 0 ashore.</summary>
+        public long SailedUnix => _atSea ? _sailedUnix : 0L;
+
         // ------------------------------------------------------------------- read
-        /// <summary>How far through her crossing she is, 0..1.</summary>
+        /// <summary>How far through the current patrol lap she is, 0..1.</summary>
         public double Progress
         {
             get
             {
-                VoyageState v = Voyage;
-                return v == null ? 0d : Expedition.Progress(v.sailedUnix, v.returnsUnix, NowUnix());
+                if (!_atSea) return 0d;
+                double t = (NowUnix() - _sailedUnix) % PatrolSeconds / PatrolSeconds;
+                return t < 0d ? 0d : t;
             }
         }
 
-        /// <summary>Where along the lane, 0 at home and 1 at the far port.</summary>
+        /// <summary>Where along the lane, 0 at home and 1 at the lap's far turn.</summary>
         public double LanePosition => Expedition.LanePosition(Progress);
 
         public bool Outbound => Expedition.Outbound(Progress);
 
-        public double SecondsLeft
-        {
-            get
-            {
-                VoyageState v = Voyage;
-                return v == null ? 0d : Expedition.SecondsLeft(v.returnsUnix, NowUnix());
-            }
-        }
+        /// <summary>Seconds until she passes the home port again — the HUD's arrival clock.</summary>
+        public double SecondsLeft => _atSea ? PatrolSeconds * (1d - Progress) : 0d;
 
-        /// <summary>The route she is on, for the scene's own dressing and for the HUD's caption.</summary>
-        public int Tier
-        {
-            get { VoyageState v = Voyage; return v != null ? v.tier : 0; }
-        }
+        /// <summary>
+        /// The waters the fights are priced for: the furthest route the fleet has opened. The one
+        /// read this service keeps from the dock — combat climbs the ladder the voyages climb.
+        /// </summary>
+        public int Tier => _voyages != null ? _voyages.MaxTier() : 0;
 
-        /// <summary>Which island's yard she sailed from — what the home port is a picture of.</summary>
-        public string IslandKey
-        {
-            get { VoyageState v = Voyage; return v != null ? v.island : string.Empty; }
-        }
+        /// <summary>Which island's port she put out from — what the home port is a picture of.</summary>
+        public string IslandKey => _atSea ? _islandKey : string.Empty;
 
         // ----------------------------------------------------------------- energy
         public int EnergyMax => _combat.EnergyMax;
@@ -250,25 +256,13 @@ namespace Game.Systems
             return true;
         }
 
-        /// <summary>How many finds this voyage has made — the seed index for the next one's kind.</summary>
-        public int Finds
-        {
-            get { VoyageState v = Voyage; if (v == null) return 0; Sync(v); return _finds; }
-        }
+        /// <summary>How many finds since she put out — the seed index for the next one's kind.
+        /// Reset by <see cref="SetSail"/>, so every trip deals its own deck.</summary>
+        public int Finds => _atSea ? _finds : 0;
 
         public void CountFind()
         {
-            VoyageState v = Voyage;
-            if (v == null) return;
-            Sync(v);
-            _finds++;
-        }
-
-        private void Sync(VoyageState v)
-        {
-            if (ReferenceEquals(v, _findVoyage)) return;
-            _findVoyage = v;
-            _finds = 0;
+            if (_atSea) _finds++;
         }
 
         // ------------------------------------------------------------------- gear
@@ -296,6 +290,8 @@ namespace Game.Systems
                 Sec = _data.seaGearSec[slot],
                 Hull = _data.seaGearHull[slot],
                 Shot = _data.seaGearShot[slot],
+                Def = _data.seaGearDef[slot],
+                Spd = _data.seaGearSpd[slot],
                 SecAmt = _data.seaGearSecAmt[slot],
             };
         }
@@ -311,14 +307,34 @@ namespace Game.Systems
         }
 
         /// <summary>
-        /// The ship's whole sheet right now: crew track, the boarded voyage's captain, and the worn
+        /// Who is on the bridge: the best-levelled captain the player owns, first of the roster on
+        /// a tie, -1 with nobody pulled. Chosen here rather than by the player because the ship at
+        /// the pier has no assignment screen — the strongest officer simply takes her out, and a
+        /// new pull is felt at sea the moment it happens.
+        /// </summary>
+        public int CaptainAboard
+        {
+            get
+            {
+                if (_captains == null) return -1;
+                int best = -1, bestLevel = 0;
+                for (int c = 0; c < Captains.Count; c++)
+                {
+                    int level = _captains.Level(c);
+                    if (level > bestLevel) { best = c; bestLevel = level; }
+                }
+                return best;
+            }
+        }
+
+        /// <summary>
+        /// The ship's whole sheet right now: crew track, the best owned captain, and the worn
         /// gear. This is what the panel prints and what a fight is born from — derived on every
         /// call, stored nowhere.
         /// </summary>
         public SeaCombat.Stats ShipStats()
         {
-            VoyageState v = Voyage;
-            int captain = v != null ? v.captain : -1;
+            int captain = CaptainAboard;
             int level = _captains != null && captain >= 0 ? _captains.Level(captain) : 0;
             int crew = _data != null && _data.shipLevels != null ? _data.shipLevels[Voyages.Crew] : 0;
             Captains.Tuning ct = _captains != null ? _captains.Tuning : Captains.Tuning.Default;
@@ -337,13 +353,16 @@ namespace Game.Systems
         {
             if (_data == null || item.Slot < 0 || item.Slot >= SeaCombat.SlotCount || item.Grade < 0)
                 return 0L;
-            long scrap = _data.seaGearGrade[item.Slot] > SeaCombat.GearEmpty
-                       ? SeaCombat.ScrapFor(_data.seaGearGrade[item.Slot] - 1) : 0L;
+            int displaced = _data.seaGearGrade[item.Slot] - 1;
+            long scrap = displaced >= 0 ? SeaCombat.ScrapFor(displaced) : 0L;
             if (scrap > 0L) _data.salvage += scrap;
+            if (displaced >= 0) Crafting?.GrantScrapXp(displaced);
             _data.seaGearGrade[item.Slot] = item.Grade + 1;
             _data.seaGearSec[item.Slot] = item.Sec;
             _data.seaGearHull[item.Slot] = item.Hull;
             _data.seaGearShot[item.Slot] = item.Shot;
+            _data.seaGearDef[item.Slot] = item.Def;
+            _data.seaGearSpd[item.Slot] = item.Spd;
             _data.seaGearSecAmt[item.Slot] = item.SecAmt;
             _data.seaGearPower[item.Slot] = SeaCombat.ItemScore(item, _combat);
             Changed?.Invoke();
@@ -355,6 +374,7 @@ namespace Game.Systems
         {
             if (_data == null) return;
             _data.salvage += SeaCombat.ScrapFor(grade);
+            Crafting?.GrantScrapXp(grade);
             Changed?.Invoke();
         }
 
@@ -366,10 +386,13 @@ namespace Game.Systems
                 || _data.seaGearGrade[slot] <= SeaCombat.GearEmpty) return 0L;
             long scrap = SeaCombat.ScrapFor(_data.seaGearGrade[slot] - 1);
             _data.salvage += scrap;
+            Crafting?.GrantScrapXp(_data.seaGearGrade[slot] - 1);
             _data.seaGearGrade[slot] = SeaCombat.GearEmpty;
             _data.seaGearSec[slot] = SeaCombat.SecNone;
             _data.seaGearHull[slot] = 0d;
             _data.seaGearShot[slot] = 0d;
+            _data.seaGearDef[slot] = 0d;
+            _data.seaGearSpd[slot] = 0d;
             _data.seaGearSecAmt[slot] = 0d;
             _data.seaGearPower[slot] = 0;
             Changed?.Invoke();
@@ -388,15 +411,17 @@ namespace Game.Systems
         }
 
         /// <summary>
-        /// Bank a win's trickle: charts to the captain roster, salvage to the shipyard — the same
-        /// two closed loops the voyage itself pays, at a fraction, on top. Refused ashore; bounded
-        /// upstream by the energy a search cost. YAĞMA procs ride through here too, as salvage.
+        /// Bank a win's trickle: charts to the captain roster, salvage to the shipyard — the two
+        /// closed loops the sea pays into. Refused ashore; bounded upstream by the energy a search
+        /// cost. YAĞMA procs ride through here too, as salvage.
         /// </summary>
         public bool RegisterKill(int charts, int salvage)
         {
-            if (Voyage == null) return false;
+            if (!_atSea) return false;
             if (charts > 0 && _captains != null) _captains.AddCharts(charts);
             if (salvage > 0 && _data != null) _data.salvage += salvage;
+            // The workshop's point drop rides the same win, on the same dice-in-the-service rule.
+            Crafting?.TryDropPoint(_random.NextDouble());
             Changed?.Invoke();
             return true;
         }
