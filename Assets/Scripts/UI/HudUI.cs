@@ -127,6 +127,13 @@ namespace Game.UI
         private readonly List<int> _bottomOrder = new List<int>();
         private readonly List<RectTransform> _bottomRects = new List<RectTransform>();
 
+        // The objective strip under the currency bar. Its position is solved from the authored rects
+        // above it rather than authored itself, so it is re-solved whenever the sheet changes size.
+        private RectTransform _topStrip;
+        private float _topStripWidth, _topStripHeight, _topStripGap;
+        private Vector2 _sheetSize = new Vector2(-1f, -1f);
+        private static readonly Vector3[] Corners = new Vector3[4];
+
         private void Start()
         {
             _wallet = ServiceLocator.Get<WalletService>();
@@ -160,6 +167,7 @@ namespace Game.UI
             if (bottomRow != null)
                 for (int i = 0; i < bottomRow.Length; i++) InsertBottom(AuthoredOrder + i, bottomRow[i]);
             LayoutBottomRow();
+            BuildObjectiveStrip();
 
             if (_wallet != null) _wallet.GemsChanged += RefreshGems;
             RefreshGems();
@@ -269,10 +277,108 @@ namespace Game.UI
             return chip;
         }
 
+        /// <summary>
+        /// Hangs a code-built strip across the HUD, directly under everything authored in the top area.
+        ///
+        /// <see cref="AttachBottomButton"/> explains why a code-built screen must not anchor to a
+        /// fraction of the SCREEN: the HUD is a portrait sheet scaled as one piece, so in landscape a
+        /// fraction of the screen is not a fraction of the sheet. This anchors inside the sheet, which
+        /// is the coordinate space the authored bar already lives in, and takes its vertical position
+        /// from the LOWEST authored rect in the top area — so it clears the two currency pills, the
+        /// rate pill, the settings button and both indicator chips without being told where any of
+        /// them are, and it keeps clearing them if that bar is ever re-laid out.
+        ///
+        /// The indicators are measured whether they are showing or not. A strip that rose when the
+        /// boost chip expired would be a banner that jumps around while the player is reading it.
+        ///
+        /// Re-solved whenever the sheet's rect changes, which covers a rotation and also the ordinary
+        /// case of the canvas not yet having been laid out when this is called from Start.
+        /// </summary>
+        public RectTransform AttachTopStrip(string name, float widthFraction, float height, float gap)
+        {
+            var sheet = transform as RectTransform;
+            if (sheet == null) return null;
+
+            var go = new GameObject(name, typeof(RectTransform));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(sheet, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+
+            _topStrip = rect;
+            _topStripWidth = widthFraction;
+            _topStripHeight = height;
+            _topStripGap = gap;
+            SolveTopStrip(sheet);
+            return rect;
+        }
+
+        private void SolveTopStrip(RectTransform sheet)
+        {
+            if (_topStrip == null || sheet == null) return;
+
+            float clear = sheet.rect.yMax;
+            clear = Mathf.Min(clear, BottomOf(sheet, goldValue));
+            clear = Mathf.Min(clear, BottomOf(sheet, gemsValue));
+            clear = Mathf.Min(clear, BottomOf(sheet, rateValue));
+            clear = Mathf.Min(clear, BottomOf(sheet, settingsButton));
+            clear = Mathf.Min(clear, BottomOf(sheet, boostIndicator));
+            clear = Mathf.Min(clear, BottomOf(sheet, shieldIndicator));
+
+            _topStrip.sizeDelta = new Vector2(sheet.rect.width * _topStripWidth, _topStripHeight);
+            _topStrip.anchoredPosition = new Vector2(0f, clear - sheet.rect.yMax - _topStripGap);
+            _sheetSize = sheet.rect.size;
+        }
+
+        /// <summary>
+        /// The lowest edge of an authored rect, in the sheet's own local space.
+        ///
+        /// Measured through world corners rather than read off anchoredPosition: the parts of the top
+        /// bar are anchored every which way, and subtracting one anchored position from another is
+        /// arithmetic across two different origins. Absent parts answer MaxValue so a Min over them
+        /// ignores what is not wired.
+        /// </summary>
+        private static float BottomOf(RectTransform sheet, RectTransform of)
+        {
+            if (of == null) return float.MaxValue;
+            of.GetWorldCorners(Corners);            // 0 = bottom-left
+            return sheet.InverseTransformPoint(Corners[0]).y;
+        }
+
+        private static float BottomOf(RectTransform sheet, Component of)
+            => of == null ? float.MaxValue : BottomOf(sheet, of.transform as RectTransform);
+
+        private static float BottomOf(RectTransform sheet, GameObject of)
+            => of == null ? float.MaxValue : BottomOf(sheet, of.transform as RectTransform);
+
+        /// <summary>
+        /// The objective strip. Made here rather than authored, for the reason
+        /// <see cref="InventoryUI"/> is made by <see cref="CraftingUI"/>: the HUD is a prefab and the
+        /// strip is built in code, so there is no authored sheet to wire it into. An
+        /// <see cref="ObjectiveBannerUI"/> already in the scene is adopted instead, which is how its
+        /// art becomes Inspector-tunable without this method changing.
+        /// </summary>
+        private void BuildObjectiveStrip()
+        {
+            var banner = FindAnyObjectByType<ObjectiveBannerUI>(FindObjectsInactive.Include);
+            if (banner == null)
+            {
+                var go = new GameObject("HedefSeridiKurulum", typeof(RectTransform));
+                go.transform.SetParent(transform, false);
+                banner = go.AddComponent<ObjectiveBannerUI>();
+            }
+            banner.Adopt(this);
+        }
+
         private void Update()
         {
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
             if (_op == null || !_op.enabled) BindEnabledOp();
+            if (_topStrip != null)
+            {
+                var sheet = transform as RectTransform;
+                if (sheet != null && sheet.rect.size != _sheetSize) SolveTopStrip(sheet);
+            }
             if (_contract != null) _contract.Tick(Time.deltaTime, IncomePerMinute());
             RollCash(Time.unscaledDeltaTime);
             RollGems(Time.unscaledDeltaTime);

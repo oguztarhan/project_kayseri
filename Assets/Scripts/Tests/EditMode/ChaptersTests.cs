@@ -215,5 +215,99 @@ namespace Game.Tests
             Assert.That(Chapters.BeatCards(Chapters.Count, 1, T), Is.Zero);
             Assert.That(Chapters.BeatCards(0, Chapters.BeatCount, T), Is.Zero);
         }
+
+        // ---- the objective banner's two questions ------------------------------------------------
+
+        [Test]
+        public void NextBeat_IsTheLowestUnsatisfiedOne()
+        {
+            Assert.That(Chapters.NextBeat(Fresh(), T), Is.EqualTo(Chapters.FirstSmoke));
+            Assert.That(Chapters.NextBeat(Built(T.FirstSmokeLevels, 0), T), Is.EqualTo(Chapters.TheWorks));
+            Assert.That(Chapters.NextBeat(Built(T.FirstSmokeLevels, T.WorksUnlocks), T),
+                        Is.EqualTo(Chapters.TheYard));
+        }
+
+        /// <summary>
+        /// A player can staff the yard before raising three buildings, so the beats do not fall in
+        /// order. The banner must still send them back for the one they skipped rather than naming a
+        /// target they have already met.
+        /// </summary>
+        [Test]
+        public void NextBeat_DoesNotSkipAnEarlierBeatBecauseALaterOneLanded()
+        {
+            Chapters.Progress p = Built(T.FirstSmokeLevels, 0, yard: true);
+            Assert.That(Chapters.Satisfied(Chapters.TheYard, p, T), Is.True, "the yard is staffed");
+            Assert.That(Chapters.NextBeat(p, T), Is.EqualTo(Chapters.TheWorks));
+        }
+
+        [Test]
+        public void NextBeat_IsMinusOneOnAFinishedChapter()
+        {
+            Chapters.Progress done = Built(T.FullSteamLevels, T.FullSteamUnlocks, yard: true);
+            Assert.That(Chapters.Complete(done, T), Is.True);
+            Assert.That(Chapters.NextBeat(done, T), Is.EqualTo(-1));
+        }
+
+        /// <summary>An unowned island has nothing to work on, and LANDFALL is the thing to do.</summary>
+        [Test]
+        public void NextBeat_OnAnUnownedIslandIsLandfall()
+        {
+            Assert.That(Chapters.NextBeat(new Chapters.Progress(), T), Is.EqualTo(Chapters.Landfall));
+        }
+
+        [Test]
+        public void BeatCounts_AgreeWithBeatProgress()
+        {
+            Chapters.Progress[] cases =
+            {
+                new Chapters.Progress(),
+                Fresh(),
+                Built(4, 1),
+                Built(T.FirstSmokeLevels, T.WorksUnlocks, yard: true),
+                Built(150, 8),
+                Built(T.FullSteamLevels, T.FullSteamUnlocks, yard: true),
+            };
+
+            for (int c = 0; c < cases.Length; c++)
+                for (int b = 0; b < Chapters.BeatCount; b++)
+                {
+                    int have, need;
+                    Chapters.BeatCounts(b, cases[c], T, out have, out need);
+                    Assert.That(need, Is.GreaterThan(0), "beat " + b + " wants nothing");
+                    Assert.That(Goals.Progress(have, need),
+                                Is.EqualTo(Chapters.BeatProgress(b, cases[c], T)).Within(0.0001f),
+                                "case " + c + " beat " + b);
+                }
+        }
+
+        /// <summary>
+        /// FULL STEAM asks two things at once, and the bar must report whichever half is further
+        /// behind. Reporting the levels while the buildings were missing is how a bar ends up sitting
+        /// at 100% refusing to pay.
+        /// </summary>
+        [Test]
+        public void BeatCounts_ForFullSteamReportTheHalfThatIsFurtherBehind()
+        {
+            int have, need;
+
+            // Levels finished, buildings not: the bar has to be talking about buildings.
+            Chapters.BeatCounts(Chapters.FullSteam, Built(T.FullSteamLevels, 2), T, out have, out need);
+            Assert.That(need, Is.EqualTo(T.FullSteamUnlocks));
+            Assert.That(have, Is.EqualTo(2));
+
+            // Buildings finished, levels not: and now about levels.
+            Chapters.BeatCounts(Chapters.FullSteam, Built(20, T.FullSteamUnlocks), T, out have, out need);
+            Assert.That(need, Is.EqualTo(T.FullSteamLevels));
+            Assert.That(have, Is.EqualTo(20));
+        }
+
+        [Test]
+        public void BeatCounts_ForAnUnknownBeatWantNothingRatherThanThrowing()
+        {
+            int have, need;
+            Chapters.BeatCounts(Chapters.BeatCount, Fresh(), T, out have, out need);
+            Assert.That(have, Is.Zero);
+            Assert.That(need, Is.Zero);
+        }
     }
 }

@@ -155,6 +155,51 @@ namespace Game.Core
             }
         }
 
+        /// <summary>
+        /// The beat the player is working on: the LOWEST unsatisfied one, or -1 when the chapter is
+        /// finished. Lowest rather than the first one after the last satisfied beat: THE YARD can be
+        /// earned before THE WORKS by a player who staffed the yard early, and an objective banner
+        /// that skipped past THE WORKS because a later beat happened to land would name a target the
+        /// player has already met and never come back to the one they have not.
+        /// </summary>
+        public static int NextBeat(in Progress p, in Tuning t)
+        {
+            for (int b = 0; b < BeatCount; b++) if (!Satisfied(b, p, t)) return b;
+            return -1;
+        }
+
+        /// <summary>
+        /// The two numbers under a progress bar - what the player has, and what the beat wants.
+        /// <see cref="BeatProgress"/> answers the same question as a fraction; this answers it in the
+        /// units the beat is actually counted in, because "18/25 levels" tells a player what to do
+        /// next and "72%" does not.
+        ///
+        /// FULL STEAM asks two things at once and reports whichever half is FURTHER BEHIND, matching
+        /// <see cref="BeatProgress"/> exactly. Reporting levels while the buildings were missing is
+        /// how a bar ends up sitting at 100% refusing to pay.
+        /// </summary>
+        public static void BeatCounts(int beat, in Progress p, in Tuning t, out int have, out int need)
+        {
+            switch (beat)
+            {
+                case Landfall:   have = p.Owned ? 1 : 0; need = 1; return;
+                case FirstSmoke: have = p.AxisLevels;    need = t.FirstSmokeLevels; return;
+                case TheWorks:   have = p.Unlocks;       need = t.WorksUnlocks; return;
+                case TheYard:    have = p.YardStaffed ? 1 : 0; need = 1; return;
+                case FullSteam:
+                {
+                    // Fractions, not raw counts: 8 of 8 buildings is further along than 150 of 200
+                    // levels even though 150 is the bigger number.
+                    float lv = Goals.Progress(p.AxisLevels, t.FullSteamLevels);
+                    float un = Goals.Progress(p.Unlocks, t.FullSteamUnlocks);
+                    if (lv <= un) { have = p.AxisLevels; need = t.FullSteamLevels; }
+                    else          { have = p.Unlocks;    need = t.FullSteamUnlocks; }
+                    return;
+                }
+                default: have = 0; need = 0; return;
+            }
+        }
+
         /// <summary>How many of a chapter's beats have been earned.</summary>
         public static int BeatsSatisfied(in Progress p, in Tuning t)
         {
