@@ -276,9 +276,13 @@ namespace Game.Systems
             // Going out WITH a ship rather than watching a bar fill. Holds no save state of its own —
             // standing on a deck is not progress, the voyage is, and the dock already persists all of
             // it on the wall clock. Registered after the dock because it only ever reads from it.
+            // The depo rides along with it (Game.Core.GearStash): the shelf's items are gear, so the
+            // service that owns the worn slots owns the shelved ones too. It takes the save service
+            // because a depo move has to reach the disk before the screen says it happened.
             Expeditions = new ExpeditionService(Voyages, _time, Data, Captains,
                 seaCombatConfig != null ? seaCombatConfig.ToTuning()
-                                        : Game.Core.SeaCombat.Tuning.Default);
+                                        : Game.Core.SeaCombat.Tuning.Default,
+                Save, ServiceLocator.Get<IAnalytics>());
             ServiceLocator.Register(Expeditions);
             Expeditions.Crafting = Crafting;   // scraps teach the bench, wins can drop a point
             Crafting.Expeditions = Expeditions;   // wearing a crafted item goes through the sea's Equip

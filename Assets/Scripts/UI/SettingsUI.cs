@@ -53,6 +53,14 @@ namespace Game.UI
                  + "(#tr / #en) kod ekler; buraya sayfanın çıplak adresini yazın.")]
         [SerializeField] private string privacyUrl = "";
 
+        [Header("Destek ve topluluk")]
+        [Tooltip("Destek adresi — boşken satır hiç kurulmaz. Tek düz adres olmalı: görünen ad, virgülle " +
+                 "ikinci bir alıcı veya satır sonu kabul edilmez (SupportTicket.IsPlainAddress).")]
+        [SerializeField] private string supportEmail = "";
+        [Tooltip("Topluluk bağlantıları. Adı çevrilmez — Discord her dilde Discord. Adresi boş olan " +
+                 "satır kurulmaz, yani onaylanmamış bir bağlantı yayına sızmaz.")]
+        [SerializeField] private SupportMenuUI.Link[] communityLinks = new SupportMenuUI.Link[0];
+
         [Header("Dil paneli")]
         [Tooltip("Dil seçim ekranının parçaları. Çalışma anında kurulduğu için kendi Inspector'ı yok, " +
                  "sanatı buradan devralıyor. Boş bırakılan yuva UiSkin'e düşer.")]
@@ -101,6 +109,7 @@ namespace Game.UI
                     ServiceLocator.Get<IConsent>() is UmpConsentService ump && ump.PrivacyOptionsRequired);
             }
             RefreshSwitch();
+            BuildFooter();
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             BuildTestButtons();
@@ -124,8 +133,10 @@ namespace Game.UI
 
         public void Hide()
         {
-            // Dil ekranı bu pencerenin kardeşi, çocuğu değil — pencereyi kapatmak onu kapatmaz.
+            // Dil ve destek ekranları bu pencerenin kardeşi, çocuğu değil — pencereyi kapatmak onları
+            // kapatmaz.
             if (_languages != null) _languages.Hide();
+            if (_support != null) _support.Hide();
             if (panelRoot != null) panelRoot.SetActive(false);
             // Ses tercihleri PlayerPrefs'te ve Unity onları normalde çıkışta yazar. Android'de uygulama
             // öldürülerek kapatılabildiği için, panel kapanırken diske indir.
@@ -257,6 +268,113 @@ namespace Game.UI
 
         private LanguageMenuUI _languages;
 
+        // ---------------- künye şeridi: sürüm + destek sayfası ----------------
+
+        // NEDEN PANELİN ALTINDA. Sanatçının kartı 976x1782 ve tasarım alanı 2340 yüksekliğinde: son
+        // satır kartın alt kenarına 98 birim kala bitiyor ve kart büyüyemiyor, çünkü altında 128 birim
+        // kalıyor. Yeni bir satır oraya sığmaz. Sığan şey, kartın ALTINDAKİ o şerit: soluk bir künye
+        // satırı, ki referans oyun da sürümü ve numarayı tam olarak oraya koyuyor.
+        //
+        // Şeridin tamamı düğme. 112 birim yükseklik tek başına küçük bir hedef; 976 birim genişlik onu
+        // parmakla ıskalanmayacak bir şerit hâline getiriyor.
+        private const float FooterHeight = 112f;
+        private const float FooterTop = -2218f;      // kartın alt kenarının 6 birim altı
+        private const float FooterWidth = 976f;
+
+        private SupportMenuUI _support;
+
+        /// <summary>
+        /// Builds the strip under the card: the build on the left, the way to the support page on the
+        /// right. Parented to the letterboxed sheet rather than to the window, so it scales and folds
+        /// with everything else the screen draws — a strip pinned to the canvas would drift off the
+        /// card's edge on every aspect ratio the sheet is scaled for.
+        /// </summary>
+        private void BuildFooter()
+        {
+            if (panelRoot == null) return;
+
+            var letterbox = panelRoot.GetComponentInChildren<LetterboxRoot>(true);
+            Transform parent = letterbox != null ? letterbox.transform : panelRoot.transform;
+
+            var go = new GameObject("Kunye", typeof(RectTransform), typeof(Image), typeof(Button));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            if (letterbox != null)
+            {
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                rt.pivot = new Vector2(0.5f, 1f);
+                rt.anchoredPosition = new Vector2(0f, FooterTop);
+            }
+            else
+            {
+                // Letterbox yoksa (bu prefabın dışında bir kullanım) şerit pencerenin altına oturur.
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+                rt.pivot = new Vector2(0.5f, 0f);
+                rt.anchoredPosition = new Vector2(0f, 16f);
+            }
+            rt.sizeDelta = new Vector2(FooterWidth, FooterHeight);
+
+            var img = go.GetComponent<Image>();
+            img.sprite = languageSkin.Row != null ? languageSkin.Row : UiSkin.ButtonGrey;
+            img.type = Image.Type.Sliced;
+            img.color = new Color(1f, 1f, 1f, 0.85f);
+            if (img.sprite != null)
+            {
+                // Satır sanatının kenar payı şeridin beşte birine indiriliyor — dil ekranındaki hesabın
+                // aynısı. 60 birimlik pay 112 birimlik bir kutuya ham hâliyle basılınca üst ve alt
+                // dilim üst üste biniyor.
+                float border = Mathf.Max(img.sprite.border.y, img.sprite.border.w);
+                if (border > 0f) img.pixelsPerUnitMultiplier = Mathf.Max(1f, border / (FooterHeight * 0.21f));
+            }
+
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(OnSupport);
+
+            FooterText(rt, "Surum", PlayerIdentity.VersionLine(), 30f, TMPro.TextAlignmentOptions.Left,
+                       new Vector2(34f, 0f), new Vector2(-380f, 0f), new Color32(0x6B, 0x76, 0x8C, 0xFF));
+            var support = FooterText(rt, "Destek", Loc.T("ayarlar.destek"), 36f, TMPro.TextAlignmentOptions.Right,
+                                     new Vector2(FooterWidth - 380f, 0f), new Vector2(-34f, 0f),
+                                     new Color32(0x2A, 0x3A, 0x5C, 0xFF));
+            // Dil değişince kendi kendine güncellensin: bu şerit kodla kuruluyor, prefabdaki satırlar
+            // gibi Inspector'dan LocalizedText alamıyor.
+            support.gameObject.AddComponent<LocalizedText>().SetKey("ayarlar.destek");
+        }
+
+        private TMPro.TMP_Text FooterText(RectTransform parent, string name, string caption, float size,
+                                          TMPro.TextAlignmentOptions align, Vector2 min, Vector2 max, Color ink)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var t = go.AddComponent<TMPro.TextMeshProUGUI>();
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = new Vector2(min.x, 0f);
+            rt.offsetMax = new Vector2(max.x, 0f);
+            if (languageSkin.Font != null) t.font = languageSkin.Font;
+            t.text = caption;
+            t.fontSize = size;
+            t.alignment = align;
+            t.color = ink;
+            t.raycastTarget = false;
+            t.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            t.overflowMode = TMPro.TextOverflowModes.Ellipsis;
+            return t;
+        }
+
+        /// <summary>
+        /// Opens the support page, building it on first use — the same arrangement the language picker
+        /// uses, and for the same reason: its rows come from the Inspector and the table, and there is
+        /// nothing for a prefab to hold.
+        /// </summary>
+        private void OnSupport()
+        {
+            if (_support == null) _support = gameObject.AddComponent<SupportMenuUI>();
+            ServiceLocator.Get<IAnalytics>()?.Log("settings_support_opened");
+            _support.Show(languageSkin, supportEmail, communityLinks);
+        }
+
         // ---------------- test şeritleri (yalnızca Editor / Development Build) ----------------
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -282,29 +400,29 @@ namespace Game.UI
         {
             if (panelRoot == null) return;
 
-            var test = BuildStrip("TestModu", 40f, out _testImage, out _testLabel);
+            var test = BuildStrip("TestModu", 170f, out _testImage, out _testLabel);
             test.onClick.AddListener(OnTestMode);
             RefreshTestButton();
 
             // Gün/gece anahtarı test şeridinin hemen üstünde — ikisi de panelin dışında, ikisi de
             // yayına çıkmadan önce birlikte sökülüyor.
-            var time = BuildStrip("TestZaman", 140f, out _timeImage, out _timeLabel);
+            var time = BuildStrip("TestZaman", 270f, out _timeImage, out _timeLabel);
             time.onClick.AddListener(OnTimeMode);
             RefreshTimeButton();
 
-            var max = BuildStrip("TestMaks", 240f, out _maxImage, out _maxLabel);
+            var max = BuildStrip("TestMaks", 370f, out _maxImage, out _maxLabel);
             max.onClick.AddListener(OnMaxIsland);
             RefreshMaxButton();
 
-            var wear = BuildStrip("TestBakim", 340f, out _wearImage, out _wearLabel);
+            var wear = BuildStrip("TestBakim", 470f, out _wearImage, out _wearLabel);
             wear.onClick.AddListener(OnWear);
             RefreshWearButton();
 
-            var repair = BuildStrip("TestOnar", 440f, out _repairImage, out _repairLabel);
+            var repair = BuildStrip("TestOnar", 570f, out _repairImage, out _repairLabel);
             repair.onClick.AddListener(OnRepair);
             RefreshRepairButton();
 
-            var grime = BuildStrip("TestKir", 540f, out _grimeImage, out _grimeLabel);
+            var grime = BuildStrip("TestKir", 670f, out _grimeImage, out _grimeLabel);
             grime.onClick.AddListener(OnGrime);
             RefreshGrimeButton();
 
@@ -313,7 +431,7 @@ namespace Game.UI
             // için diğerleri gibi bir Refresh'i yok, etiketi bir kez yazılıyor.
             Image tutorialImage;
             TMPro.TextMeshProUGUI tutorialLabel;
-            var tutorial = BuildStrip("TestEgitim", 640f, out tutorialImage, out tutorialLabel);
+            var tutorial = BuildStrip("TestEgitim", 770f, out tutorialImage, out tutorialLabel);
             tutorialImage.color = TestOffColor;
             tutorialLabel.text = "EĞİTİMİ TEKRAR OYNAT";
             tutorial.onClick.AddListener(OnReplayTutorial);

@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Data;
 using Game.Gameplay;
 using Game.Systems;
 using TMPro;
@@ -31,6 +32,18 @@ namespace Game.UI
     public sealed class SeaFightUI : MonoBehaviour
     {
         [SerializeField] private int sortingOrder = 102;   // above SeaHudUI's 100
+
+        [Header("Enerji reklamı — ekstra arama hakkı")]
+        [Tooltip("Bir reklamın doldurduğu enerji, günlük hak ve iki izleme arasındaki bekleme. " +
+                 "Havuz doluyken düğme kapalıdır — dolu bir havuza akıtılan hak yanar.")]
+        [SerializeField, Min(1)] private int energyAdReward = 10;
+        [SerializeField, Min(1)] private int energyAdChargesPerDay = 3;
+        [SerializeField, Min(0f)] private float energyAdCooldownSeconds = 300f;
+
+        /// <summary>The rewarded-ad slot this button spends. It shares FreeRewardService's day roll
+        /// and cooldown book with every other slot in the game, so the sea has no second set of
+        /// rules and cannot be farmed past its daily cap.</summary>
+        private const string EnergyAdId = "deniz_enerji";
 
         private static readonly Color Chrome = new Color(0.06f, 0.10f, 0.16f, 0.88f);
         private static readonly Color SkyTint = new Color(0.55f, 0.73f, 0.86f, 1f);
@@ -68,9 +81,17 @@ namespace Game.UI
         private const int CoreStatCount = 4;
         private const int StatCount = 13;
 
+        /// <summary>The route strip's numerals — a name would not survive the pill's width, and the
+        /// chosen route's full name is printed under the strip anyway.</summary>
+        private static readonly string[] TierMark = { "I", "II", "III", "IV" };
+
         private EncounterController _fights;
         private ExpeditionService _sea;
         private CaptainService _captains;
+        private FreeRewardService _free;
+        private IAdService _ad;
+        private SaveService _save;
+        private SaveData _data;
 
         private CanvasGroup _rootGroup;
         private RectTransform _root, _stage, _panel;
@@ -92,6 +113,22 @@ namespace Game.UI
         private Button _search, _autoBtn;
         private TMP_Text _searchLabel, _autoLabel;
         private Image _autoImage;
+
+        // The route strip and what it promises: which waters the fights are priced for, what a
+        // locked route still wants, the threat band out there and the drop table it rolls.
+        private readonly Button[] _routeBtn = new Button[Voyages.TierCount];
+        private readonly Image[] _routeFrame = new Image[Voyages.TierCount];
+        private readonly TMP_Text[] _routeMark = new TMP_Text[Voyages.TierCount];
+        private readonly TMP_Text[] _routeSub = new TMP_Text[Voyages.TierCount];
+        private TMP_Text _threatLine, _lootLine;
+        private readonly double[] _odds = new double[SeaCombat.GradeMult.Length];
+        private readonly string[] _gradeHex = new string[SeaCombat.GradeMult.Length];
+        private readonly System.Text.StringBuilder _lootText = new System.Text.StringBuilder(128);
+        private int _routeSeenTier = -1, _routeSeenMax = -1;
+
+        // The rewarded-ad top-up beside the energy pill.
+        private Button _energyAd;
+        private TMP_Text _energyAdLabel;
 
         // The details card (Found).
         private RectTransform _foundCard;
@@ -130,7 +167,8 @@ namespace Game.UI
         private EncounterController.Phase _seenPhase = EncounterController.Phase.Idle;
         private float _toast, _shipWobble, _threatWobble, _energyTick, _sheetTick;
         private double _sheetPowerSeen = -1d;
-        private string _lastEnergy, _lastSearch, _lastPower, _lastCaptain;
+        private string _lastEnergy, _lastSearch, _lastPower, _lastCaptain, _lastThreat, _lastLoot,
+                       _lastEnergyAd;
         private bool _lastAuto;
 
         private static Sprite S(string name) => Resources.Load<Sprite>("UI/Sea/" + name);
@@ -142,6 +180,15 @@ namespace Game.UI
             _fights = fights;
             _sea = ServiceLocator.Get<ExpeditionService>();
             _captains = ServiceLocator.Get<CaptainService>();
+            // The energy top-up's four: the daily book, the ad, and the pair a paid claim is
+            // written through. Every one of them may be absent — a scene opened without a
+            // bootstrap still builds, the button simply never lights.
+            _free = ServiceLocator.Get<FreeRewardService>();
+            _ad = ServiceLocator.Get<IAdService>();
+            _save = ServiceLocator.Get<SaveService>();
+            _data = ServiceLocator.Get<SaveData>();
+            for (int g = 0; g < _gradeHex.Length; g++)
+                _gradeHex[g] = ColorUtility.ToHtmlStringRGB(GradeTint[g]);
             RectTransform canvas = UiBuild.Canvas(transform, "CarpismaKanvas", sortingOrder);
 
             // One group over everything: the whole adventure fades in when the player is aboard.
@@ -318,9 +365,11 @@ namespace Game.UI
             img.type = Image.Type.Sliced;
             img.raycastTarget = true;   // eats taps so the 3D scene never hears the sheet
 
-            _powerLabel = Line(_panel, "Guc", 40f, new Vector2(0.05f, 0.905f), new Vector2(0.95f, 0.985f));
+            _powerLabel = Line(_panel, "Guc", 40f, new Vector2(0.05f, 0.930f), new Vector2(0.95f, 0.990f));
             _powerLabel.fontStyle = FontStyles.Bold;
             _powerLabel.color = EnergyTint;
+
+            BuildRoutes();
 
             // The four CORE stats read big across the top; the nine PROCS grid under them. One
             // array, core first — RefreshSheet fills them in the same order.
@@ -335,17 +384,17 @@ namespace Game.UI
             for (int i = 0; i < CoreStatCount; i++)
             {
                 float x0 = 0.035f + i * 0.2375f, x1 = x0 + 0.22f;
-                TMP_Text label = Line(_panel, "Ist" + i, 15f, new Vector2(x0, 0.862f), new Vector2(x1, 0.900f));
+                TMP_Text label = Line(_panel, "Ist" + i, 15f, new Vector2(x0, 0.756f), new Vector2(x1, 0.792f));
                 label.text = labels[i];
                 label.color = Faded;
-                _statValue[i] = Line(_panel, "Deger" + i, 24f, new Vector2(x0, 0.814f), new Vector2(x1, 0.860f));
+                _statValue[i] = Line(_panel, "Deger" + i, 24f, new Vector2(x0, 0.706f), new Vector2(x1, 0.754f));
                 _statValue[i].fontStyle = FontStyles.Bold;
             }
             for (int i = CoreStatCount; i < StatCount; i++)
             {
                 int col = (i - CoreStatCount) % 3, row = (i - CoreStatCount) / 3;
                 float x0 = 0.04f + col * 0.315f, x1 = x0 + 0.30f;
-                float y1 = 0.800f - row * 0.063f, y0 = y1 - 0.058f;
+                float y1 = 0.694f - row * 0.060f, y0 = y1 - 0.058f;
                 TMP_Text label = Line(_panel, "Ist" + i, 14f, new Vector2(x0, y0 + 0.030f), new Vector2(x1, y1));
                 label.text = labels[i];
                 label.color = Faded;
@@ -364,7 +413,7 @@ namespace Game.UI
                 frame.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
                 frame.type = Image.Type.Sliced;
                 float x0 = 0.035f + slot * 0.2375f;
-                UiBuild.Anchor((RectTransform)go.transform, new Vector2(x0, 0.435f), new Vector2(x0 + 0.22f, 0.60f));
+                UiBuild.Anchor((RectTransform)go.transform, new Vector2(x0, 0.348f), new Vector2(x0 + 0.22f, 0.505f));
                 _gearFrame[slot] = frame;
 
                 var icon = new GameObject("Ikon", typeof(RectTransform), typeof(Image));
@@ -395,24 +444,79 @@ namespace Game.UI
                 button.onClick.AddListener(() => OnGearSlot(captured));
             }
 
-            _captainLabel = Line(_panel, "Kaptan", 22f, new Vector2(0.04f, 0.350f), new Vector2(0.96f, 0.425f));
+            _captainLabel = Line(_panel, "Kaptan", 22f, new Vector2(0.04f, 0.284f), new Vector2(0.96f, 0.344f));
 
             RectTransform pill = UiBuild.Flat(_panel, "EnerjiHapi", Chrome,
-                                              new Vector2(0.05f, 0.245f), new Vector2(0.95f, 0.335f));
+                                              new Vector2(0.035f, 0.196f), new Vector2(0.70f, 0.276f));
             var pi = pill.GetComponent<Image>();
             pi.sprite = UiSkin.Pill != null ? UiSkin.Pill : UiSkin.Flat;
             pi.type = Image.Type.Sliced;
             pi.raycastTarget = false;
             PillFit.Wrap(pi);
-            _energyLabel = Line(pill, "Yazi", 26f, new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.92f));
+            _energyLabel = Line(pill, "Yazi", 24f, new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.92f));
             _energyLabel.color = EnergyTint;
 
-            _search = PanelButton("Ara", UiSkin.ButtonYellow, new Vector2(0.035f, 0.045f),
-                                  new Vector2(0.645f, 0.225f), OnSearch, out _searchLabel, 28f);
-            _autoBtn = PanelButton("Oto", UiSkin.ButtonGrey, new Vector2(0.685f, 0.045f),
-                                   new Vector2(0.965f, 0.225f), OnAuto, out _autoLabel, 26f);
+            // The reference game's "extra stamina" grab, sat where the wait is read rather than
+            // behind a popup: the pill says how long the pool takes, the button beside it says
+            // what an ad would skip.
+            _energyAd = PanelButton("EnerjiReklam", UiSkin.ButtonGreen, new Vector2(0.72f, 0.196f),
+                                    new Vector2(0.965f, 0.276f), OnEnergyAd, out _energyAdLabel, 20f);
+
+            _search = PanelButton("Ara", UiSkin.ButtonYellow, new Vector2(0.035f, 0.030f),
+                                  new Vector2(0.645f, 0.180f), OnSearch, out _searchLabel, 28f);
+            _autoBtn = PanelButton("Oto", UiSkin.ButtonGrey, new Vector2(0.685f, 0.030f),
+                                   new Vector2(0.965f, 0.180f), OnAuto, out _autoLabel, 26f);
             _autoImage = _autoBtn.GetComponent<Image>();
             _autoLabel.text = Loc.T("deniz.oto");
+        }
+
+        /// <summary>
+        /// The route strip, and the two lines that say what picking a route BUYS: the threat band
+        /// out there and the drop table it rolls against.
+        ///
+        /// WHY THE STRIP EXISTS AT ALL. The waters used to be whatever the dock had opened, with no
+        /// say in it — which meant a player whose gear had fallen behind the fleet had exactly one
+        /// move left, which was to stop. Four pills turn that into a decision: hunt shallower and
+        /// build the sheet back up, or take the danger for the drop table. Locked routes are SHOWN,
+        /// captioned with what still opens them, because the ladder ahead is half the reason to
+        /// keep sailing the dock.
+        /// </summary>
+        private void BuildRoutes()
+        {
+            Sprite art = UiSkin.Pill != null ? UiSkin.Pill : UiSkin.Flat;
+            for (int tier = 0; tier < Voyages.TierCount; tier++)
+            {
+                int captured = tier;
+                var go = new GameObject("Rota" + tier, typeof(RectTransform), typeof(Image), typeof(Button));
+                go.transform.SetParent(_panel, false);
+                var frame = go.GetComponent<Image>();
+                frame.sprite = art;
+                frame.type = Image.Type.Sliced;
+                float x0 = 0.035f + tier * 0.2375f;
+                UiBuild.Anchor((RectTransform)go.transform, new Vector2(x0, 0.858f),
+                               new Vector2(x0 + 0.22f, 0.922f));
+                PillFit.Wrap(frame);
+                _routeFrame[tier] = frame;
+
+                _routeMark[tier] = Line((RectTransform)go.transform, "Kademe", 22f,
+                                        new Vector2(0.04f, 0.40f), new Vector2(0.96f, 0.97f));
+                _routeMark[tier].fontStyle = FontStyles.Bold;
+                _routeMark[tier].text = TierMark[tier];
+                _routeSub[tier] = Line((RectTransform)go.transform, "Sart", 12f,
+                                       new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.40f));
+                _routeSub[tier].color = Faded;
+
+                var button = go.GetComponent<Button>();
+                button.targetGraphic = frame;
+                button.onClick.AddListener(() => OnRoute(captured));
+                _routeBtn[tier] = button;
+            }
+
+            _threatLine = Line(_panel, "TehditBandi", 17f,
+                               new Vector2(0.035f, 0.826f), new Vector2(0.965f, 0.856f));
+            _lootLine = Line(_panel, "GanimetSinifi", 15f,
+                             new Vector2(0.035f, 0.796f), new Vector2(0.965f, 0.824f));
+            _lootLine.richText = true;
         }
 
         private Button PanelButton(string name, Sprite art, Vector2 aMin, Vector2 aMax,
@@ -573,6 +677,62 @@ namespace Game.UI
             if (_fights == null) return;
             _fights.SetAuto(!_fights.Auto);
             ServiceLocator.Get<HapticService>()?.Light();
+        }
+
+        /// <summary>
+        /// Pick the waters. A locked pill is not a dead button: it answers with what still opens
+        /// the route, on the same banner a fight's result uses, because "you cannot" without "yet"
+        /// is the one message that reads as a bug.
+        /// </summary>
+        private void OnRoute(int tier)
+        {
+            if (_sea == null) return;
+            if (!_sea.TrySetTier(tier))
+            {
+                _toast = 2.2f;
+                _banner.color = Faded;
+                _banner.text = string.Format(Loc.T("deniz.rotaKapali"), _sea.VoyagesToUnlock(tier));
+                ServiceLocator.Get<HapticService>()?.Light();
+                return;
+            }
+            RefreshRoutes();
+            ServiceLocator.Get<HapticService>()?.Light();
+        }
+
+        /// <summary>
+        /// The energy top-up. Every gate is checked BEFORE the ad plays — a full pool, a spent day,
+        /// a running cooldown, no ad loaded — so the player is never shown thirty seconds of video
+        /// for nothing.
+        /// </summary>
+        private void OnEnergyAd()
+        {
+            if (_sea == null || _free == null) return;
+            if (_sea.Energy >= _sea.EnergyMax) return;
+            if (!_free.CanWatch(EnergyAdId, energyAdChargesPerDay, energyAdCooldownSeconds)) return;
+
+            // The remove-ads pack is the only thing that stands in for the ad; the daily cap and the
+            // cooldown still apply, or the button would print energy.
+            if (_free.AdsRemoved) { PayEnergy(); return; }
+            if (_ad == null || !_ad.Available) return;
+            _ad.ShowRewarded(PayEnergy);
+        }
+
+        /// <summary>
+        /// What the ad bought. The grant is capped by the pool, so it reports what actually landed:
+        /// a pool that filled itself while the video played keeps the player's charge rather than
+        /// burning it on nothing. A charge that IS spent reaches the disk before the pill says so.
+        /// </summary>
+        private void PayEnergy()
+        {
+            if (_sea == null || _free == null) return;
+            int given = _sea.GrantEnergy(energyAdReward);
+            if (given <= 0) return;
+
+            _free.Consume(EnergyAdId);
+            if (_save != null && _data != null) _save.Save(_data);
+            ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
+            ServiceLocator.Get<HapticService>()?.Medium();
+            _energyTick = 0f;   // repaint the pill and the button on the next tick
         }
 
         private void OnConfirm()
@@ -1016,6 +1176,11 @@ namespace Game.UI
                     _lastAuto = auto;
                     _autoImage.color = auto ? Easy : Color.white;
                 }
+
+                RefreshEnergyAd(have);
+                // Cheap on every tick but the ones that matter: the strip re-inks only when the
+                // pick or the fleet's furthest route has actually moved.
+                RefreshRoutes();
             }
 
             _sheetTick -= dt;
@@ -1070,6 +1235,119 @@ namespace Game.UI
             else captain = Loc.T("deniz.kaptanyok");
             Push(_captainLabel, captain, ref _lastCaptain);
             _captainLabel.color = aboard >= 0 ? Paper : Faded;
+
+            // The threat reading is OUR power against theirs and the drop odds lean on the worn
+            // spyglass, so both move with the sheet and re-derive here rather than on their own clock.
+            RefreshPreview();
+        }
+
+        /// <summary>
+        /// The route strip. Locked routes stay on the strip wearing what still opens them — the
+        /// ladder ahead is half the reason to keep sailing the dock — and only the pick and the
+        /// fleet's furthest route can change what is drawn, so the tick guards on both.
+        /// </summary>
+        private void RefreshRoutes()
+        {
+            if (_sea == null || _routeFrame[0] == null) return;
+            int tier = _sea.Tier, max = _sea.MaxTier;
+            if (tier == _routeSeenTier && max == _routeSeenMax) return;
+            _routeSeenTier = tier;
+            _routeSeenMax = max;
+
+            for (int t = 0; t < Voyages.TierCount; t++)
+            {
+                bool open = t <= max;
+                bool picked = open && t == tier;
+                _routeFrame[t].color = picked ? EnergyTint
+                                     : open ? new Color(0.42f, 0.48f, 0.58f, 1f)
+                                            : new Color(0.22f, 0.26f, 0.33f, 1f);
+                _routeMark[t].color = picked ? Chrome : (open ? Paper : Faded);
+                _routeSub[t].text = open
+                    ? string.Empty
+                    : string.Format(Loc.T("deniz.rotaKilit"), _sea.VoyagesToUnlock(t));
+                _routeSub[t].color = picked ? Chrome : Faded;
+            }
+
+            RefreshPreview();
+        }
+
+        /// <summary>
+        /// What the picked route promises, before an energy is spent on finding out: the threat
+        /// BAND (the derelict at one end, the beast at the other — one number would be a lie either
+        /// way), how the worst of it reads against our sheet, and the drop table it rolls.
+        /// </summary>
+        private void RefreshPreview()
+        {
+            if (_sea == null || _threatLine == null) return;
+            int tier = _sea.Tier;
+            SeaCombat.Tuning t = _sea.Combat;
+
+            double lo = double.MaxValue, hi = 0d;
+            for (int kind = 0; kind < SeaCombat.KindCount; kind++)
+            {
+                double p = SeaCombat.PowerFor(SeaCombat.ThreatStats(tier, kind, t), t);
+                if (p < lo) lo = p;
+                if (p > hi) hi = p;
+            }
+
+            // Priced against the WORST of them: the reading that decides whether to sail is the one
+            // about the fight that can go wrong, not the one about the derelict.
+            int menace = SeaCombat.Menace(SeaCombat.PowerFor(_sea.ShipStats(), t), hi, t);
+            string line = Loc.T("sefer.rota" + tier) + "   ·   "
+                        + string.Format(Loc.T("deniz.tehditBant"), N(lo), N(hi));
+            if (menace == 2) line += "   ·   " + Loc.T("deniz.tehlikeli");
+            else if (menace == 0) line += "   ·   " + Loc.T("deniz.kolay");
+            Push(_threatLine, line, ref _lastThreat);
+            _threatLine.color = menace == 2 ? Danger : (menace == 0 ? Easy : Paper);
+
+            SeaCombat.GradeOdds(tier, SeaCombat.SpyglassLuck(_sea.GearGrade(SeaCombat.SlotSpyglass)),
+                                t, _odds);
+            _lootText.Clear();
+            _lootText.Append(Loc.T("deniz.ganimetSinif"));
+            for (int g = 0; g < _odds.Length; g++)
+                _lootText.Append(g == 0 ? "  " : " · ")
+                         .Append("<color=#").Append(_gradeHex[g]).Append('>')
+                         .Append(Odd(_odds[g])).Append("</color>");
+            _lootText.Append('%');
+            Push(_lootLine, _lootText.ToString(), ref _lastLoot);
+        }
+
+        /// <summary>
+        /// The energy top-up's four states, in the order they gate the tap: a full pool, a spent
+        /// day, a running cooldown, and only then the offer. The label always says WHY it is dark.
+        /// </summary>
+        private void RefreshEnergyAd(int have)
+        {
+            if (_energyAd == null) return;
+
+            string label;
+            bool ready;
+            if (_free == null) { label = string.Empty; ready = false; }
+            else if (have >= _sea.EnergyMax) { label = Loc.T("deniz.enerjiDolu"); ready = false; }
+            else
+            {
+                int left = _free.ChargesLeft(EnergyAdId, energyAdChargesPerDay);
+                float cooldown = _free.CooldownLeft(EnergyAdId, energyAdCooldownSeconds);
+                if (left <= 0) { label = Loc.T("deniz.enerjiYarin"); ready = false; }
+                else if (cooldown > 0f) { label = UiBuild.Clock(cooldown); ready = false; }
+                else
+                {
+                    label = string.Format(Loc.T("deniz.enerjiEkle"), energyAdReward);
+                    ready = _free.AdsRemoved || (_ad != null && _ad.Available);
+                }
+            }
+
+            Push(_energyAdLabel, label, ref _lastEnergyAd);
+            _energyAd.interactable = ready;
+            _energyAd.targetGraphic.color = ready ? Color.white : new Color(0.72f, 0.75f, 0.80f, 1f);
+        }
+
+        /// <summary>A drop-table share as a percent. A share too small to round to a whole percent
+        /// reads as "about none" rather than as a flat zero it is not.</summary>
+        private static string Odd(double share)
+        {
+            int percent = Mathf.RoundToInt((float)(share * 100d));
+            return percent <= 0 && share > 0d ? "~0" : percent.ToString();
         }
 
         // -------------------------------------------------------------- the cards

@@ -8,10 +8,15 @@ namespace Game.Systems
     /// stops, and the one crafted-but-undecided item. The maths is all in
     /// <see cref="Crafting"/> — this owns the dice, the save fields, and the wall clock.
     ///
-    /// ONE DECISION PER CRAFT, NO INVENTORY — the same contract the sea's drops keep. A craft
-    /// writes the item into the save as a PENDING cell in the same breath as spending the point,
-    /// and the next craft is refused until it is worn or fed back. An app killed mid-decision
-    /// finds the item on the bench; a point can never buy nothing.
+    /// ONE DECISION PER CRAFT — the same contract the sea's drops keep. A craft writes the item
+    /// into the save as a PENDING cell in the same breath as spending the point, and the next craft
+    /// is refused until that item has been dealt with. An app killed mid-decision finds the item on
+    /// the bench; a point can never buy nothing.
+    ///
+    /// THERE ARE THREE ANSWERS, NOT TWO. Wear it, feed it back, or KEEP it — see
+    /// <see cref="StowPending"/> and <see cref="Game.Core.GearStash"/>. The depo is what makes the
+    /// third one possible, and it is also the reason a craft is no longer a coin toss when the roll
+    /// lands in a slot the player is not ready to fill.
     ///
     /// THE LEVEL IS NEVER STORED. It is recomputed from lifetime XP and the stops cleared, so the
     /// three numbers cannot drift apart; the stops themselves are the usual wall-clock deadline
@@ -194,14 +199,7 @@ namespace Game.Systems
             int tier = Crafting.TierFor(_data.craftGatesCleared);
             item = SeaCombat.ItemFor(slot, tier, grade, _random.NextDouble(), _combat);
 
-            _data.craftPendingGrade = item.Grade + 1;
-            _data.craftPendingSlot = item.Slot;
-            _data.craftPendingSec = item.Sec;
-            _data.craftPendingHull = item.Hull;
-            _data.craftPendingShot = item.Shot;
-            _data.craftPendingDef = item.Def;
-            _data.craftPendingSpd = item.Spd;
-            _data.craftPendingSecAmt = item.SecAmt;
+            SetPending(item);
 
             _save?.Save(_data);
             Changed?.Invoke();
@@ -242,6 +240,52 @@ namespace Game.Systems
             _save?.Save(_data);
             Changed?.Invoke();
             return scrap;
+        }
+
+        /// <summary>
+        /// Keep the pending item rather than deciding on it: onto the depo's shelf, where it waits
+        /// as long as the player likes. This is the third answer the bench never had — a Legendary
+        /// charm rolled before the charm slot is worth filling used to be a coin toss.
+        ///
+        /// THE ITEM IS NEVER IN TWO PLACES. The bench cell is cleared in memory BEFORE the shelf is
+        /// asked, so the single write inside <see cref="ExpeditionService.Stow"/> holds both halves
+        /// of the move: an app killed at the worst possible moment finds the item on the shelf or on
+        /// the bench, never on both. Writing the shelf first and clearing after would put a save on
+        /// disk with two copies of one item in it.
+        ///
+        /// Refused — leaving the item on the bench, untouched — with nothing pending, no sea service
+        /// wired, or a full shelf. The room check up front is what makes that refusal free.
+        /// </summary>
+        public bool StowPending()
+        {
+            if (_data == null || !HasPending || Expeditions == null) return false;
+            if (!Expeditions.StashHasRoom) return false;
+
+            SeaCombat.Item item = PendingItem();
+            ClearPending();
+            if (!Expeditions.Stow(item))
+            {
+                SetPending(item);   // cannot happen after the room check; the item is not lost if it does
+                return false;
+            }
+            // Stow has already committed the save with the cell cleared and the shelf holding the
+            // item. This second write only matters when the sea service was built without a
+            // SaveService — one whole-file write on a button press, never in a frame loop.
+            _save?.Save(_data);
+            Changed?.Invoke();
+            return true;
+        }
+
+        private void SetPending(in SeaCombat.Item item)
+        {
+            _data.craftPendingGrade = item.Grade + 1;
+            _data.craftPendingSlot = item.Slot;
+            _data.craftPendingSec = item.Sec;
+            _data.craftPendingHull = item.Hull;
+            _data.craftPendingShot = item.Shot;
+            _data.craftPendingDef = item.Def;
+            _data.craftPendingSpd = item.Spd;
+            _data.craftPendingSecAmt = item.SecAmt;
         }
 
         private void ClearPending()

@@ -373,5 +373,91 @@ namespace Game.Tests
             Assert.That(bench.HasPending, Is.False);
             Assert.That(bench.Level, Is.EqualTo(1));
         }
+        [Test]
+        public void ThePendingItemCanBeKeptInsteadOfDecided()
+        {
+            var data = new SaveData { craftPoints = 2L };
+            var bench = Bench(data);
+            var sea = new ExpeditionService(null, new TimeService(), data, null,
+                                            SeaCombat.Tuning.Default);
+            bench.Expeditions = sea;
+            sea.Crafting = bench;
+
+            Assert.That(bench.TryCraft(out SeaCombat.Item item), Is.True);
+            Assert.That(bench.StowPending(), Is.True);
+
+            Assert.That(bench.HasPending, Is.False, "the bench is clear");
+            Assert.That(sea.StashCount, Is.EqualTo(1), "and the item is on the shelf");
+            Assert.That(sea.StashItemAt(0).Grade, Is.EqualTo(item.Grade));
+            Assert.That(sea.StashItemAt(0).Slot, Is.EqualTo(item.Slot));
+            Assert.That(data.salvage, Is.Zero, "keeping it pays no hurda");
+            Assert.That(data.craftXp, Is.Zero, "and teaches nothing");
+
+            Assert.That(bench.TryCraft(out _), Is.True, "and the bench is free to work again");
+        }
+
+        [Test]
+        public void AKeptItemIsNeverOnTheBenchAndTheShelfAtOnce()
+        {
+            var data = new SaveData { craftPoints = 1L };
+            var bench = Bench(data);
+            var sea = new ExpeditionService(null, new TimeService(), data, null,
+                                            SeaCombat.Tuning.Default);
+            bench.Expeditions = sea;
+
+            bench.TryCraft(out _);
+            bench.StowPending();
+
+            Assert.That(data.craftPendingGrade, Is.Zero, "the cell is cleared in the same save");
+            Assert.That(data.gearStash.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void KeepingIsRefusedWithNothingPendingNoShelfOrAFullOne()
+        {
+            var data = new SaveData { craftPoints = 1L };
+            var bench = Bench(data);
+
+            Assert.That(bench.StowPending(), Is.False, "nothing pending");
+
+            bench.TryCraft(out _);
+            Assert.That(bench.StowPending(), Is.False, "no sea service wired");
+            Assert.That(bench.HasPending, Is.True, "and the item is still on the bench");
+
+            SeaCombat.Tuning tuning = SeaCombat.Tuning.Default;
+            tuning.StashCapacity = 1;
+            var sea = new ExpeditionService(null, new TimeService(), data, null, tuning);
+            bench.Expeditions = sea;
+            Assert.That(sea.Stow(SeaCombat.ItemFor(0, 0, 0, 0.5d, tuning)), Is.True, "premise: full");
+
+            Assert.That(bench.StowPending(), Is.False, "a full shelf");
+            Assert.That(bench.HasPending, Is.True, "the item stays exactly where it was");
+            Assert.That(sea.StashCount, Is.EqualTo(1));
+
+            // And the refusal did not damage the cell: the item is still the one that was crafted.
+            Assert.That(bench.PendingItem().Grade, Is.InRange(0, Captains.GradeCount - 1));
+        }
+
+        [Test]
+        public void ScrappingFromTheShelfTeachesTheBenchLikeAnyOtherScrap()
+        {
+            var data = new SaveData();
+            var bench = Bench(data);
+            var sea = new ExpeditionService(null, new TimeService(), data, null,
+                                            SeaCombat.Tuning.Default);
+            sea.Crafting = bench;
+
+            sea.Stow(SeaCombat.ItemFor(SeaCombat.SlotCannon, 0, 3, 0.5d, SeaCombat.Tuning.Default));
+            sea.Stow(SeaCombat.ItemFor(SeaCombat.SlotCharm, 0, 1, 0.5d, SeaCombat.Tuning.Default));
+
+            sea.ScrapFromStash(sea.StashIdAt(0), out long xp);
+            Assert.That(xp, Is.EqualTo(Crafting.SalvageXpFor(3)));
+            Assert.That(data.craftXp, Is.EqualTo(Crafting.SalvageXpFor(3)), "one lesson, applied");
+
+            sea.ScrapAllStash(out long allXp);
+            Assert.That(allXp, Is.EqualTo(Crafting.SalvageXpFor(1)));
+            Assert.That(data.craftXp, Is.EqualTo(Crafting.SalvageXpFor(3) + Crafting.SalvageXpFor(1)),
+                        "emptying the shelf teaches once per item");
+        }
     }
 }

@@ -134,6 +134,28 @@ namespace Game.Tests
             Assert.AreEqual(15L, fresh.dailyGemStipend);
         }
 
+        /// <summary>
+        /// A wipe throws away progress, not identity. A ticket filed the day before an economy reset
+        /// still has to name the same device the day after, or the support desk is reading a mail from
+        /// an id that no longer exists on any phone.
+        /// </summary>
+        [Test]
+        public void ResetKeepsTheSupportId()
+        {
+            var old = VeteranSave();
+            old.playerId = "ABCD-EFGH-JKMN";
+
+            Assert.AreEqual("ABCD-EFGH-JKMN", SaveMigration.Reset(old).playerId);
+        }
+
+        /// <summary>A save from before the id existed carries none, and the reset invents nothing —
+        /// minting is <c>PlayerIdentity</c>'s job and happens the first time a screen asks.</summary>
+        [Test]
+        public void ResetOfASaveWithoutAnIdLeavesItEmpty()
+        {
+            Assert.IsEmpty(SaveMigration.Reset(VeteranSave()).playerId);
+        }
+
         /// <summary>The reset must not write through to the save it was handed.</summary>
         [Test]
         public void ResetDoesNotMutateTheOldSave()

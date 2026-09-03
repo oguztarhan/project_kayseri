@@ -153,6 +153,9 @@ namespace Game.Core
             public int EnergyMax;
             public double EnergyRegenSeconds;
 
+            /// <summary>How many items the workshop's depo holds — see <see cref="GearStash"/>.</summary>
+            public int StashCapacity;
+
             /// <summary>Sweep and slide-in seconds. Short — the button was just pressed.</summary>
             public double SearchSeconds, ApproachSeconds;
 
@@ -219,6 +222,10 @@ namespace Game.Core
                 // the pool is back in 2.5 hours — the app-shut refill every timer here keeps.
                 EnergyMax = 30,
                 EnergyRegenSeconds = 300d,
+
+                // Twenty items: five across by four down on the depo grid, and about two full
+                // energy pools' worth of drops before a trip has to end at the workshop.
+                StashCapacity = GearStash.DefaultCapacity,
 
                 SearchSeconds = 0.9d,
                 ApproachSeconds = 1.2d,
@@ -502,6 +509,36 @@ namespace Game.Core
             if ((target -= e) < 0d) return 2;
             if ((target -= l) < 0d) return 3;
             return 4;
+        }
+
+        /// <summary>
+        /// The same table <see cref="RollGrade"/> rolls against, read out as probabilities — what
+        /// the panel prints so the player can see WHY the far reach is worth the danger, before
+        /// they have spent an energy finding out.
+        ///
+        /// Fills <paramref name="into"/> (one cell per grade) and allocates nothing: the caller
+        /// owns the array, because this is read on a UI refresh and a fresh array every half second
+        /// is a garbage collection nobody asked for.
+        ///
+        /// A table that sums to nothing reads as all-Common, which is exactly what RollGrade
+        /// returns in that case — the two must never disagree about a degenerate config.
+        /// </summary>
+        public static void GradeOdds(int tier, double luck, in Tuning t, double[] into)
+        {
+            if (into == null || into.Length < GradeMult.Length) return;
+            for (int g = 0; g < GradeMult.Length; g++) into[g] = 0d;
+
+            double bump = 1d + Math.Max(0d, t.DropTierBonus) * Clamp(tier, 0, Voyages.TierCount - 1)
+                             + Math.Max(0d, t.DropLuckBonus) * Math.Max(0d, luck);
+            into[0] = Math.Max(0d, t.DropCommon);
+            into[1] = Math.Max(0d, t.DropRare) * bump;
+            into[2] = Math.Max(0d, t.DropEpic) * bump;
+            into[3] = Math.Max(0d, t.DropLegendary) * bump;
+            into[4] = Math.Max(0d, t.DropMythic) * bump;
+
+            double total = into[0] + into[1] + into[2] + into[3] + into[4];
+            if (total <= 0d) { into[0] = 1d; return; }
+            for (int g = 0; g < GradeMult.Length; g++) into[g] /= total;
         }
 
         /// <summary>

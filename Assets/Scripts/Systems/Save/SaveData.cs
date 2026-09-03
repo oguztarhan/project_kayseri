@@ -154,6 +154,13 @@ namespace Game.Systems
         // shows a returning player should not be a wait.
         public int seaEnergy = -1;
         public long seaEnergyStampUnix;
+        // Which waters the fights are priced for. -1 means "follow the fleet": a player who never
+        // touches the route strip always fights in the furthest water the dock has opened, which is
+        // what every save before this field did and what a new one should do. Once they PICK, the
+        // pick stands — including a shallower route than they could sail, which is the whole point
+        // of the choice. A stored tier above what is unlocked (a reset fleet) reads as the furthest
+        // open one; ExpeditionService.Normalise keeps the stored value inside the table's range.
+        public int seaTier = -1;
         // One item per slot (Game.Core.SeaCombat.Slot*). Grade is Captains.Grade + 1 so 0 = empty;
         // stats are baked at drop time so a tuning change never silently re-arms old items. Power
         // is the item's cached SCORE (recomputable; kept for display). The stat arrays arrived
@@ -193,6 +200,25 @@ namespace Game.Systems
         public double craftPendingSpd;
         public double craftPendingSecAmt;
 
+        // ---- depo (ExpeditionService, Game.Core.GearStash) --------------------------------------
+        // The workshop's shelf: gear that has been crafted or taken off and is being kept rather
+        // than worn or scrapped. Added WITHOUT a save-version bump on the precedent every block
+        // above set — SaveMigration.NeedsReset is an equality test, so a bump deletes every live
+        // save on every device. A save from before the depo arrives with an empty list, which is a
+        // player who has kept nothing, and that is exactly right.
+        //
+        // A LIST, NOT A FIXED ARRAY, because unlike the four worn slots the depo's size is tuning
+        // (SeaCombat.Tuning.StashCapacity) and may move in either direction. Shrinking it never
+        // deletes anything: ExpeditionService.Normalise leaves an over-full depo alone and simply
+        // refuses new items until it drains.
+        //
+        // gearStashLastId only ever goes up. An id is how a tap finds its item (the depo re-orders
+        // itself whenever something leaves the middle of it), and re-using one would let a
+        // double-tap scrap whatever slid into the row — see Docs/PORT_BOARD.md §3 for the contract
+        // board that learned this first.
+        public List<GearStashItem> gearStash = new List<GearStashItem>();
+        public long gearStashLastId;
+
         // ---- chapters (ChapterService) ---------------------------------------------------------
         // Added WITHOUT a save-version bump, on the same precedent as the voyages block above. One
         // row per chapter, made on demand, keyed on the island's own save key and carrying its OWN
@@ -220,6 +246,18 @@ namespace Game.Systems
         // save-version bump, on the precedent every block above set: a null list is a player who has
         // seen no event, which is exactly what every existing save is.
         public List<LiveEventState> liveEvents = new List<LiveEventState>();
+
+        // ---- destek numarasi (PlayerIdentity) ---------------------------------------------------
+        // The id a player quotes to support. Minted the first time a screen asks for it and never
+        // again — see Game.Core.PlayerId for the shape and PlayerIdentity for when it is written.
+        //
+        // Added WITHOUT a save-version bump, on the precedent every block above set: an empty string is
+        // a player who has not opened the support sheet yet, which is every existing save.
+        //
+        // It is the one field in here that survives SaveMigration.Reset. A wipe throws away progress,
+        // not identity: a ticket filed the day before an economy reset still has to name the same
+        // device the day after, or the desk is answering a stranger.
+        public string playerId = "";
     }
 
     /// <summary>
@@ -355,6 +393,29 @@ namespace Game.Systems
         public int id;
         public int tier;
         public int cards;
+    }
+
+    /// <summary>
+    /// One kept item on the workshop's shelf — the same stat block the four worn slots hold, plus
+    /// the id that makes it addressable while the shelf re-orders around it.
+    ///
+    /// GRADE IS grade + 1, the shape every gear cell in this file uses: 0 is not a Common, it is a
+    /// broken row, and <c>ExpeditionService.Normalise</c> drops it. Being in the list is what makes
+    /// an item exist, so a row that cannot be read is worth nothing and pretending otherwise would
+    /// put a phantom Common in the grid.
+    /// </summary>
+    [Serializable]
+    public class GearStashItem
+    {
+        public long id;
+        public int slot;
+        public int grade;        // Captains.Grade + 1; 0 = a broken row, dropped on load
+        public int sec;
+        public double hull;
+        public double shot;
+        public double def;
+        public double spd;
+        public double secAmt;
     }
 
     /// <summary>

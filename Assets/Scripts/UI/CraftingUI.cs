@@ -68,6 +68,7 @@ namespace Game.UI
         private CraftingService _crafting;
         private ExpeditionService _sea;
         private LocalizationService _loc;
+        private InventoryUI _depo;
         private RectTransform _root;
 
         private Text _titleLabel, _pointsLabel, _levelLabel, _tierLabel, _xpLabel, _craftLabel,
@@ -82,6 +83,8 @@ namespace Game.UI
 
         private RectTransform _decideCard;
         private Text _decideTitle, _decideScore, _decideRows, _decideWorn, _equipLabel, _salvageLabel;
+        private Button _stowBtn;
+        private Text _stowLabel, _depoLabel;
 
         private GameObject _openerChip;
         private TMP_Text _openerCount;
@@ -93,6 +96,7 @@ namespace Game.UI
         {
             _crafting = ServiceLocator.Get<CraftingService>();
             _sea = ServiceLocator.Get<ExpeditionService>();
+            BuildDepo();
             Build();
             BuildOpener();
             if (_crafting != null) _crafting.Changed += OnChanged;
@@ -174,6 +178,18 @@ namespace Game.UI
             _pointsLabel = UiBuild.Label(Zone(chip, "Yazi", new Vector2(0.08f, 0f), new Vector2(0.92f, 1f)),
                                          "Text", string.Empty, 30, TextAnchor.MiddleCenter);
             _pointsLabel.color = Paper;
+
+            // The way through to the shelf. Beside the title rather than on the bench card: the depo
+            // is a screen of its own, not one more control on the bench, and the header is where
+            // this screen already keeps what is true of the whole workshop.
+            Button depo = UiBuild.Btn(_root, "Depo", string.Empty,
+                                      actionButton != null ? actionButton : UiSkin.ButtonBlue,
+                                      new Color(0.26f, 0.60f, 0.92f, 1f), 22, OnDepo);
+            UiBuild.Anchor((RectTransform)depo.transform,
+                           new Vector2(0.655f, 0.880f), new Vector2(0.860f, 0.963f));
+            PillFit.Wrap(depo.GetComponent<Image>());
+            _depoLabel = depo.GetComponentInChildren<Text>();
+            Fit(_depoLabel, 11, 22);
 
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
                                        closeIcon != null ? closeIcon : UiSkin.ButtonGrey,
@@ -278,20 +294,48 @@ namespace Game.UI
             _decideWorn.color = InkSoft;
             Fit(_decideWorn, 12, 22);
 
+            // Three answers now, not two. KEEP is the one the bench never had: a Legendary charm
+            // rolled before the charm slot is worth filling used to be a coin toss between wearing
+            // the wrong thing and scrapping the right one.
             Button equip = UiBuild.Btn(_decideCard, "Giydir", string.Empty,
                                        actionButton != null ? actionButton : UiSkin.ButtonGreen,
-                                       Good, 26, OnEquip);
-            UiBuild.Anchor((RectTransform)equip.transform, new Vector2(0.08f, 0.060f), new Vector2(0.48f, 0.200f));
+                                       Good, 24, OnEquip);
+            UiBuild.Anchor((RectTransform)equip.transform, new Vector2(0.06f, 0.060f), new Vector2(0.34f, 0.200f));
             PillFit.Wrap(equip.GetComponent<Image>());
             _equipLabel = equip.GetComponentInChildren<Text>();
+            Fit(_equipLabel, 11, 24);
+
+            _stowBtn = UiBuild.Btn(_decideCard, "Depoya", string.Empty,
+                                   actionButton != null ? actionButton : UiSkin.ButtonBlue,
+                                   new Color(0.26f, 0.60f, 0.92f, 1f), 24, OnStow);
+            UiBuild.Anchor((RectTransform)_stowBtn.transform, new Vector2(0.36f, 0.060f), new Vector2(0.64f, 0.200f));
+            PillFit.Wrap(_stowBtn.GetComponent<Image>());
+            _stowLabel = _stowBtn.GetComponentInChildren<Text>();
+            Fit(_stowLabel, 11, 24);
 
             Button scrap = UiBuild.Btn(_decideCard, "Sok", string.Empty,
                                        actionButton != null ? actionButton : UiSkin.ButtonYellow,
-                                       new Color(0.94f, 0.68f, 0.20f, 1f), 26, OnSalvage);
-            UiBuild.Anchor((RectTransform)scrap.transform, new Vector2(0.52f, 0.060f), new Vector2(0.92f, 0.200f));
+                                       new Color(0.94f, 0.68f, 0.20f, 1f), 24, OnSalvage);
+            UiBuild.Anchor((RectTransform)scrap.transform, new Vector2(0.66f, 0.060f), new Vector2(0.94f, 0.200f));
             PillFit.Wrap(scrap.GetComponent<Image>());
             _salvageLabel = scrap.GetComponentInChildren<Text>();
-            Fit(_salvageLabel, 12, 26);
+            Fit(_salvageLabel, 11, 24);
+        }
+
+        /// <summary>
+        /// The depo screen, made here rather than authored in the scene.
+        ///
+        /// It cannot be a seventh opener in the HUD's bottom row — that row re-centres itself on
+        /// every attach, so a seventh button starts pushing the ends of it off a narrow screen — and
+        /// the workshop is where a shelf of half-decided gear belongs anyway. A scene that authors
+        /// one properly is found and used instead; either way the sprites this screen was wired with
+        /// are handed over, so the depo wears the workshop's art without a scene edit.
+        /// </summary>
+        private void BuildDepo()
+        {
+            _depo = FindAnyObjectByType<InventoryUI>(FindObjectsInactive.Include);
+            if (_depo == null) _depo = new GameObject("DepoPaneli").AddComponent<InventoryUI>();
+            _depo.Adopt(cardPanel, ribbon, actionButton, closeIcon, chipPill);
         }
 
         // ---------------------------------------------------------------- opener
@@ -343,12 +387,30 @@ namespace Game.UI
             _crafting.SalvagePending(out _);
         }
 
+        /// <summary>Keep it instead. Refused by the service on a full shelf, and the card stays up
+        /// with the item still on the bench — nothing to undo.</summary>
+        private void OnStow()
+        {
+            if (_crafting == null) return;
+            _crafting.StowPending();
+        }
+
+        private void OnDepo()
+        {
+            if (_depo != null) _depo.Show();
+        }
+
         // --------------------------------------------------------------- refresh
         private void Refresh()
         {
             if (_crafting == null) return;
 
             _pointsLabel.text = string.Format(Loc.T("atolye.puan"), _crafting.Points);
+
+            if (_depoLabel != null)
+                _depoLabel.text = Loc.T("depo.baslik") + "  "
+                                + (_sea != null ? _sea.StashCount : 0) + "/"
+                                + (_sea != null ? _sea.StashCapacity : 0);
 
             int level = _crafting.Level;
             _levelLabel.text = string.Format(Loc.T("atolye.seviye"), level);
@@ -453,6 +515,9 @@ namespace Game.UI
                   + "  ·  " + Loc.T("deniz.guc") + " " + (_sea != null ? _sea.GearScore(item.Slot) : 0);
 
             _equipLabel.text = Loc.T("deniz.giydir");
+            _stowLabel.text = _sea != null && !_sea.StashHasRoom
+                ? Loc.T("depo.dolu") : Loc.T("depo.depoya");
+            _stowBtn.interactable = _sea != null && _sea.StashHasRoom;
             _salvageLabel.text = string.Format(Loc.T("atolye.sok"),
                                                SeaCombat.ScrapFor(item.Grade),
                                                Crafting.SalvageXpFor(item.Grade));

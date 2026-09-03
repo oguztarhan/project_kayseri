@@ -16,6 +16,12 @@ namespace Game.Data
         [SerializeField] private int energyMax = 30;
         [SerializeField] private double energyRegenSeconds = 300d;
 
+        [Header("Depo — atölyenin rafı")]
+        [Tooltip("Deponun kaç parça tuttuğu. Beşe dört ızgara yirmi eder; büyütmek ızgarayı da " +
+                 "büyütür, küçültmek dolu bir depoyu boşaltmaz — fazlası dururken sadece yeni " +
+                 "parça girmez.")]
+        [SerializeField, Min(0)] private int stashCapacity = Game.Core.GearStash.DefaultCapacity;
+
         [Header("Tempo (saniye)")]
         [Tooltip("Dürbün taraması ve bulunanın bordaya süzülmesi. Kısa: düğmeye basıldı, cevap şimdi.")]
         [SerializeField] private double searchSeconds = 0.9d;
@@ -96,6 +102,7 @@ namespace Game.Data
         public Game.Core.SeaCombat.Tuning ToTuning() => new Game.Core.SeaCombat.Tuning
         {
             EnergyMax             = energyMax,
+            StashCapacity         = stashCapacity,
             EnergyRegenSeconds    = energyRegenSeconds,
             SearchSeconds         = searchSeconds,
             ApproachSeconds       = approachSeconds,

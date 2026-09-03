@@ -34,6 +34,15 @@ ayarlar.geri_yukle	ALIMLARI GERİ YÜKLE	RESTORE PURCHASES	KÄUFE ZURÜCKHOLEN	R
 ayarlar.geri_yukleniyor	GERİ YÜKLENİYOR…	RESTORING…	WIRD WIEDERHERGESTELLT…	RESTAURATION…	RESTAURANDO…	RESTAURANDO…	RIPRISTINO…	PRZYWRACANIE…	ВОССТАНОВЛЕНИЕ…	MEMULIHKAN…	ĐANG KHÔI PHỤC…
 ayarlar.geri_basarili	ALIMLAR GERİ YÜKLENDİ	PURCHASES RESTORED	KÄUFE WIEDERHERGESTELLT	ACHATS RESTAURÉS	COMPRAS RESTAURADAS	COMPRAS RESTAURADAS	ACQUISTI RIPRISTINATI	ZAKUPY PRZYWRÓCONE	ПОКУПКИ ВОССТАНОВЛЕНЫ	PEMBELIAN DIPULIHKAN	ĐÃ KHÔI PHỤC GIAO DỊCH
 ayarlar.geri_basarisiz	GERİ YÜKLEME BAŞARISIZ	RESTORE FAILED	WIEDERHERSTELLUNG FEHLGESCHLAGEN	ÉCHEC DE LA RESTAURATION	ERROR AL RESTAURAR	FALHA AO RESTAURAR	RIPRISTINO NON RIUSCITO	PRZYWRACANIE NIEUDANE	НЕ УДАЛОСЬ ВОССТАНОВИТЬ	GAGAL MEMULIHKAN	KHÔI PHỤC THẤT BẠI
+ayarlar.destek	DESTEK	SUPPORT	SUPPORT	ASSISTANCE	AYUDA	SUPORTE	SUPPORTO	POMOC	ПОДДЕРЖКА	DUKUNGAN	HỖ TRỢ
+ayarlar.bize_ulasin	BİZE ULAŞIN	CONTACT US	KONTAKT	NOUS CONTACTER	CONTÁCTANOS	FALE CONOSCO	CONTATTACI	KONTAKT	НАПИСАТЬ НАМ	HUBUNGI KAMI	LIÊN HỆ
+ayarlar.git	GİT	OPEN	ÖFFNEN	OUVRIR	ABRIR	ABRIR	APRI	OTWÓRZ	ОТКРЫТЬ	BUKA	MỞ
+ayarlar.katil	KATIL	JOIN	BEITRETEN	REJOINDRE	UNIRSE	ENTRAR	UNISCITI	DOŁĄCZ	ВСТУПИТЬ	GABUNG	THAM GIA
+ayarlar.oyuncu_no	OYUNCU NUMARASI	PLAYER ID	SPIELER-ID	ID JOUEUR	ID DE JUGADOR	ID DO JOGADOR	ID GIOCATORE	ID GRACZA	ID ИГРОКА	ID PEMAIN	ID NGƯỜI CHƠI
+ayarlar.kopyala	KOPYALA	COPY	KOPIEREN	COPIER	COPIAR	COPIAR	COPIA	KOPIUJ	КОПИРОВАТЬ	SALIN	SAO CHÉP
+ayarlar.kopyalandi	KOPYALANDI	COPIED	KOPIERT	COPIÉ	COPIADO	COPIADO	COPIATO	SKOPIOWANO	СКОПИРОВАНО	TERSALIN	ĐÃ SAO CHÉP
+ayarlar.destek_konu	Destek talebi	Support request	Supportanfrage	Demande d'assistance	Solicitud de ayuda	Pedido de suporte	Richiesta di supporto	Zgłoszenie do pomocy	Запрос в поддержку	Permintaan dukungan	Yêu cầu hỗ trợ
+ayarlar.destek_mesaj	Sorununuzu buraya yazın:	Describe your problem here:	Beschreibe dein Problem hier:	Décrivez votre problème ici :	Describe tu problema aquí:	Descreva seu problema aqui:	Descrivi qui il tuo problema:	Opisz tutaj swój problem:	Опишите проблему здесь:	Jelaskan masalah Anda di sini:	Mô tả vấn đề của bạn tại đây:
 # gunluk odul
 gunluk.baslik	GÜNLÜK ÖDÜL	DAILY REWARD	TAGESBELOHNUNG	RÉCOMPENSE DU JOUR	RECOMPENSA DIARIA	RECOMPENSA DIÁRIA	PREMIO GIORNALIERO	NAGRODA DZIENNA	НАГРАДА ДНЯ	HADIAH HARIAN	THƯỞNG HẰNG NGÀY
 gunluk.gun	{0}. GÜN	DAY {0}	TAG {0}	JOUR {0}	DÍA {0}	DIA {0}	GIORNO {0}	DZIEŃ {0}	ДЕНЬ {0}	HARI {0}	NGÀY {0}
@@ -554,6 +563,13 @@ deniz.odulsatir	TEÇHİZAT · HARİTA · HURDA	GEAR · CHARTS · SALVAGE	AUSRÜS
 deniz.kaptanyok	KAPTANSIZ	NO CAPTAIN	KEIN KAPITÄN	SANS CAPITAINE	SIN CAPITÁN	SEM CAPITÃO	SENZA CAPITANO	BEZ KAPITANA	БЕЗ КАПИТАНА	TANPA KAPTEN	KHÔNG THUYỀN TRƯỞNG
 deniz.kapat	KAPAT	CLOSE	SCHLIESSEN	FERMER	CERRAR	FECHAR	CHIUDI	ZAMKNIJ	ЗАКРЫТЬ	TUTUP	ĐÓNG
 deniz.dusmandanduser	Düşmanlardan düşer	Drops from enemies	Fällt von Feinden	Lâché par les ennemis	Cae de los enemigos	Cai dos inimigos	Cade dai nemici	Wypada z wrogów	Выпадает с врагов	Jatuh dari musuh	Rơi từ kẻ địch
+deniz.rotaKilit	{0} SEFER	{0} VOYAGES	{0} FAHRTEN	{0} VOYAGES	{0} VIAJES	{0} VIAGENS	{0} VIAGGI	{0} REJSÓW	{0} РЕЙСОВ	{0} PELAYARAN	{0} CHUYẾN
+deniz.rotaKapali	Bu rota {0} sefer sonra açılır	This route opens after {0} more voyages	Diese Route öffnet nach {0} weiteren Fahrten	Cette route s'ouvre après {0} voyages de plus	Esta ruta se abre tras {0} viajes más	Esta rota abre após mais {0} viagens	Questa rotta si apre dopo altri {0} viaggi	Ta trasa otworzy się po {0} rejsach	Маршрут откроется ещё через {0} рейсов	Rute ini terbuka setelah {0} pelayaran lagi	Tuyến này mở sau {0} chuyến nữa
+deniz.tehditBant	TEHDİT {0}-{1}	THREAT {0}-{1}	BEDROHUNG {0}-{1}	MENACE {0}-{1}	AMENAZA {0}-{1}	AMEAÇA {0}-{1}	MINACCIA {0}-{1}	ZAGROŻENIE {0}-{1}	УГРОЗА {0}-{1}	ANCAMAN {0}-{1}	MỐI ĐE DỌA {0}-{1}
+deniz.ganimetSinif	GANİMET	LOOT	BEUTE	BUTIN	BOTÍN	ESPÓLIO	BOTTINO	ŁUP	ДОБЫЧА	JARAHAN	CHIẾN LỢI PHẨM
+deniz.enerjiEkle	+{0} ENERJİ	+{0} ENERGY	+{0} ENERGIE	+{0} ÉNERGIE	+{0} ENERGÍA	+{0} ENERGIA	+{0} ENERGIA	+{0} ENERGII	+{0} ЭНЕРГИИ	+{0} ENERGI	+{0} NĂNG LƯỢNG
+deniz.enerjiDolu	DOLU	FULL	VOLL	PLEIN	LLENA	CHEIA	PIENA	PEŁNA	ПОЛНО	PENUH	ĐẦY
+deniz.enerjiYarin	YARIN	TOMORROW	MORGEN	DEMAIN	MAÑANA	AMANHÃ	DOMANI	JUTRO	ЗАВТРА	BESOK	NGÀY MAI
 # atolye
 atolye.baslik	ATÖLYE	WORKSHOP	WERKSTATT	ATELIER	TALLER	OFICINA	OFFICINA	WARSZTAT	МАСТЕРСКАЯ	BENGKEL	XƯỞNG
 atolye.puan	{0} PUAN	{0} PTS	{0} PKT	{0} PTS	{0} PTS	{0} PTS	{0} PT	{0} PKT	{0} ОЧК	{0} POIN	{0} ĐIỂM
@@ -585,18 +601,42 @@ usta.yeni	YENİ USTA!	NEW MASTER!	NEUER MEISTER!	NOUVEAU MAÎTRE !	¡NUEVO MAEST
 usta.devam	devam etmek için dokun	tap to continue	zum Fortfahren tippen	touchez pour continuer	toca para continuar	toque para continuar	tocca per continuare	dotknij, aby kontynuować	нажмите, чтобы продолжить	ketuk untuk lanjut	chạm để tiếp tục
 usta.nereden	Kart: sandıklar + görevler + seferler	Cards: chests + goals + voyages	Karten: Truhen + Ziele + Reisen	Cartes : coffres + objectifs + voyages	Cartas: cofres + objetivos + viajes	Cartas: baús + metas + viagens	Carte: forzieri + obiettivi + viaggi	Karty: skrzynie + cele + rejsy	Карты: сундуки + цели + рейсы	Kartu: peti + misi + pelayaran	Thẻ: rương + nhiệm vụ + chuyến đi
 # etkinlikler (LiveEventsUI) — sadece tr/en dolu; kalan diller İngilizceye düşer
-etkinlik.baslik	ETKİNLİKLER	EVENTS
-etkinlik.yok	Şu anda süren etkinlik yok.	No events running right now.
-etkinlik.suruyor	SÜRÜYOR	LIVE
-etkinlik.yakinda	YAKINDA	SOON
-etkinlik.kalan	Kalan	Time left
-etkinlik.basliyor	Başlıyor	Starts in
-etkinlik.odul	ÖDÜL VAR	REWARD
-etkinlik.senlik_2026_09	Döküm Şenliği	Foundry Festival
-senlik.baslik	DÖKÜM ŞENLİĞİ	FOUNDRY FESTIVAL
-senlik.yok	Şu anda şenlik yok.	No festival right now.
-senlik.bitti	Şenlik sona erdi	The festival has ended
-senlik.kilitli	Kilitli	Locked
-senlik.hepsini_al	HEPSİNİ AL	CLAIM ALL
-senlik.sandiklar	SANDIKLAR	CHESTS
-senlik.puan	puan	points
+etkinlik.baslik	ETKİNLİKLER	EVENTS	VERANSTALTUNGEN	ÉVÉNEMENTS	EVENTOS	EVENTOS	EVENTI	WYDARZENIA	СОБЫТИЯ	ACARA	SỰ KIỆN
+etkinlik.yok	Şu anda süren etkinlik yok.	No events running right now.	Derzeit läuft keine Veranstaltung.	Aucun événement en cours.	No hay eventos activos ahora.	Nenhum evento em andamento.	Nessun evento in corso.	Obecnie nie trwa żadne wydarzenie.	Сейчас нет активных событий.	Tidak ada acara yang berjalan.	Hiện không có sự kiện nào.
+etkinlik.suruyor	SÜRÜYOR	LIVE	LÄUFT	EN COURS	EN VIVO	AO VIVO	IN CORSO	TRWA	ИДЁТ	BERLANGSUNG	ĐANG DIỄN RA
+etkinlik.yakinda	YAKINDA	SOON	BALD	BIENTÔT	PRONTO	EM BREVE	PRESTO	WKRÓTCE	СКОРО	SEGERA	SẮP TỚI
+etkinlik.kalan	Kalan	Time left	Verbleibend	Temps restant	Tiempo restante	Tempo restante	Tempo rimasto	Pozostało	Осталось	Sisa waktu	Còn lại
+etkinlik.basliyor	Başlıyor	Starts in	Beginnt in	Commence dans	Empieza en	Começa em	Inizia tra	Zaczyna się za	Начнётся через	Mulai dalam	Bắt đầu sau
+etkinlik.odul	ÖDÜL VAR	REWARD	BELOHNUNG	RÉCOMPENSE	RECOMPENSA	RECOMPENSA	RICOMPENSA	NAGRODA	НАГРАДА	HADIAH	PHẦN THƯỞNG
+etkinlik.senlik_2026_09	Döküm Şenliği	Foundry Festival	Gießerei-Fest	Fête de la fonderie	Fiesta de la Fundición	Festa da Fundição	Festa della Fonderia	Święto Odlewni	Литейный праздник	Festival Pengecoran	Lễ hội Đúc
+senlik.baslik	DÖKÜM ŞENLİĞİ	FOUNDRY FESTIVAL	GIESSEREI-FEST	FÊTE DE LA FONDERIE	FIESTA DE LA FUNDICIÓN	FESTA DA FUNDIÇÃO	FESTA DELLA FONDERIA	ŚWIĘTO ODLEWNI	ЛИТЕЙНЫЙ ПРАЗДНИК	FESTIVAL PENGECORAN	LỄ HỘI ĐÚC
+senlik.yok	Şu anda şenlik yok.	No festival right now.	Derzeit kein Fest.	Aucune fête en cours.	No hay fiesta ahora.	Nenhuma festa agora.	Nessuna festa al momento.	Obecnie brak święta.	Сейчас праздника нет.	Belum ada festival saat ini.	Hiện không có lễ hội.
+senlik.bitti	Şenlik sona erdi	The festival has ended	Das Fest ist vorbei	La fête est terminée	La fiesta ha terminado	A festa terminou	La festa è finita	Święto się zakończyło	Праздник завершён	Festival telah berakhir	Lễ hội đã kết thúc
+senlik.kilitli	Kilitli	Locked	Gesperrt	Verrouillé	Bloqueado	Bloqueado	Bloccato	Zablokowane	Закрыто	Terkunci	Đã khóa
+senlik.hepsini_al	HEPSİNİ AL	CLAIM ALL	ALLE HOLEN	TOUT RÉCLAMER	RECLAMAR TODO	RESGATAR TUDO	RISCUOTI TUTTO	ODBIERZ WSZYSTKO	ЗАБРАТЬ ВСЁ	AMBIL SEMUA	NHẬN TẤT CẢ
+senlik.sandiklar	SANDIKLAR	CHESTS	TRUHEN	COFFRES	COFRES	BAÚS	FORZIERI	SKRZYNIE	СУНДУКИ	PETI	RƯƠNG
+senlik.puan	puan	points	Punkte	points	puntos	pontos	punti	punkty	очки	poin	điểm
+# depo (InventoryUI) + islenmis urun adlari
+depo.baslik	DEPO	STORAGE	LAGER	STOCK	ALMACÉN	DEPÓSITO	DEPOSITO	MAGAZYN	СКЛАД	GUDANG	KHO
+depo.donanim	DONANIM	GEAR	AUSRÜSTUNG	ÉQUIPEMENT	EQUIPO	EQUIPAMENTO	EQUIPAGGIAMENTO	EKWIPUNEK	СНАРЯЖЕНИЕ	PERLENGKAPAN	TRANG BỊ
+depo.katalog	KATALOG	CATALOGUE	KATALOG	CATALOGUE	CATÁLOGO	CATÁLOGO	CATALOGO	KATALOG	КАТАЛОГ	KATALOG	DANH MỤC
+depo.raf	RAF {0}/{1}	SHELF {0}/{1}	REGAL {0}/{1}	ÉTAGÈRE {0}/{1}	ESTANTE {0}/{1}	PRATELEIRA {0}/{1}	SCAFFALE {0}/{1}	PÓŁKA {0}/{1}	ПОЛКА {0}/{1}	RAK {0}/{1}	KỆ {0}/{1}
+depo.depoya	DEPOYA	KEEP	BEHALTEN	GARDER	GUARDAR	GUARDAR	CONSERVA	ZATRZYMAJ	ОСТАВИТЬ	SIMPAN	GIỮ LẠI
+depo.dolu	DEPO DOLU	SHELF FULL	LAGER VOLL	STOCK PLEIN	ALMACÉN LLENO	DEPÓSITO CHEIO	DEPOSITO PIENO	MAGAZYN PEŁNY	СКЛАД ПОЛОН	GUDANG PENUH	KHO ĐẦY
+depo.parcala	PARÇALA  +{0} hurda · +{1} XP	DISMANTLE  +{0} salvage · +{1} XP	VERSCHROTTEN  +{0} · +{1} EP	FERRAILLER  +{0} · +{1} XP	DESGUAZAR  +{0} · +{1} EXP	SUCATEAR  +{0} · +{1} XP	DEMOLISCI  +{0} · +{1} XP	ZŁOMUJ  +{0} · +{1} PD	НА ЛОМ  +{0} · +{1} ОП	BESITUA  +{0} · +{1} XP	THÁO DỠ  +{0} · +{1} XP
+depo.sec	Bir parçaya dokun	Tap an item	Auf ein Teil tippen	Touchez un objet	Toca un objeto	Toque num item	Tocca un oggetto	Dotknij przedmiotu	Коснитесь предмета	Sentuh sebuah item	Chạm vào một vật phẩm
+depo.bos	Depo boş — üretilen ya da sökülen parçalar burada bekler.	Empty — crafted or removed gear waits here.	Leer — gefertigte oder abgelegte Teile warten hier.	Vide — les objets fabriqués ou retirés attendent ici.	Vacío: el equipo creado o retirado espera aquí.	Vazio — o equipamento criado ou removido espera aqui.	Vuoto — l'equipaggiamento creato o rimosso attende qui.	Pusto — wytworzony lub zdjęty sprzęt czeka tutaj.	Пусто — созданное или снятое снаряжение ждёт здесь.	Kosong — perlengkapan buatan atau yang dilepas menunggu di sini.	Trống — trang bị đã chế tạo hoặc tháo ra sẽ chờ ở đây.
+depo.cevherler	CEVHERLER	ORES	ERZE	MINERAIS	MINERALES	MINÉRIOS	MINERALI	RUDY	РУДЫ	BIJIH	KHOÁNG SẢN
+depo.urunler	İŞLENMİŞ ÜRÜNLER	REFINED GOODS	VEREDELTE WAREN	PRODUITS RAFFINÉS	BIENES REFINADOS	BENS REFINADOS	BENI RAFFINATI	WYROBY	ИЗДЕЛИЯ	BARANG OLAHAN	HÀNG TINH CHẾ
+depo.ada_gerek	{0} gerekli	needs {0}	benötigt {0}	nécessite {0}	requiere {0}	requer {0}	richiede {0}	wymaga: {0}	нужен {0}	perlu {0}	cần {0}
+depo.saniye	{0} sn	{0}s	{0} s	{0} s	{0} s	{0} s	{0} s	{0} s	{0} с	{0} dtk	{0} giây
+urun.coke	KOK KÖMÜRÜ	COKE	KOKS	COKE	COQUE	COQUE	COKE	KOKS	КОКС	KOKAS	THAN CỐC
+urun.copper_bar	BAKIR KÜLÇE	COPPER BAR	KUPFERBARREN	LINGOT DE CUIVRE	BARRA DE COBRE	BARRA DE COBRE	LINGOTTO DI RAME	SZTABA MIEDZI	МЕДНЫЙ СЛИТОК	BATANG TEMBAGA	THANH ĐỒNG
+urun.steel_beam	ÇELİK KİRİŞ	STEEL BEAM	STAHLTRÄGER	POUTRE D'ACIER	VIGA DE ACERO	VIGA DE AÇO	TRAVE D'ACCIAIO	BELKA STALOWA	СТАЛЬНАЯ БАЛКА	BALOK BAJA	DẦM THÉP
+urun.silver_bar	GÜMÜŞ KÜLÇE	SILVER BAR	SILBERBARREN	LINGOT D'ARGENT	BARRA DE PLATA	BARRA DE PRATA	LINGOTTO D'ARGENTO	SZTABA SREBRA	СЕРЕБРЯНЫЙ СЛИТОК	BATANG PERAK	THANH BẠC
+urun.gold_bar	ALTIN KÜLÇE	GOLD BAR	GOLDBARREN	LINGOT D'OR	BARRA DE ORO	BARRA DE OURO	LINGOTTO D'ORO	SZTABA ZŁOTA	ЗОЛОТОЙ СЛИТОК	BATANG EMAS	THANH VÀNG
+urun.cut_ruby	YONTULMUŞ YAKUT	CUT RUBY	GESCHLIFFENER RUBIN	RUBIS TAILLÉ	RUBÍ TALLADO	RUBI LAPIDADO	RUBINO TAGLIATO	SZLIFOWANY RUBIN	ОГРАНЁННЫЙ РУБИН	RUBI ASAHAN	HỒNG NGỌC ĐÃ CẮT
+urun.ruby_ring	YAKUT YÜZÜK	RUBY RING	RUBINRING	BAGUE DE RUBIS	ANILLO DE RUBÍ	ANEL DE RUBI	ANELLO DI RUBINO	PIERŚCIEŃ Z RUBINEM	РУБИНОВОЕ КОЛЬЦО	CINCIN RUBI	NHẪN HỒNG NGỌC
+urun.cut_emerald	YONTULMUŞ ZÜMRÜT	CUT EMERALD	GESCHLIFFENER SMARAGD	ÉMERAUDE TAILLÉE	ESMERALDA TALLADA	ESMERALDA LAPIDADA	SMERALDO TAGLIATO	SZLIFOWANY SZMARAGD	ОГРАНЁННЫЙ ИЗУМРУД	ZAMRUD ASAHAN	NGỌC LỤC BẢO ĐÃ CẮT
+urun.polished_diamond	PARLATILMIŞ ELMAS	POLISHED DIAMOND	POLIERTER DIAMANT	DIAMANT POLI	DIAMANTE PULIDO	DIAMANTE POLIDO	DIAMANTE LUCIDATO	OSZLIFOWANY DIAMENT	ОГРАНЁННЫЙ АЛМАЗ	BERLIAN ASAHAN	KIM CƯƠNG ĐÁNH BÓNG
+urun.diamond_crown	ELMAS TAÇ	DIAMOND CROWN	DIAMANTKRONE	COURONNE DE DIAMANT	CORONA DE DIAMANTE	COROA DE DIAMANTE	CORONA DI DIAMANTI	DIAMENTOWA KORONA	АЛМАЗНАЯ КОРОНА	MAHKOTA BERLIAN	VƯƠNG MIỆN KIM CƯƠNG

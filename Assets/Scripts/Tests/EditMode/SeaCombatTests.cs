@@ -588,6 +588,57 @@ namespace Game.Tests
                         "the refill clock starts at the moment the pool stops being full");
         }
 
+        // ---- the loot table, read out ------------------------------------------------------------
+
+        [Test]
+        public void TheOddsAreTheTableRollGradeActuallyRollsAgainst()
+        {
+            var odds = new double[SeaCombat.GradeMult.Length];
+            for (int tier = 0; tier < Voyages.TierCount; tier++)
+            {
+                SeaCombat.GradeOdds(tier, 0d, T, odds);
+
+                double sum = 0d;
+                for (int g = 0; g < odds.Length; g++) sum += odds[g];
+                Assert.That(sum, Is.EqualTo(1d).Within(1e-9), "tier " + tier + ": odds have to be odds");
+
+                // The panel promises what the dice deliver: rolling the middle of each slice has to
+                // land on the grade the readout says that slice belongs to.
+                double below = 0d;
+                for (int g = 0; g < odds.Length; g++)
+                {
+                    if (odds[g] <= 0d) continue;
+                    Assert.That(SeaCombat.RollGrade(below + odds[g] * 0.5d, tier, 0d, T), Is.EqualTo(g),
+                                "tier " + tier + ", grade " + g + ": the readout and the dice disagree");
+                    below += odds[g];
+                }
+            }
+        }
+
+        [Test]
+        public void TheFarWatersAndABetterGlassBothTiltTheTableUp()
+        {
+            var near = new double[SeaCombat.GradeMult.Length];
+            var far = new double[SeaCombat.GradeMult.Length];
+            SeaCombat.GradeOdds(0, 0d, T, near);
+            SeaCombat.GradeOdds(Voyages.TierCount - 1, 0d, T, far);
+            Assert.That(far[0], Is.LessThan(near[0]), "the far reach drops fewer Commons");
+            Assert.That(far[4], Is.GreaterThan(near[4]), "and more Mythics — the reason to sail out");
+
+            var glass = new double[SeaCombat.GradeMult.Length];
+            SeaCombat.GradeOdds(0, SeaCombat.SpyglassLuck(4), T, glass);
+            Assert.That(glass[0], Is.LessThan(near[0]), "a better glass finds better things");
+        }
+
+        [Test]
+        public void AnOddsReadoutWithNowhereToWriteIsHarmless()
+        {
+            var stub = new double[2];
+            SeaCombat.GradeOdds(0, 0d, T, null);
+            SeaCombat.GradeOdds(0, 0d, T, stub);
+            Assert.That(stub[0], Is.Zero, "an array too short to hold the table is left alone");
+        }
+
         [Test]
         public void AnEmptyPoolRefusesTheSearch()
         {
