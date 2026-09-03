@@ -1602,6 +1602,8 @@ MonoBehaviour:
   _borderColor: {r: 1, g: 0.66, b: 0.12, a: 1}
   _plateArt: {fileID: 21300000, guid: 1125b2190619d4442a365e93b38a1e89, type: 3}
   _plateText: {r: 0.09, g: 0.14, b: 0.24, a: 1}
+  _fadeInStartT: 0.3
+  _fadeInEndT: 0.5
   _rebindSeconds: 0.5
 --- !u!114 &1064096651
 MonoBehaviour:
@@ -3218,6 +3220,14 @@ PrefabInstance:
       propertyPath: m_SizeDelta.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6133922240265336258, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.7779006
+      objectReference: {fileID: 0}
+    - target: {fileID: 6133922240265336258, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.7779006
+      objectReference: {fileID: 0}
     - target: {fileID: 6546755171169001220, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -3875,6 +3885,8 @@ GameObject:
   - component: {fileID: 1815842458}
   - component: {fileID: 1815842461}
   - component: {fileID: 1815842462}
+  - component: {fileID: 1815842463}
+  - component: {fileID: 1815842464}
   m_Layer: 0
   m_Name: UI_Sistemler
   m_TagString: Untagged
@@ -3940,12 +3952,10 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 385ea581136711649b754e43f3a59805, type: 3}
   - {fileID: 21300000, guid: 48d5ea96a66d2c24b98c763c9ba8a1eb, type: 3}
   - {fileID: 21300000, guid: c29f4d8e4053a1647900de3389aaf394, type: 3}
+  chestIcon: {fileID: 0}
   scrim: {r: 0.04, g: 0.05, b: 0.08, a: 0.86}
   cardHired: {r: 0.16, g: 0.19, b: 0.27, a: 1}
   cardLocked: {r: 0.11, g: 0.12, b: 0.17, a: 1}
-  commonTint: {r: 0.62, g: 0.68, b: 0.78, a: 1}
-  rareTint: {r: 0.33, g: 0.62, b: 0.92, a: 1}
-  epicTint: {r: 0.72, g: 0.45, b: 0.95, a: 1}
 --- !u!4 &1815842460
 Transform:
   m_ObjectHideFlags: 0
@@ -4017,6 +4027,49 @@ MonoBehaviour:
   - {r: 0.62, g: 0.38, b: 0.92, a: 1}
   - {r: 0.96, g: 0.66, b: 0.18, a: 1}
   - {r: 0.94, g: 0.28, b: 0.42, a: 1}
+--- !u!114 &1815842463
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1815842457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 20c36311a41a0534994c447860313504, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.LiveEventsUI
+  sortingOrder: 109
+  cardPanel: {fileID: 21300000, guid: 1125b2190619d4442a365e93b38a1e89, type: 3}
+  ribbon: {fileID: 21300000, guid: d207130faa601b6419b96a5c83de301b, type: 3}
+  closeIcon: {fileID: 21300000, guid: c2f09f179f4db9249b3b975e79af645d, type: 3}
+  chipPill: {fileID: 21300000, guid: c18d7c8c854bb6d42b94e1c00b8d7afd, type: 3}
+  scrim: {r: 0.04, g: 0.05, b: 0.08, a: 0.86}
+  backdrop: {r: 0.15, g: 0.18, b: 0.26, a: 1}
+  liveTint: {r: 0.36, g: 0.82, b: 0.45, a: 1}
+  soonTint: {r: 0.55, g: 0.62, b: 0.74, a: 1}
+--- !u!114 &1815842464
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1815842457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc619a31fd49841c595ea9673b4b3206, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.CraftingUI
+  sortingOrder: 110
+  cardPanel: {fileID: 21300000, guid: 1125b2190619d4442a365e93b38a1e89, type: 3}
+  ribbon: {fileID: 21300000, guid: d207130faa601b6419b96a5c83de301b, type: 3}
+  actionButton: {fileID: 21300000, guid: 345a67c51b7da264691760f1b48fb44c, type: 3}
+  closeIcon: {fileID: 21300000, guid: c2f09f179f4db9249b3b975e79af645d, type: 3}
+  barTrack: {fileID: 21300000, guid: 696a899d16e5119418ea7ad4d8756826, type: 3}
+  barFill: {fileID: 21300000, guid: e9d2f24e40d781a46ac7f99a5c83863e, type: 3}
+  chipPill: {fileID: 21300000, guid: c18d7c8c854bb6d42b94e1c00b8d7afd, type: 3}
+  scrim: {r: 0.04, g: 0.05, b: 0.08, a: 0.86}
+  backdrop: {r: 0.15, g: 0.18, b: 0.26, a: 1}
 --- !u!1001 &1835558045
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5713,6 +5766,7 @@ MonoBehaviour:
   stationWalkSpeed: 1.8
   foremanScaleMultiplier: 1.18
   foremanStandOffset: 7
+  foremanPlinthRadius: 1.5
   stationDriftRange: 2.5
   trafficYieldRadius: 7
   maxSmokePuffs: 10
@@ -5949,6 +6003,7 @@ MonoBehaviour:
   stationWalkSpeed: 1.8
   foremanScaleMultiplier: 1.18
   foremanStandOffset: 7
+  foremanPlinthRadius: 1.5
   stationDriftRange: 2.5
   trafficYieldRadius: 7
   maxSmokePuffs: 10
@@ -6133,6 +6188,7 @@ MonoBehaviour:
   stationWalkSpeed: 1.8
   foremanScaleMultiplier: 1.18
   foremanStandOffset: 7
+  foremanPlinthRadius: 1.5
   stationDriftRange: 2.5
   trafficYieldRadius: 7
   maxSmokePuffs: 10
@@ -6317,6 +6373,7 @@ MonoBehaviour:
   stationWalkSpeed: 1.8
   foremanScaleMultiplier: 1.18
   foremanStandOffset: 7
+  foremanPlinthRadius: 1.5
   stationDriftRange: 2.5
   trafficYieldRadius: 7
   maxSmokePuffs: 10
@@ -6501,6 +6558,7 @@ MonoBehaviour:
   stationWalkSpeed: 1.8
   foremanScaleMultiplier: 1.18
   foremanStandOffset: 7
+  foremanPlinthRadius: 1.5
   stationDriftRange: 2.5
   trafficYieldRadius: 7
   maxSmokePuffs: 10
@@ -6685,6 +6743,7 @@ MonoBehaviour:
   stationWalkSpeed: 1.8
   foremanScaleMultiplier: 1.18
   foremanStandOffset: 7
+  foremanPlinthRadius: 1.5
   stationDriftRange: 2.5
   trafficYieldRadius: 7
   maxSmokePuffs: 10
@@ -6869,6 +6928,7 @@ MonoBehaviour:
   stationWalkSpeed: 1.8
   foremanScaleMultiplier: 1.18
   foremanStandOffset: 7
+  foremanPlinthRadius: 1.5
   stationDriftRange: 2.5
   trafficYieldRadius: 7
   maxSmokePuffs: 10
@@ -7053,6 +7113,7 @@ MonoBehaviour:
   stationWalkSpeed: 1.8
   foremanScaleMultiplier: 1.18
   foremanStandOffset: 7
+  foremanPlinthRadius: 1.5
   stationDriftRange: 2.5
   trafficYieldRadius: 7
   maxSmokePuffs: 10

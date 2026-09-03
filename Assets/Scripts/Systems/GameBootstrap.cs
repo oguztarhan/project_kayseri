@@ -30,6 +30,7 @@ namespace Game.Systems
         [SerializeField] private SeaCombatConfig seaCombatConfig;
         [Tooltip("Atölye (zanaat) ayarları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
         [SerializeField] private CraftingConfig craftingConfig;
+        [SerializeField] private LiveEventConfig liveEventConfig;
         [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
@@ -68,6 +69,7 @@ namespace Game.Systems
         public CaptainService Captains { get; private set; }
         public ExpeditionService Expeditions { get; private set; }
         public CraftingService Crafting { get; private set; }
+        public LiveEventService LiveEvents { get; private set; }
 
         private TimeService _time;
         private NotificationService _notifications;
@@ -277,6 +279,16 @@ namespace Game.Systems
             ServiceLocator.Register(Expeditions);
             Expeditions.Crafting = Crafting;   // scraps teach the bench, wins can drop a point
             Crafting.Expeditions = Expeditions;   // wearing a crafted item goes through the sea's Equip
+
+            // The live-ops wrapper: the schedule only, with no event content on top of it yet. After
+            // the goals because event tasks are meant to be read off metrics that already exist, and
+            // after nothing else — it owns a window and two arrays and asks no service for anything.
+            // With no config wired it holds no events, which is exactly right for a build made before
+            // any were authored.
+            LiveEvents = new LiveEventService(Data,
+                liveEventConfig != null ? liveEventConfig.Definitions() : null,
+                _time, ServiceLocator.Get<IAnalytics>());
+            ServiceLocator.Register(LiveEvents);
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));

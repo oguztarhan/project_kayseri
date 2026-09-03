@@ -67,8 +67,11 @@ namespace Game.UI
                  "ekranin ortasina diziliyorlar, yani buradaki SIRA disinda ayarlanacak bir sey yok. " +
                  "Gorev ve ustabasi acicilari calisirken bu dizinin soluna ekleniyor.")]
         [SerializeField] private RectTransform[] bottomRow;
-        [Tooltip("Iki dugme merkezi arasi mesafe.")]
-        [SerializeField] private float bottomPitch = 220f;
+        [Tooltip("Iki dugme merkezi arasi mesafe. 220'den 195'e dusuruldu: sira ona ciktiginda " +
+                 "9x220+150 = 2130 birim tutuyor ve 16:9 bir telefonun ~2120 birimlik tuvaline " +
+                 "sigmiyordu. 195'te 1905 birim tutuyor, yani kenar boslugu dokuz dugmelik eski " +
+                 "siranin biraktigiyla ayni kaliyor.")]
+        [SerializeField] private float bottomPitch = 195f;
 
         [Header("Alt")]
         [SerializeField] private Button upgradeButton;

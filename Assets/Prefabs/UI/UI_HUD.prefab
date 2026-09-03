@@ -2350,7 +2350,7 @@ MonoBehaviour:
   - {fileID: 2917005833243783941}
   - {fileID: 757886399648465747}
   - {fileID: 6473718541971702952}
-  bottomPitch: 220
+  bottomPitch: 195
   upgradeButton: {fileID: 8797148836068495766}
   boostButton: {fileID: 5556939763442564306}
   boostButtonImage: {fileID: 661646733631015625}

@@ -444,9 +444,14 @@ MonoBehaviour:
   ticksPerSecond: 8
   economyConfig: {fileID: 11400000, guid: b2e5bce0d1ab0024b898717576f78629, type: 2}
   offlineConfig: {fileID: 11400000, guid: dc74bd4795524e34ea87d583cc982a4b, type: 2}
-  maintenanceConfig: {fileID: 0}
+  maintenanceConfig: {fileID: 11400000, guid: e792a67b1d9cc4b4e99317c7bae3d097, type: 2}
   foremanConfig: {fileID: 11400000, guid: 964ec14f0f8fc4d1c9369292300b4503, type: 2}
   voyageConfig: {fileID: 11400000, guid: c0742c772ab5843d7857b93153aaa136, type: 2}
+  chapterConfig: {fileID: 11400000, guid: e84e6e35f276e402fa4647b9345bac86, type: 2}
+  captainConfig: {fileID: 11400000, guid: 3483481a6f7ce4e42b9ee229b0869ea5, type: 2}
+  seaCombatConfig: {fileID: 11400000, guid: 2774fb97a737f429f92d33b5c0f869be, type: 2}
+  craftingConfig: {fileID: 11400000, guid: f5b81b1ad9000d44384a9d8dbb2f2335, type: 2}
+  liveEventConfig: {fileID: 11400000, guid: 208f6dffb28a74346907edcbe75a4eed, type: 2}
   contractConfig: {fileID: 11400000, guid: 786d965aa072ec7408e2e2092c56fc3e, type: 2}
   qualityConfig: {fileID: 11400000, guid: efcbe199e112c0f4698f74cd8d89063a, type: 2}
   audioConfig: {fileID: 11400000, guid: 91d15cd85764725469814094f92f7627, type: 2}
@@ -595,7 +600,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4293450239
+    rgba: 4289915135
   m_fontColor: {r: 1, g: 0.91, b: 0.7, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3

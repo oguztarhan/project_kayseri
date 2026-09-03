@@ -579,3 +579,10 @@ usta.bedava	BEDAVA	FREE	GRATIS	GRATUIT	GRATIS	GRÁTIS	GRATIS	ZA DARMO	БЕСПЛ
 usta.yeni	YENİ USTA!	NEW MASTER!	NEUER MEISTER!	NOUVEAU MAÎTRE !	¡NUEVO MAESTRO!	NOVO MESTRE!	NUOVO MAESTRO!	NOWY MISTRZ!	НОВЫЙ МАСТЕР!	MAESTRO BARU!	CAO THỦ MỚI!
 usta.devam	devam etmek için dokun	tap to continue	zum Fortfahren tippen	touchez pour continuer	toca para continuar	toque para continuar	tocca per continuare	dotknij, aby kontynuować	нажмите, чтобы продолжить	ketuk untuk lanjut	chạm để tiếp tục
 usta.nereden	Kart: sandıklar + görevler + seferler	Cards: chests + goals + voyages	Karten: Truhen + Ziele + Reisen	Cartes : coffres + objectifs + voyages	Cartas: cofres + objetivos + viajes	Cartas: baús + metas + viagens	Carte: forzieri + obiettivi + viaggi	Karty: skrzynie + cele + rejsy	Карты: сундуки + цели + рейсы	Kartu: peti + misi + pelayaran	Thẻ: rương + nhiệm vụ + chuyến đi
+# etkinlikler (LiveEventsUI) — sadece tr/en dolu; kalan diller İngilizceye düşer
+etkinlik.baslik	ETKİNLİKLER	EVENTS
+etkinlik.yok	Şu anda süren etkinlik yok.	No events running right now.
+etkinlik.suruyor	SÜRÜYOR	LIVE
+etkinlik.yakinda	YAKINDA	SOON
+etkinlik.kalan	Kalan	Time left
+etkinlik.basliyor	Başlıyor	Starts in

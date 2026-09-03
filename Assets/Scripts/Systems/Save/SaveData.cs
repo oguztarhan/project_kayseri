@@ -213,6 +213,33 @@ namespace Game.Systems
         // boosts, repairs and sea energy. 0 means never claimed, which reads as one waiting.
         public long masterFreeChestClaimUnix;
         public int masterChestsOpened;               // lifetime, for the chest shelf's own readout
+
+        // ---- canlı etkinlikler (LiveEventService) ------------------------------------------------
+        // One row per event the player has actually touched; an event nobody has opened has no row at
+        // all, so a config full of future events costs an untouched save nothing. Added WITHOUT a
+        // save-version bump, on the precedent every block above set: a null list is a player who has
+        // seen no event, which is exactly what every existing save is.
+        public List<LiveEventState> liveEvents = new List<LiveEventState>();
+    }
+
+    /// <summary>
+    /// One event's local state. Keyed by the event's own immutable id rather than an index, the shape
+    /// <see cref="ChapterState"/> uses and for the same reason: adding an event to the config must not
+    /// re-label the rows already in a save.
+    ///
+    /// TWO ARRAYS, AND ONLY ONE OF THEM IS EVER DROPPED. <see cref="progress"/> is re-tunable content
+    /// and is cleared when <see cref="configVersion"/> falls behind the definition — see
+    /// <c>LiveEvents.ProgressSurvives</c>. <see cref="claimed"/> is NOT: a reward already handed over
+    /// must never be handed over twice, so the flags survive every version bump. That asymmetry is the
+    /// whole idempotency story, and it is why the two are separate arrays instead of one struct.
+    /// </summary>
+    [Serializable]
+    public class LiveEventState
+    {
+        public string id;                 // the config's immutable event id
+        public int configVersion;         // the version progress below was earned under
+        public long[] progress;           // one counter per slot; padded on load
+        public bool[] claimed;            // one flag per slot; padded on load, never cleared
     }
 
     /// <summary>
