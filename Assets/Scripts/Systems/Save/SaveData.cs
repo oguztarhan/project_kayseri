@@ -319,6 +319,25 @@ namespace Game.Systems
         public double processingPerMinute;
         public double cashPerMinute;
         public List<ContractOfferSave> offers = new List<ContractOfferSave>();
+
+        // Offer identity. nextOfferId is the sequence the board stamps cards from; activeOfferId is
+        // which card the running job was signed off, and doubles as the "this save knows about ids"
+        // flag — a save written before them restores it as 0, which is how activeCards is told apart
+        // from a legitimate zero.
+        public int nextOfferId;
+        public int activeOfferId;
+        public int activeCards;
+
+        // The meter the board on the table was cut against, frozen for its life. Persisted rather than
+        // recomputed because it is what makes the board reproducible and what says whether the empire
+        // has since outgrown it — a restored board has to be able to answer both.
+        public double boardProcPerMinute;
+        public double boardCashPerMinute;
+
+        // Swaps spent on the ship currently at the pier. Reset when a NEW ship docks and by nothing
+        // else — persisted, and written to disk the moment one is spent, so killing the app cannot
+        // refund it.
+        public int rerollsUsed;
     }
 
     [Serializable]
@@ -328,6 +347,14 @@ namespace Game.Systems
         public float seconds;
         public double cash;
         public long gems;
+
+        // id is unique for the life of the save and is what a tap is matched against, so a card that
+        // was replaced between being drawn and being pressed cannot be accepted in the new one's
+        // place. cards is the foreman payout promised on the card, frozen here so the claim pays what
+        // the player was shown rather than recomputing it later.
+        public int id;
+        public int tier;
+        public int cards;
     }
 
     /// <summary>

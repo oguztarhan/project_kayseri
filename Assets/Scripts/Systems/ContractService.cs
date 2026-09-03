@@ -37,13 +37,24 @@ namespace Game.Systems
 
         public enum Result { None, Success, Failed }
 
-        /// <summary>One card on the table. Everything is locked in when the offers are rolled.</summary>
+        /// <summary>
+        /// One card on the table. Everything is locked in when the offers are rolled.
+        ///
+        /// <see cref="Id"/> is what a tap is matched against rather than the slot it was drawn in. The
+        /// slot is not enough on its own: a board that can replace a single card leaves the player
+        /// looking at a job that is no longer in the slot their finger is over, and a tier-only accept
+        /// would sign whatever took its place — a different target, a different clock, a different
+        /// payout from the one they read. An id that does not match is simply refused.
+        /// </summary>
         public struct Offer
         {
+            public int Id;
+            public int Tier;
             public double Units;
             public float Seconds;
             public double Cash;
             public long Gems;
+            public int Cards;
         }
 
         public const int EasyTier = 0, NormalTier = 1, HardTier = 2;
@@ -86,6 +97,9 @@ namespace Game.Systems
         private readonly float[] _tierPay = new float[TierCount];
         private readonly long[] _tierGems = new long[TierCount];
         private readonly float _arriveSeconds, _departSeconds, _cooldownSeconds;
+        private readonly double _boardRefreshFactor;
+        private readonly int _swapsPerVisit;
+        private int _rerollsUsed;
 
         private readonly Offer[] _offers = new Offer[TierCount];
 
@@ -98,12 +112,21 @@ namespace Game.Systems
         private double _procPerMinute;
         private double _cashPerMinute;
 
+        // The pair the board on the table was cut against. Read once when the board is cut and then
+        // frozen: the live meter keeps moving while the ship waits, and a card priced off a later
+        // reading than the one beside it would make the three cards incomparable.
+        private double _boardProc;
+        private double _boardCash;
+
         private double _difficulty = 1d;
 
         private double _target, _done;
         private double _activeCash;
         private long _activeGems;
         private int _activeTier = -1;   // -1 = restored from a save written before this was tracked
+        private int _nextOfferId = 1;   // ids start at 1 so that 0 can mean "this save predates them"
+        private int _activeOfferId;
+        private int _activeCards;
         private float _left;
 
         public ContractService(WalletService wallet, ContractConfig config, SaveData data = null,
@@ -129,6 +152,9 @@ namespace Game.Systems
             _cardsPerContract = config != null ? config.CardsPerContract : 2;
             _cardsStreakStep = config != null && config.CardsStreakStep > 0 ? config.CardsStreakStep : 5;
             _rewardFraction = config != null && config.RewardFraction > 0d ? config.RewardFraction : 0.45d;
+            _boardRefreshFactor = config != null && config.BoardRefreshFactor > 1d
+                                ? config.BoardRefreshFactor : 2d;
+            _swapsPerVisit = config != null ? config.SwapsPerVisit : 1;
 
             _tierRate[EasyTier] = config != null ? config.EasyRate : 0.6f;
             _tierMinutes[EasyTier] = config != null ? config.EasyMinutes : 15f;
@@ -161,6 +187,27 @@ namespace Game.Systems
 
         /// <summary>Three jobs are on the table. The only state where <see cref="Accept"/> does anything.</summary>
         public bool HasOffers => _state == PortState.Offering;
+
+        /// <summary>
+        /// Set when the board re-cut itself under the player, cleared by whoever reads it. The screen
+        /// uses it to redraw immediately: a refresh must never be able to slide new numbers under a
+        /// finger that is already on its way down, and between this and the id on every card a tap that
+        /// lands a moment too late is refused rather than signed against the wrong job.
+        /// </summary>
+        public bool BoardRefreshed { get; private set; }
+
+        public bool ConsumeBoardRefreshed()
+        {
+            if (!BoardRefreshed) return false;
+            BoardRefreshed = false;
+            return true;
+        }
+
+        /// <summary>Swaps the player can still make on the ship at the pier. Zero unless it is offering.</summary>
+        public int SwapsLeft
+            => _state == PortState.Offering && _swapsPerVisit > _rerollsUsed ? _swapsPerVisit - _rerollsUsed : 0;
+
+        public bool CanSwap => SwapsLeft > 0;
         public bool IsRunning => _state == PortState.Active;
         public bool Claimable => _state == PortState.Reward;
 
@@ -261,13 +308,17 @@ namespace Game.Systems
                     _stateLeft -= dt;
                     if (_stateLeft <= 0f)
                     {
-                        RollOffers();
+                        NewVisit();
                         Enter(PortState.Offering, 0f);
                     }
                     break;
 
                 case PortState.Offering:
-                    break;    // the ship waits. An offer the player did not see is not an offer.
+                    // The ship waits — an offer the player did not see is not an offer. But a board cut
+                    // against an empire they have since doubled is not an offer either, so it is re-cut
+                    // in place rather than left on the table insulting them.
+                    RefreshBoardIfStale();
+                    break;
 
                 case PortState.Active:
                     if (_done >= _target)
@@ -305,6 +356,17 @@ namespace Game.Systems
         /// Takes one of the three jobs. <paramref name="unitWord"/> is the ore word of the island whose
         /// port it was signed at, kept so the card still reads right after the player travels.
         /// </summary>
+        /// <summary>
+        /// Takes the job the player actually pressed. <paramref name="offerId"/> is the id the card was
+        /// drawn with: if the slot no longer holds it the tap is refused rather than signing whatever
+        /// moved in. Pass 0 to skip the check — that is the path a caller with no id takes.
+        /// </summary>
+        public bool Accept(int tier, int offerId, string unitWord)
+        {
+            if (offerId > 0 && (tier < 0 || tier >= TierCount || _offers[tier].Id != offerId)) return false;
+            return Accept(tier, unitWord);
+        }
+
         public bool Accept(int tier, string unitWord)
         {
             if (_state != PortState.Offering || tier < 0 || tier >= TierCount) return false;
@@ -318,6 +380,8 @@ namespace Game.Systems
             _activeCash = o.Cash;
             _activeGems = o.Gems;
             _activeTier = tier;
+            _activeOfferId = o.Id;
+            _activeCards = o.Cards;
             if (!string.IsNullOrEmpty(unitWord)) UnitWord = unitWord;
             LastResult = Result.None;
             Enter(PortState.Active, 0f);
@@ -341,10 +405,16 @@ namespace Game.Systems
             // makes finishing one worth the trip, and it scales with the streak the player has built.
             LastCardStation = -1;
             LastCards = 0;
-            if (_foremen != null && _cardsPerContract > 0)
+            if (_foremen != null)
             {
-                LastCards = _cardsPerContract + (int)(Streak / _cardsStreakStep);
-                LastCardStation = _foremen.GrantRandomDuplicates(LastCards);
+                // A job signed before offers carried a card count restores with activeOfferId 0, and
+                // there is no frozen number to pay — work it out the way that save would have.
+                int cards = _activeOfferId > 0 ? _activeCards : CardsFor();
+                if (cards > 0)
+                {
+                    LastCards = cards;
+                    LastCardStation = _foremen.GrantRandomDuplicates(cards);
+                }
             }
 
             _goals?.Record(Game.Core.Goals.Contracts);
@@ -398,17 +468,64 @@ namespace Game.Systems
             UnitWord = string.IsNullOrEmpty(_save.unitWord) ? "COAL" : _save.unitWord;
             _procPerMinute = _save.processingPerMinute;
             _cashPerMinute = _save.cashPerMinute;
+            _boardProc = _save.boardProcPerMinute;
+            _boardCash = _save.boardCashPerMinute;
+            _rerollsUsed = _save.rerollsUsed < 0 ? 0 : _save.rerollsUsed;
+            _nextOfferId = _save.nextOfferId > 0 ? _save.nextOfferId : 1;
+            _activeOfferId = _save.activeOfferId;
+            _activeCards = _save.activeCards;
 
             if (_save.offers != null)
                 for (int i = 0; i < TierCount && i < _save.offers.Count; i++)
                 {
                     ContractOfferSave o = _save.offers[i];
                     if (o == null) continue;
-                    _offers[i] = new Offer { Units = o.units, Seconds = o.seconds, Cash = o.cash, Gems = o.gems };
+                    _offers[i] = new Offer
+                    {
+                        Id = o.id,
+                        Tier = o.tier,
+                        Units = o.units,
+                        Seconds = o.seconds,
+                        Cash = o.cash,
+                        Gems = o.gems,
+                        Cards = o.cards,
+                    };
                 }
 
+            Normalise();
             RestoreWallClockState();
             Sync();
+        }
+
+        /// <summary>
+        /// Re-stamps a board restored from a save written before offers carried identity. Those rows come
+        /// back with id 0, tier 0 and no card count — three cards all claiming to be the easy one, none
+        /// of which a tap can be matched against.
+        ///
+        /// Bumping the save version would fix it by deleting every live save on every device, which is
+        /// an absurd price for three fields that can be derived: the slot IS the tier, the ids come from
+        /// the sequence, and the card count follows from the streak restored alongside it.
+        /// </summary>
+        private void Normalise()
+        {
+            for (int i = 0; i < TierCount; i++)
+            {
+                Offer o = _offers[i];
+                o.Tier = i;
+                if (o.Id <= 0) o.Id = _nextOfferId++;
+                if (o.Cards <= 0 && o.Units > 0d) o.Cards = CardsFor();
+                _offers[i] = o;
+            }
+
+            // A board restored from a save written before the frozen meter existed has nothing to say
+            // what it was cut against. Adopting the restored meter is the one honest answer available:
+            // it cannot be wrong in the direction that matters, because the alternative — leaving it at
+            // zero — would either never refresh the board or refresh it on the very next tick.
+            if (_boardProc <= 0d && _save.initialized)
+            {
+                _boardProc = _procPerMinute;
+                _boardCash = _cashPerMinute;
+            }
         }
 
         private void RestoreWallClockState()
@@ -435,7 +552,7 @@ namespace Game.Systems
                 }
             }
 
-            RollOffers();
+            NewVisit();
             _state = PortState.Offering;
             _stateLeft = 0f;
             _stateSpan = 0f;
@@ -473,6 +590,12 @@ namespace Game.Systems
             _save.unitWord = UnitWord;
             _save.processingPerMinute = _procPerMinute;
             _save.cashPerMinute = _cashPerMinute;
+            _save.boardProcPerMinute = _boardProc;
+            _save.boardCashPerMinute = _boardCash;
+            _save.rerollsUsed = _rerollsUsed;
+            _save.nextOfferId = _nextOfferId;
+            _save.activeOfferId = _activeOfferId;
+            _save.activeCards = _activeCards;
             if (_save.offers == null) _save.offers = new System.Collections.Generic.List<ContractOfferSave>();
             while (_save.offers.Count < TierCount) _save.offers.Add(new ContractOfferSave());
             for (int i = 0; i < TierCount; i++)
@@ -483,6 +606,9 @@ namespace Game.Systems
                 o.seconds = source.Seconds;
                 o.cash = source.Cash;
                 o.gems = source.Gems;
+                o.id = source.Id;
+                o.tier = source.Tier;
+                o.cards = source.Cards;
             }
         }
 
@@ -536,42 +662,123 @@ namespace Game.Systems
             _procSpan = 0f;
         }
 
-        private void RollOffers()
+        /// <summary>
+        /// A ship docking is the one thing that refills the swap budget. Kept apart from
+        /// <see cref="RollOffers"/> because a board also re-cuts itself when the empire outgrows it, and
+        /// that is the board's doing, not the player's — see <see cref="RefreshBoardIfStale"/>.
+        /// </summary>
+        private void NewVisit()
         {
-            for (int i = 0; i < TierCount; i++)
-            {
-                double units = _procPerMinute * _tierMinutes[i] * _tierRate[i] * _difficulty;
-
-                // The floor keeps the opening minutes sane, scaled by the tier so the three cards do not
-                // collapse into the same number before the meter has anything in it.
-                double floor = _floorUnits * _tierRate[i] * (_tierMinutes[i] / _normalMinutes);
-                if (units < floor) units = floor;
-
-                double cash = _cashPerMinute * _tierMinutes[i] * _rewardFraction * _tierPay[i];
-                double cashFloor = _rewardFloor * _tierPay[i];
-                if (cash < cashFloor) cash = cashFloor;
-
-                _offers[i] = new Offer
-                {
-                    Units = RoundNice(units),
-                    Seconds = _tierMinutes[i] * 60f,
-                    Cash = cash,
-                    Gems = _tierGems[i],
-                };
-            }
+            _rerollsUsed = 0;
+            RollOffers();
         }
 
         /// <summary>
-        /// Two significant digits — "50K", not "50,432". A contract is a headline the player reads in a
-        /// second; the precision the meter produces would be noise on the card and noise in the bar.
+        /// Cuts a fresh board. The meter is read ONCE, here, and frozen for the board's life — every
+        /// slot filled afterwards reads the frozen pair, so the three cards stay one coherent offer
+        /// rather than a pile of jobs priced at different moments.
         /// </summary>
-        private static double RoundNice(double v)
+        private void RollOffers()
         {
-            if (v <= 0d) return 0d;
-            if (v < 10d) return System.Math.Ceiling(v);
-            double mag = System.Math.Pow(10d, System.Math.Floor(System.Math.Log10(v)) - 1d);
-            return System.Math.Round(v / mag) * mag;
+            _boardProc = _procPerMinute;
+            _boardCash = _cashPerMinute;
+            for (int i = 0; i < TierCount; i++) _offers[i] = CutOffer(i, 1f);
         }
+
+        /// <summary>
+        /// Replaces one card with a different job of the same tier, on the visit's budget. Replace, not
+        /// decline: an empty slot is a board with fewer choices on it, which is worse than the board the
+        /// player was unhappy with. The tier keeps its rate and its pay-per-minute — only the window
+        /// moves, and the units and cash move with it, so there is nothing to gain by swapping other than
+        /// a job whose length suits the player better.
+        ///
+        /// Written to disk at once. A swap that was only in memory would come back on the next launch,
+        /// and "kill the app to get your swap back" is the kind of trick players share.
+        /// </summary>
+        public bool Swap(int tier, int offerId)
+        {
+            if (_state != PortState.Offering || tier < 0 || tier >= TierCount) return false;
+            if (_rerollsUsed >= _swapsPerVisit) return false;
+            Offer old = _offers[tier];
+            if (old.Units <= 0d) return false;
+            if (offerId > 0 && old.Id != offerId) return false;
+
+            float authored = _tierMinutes[tier] * 60f;
+            float current = authored > 0f ? old.Seconds / authored : 1f;
+            _rerollsUsed++;
+            _offers[tier] = CutOffer(tier, ContractBoard.WindowScale(_nextOfferId, current));
+            Sync();
+            Commit();
+            _analytics?.Log("contract_swap", "tier", tier);
+            return true;
+        }
+
+        /// <summary>
+        /// Cuts the job for one slot against the board's frozen meter. <paramref name="windowScale"/> is
+        /// 1 for a rolled card and one of <see cref="ContractBoard.WindowScale"/>'s shapes for a swapped
+        /// one; it is chosen from the id the card is about to get, so the save alone can re-cut it.
+        /// </summary>
+        private Offer CutOffer(int tier, float windowScale)
+        {
+            ContractBoard.Terms terms = ContractBoard.Cut(
+                new ContractBoard.Tier
+                {
+                    Rate = _tierRate[tier],
+                    Minutes = _tierMinutes[tier] * windowScale,
+                    Pay = _tierPay[tier],
+                    Gems = _tierGems[tier],
+                },
+                new ContractBoard.Meter
+                {
+                    ProcPerMinute = _boardProc,
+                    CashPerMinute = _boardCash,
+                    Difficulty = _difficulty,
+                },
+                new ContractBoard.Floors
+                {
+                    Units = _floorUnits,
+                    Cash = _rewardFloor,
+                    RewardFraction = _rewardFraction,
+                    NormalMinutes = _normalMinutes,
+                },
+                windowScale);
+
+            return new Offer
+            {
+                Id = _nextOfferId++,
+                Tier = tier,
+                Units = terms.Units,
+                Seconds = terms.Seconds,
+                Cash = terms.Cash,
+                Gems = terms.Gems,
+                Cards = CardsFor(),
+            };
+        }
+
+        /// <summary>
+        /// Re-cuts the board if the empire has outgrown it. <see cref="ContractBoard.IsStale"/> carries
+        /// why that is measured as growth and not as elapsed time.
+        ///
+        /// It deliberately leaves the swap budget alone. That budget is the player's to spend on a card
+        /// they do not like, and a board correcting its own arithmetic is not the player spending
+        /// anything — refilling it here would make growing the empire the cheapest way to buy re-rolls.
+        /// </summary>
+        private void RefreshBoardIfStale()
+        {
+            if (!ContractBoard.IsStale(_procPerMinute, _boardProc, _boardRefreshFactor)) return;
+            RollOffers();
+            BoardRefreshed = true;
+            Sync();
+        }
+
+        /// <summary>
+        /// How many foreman cards a job rolled right now would pay. Read at roll time and carried on the
+        /// card itself, because it is a number the player is shown before they choose: recomputing it at
+        /// claim time would let the promise on the card and the payout drift apart the moment anything
+        /// else moves the streak.
+        /// </summary>
+        private int CardsFor()
+            => _cardsPerContract <= 0 ? 0 : _cardsPerContract + (int)(Streak / _cardsStreakStep);
 
         /// <summary>Smoothstep, so the hull eases off the horizon and settles onto the pier.</summary>
         private static float Ease(float t)

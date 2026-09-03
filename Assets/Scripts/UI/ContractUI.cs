@@ -99,6 +99,15 @@ namespace Game.UI
         private readonly TMP_Text[] _offerTime = new TMP_Text[ContractService.TierCount];
         private readonly TMP_Text[] _offerPay = new TMP_Text[ContractService.TierCount];
         private readonly TMP_Text[] _offerGems = new TMP_Text[ContractService.TierCount];
+        private readonly TMP_Text[] _offerCards = new TMP_Text[ContractService.TierCount];
+        private readonly GameObject[] _offerSwap = new GameObject[ContractService.TierCount];
+
+        // What the three cards are currently showing. Refresh runs ten times a second for the clock on
+        // the RUNNING job, but an offer does not change while it sits on the table — rebuilding its four
+        // strings anyway allocated a dozen strings per tick, all of them identical to the last dozen,
+        // for as long as the player left the screen open. The ids say when there is really new text.
+        private readonly int[] _shownOfferId = new int[ContractService.TierCount];
+        private string _shownUnit;
 
         private void Awake()
         {
@@ -168,6 +177,9 @@ namespace Game.UI
         {
             if (_contract == null) _contract = ServiceLocator.Get<ContractService>();
             if (_contract == null || panelRoot == null) return;
+            // Nothing here watches for a language change, so the cached offer text is thrown away every
+            // time the screen opens rather than being trusted across a trip to the settings menu.
+            _shownUnit = null;
             Refresh();
             panelRoot.SetActive(true);
         }
@@ -243,21 +255,55 @@ namespace Game.UI
         private void RefreshOffers()
         {
             string unit = OreWord();
+            // Consumed first and unconditionally: a board that re-cut itself has to reach the screen
+            // even in the vanishingly unlikely case that it came back with the same ids.
+            bool changed = _contract.ConsumeBoardRefreshed();
+            changed |= !string.Equals(unit, _shownUnit);
+            for (int i = 0; i < ContractService.TierCount && !changed; i++)
+                changed = _shownOfferId[i] != _contract.GetOffer(i).Id;
+            if (!changed) return;
+
+            _shownUnit = unit;
             for (int i = 0; i < ContractService.TierCount; i++)
             {
                 ContractService.Offer o = _contract.GetOffer(i);
+                _shownOfferId[i] = o.Id;
                 if (_offerTask[i] != null)
                     _offerTask[i].text = string.Format(Loc.T("kontrat.isle"), Units(o.Units), unit);
                 if (_offerTime[i] != null) _offerTime[i].text = ClockText(o.Seconds);
                 if (_offerPay[i] != null) _offerPay[i].text = "$" + NumberFormatter.Format(new BigDouble(o.Cash));
                 if (_offerGems[i] != null) _offerGems[i].text = "+" + o.Gems;
+                if (_offerCards[i] != null)
+                    _offerCards[i].text = o.Cards > 0
+                        ? "+" + o.Cards + " " + Loc.T("ustabasi.kart")
+                        : string.Empty;
+                // The budget is per visit, not per card: once it is spent every swap goes, so the
+                // screen does not present a control that would only ever refuse.
+                if (_offerSwap[i] != null && _offerSwap[i].activeSelf != _contract.CanSwap)
+                    _offerSwap[i].SetActive(_contract.CanSwap);
             }
+        }
+
+        private void OnSwap(int tier)
+        {
+            if (_contract == null || !_contract.HasOffers) return;
+            if (!_contract.Swap(tier, _shownOfferId[tier]))
+            {
+                var denied = ServiceLocator.Get<AudioService>();
+                if (denied != null) denied.Play(SoundId.Denied);
+                return;
+            }
+            var audio = ServiceLocator.Get<AudioService>();
+            if (audio != null) audio.Play(SoundId.Tap);
+            Refresh();
         }
 
         private void OnAccept(int tier)
         {
             if (_contract == null || !_contract.HasOffers) return;
-            if (!_contract.Accept(tier, OreWord())) return;
+            // The id the card was drawn with, so a board that changed under the finger refuses the tap
+            // instead of signing whatever moved into the slot. The next refresh draws the new one.
+            if (!_contract.Accept(tier, _shownOfferId[tier], OreWord())) return;
             var audio = ServiceLocator.Get<AudioService>();
             if (audio != null) audio.Play(SoundId.Upgrade);
             Refresh();
@@ -365,13 +411,33 @@ namespace Game.UI
             btn.targetGraphic = img;
             btn.onClick.AddListener(() => OnAccept(captured));
 
-            // Everything on one centre line, band by band: difficulty, pay, the job, the two-item meta
+            // Everything on one centre line, band by band: difficulty, pay, the job, the three-item meta
             // row, then the button. Left-aligned in a card this narrow the four bands each started at a
             // different place and the card read as a form; centred they read as one card.
             _offerTier[tier] = Text(rt, "Zorluk", 30, TextAlignmentOptions.Center,
                                     new Vector2(0.06f, 0.815f), new Vector2(0.94f, 0.945f));
             _offerTier[tier].text = Loc.T(tierKey);
             _offerTier[tier].color = tint;
+
+            // The swap sits in the card's top-right corner, over the empty end of the difficulty band —
+            // the label is centred and one word, so the corner is free. It is a Button of its own on top
+            // of the card's Button: the raycast goes to the topmost graphic, so pressing it never signs.
+            var swapGo = new GameObject("Degistir", typeof(RectTransform), typeof(Image), typeof(Button));
+            var swapRt = (RectTransform)swapGo.transform;
+            swapRt.SetParent(rt, false);
+            Stretch(swapRt, new Vector2(0.66f, 0.845f), new Vector2(0.95f, 0.935f));
+            var swapImg = swapGo.GetComponent<Image>();
+            swapImg.sprite = UiSkin.Flat;
+            swapImg.type = Image.Type.Sliced;
+            swapImg.color = new Color(tint.r, tint.g, tint.b, 0.12f);
+            var swapBtn = swapGo.GetComponent<Button>();
+            swapBtn.targetGraphic = swapImg;
+            swapBtn.onClick.AddListener(() => OnSwap(captured));
+            TMP_Text swapLabel = Text(swapRt, "Yazi", 20, TextAlignmentOptions.Center,
+                                      new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.96f));
+            swapLabel.text = Loc.T("kontrat.degistir");
+            swapLabel.color = tint;
+            _offerSwap[tier] = swapGo;
 
             // The rule under the difficulty carries the tier colour across the whole card, which is
             // what the tinted header plate used to do — without washing the white panel out.
@@ -384,13 +450,21 @@ namespace Game.UI
             _offerTask[tier] = Text(rt, "Is", 32, TextAlignmentOptions.Center,
                                     new Vector2(0.06f, 0.430f), new Vector2(0.94f, 0.590f));
 
-            _offerTime[tier] = Text(rt, "Sure", 27, TextAlignmentOptions.Center,
-                                    new Vector2(0.06f, 0.275f), new Vector2(0.49f, 0.410f));
+            // Clock, gems and foreman cards share the band in equal thirds. The cards were the whole
+            // reason a contract is worth running and the card never said so — a player comparing three
+            // jobs could only see the cash. Three columns instead of two costs each of them a few points
+            // of type, which is why this row is smaller than the job line above it.
+            _offerTime[tier] = Text(rt, "Sure", 24, TextAlignmentOptions.Center,
+                                    new Vector2(0.05f, 0.275f), new Vector2(0.35f, 0.410f));
             _offerTime[tier].color = Dim(_offerTime[tier].color, 0.6f);
 
-            _offerGems[tier] = Text(rt, "Elmas", 27, TextAlignmentOptions.Center,
-                                    new Vector2(0.51f, 0.275f), new Vector2(0.94f, 0.410f));
+            _offerGems[tier] = Text(rt, "Elmas", 24, TextAlignmentOptions.Center,
+                                    new Vector2(0.35f, 0.275f), new Vector2(0.65f, 0.410f));
             _offerGems[tier].color = new Color(0.16f, 0.45f, 0.78f);
+
+            _offerCards[tier] = Text(rt, "Kart", 24, TextAlignmentOptions.Center,
+                                     new Vector2(0.65f, 0.275f), new Vector2(0.95f, 0.410f));
+            _offerCards[tier].color = new Color(0.42f, 0.27f, 0.62f);
 
             Sprite pill = acceptButtons != null && tier < acceptButtons.Length ? acceptButtons[tier] : null;
             Image action = Plate(rt, "KabulSeridi", new Vector2(0.075f, 0.065f),

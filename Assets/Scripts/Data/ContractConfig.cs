@@ -56,6 +56,14 @@ namespace Game.Data
         [SerializeField] private float hardPay = 2.2f;
         [SerializeField] private long hardGems = 4;
 
+        [Tooltip("Masadaki işler, imparatorluk bu katsayı kadar büyüdüğünde yeniden kesilir. " +
+                 "2 = oyuncunun işleme hızı, kartlar kesildiğindekinin iki katına çıktığında. " +
+                 "Süreye değil büyümeye bakar: cihaz saatini oynatarak kazanılacak bir şey yok.")]
+        [SerializeField] private double boardRefreshFactor = 2d;
+        [Tooltip("Gemi her yanaştığında oyuncu masadaki kaç kartı değiştirebilir. Değiştirme kartın " +
+                 "kademesini korur, yalnız süresini (ve onunla birlikte birim ile parayı) değiştirir.")]
+        [SerializeField] private int swapsPerVisit = 1;
+
         [Header("Gemi")]
         [Tooltip("Geminin ufuktan iskeleye yanaşması kaç saniye sürsün.")]
         [SerializeField] private float shipArriveSeconds = 14f;
@@ -71,6 +79,8 @@ namespace Game.Data
         public int CardsPerContract => cardsPerContract;
         public int CardsStreakStep => cardsStreakStep;
         public double RewardFraction => rewardFraction;
+        public double BoardRefreshFactor => boardRefreshFactor;
+        public int SwapsPerVisit => swapsPerVisit;
 
         public float EasyRate => easyRate;
         public float EasyMinutes => easyMinutes;
