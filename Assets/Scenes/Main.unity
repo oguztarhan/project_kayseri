@@ -3887,6 +3887,7 @@ GameObject:
   - component: {fileID: 1815842462}
   - component: {fileID: 1815842463}
   - component: {fileID: 1815842464}
+  - component: {fileID: 1815842465}
   m_Layer: 0
   m_Name: UI_Sistemler
   m_TagString: Untagged
@@ -4048,6 +4049,7 @@ MonoBehaviour:
   backdrop: {r: 0.15, g: 0.18, b: 0.26, a: 1}
   liveTint: {r: 0.36, g: 0.82, b: 0.45, a: 1}
   soonTint: {r: 0.55, g: 0.62, b: 0.74, a: 1}
+  owedTint: {r: 0.98, g: 0.74, b: 0.24, a: 1}
 --- !u!114 &1815842464
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4070,6 +4072,36 @@ MonoBehaviour:
   chipPill: {fileID: 21300000, guid: c18d7c8c854bb6d42b94e1c00b8d7afd, type: 3}
   scrim: {r: 0.04, g: 0.05, b: 0.08, a: 0.86}
   backdrop: {r: 0.15, g: 0.18, b: 0.26, a: 1}
+--- !u!114 &1815842465
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1815842457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bfa1f56a4e5a5e64eac0653a16b3e841, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.FoundryFestivalUI
+  sortingOrder: 111
+  cardPanel: {fileID: 21300000, guid: 1125b2190619d4442a365e93b38a1e89, type: 3}
+  ribbon: {fileID: 21300000, guid: d207130faa601b6419b96a5c83de301b, type: 3}
+  actionButton: {fileID: 21300000, guid: 345a67c51b7da264691760f1b48fb44c, type: 3}
+  closeIcon: {fileID: 21300000, guid: c2f09f179f4db9249b3b975e79af645d, type: 3}
+  barTrack: {fileID: 21300000, guid: 696a899d16e5119418ea7ad4d8756826, type: 3}
+  barFill: {fileID: 21300000, guid: e9d2f24e40d781a46ac7f99a5c83863e, type: 3}
+  chipPill: {fileID: 21300000, guid: c18d7c8c854bb6d42b94e1c00b8d7afd, type: 3}
+  gemIcon: {fileID: 21300000, guid: 9a0ed1473fb90ee48b4dc79cd5eecbe2, type: 3}
+  scrim: {r: 0.04, g: 0.05, b: 0.08, a: 0.9}
+  backdrop: {r: 0.15, g: 0.18, b: 0.26, a: 1}
+  card: {r: 0.16, g: 0.19, b: 0.27, a: 1}
+  track: {r: 0.1, g: 0.11, b: 0.16, a: 1}
+  taskFill: {r: 0.35, g: 0.72, b: 0.98, a: 1}
+  pointFill: {r: 0.98, g: 0.74, b: 0.24, a: 1}
+  dayOpen: {r: 0.36, g: 0.82, b: 0.45, a: 1}
+  dayPast: {r: 0.3, g: 0.36, b: 0.48, a: 1}
+  dayLocked: {r: 0.2, g: 0.23, b: 0.3, a: 1}
 --- !u!1001 &1835558045
 PrefabInstance:
   m_ObjectHideFlags: 0

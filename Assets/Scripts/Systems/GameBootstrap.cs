@@ -31,6 +31,8 @@ namespace Game.Systems
         [Tooltip("Atölye (zanaat) ayarları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
         [SerializeField] private CraftingConfig craftingConfig;
         [SerializeField] private LiveEventConfig liveEventConfig;
+        [Tooltip("Döküm Şenliği'nin görev ve sandık tablosu. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
+        [SerializeField] private FoundryFestivalConfig foundryFestivalConfig;
         [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
@@ -70,6 +72,7 @@ namespace Game.Systems
         public ExpeditionService Expeditions { get; private set; }
         public CraftingService Crafting { get; private set; }
         public LiveEventService LiveEvents { get; private set; }
+        public FoundryFestivalService Festival { get; private set; }
 
         private TimeService _time;
         private NotificationService _notifications;
@@ -280,15 +283,24 @@ namespace Game.Systems
             Expeditions.Crafting = Crafting;   // scraps teach the bench, wins can drop a point
             Crafting.Expeditions = Expeditions;   // wearing a crafted item goes through the sea's Equip
 
-            // The live-ops wrapper: the schedule only, with no event content on top of it yet. After
-            // the goals because event tasks are meant to be read off metrics that already exist, and
-            // after nothing else — it owns a window and two arrays and asks no service for anything.
-            // With no config wired it holds no events, which is exactly right for a build made before
-            // any were authored.
+            // The live-ops wrapper: the schedule only. After the goals because event tasks are read
+            // off metrics that already exist, and after nothing else — it owns a window and two
+            // arrays and asks no service for anything. With no config wired it holds no events, which
+            // is exactly right for a build made before any were authored.
             LiveEvents = new LiveEventService(Data,
                 liveEventConfig != null ? liveEventConfig.Definitions() : null,
                 _time, ServiceLocator.Get<IAnalytics>());
             ServiceLocator.Register(LiveEvents);
+
+            // The first module on top of it. Last of the lot on purpose: it pays out through the
+            // wallet, the roster, the captains and the boost clock, and reads the goal tallies, so
+            // every one of them has to exist first. With no festival on the schedule it is inert —
+            // Available reads false and nothing above it draws.
+            Festival = new FoundryFestivalService(LiveEvents, Goals, Wallet,
+                foundryFestivalConfig != null ? foundryFestivalConfig.ToTuning()
+                                              : Game.Core.FoundryFestival.Tuning.Default,
+                Foremen, Captains, boost, Data, Save, _time);
+            ServiceLocator.Register(Festival);
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
@@ -395,6 +407,11 @@ namespace Game.Systems
         {
             if (paused)
             {
+                // Before the save, because the festival's counters only move when something reads
+                // them: this is the one moment a read cannot be relied on to happen again while the
+                // window is still open. A player who finishes a task and immediately leaves on the
+                // last evening would otherwise lose it to the closing second.
+                Festival?.Sync();
                 Save?.Save(Data);
                 _notifications?.ScheduleAway();
             }

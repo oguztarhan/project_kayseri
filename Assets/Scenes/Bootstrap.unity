@@ -452,6 +452,7 @@ MonoBehaviour:
   seaCombatConfig: {fileID: 11400000, guid: 2774fb97a737f429f92d33b5c0f869be, type: 2}
   craftingConfig: {fileID: 11400000, guid: f5b81b1ad9000d44384a9d8dbb2f2335, type: 2}
   liveEventConfig: {fileID: 11400000, guid: 208f6dffb28a74346907edcbe75a4eed, type: 2}
+  foundryFestivalConfig: {fileID: 11400000, guid: 8c7a982c500b32b43ad7da2f598b5141, type: 2}
   contractConfig: {fileID: 11400000, guid: 786d965aa072ec7408e2e2092c56fc3e, type: 2}
   qualityConfig: {fileID: 11400000, guid: efcbe199e112c0f4698f74cd8d89063a, type: 2}
   audioConfig: {fileID: 11400000, guid: 91d15cd85764725469814094f92f7627, type: 2}

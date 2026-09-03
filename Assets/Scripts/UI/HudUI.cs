@@ -107,6 +107,7 @@ namespace Game.UI
 
         private WalletService _wallet;
         private ContractService _contract;
+        private FoundryFestivalService _festival;
         private BoostService _boost;
         private MaintenanceService _maintenance;
         private WorldIslands _world;
@@ -130,6 +131,7 @@ namespace Game.UI
         {
             _wallet = ServiceLocator.Get<WalletService>();
             _contract = ServiceLocator.Get<ContractService>();
+            _festival = ServiceLocator.Get<FoundryFestivalService>();
             _boost = ServiceLocator.Get<BoostService>();
             _maintenance = ServiceLocator.Get<MaintenanceService>();
             _world = FindAnyObjectByType<WorldIslands>();
@@ -279,6 +281,11 @@ namespace Game.UI
             _timer -= Time.unscaledDeltaTime;
             if (_timer > 0f) return;
             _timer = refreshInterval;
+            // The festival banks the goal counters only when something reads it, and nothing does
+            // while its board is shut. Four times a second here bounds what the closing second of a
+            // festival can swallow to a quarter of one — the same reason ContractService is ticked
+            // from this Update rather than from its own screen.
+            _festival?.Sync();
             Refresh();
         }
 

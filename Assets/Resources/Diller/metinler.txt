@@ -586,3 +586,12 @@ etkinlik.suruyor	SÜRÜYOR	LIVE
 etkinlik.yakinda	YAKINDA	SOON
 etkinlik.kalan	Kalan	Time left
 etkinlik.basliyor	Başlıyor	Starts in
+etkinlik.odul	ÖDÜL VAR	REWARD
+etkinlik.senlik_2026_09	Döküm Şenliği	Foundry Festival
+senlik.baslik	DÖKÜM ŞENLİĞİ	FOUNDRY FESTIVAL
+senlik.yok	Şu anda şenlik yok.	No festival right now.
+senlik.bitti	Şenlik sona erdi	The festival has ended
+senlik.kilitli	Kilitli	Locked
+senlik.hepsini_al	HEPSİNİ AL	CLAIM ALL
+senlik.sandiklar	SANDIKLAR	CHESTS
+senlik.puan	puan	points

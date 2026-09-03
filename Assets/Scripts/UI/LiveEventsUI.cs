@@ -14,14 +14,14 @@ namespace Game.UI
     /// should cost one row there and nothing here. The opener is order 5 in the HUD's bottom row, after
     /// the workshop.
     ///
-    /// IT LISTS THE COMING AND THE RUNNING, NOT THE FINISHED. A closed event is left off, and that is a
-    /// deliberate limit of this slice rather than an oversight: the service counts progress but does not
-    /// know what any event's TARGETS are — that arithmetic belongs to the module which owns the content —
-    /// so the board cannot honestly tell a closed event that still owes a reward from one the player
-    /// merely opened once. Drawing "reward waiting" over the second kind would be a lie the player taps.
-    /// The rule itself is not weakened by leaving it out: <see cref="LiveEventService.MarkClaimed"/>
-    /// never checks the window, so an earned slot stays claimable forever whatever this screen draws.
-    /// The first real event module is what gets to put the finished ones back on screen.
+    /// IT LISTS THE COMING, THE RUNNING, AND THE FINISHED THAT STILL OWE. The last of those needs a
+    /// module to be honest about: the service counts progress but does not know what any event's
+    /// TARGETS are, so only the module owning the content can tell a closed event that is holding a
+    /// reward from one the player merely opened once. <see cref="FoundryFestivalService"/> answers
+    /// that for the festival, and until a second module exists a closed event of any other kind is
+    /// still left off — drawing "reward waiting" over one nobody can settle would be a lie the player
+    /// taps. <see cref="LiveEventService.MarkClaimed"/> never checks the window either way, so an
+    /// earned slot stays claimable forever whatever this screen draws.
     ///
     /// The once-a-second Update only drives the countdowns, and only while the board is open.
     /// </summary>
@@ -48,6 +48,8 @@ namespace Game.UI
         [SerializeField] private Color liveTint = new Color(0.36f, 0.82f, 0.45f, 1f);
         [Tooltip("Henüz açılmamış etkinliğin rozeti.")]
         [SerializeField] private Color soonTint = new Color(0.55f, 0.62f, 0.74f, 1f);
+        [Tooltip("Bitmiş ama ödülü duran etkinliğin rozeti.")]
+        [SerializeField] private Color owedTint = new Color(0.98f, 0.74f, 0.24f, 1f);
 
         /// <summary>The rail button's icon. Missing until the art lands — see Docs/ASSETS.md.</summary>
         private const string OpenerIconResource = "UI/Buttons/etkinlik";
@@ -61,6 +63,8 @@ namespace Game.UI
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
 
         private LiveEventService _events;
+        private FoundryFestivalService _festival;
+        private FoundryFestivalUI _festivalUI;
         private LocalizationService _loc;
         private RectTransform _root;
 
@@ -82,9 +86,12 @@ namespace Game.UI
         private void Awake()
         {
             _events = ServiceLocator.Get<LiveEventService>();
+            _festival = ServiceLocator.Get<FoundryFestivalService>();
+            _festivalUI = FindAnyObjectByType<FoundryFestivalUI>(FindObjectsInactive.Include);
             Build();
             BuildOpener();
             if (_events != null) _events.Changed += OnChanged;
+            if (_festival != null) _festival.Changed += OnChanged;
             _loc = ServiceLocator.Get<LocalizationService>();
             if (_loc != null) _loc.Changed += OnLanguageChanged;
             Hide();
@@ -94,6 +101,7 @@ namespace Game.UI
         private void OnDestroy()
         {
             if (_events != null) _events.Changed -= OnChanged;
+            if (_festival != null) _festival.Changed -= OnChanged;
             if (_loc != null) _loc.Changed -= OnLanguageChanged;
         }
 
@@ -189,6 +197,14 @@ namespace Game.UI
             _cardRoot[i] = card;
             _cardEvent[i] = -1;
 
+            // The card is the way into whatever the event actually is. A kind with no screen yet does
+            // nothing when tapped rather than opening an empty one.
+            card.GetComponent<Image>().raycastTarget = true;
+            int captured = i;
+            var open = card.gameObject.AddComponent<Button>();
+            open.transition = Selectable.Transition.None;
+            open.onClick.AddListener(() => OpenCard(captured));
+
             _cardName[i] = UiBuild.Label(Slot(card, "Ad", new Vector2(0.040f, 0.480f), new Vector2(0.640f, 0.920f)),
                                          "Text", string.Empty, 34, TextAnchor.MiddleLeft);
             _cardName[i].color = Ink;
@@ -228,14 +244,17 @@ namespace Game.UI
         /// </summary>
         private void Refresh()
         {
+            if (_root == null || !_root.gameObject.activeSelf) return;
+
             for (int i = 0; i < MaxCards; i++) _cardEvent[i] = -1;
 
             int used = 0;
             if (_events != null)
             {
-                // Running first, then the ones still to come: what the player can act on outranks what
-                // they can only wait for.
+                // What the player can act on outranks what they can only wait for: running first,
+                // then a finished festival still holding a reward, then the ones still to come.
                 used = Seat(LiveEvents.Phase.Active, used);
+                used = SeatOwed(used);
                 used = Seat(LiveEvents.Phase.Upcoming, used);
             }
 
@@ -267,49 +286,80 @@ namespace Game.UI
         private void RefreshCard(int i)
         {
             LiveEvents.Definition d = _events.At(_cardEvent[i]);
-            bool live = _events.PhaseOf(d.Id) == LiveEvents.Phase.Active;
+            LiveEvents.Phase phase = _events.PhaseOf(d.Id);
+            bool live = phase == LiveEvents.Phase.Active;
+            bool owed = phase == LiveEvents.Phase.Closed;   // only ever seated while it owes something
 
             if (_cardName[i] != null) _cardName[i].text = Loc.Id("etkinlik", d.Id);
-            if (_cardState[i] != null) _cardState[i].text = Loc.T(live ? "etkinlik.suruyor" : "etkinlik.yakinda");
-            if (_cardBadge[i] != null) _cardBadge[i].color = live ? liveTint : soonTint;
+
+            if (_cardState[i] != null)
+                _cardState[i].text = Loc.T(owed ? "etkinlik.odul"
+                                                : live ? "etkinlik.suruyor" : "etkinlik.yakinda");
+            if (_cardBadge[i] != null) _cardBadge[i].color = owed ? owedTint : live ? liveTint : soonTint;
 
             if (_cardClock[i] == null) return;
+            if (owed)
+            {
+                _cardClock[i].text = Loc.T("gorev.al") + " ×" + _festival.PendingCount();
+                return;
+            }
+
             long seconds = live ? _events.SecondsLeft(d.Id) : _events.SecondsUntilStart(d.Id);
-            _cardClock[i].text = Loc.T(live ? "etkinlik.kalan" : "etkinlik.basliyor") + " " + Span(seconds);
+            _cardClock[i].text = Loc.T(live ? "etkinlik.kalan" : "etkinlik.basliyor")
+                                 + " " + HudUI.LongClock(seconds);
+        }
+
+        /// <summary>
+        /// Puts a finished festival back on the board while it still holds a reward — FIVE_LAYERS.md
+        /// R3 made visible, since <see cref="LiveEventService.MarkClaimed"/> would honour the claim
+        /// whether or not there were anywhere left to make it.
+        /// </summary>
+        private int SeatOwed(int used)
+        {
+            if (_festival == null || used >= MaxCards) return used;
+            if (_festival.PendingCount() <= 0) return used;
+
+            string id = _festival.Id;
+            if (string.IsNullOrEmpty(id)) return used;
+
+            for (int e = 0; e < _events.Count; e++)
+            {
+                if (_events.At(e).Id != id) continue;
+                if (_events.PhaseOf(id) == LiveEvents.Phase.Closed) _cardEvent[used++] = e;
+                break;      // a running one is seated already, an upcoming one owes nothing
+            }
+            return used;
+        }
+
+        /// <summary>Opens the module behind a card. Only the festival has a screen so far.</summary>
+        private void OpenCard(int card)
+        {
+            if (_events == null || card < 0 || card >= MaxCards || _cardEvent[card] < 0) return;
+            if (_events.At(_cardEvent[card]).Kind != FoundryFestival.Kind) return;
+            if (_festivalUI != null) _festivalUI.Show();
         }
 
         private void RefreshOpener()
         {
             if (_openerChip == null || _events == null) return;
 
-            int live = 0;
+            // Running events plus rewards waiting — both are the board asking to be opened, and a
+            // badge that cannot count the second kind goes dark on the day a festival ends still
+            // holding a chest.
+            int waiting = 0;
             for (int e = 0; e < _events.Count; e++)
             {
                 LiveEvents.Definition d = _events.At(e);
-                if (_events.Visible(d.Id) && _events.PhaseOf(d.Id) == LiveEvents.Phase.Active) live++;
+                if (_events.Visible(d.Id) && _events.PhaseOf(d.Id) == LiveEvents.Phase.Active) waiting++;
             }
+            if (_festival != null) waiting += _festival.PendingCount();
 
-            if (_openerChip.activeSelf != (live > 0)) _openerChip.SetActive(live > 0);
-            if (live > 0 && _openerCount != null)
+            if (_openerChip.activeSelf != (waiting > 0)) _openerChip.SetActive(waiting > 0);
+            if (waiting > 0 && _openerCount != null)
             {
-                string text = live.ToString();
+                string text = waiting.ToString();
                 if (_openerCount.text != text) _openerCount.text = text;
             }
-        }
-
-        /// <summary>A countdown as days and hours, or hours and minutes under a day. Invariant so a
-        /// Turkish device and an English one print the same digits.</summary>
-        private static string Span(long seconds)
-        {
-            if (seconds <= 0L) return "0:00";
-            long days = seconds / 86400L;
-            long hours = seconds % 86400L / 3600L;
-            if (days > 0L) return days + "g " + hours + "s";
-
-            long minutes = seconds % 3600L / 60L;
-            return hours > 0L
-                ? hours + ":" + minutes.ToString("00", System.Globalization.CultureInfo.InvariantCulture)
-                : minutes + ":" + (seconds % 60L).ToString("00", System.Globalization.CultureInfo.InvariantCulture);
         }
 
         // ------------------------------------------------------------------ pieces

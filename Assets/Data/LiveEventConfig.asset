@@ -12,4 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 132242dd1d9ad2040ab6277b84dd486c, type: 3}
   m_Name: LiveEventConfig
   m_EditorClassIdentifier: Game.Data::Game.Data.LiveEventConfig
-  events: []
+  events:
+  - id: senlik_2026_09
+    kind: 1
+    startUtc: 2026-09-01 00:00
+    durationDays: 7
+    configVersion: 1
+    slots: 32
+    minIslands: 0
