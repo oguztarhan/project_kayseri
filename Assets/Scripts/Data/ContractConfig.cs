@@ -32,8 +32,8 @@ namespace Game.Data
         [SerializeField] private long rewardGems = 2;
 
         [Header("Ustabaşı kartları")]
-        [Tooltip("Her tamamlanan kontratın verdiği kart sayısı. Kartlar satın alınamaz, sadece " +
-                 "kazanılır — kadroyu ilerleten asıl şey budur.")]
+        [Tooltip("NORMAL kontratın verdiği kart sayısı; kolay ve zor kendi sayılarını taşır. Kartlar " +
+                 "satın alınamaz, sadece kazanılır — kadroyu ilerleten asıl şey budur.")]
         [SerializeField] private int cardsPerContract = 2;
         [Tooltip("Kaç kontratlık seride bir, kart ödülü 1 artar.")]
         [SerializeField] private int cardsStreakStep = 5;
@@ -48,6 +48,9 @@ namespace Game.Data
         [Tooltip("Ödül çarpanı — NORMAL'in katı.")]
         [SerializeField] private float easyPay = 0.5f;
         [SerializeField] private long easyGems = 1;
+        [Tooltip("KOLAY kontratın kartı. Zorluk seçimini para değil kart yönlendirmeli: kolay iş " +
+                 "zaten pasif oynayışın verdiği şey, kadroyu ilerletmesi de ona göre olmalı.")]
+        [SerializeField] private int easyCards = 1;
 
         [Header("ZOR")]
         [Tooltip("1'in üstü: pasif oynayış yetmez, hızlandırıcı ya da yükseltme ister.")]
@@ -55,6 +58,9 @@ namespace Game.Data
         [SerializeField] private float hardMinutes = 7f;
         [SerializeField] private float hardPay = 2.2f;
         [SerializeField] private long hardGems = 4;
+        [Tooltip("ZOR kontratın kartı. Kartın satın alınamayan tek ödül olması, zoru seçmenin asıl " +
+                 "sebebi bu olduğu anlamına geliyor.")]
+        [SerializeField] private int hardCards = 3;
 
         [Tooltip("Masadaki işler, imparatorluk bu katsayı kadar büyüdüğünde yeniden kesilir. " +
                  "2 = oyuncunun işleme hızı, kartlar kesildiğindekinin iki katına çıktığında. " +
@@ -63,6 +69,9 @@ namespace Game.Data
         [Tooltip("Gemi her yanaştığında oyuncu masadaki kaç kartı değiştirebilir. Değiştirme kartın " +
                  "kademesini korur, yalnız süresini (ve onunla birlikte birim ile parayı) değiştirir.")]
         [SerializeField] private int swapsPerVisit = 1;
+        [Tooltip("Süren iş, bu orandan daha kötü gidiyorsa oyuncu uyarılır. 0,95 = mevcut hızla " +
+                 "hedefin %95'ine ulaşılıyorsa hâlâ yolunda sayılır.")]
+        [SerializeField] private double paceWarnBelow = 0.95d;
 
         [Header("Gemi")]
         [Tooltip("Geminin ufuktan iskeleye yanaşması kaç saniye sürsün.")]
@@ -81,16 +90,19 @@ namespace Game.Data
         public double RewardFraction => rewardFraction;
         public double BoardRefreshFactor => boardRefreshFactor;
         public int SwapsPerVisit => swapsPerVisit;
+        public double PaceWarnBelow => paceWarnBelow;
 
         public float EasyRate => easyRate;
         public float EasyMinutes => easyMinutes;
         public float EasyPay => easyPay;
         public long EasyGems => easyGems;
+        public int EasyCards => easyCards;
 
         public float HardRate => hardRate;
         public float HardMinutes => hardMinutes;
         public float HardPay => hardPay;
         public long HardGems => hardGems;
+        public int HardCards => hardCards;
 
         public float ShipArriveSeconds => shipArriveSeconds;
         public float ShipDepartSeconds => shipDepartSeconds;

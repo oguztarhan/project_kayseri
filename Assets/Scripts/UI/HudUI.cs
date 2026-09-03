@@ -494,8 +494,13 @@ namespace Game.UI
             switch (_contract.State)
             {
                 case ContractService.PortState.Reward:
-                case ContractService.PortState.Offering:
                     return Loc.T("ortak.hazir");
+                // A board and a finished job both want the player, but not for the same reason, and
+                // "READY" for both made the chip say the same thing whether there was a reward sitting
+                // there or a choice to make. The count also stops being a lie if a fourth card is ever
+                // added, which "three offers" in the notification text used to be.
+                case ContractService.PortState.Offering:
+                    return string.Format(Loc.T("kontrat.is_sayisi"), _contract.OfferCount);
                 case ContractService.PortState.Active:
                     return ContractUI.ClockText(_contract.SecondsLeft);
                 case ContractService.PortState.Away:

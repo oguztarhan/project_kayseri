@@ -12,7 +12,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f08da0481ea54245bc05f91ba76f759, type: 3}
   m_Name: ContractConfig
   m_EditorClassIdentifier: Game.Data::Game.Data.ContractConfig
-  targetUnits: 50
-  timeLimitSeconds: 90
+  floorUnits: 50
+  normalMinutes: 10
   rewardCash: 500
   rewardGems: 2
+  cardsPerContract: 2
+  cardsStreakStep: 5
+  rewardFraction: 0.45
+  easyRate: 0.6
+  easyMinutes: 15
+  easyPay: 0.5
+  easyGems: 1
+  easyCards: 1
+  hardRate: 1.6
+  hardMinutes: 7
+  hardPay: 2.2
+  hardGems: 4
+  hardCards: 3
+  boardRefreshFactor: 2
+  swapsPerVisit: 1
+  paceWarnBelow: 0.95
+  shipArriveSeconds: 14
+  shipDepartSeconds: 16
+  shipCooldownSeconds: 60

@@ -96,9 +96,11 @@ namespace Game.Systems
         private readonly float[] _tierMinutes = new float[TierCount];
         private readonly float[] _tierPay = new float[TierCount];
         private readonly long[] _tierGems = new long[TierCount];
+        private readonly int[] _tierCards = new int[TierCount];
         private readonly float _arriveSeconds, _departSeconds, _cooldownSeconds;
         private readonly double _boardRefreshFactor;
         private readonly int _swapsPerVisit;
+        private readonly double _paceWarnBelow;
         private int _rerollsUsed;
 
         private readonly Offer[] _offers = new Offer[TierCount];
@@ -155,21 +157,25 @@ namespace Game.Systems
             _boardRefreshFactor = config != null && config.BoardRefreshFactor > 1d
                                 ? config.BoardRefreshFactor : 2d;
             _swapsPerVisit = config != null ? config.SwapsPerVisit : 1;
+            _paceWarnBelow = config != null && config.PaceWarnBelow > 0d ? config.PaceWarnBelow : 0.95d;
 
             _tierRate[EasyTier] = config != null ? config.EasyRate : 0.6f;
             _tierMinutes[EasyTier] = config != null ? config.EasyMinutes : 15f;
             _tierPay[EasyTier] = config != null ? config.EasyPay : 0.5f;
             _tierGems[EasyTier] = config != null ? config.EasyGems : 1L;
+            _tierCards[EasyTier] = config != null ? config.EasyCards : 1;
 
             _tierRate[NormalTier] = 1f;
             _tierMinutes[NormalTier] = _normalMinutes;
             _tierPay[NormalTier] = 1f;
+            _tierCards[NormalTier] = _cardsPerContract;
             _tierGems[NormalTier] = _rewardGems;
 
             _tierRate[HardTier] = config != null ? config.HardRate : 1.6f;
             _tierMinutes[HardTier] = config != null ? config.HardMinutes : 7f;
             _tierPay[HardTier] = config != null ? config.HardPay : 2.2f;
             _tierGems[HardTier] = config != null ? config.HardGems : 4L;
+            _tierCards[HardTier] = config != null ? config.HardCards : 3;
 
             _arriveSeconds = config != null && config.ShipArriveSeconds > 0.5f ? config.ShipArriveSeconds : 14f;
             _departSeconds = config != null && config.ShipDepartSeconds > 0.5f ? config.ShipDepartSeconds : 16f;
@@ -202,6 +208,49 @@ namespace Game.Systems
             BoardRefreshed = false;
             return true;
         }
+
+        /// <summary>
+        /// How many jobs are actually on the table. Counted rather than assumed to be
+        /// <see cref="TierCount"/>, because a restored board can carry an empty slot and the number is
+        /// read straight out to the player.
+        /// </summary>
+        public int OfferCount
+        {
+            get
+            {
+                if (_state != PortState.Offering) return 0;
+                int n = 0;
+                for (int i = 0; i < TierCount; i++) if (_offers[i].Units > 0d) n++;
+                return n;
+            }
+        }
+
+        /// <summary>
+        /// Where the running job is heading if nothing changes: 1 means the target lands exactly on the
+        /// deadline, below 1 means it does not land at all. 0 when no job is running.
+        ///
+        /// Measured at the rate the islands are ACTUALLY smelting, boost included, rather than at the
+        /// sustained rate the board was sized against. "At this rate" is the question the player is
+        /// asking, and answering it with a figure that ignores the x2 they are watching right now would
+        /// call them behind while they are pulling ahead.
+        /// </summary>
+        public double Pace
+        {
+            get
+            {
+                if (_state != PortState.Active || _target <= 0d) return 0d;
+                double mult = _boost != null ? _boost.ActiveMultiplier : 1d;
+                return (_done + _procPerMinute * mult * (_left / 60d)) / _target;
+            }
+        }
+
+        /// <summary>
+        /// Whether the running job will be missed at the current rate. Gated on the meter having read
+        /// something: a fresh save projects from zero and would call every job hopeless before the
+        /// furnace had run for ten seconds.
+        /// </summary>
+        public bool BehindPace
+            => _state == PortState.Active && _procPerMinute > 0d && Pace < _paceWarnBelow;
 
         /// <summary>Swaps the player can still make on the ship at the pier. Zero unless it is offering.</summary>
         public int SwapsLeft
@@ -391,12 +440,27 @@ namespace Game.Systems
             return true;
         }
 
-        /// <summary>Pays the delivered job and sends the ship out. No-op unless the target was met.</summary>
-        public bool Claim()
+        /// <summary>
+        /// Pays the delivered job and sends the ship out. No-op unless the target was met.
+        ///
+        /// <paramref name="cashMultiplier"/> is 2 when the player watched a rewarded ad for it and 1
+        /// otherwise, and it multiplies the CASH ONLY. Gems and foreman cards are deliberately left
+        /// alone: cash is the resource the game already inflates by design, so doubling it costs the
+        /// economy nothing that upgrading an island would not, while cards are the one reward that
+        /// cannot be bought and are what the whole contract loop exists to pay out. An ad that doubled
+        /// those would make watching ads the fastest way to build the roster.
+        ///
+        /// The multiplier is applied INSIDE the claim rather than added to the wallet afterwards, so
+        /// the single <see cref="Commit"/> at the end of this method carries the doubled figure. A
+        /// caller that paid the bonus separately would leave a window where the ad had been watched,
+        /// the wallet credited, and nothing on disk to prove it.
+        /// </summary>
+        public bool Claim(double cashMultiplier = 1d)
         {
             if (_state != PortState.Reward) return false;
 
-            _wallet.AddCash(new BigDouble(_activeCash));
+            double cash = cashMultiplier > 1d ? _activeCash * cashMultiplier : _activeCash;
+            _wallet.AddCash(new BigDouble(cash));
             _wallet.AddGems(_activeGems);
 
             // Foreman cards. Contracts were dead content — a whole ship, a timer and a state machine
@@ -408,8 +472,11 @@ namespace Game.Systems
             if (_foremen != null)
             {
                 // A job signed before offers carried a card count restores with activeOfferId 0, and
-                // there is no frozen number to pay — work it out the way that save would have.
-                int cards = _activeOfferId > 0 ? _activeCards : CardsFor();
+                // there is no frozen number to pay — work it out the way that save would have. Such a
+                // save has no tier either, and CardsFor falls back to NORMAL for it: that is the tier
+                // whose count is the old flat cardsPerContract, so the job pays exactly what it was
+                // signed for rather than being rounded up or down by this change.
+                int cards = _activeOfferId > 0 ? _activeCards : CardsFor(_activeTier);
                 if (cards > 0)
                 {
                     LastCards = cards;
@@ -426,6 +493,7 @@ namespace Game.Systems
             Sync();
             Commit();
             _analytics?.Log("contract_claim", "tier", _activeTier);
+            if (cashMultiplier > 1d) _analytics?.Log("contract_claim_doubled", "tier", _activeTier);
             return true;
         }
 
@@ -513,7 +581,7 @@ namespace Game.Systems
                 Offer o = _offers[i];
                 o.Tier = i;
                 if (o.Id <= 0) o.Id = _nextOfferId++;
-                if (o.Cards <= 0 && o.Units > 0d) o.Cards = CardsFor();
+                if (o.Cards <= 0 && o.Units > 0d) o.Cards = CardsFor(i);
                 _offers[i] = o;
             }
 
@@ -626,17 +694,22 @@ namespace Game.Systems
             => value >= (int)Result.None && value <= (int)Result.Failed;
 
         /// <summary>
-        /// The income figure with any running boost divided back out.
+        /// A meter reading with any running boost divided back out.
         ///
-        /// The meter handed to <see cref="Tick"/> comes from the market, which multiplies every sale by
-        /// the active boost — while the smelter output that SIZES the job does not move at all, because
-        /// a boost is applied when a bar is sold, not when ore is processed. Priced off the raw meter, a
-        /// board rolled during a x2 boost asks for the same units at twice the cash, and
-        /// <see cref="Accept"/> then freezes that number for the whole contract: watch a boost ad, wait
-        /// a minute for the ship, and every offer on the table pays double for the same ore.
+        /// BOTH meters need this, and the reason is that a boost on the island being played is spent on
+        /// TIME rather than on price — see <see cref="MarketService.IslandTimeScale"/>. The whole chain
+        /// runs at x2, so during a boost the cash meter reads double AND the furnace reports double.
         ///
-        /// An offer has to be priced off what the empire earns, not off what it happens to be earning
-        /// in the ninety seconds the player arranged for the ship to arrive in.
+        /// Normalising only one of them would tilt the board rather than level it: cash alone leaves a
+        /// boosted board asking twice the ore for the same money, units alone leaves it paying twice the
+        /// money for the same ore. Normalising both means a board is always sized and priced against
+        /// what the empire sustains, so it is the same board whether or not the player happened to
+        /// arrange a x2 for the minute the ship docked — and, because <see cref="Accept"/> freezes those
+        /// numbers for the whole contract, that is the difference between a job and a loophole.
+        ///
+        /// It also leaves the boost doing something honest: a job sized against sustained output really
+        /// is easier to clear with a x2 running, which is what makes <see cref="BehindPace"/> worth
+        /// acting on.
         /// </summary>
         private double Unboosted(double cashPerMinute)
         {
@@ -654,7 +727,7 @@ namespace Game.Systems
             _procSpan += dt;
             if (_procSpan < SampleSeconds) return;
 
-            double sample = _procAccum / _procSpan * 60d;
+            double sample = Unboosted(_procAccum / _procSpan * 60d);
             _procPerMinute = _procPerMinute <= 0d
                 ? sample
                 : _procPerMinute * (1d - SampleBlend) + sample * SampleBlend;
@@ -751,7 +824,7 @@ namespace Game.Systems
                 Seconds = terms.Seconds,
                 Cash = terms.Cash,
                 Gems = terms.Gems,
-                Cards = CardsFor(),
+                Cards = CardsFor(tier),
             };
         }
 
@@ -772,13 +845,23 @@ namespace Game.Systems
         }
 
         /// <summary>
-        /// How many foreman cards a job rolled right now would pay. Read at roll time and carried on the
-        /// card itself, because it is a number the player is shown before they choose: recomputing it at
-        /// claim time would let the promise on the card and the payout drift apart the moment anything
-        /// else moves the streak.
+        /// How many foreman cards a job of this tier rolled right now would pay. Read at roll time and
+        /// carried on the card itself, because it is a number the player is shown before they choose:
+        /// recomputing it at claim time would let the promise on the card and the payout drift apart the
+        /// moment anything else moves the streak.
+        ///
+        /// One, two and three by tier. Cash already separates the tiers, but cash is the resource the
+        /// game inflates — by the third island the difference between the easy job's pay and the hard
+        /// one's is a rounding error against passive income, and the choice collapses. Cards do not
+        /// inflate and cannot be bought, so making them the thing that actually differs is what keeps
+        /// "which job?" a real question for the whole game rather than the first hour of it.
         /// </summary>
-        private int CardsFor()
-            => _cardsPerContract <= 0 ? 0 : _cardsPerContract + (int)(Streak / _cardsStreakStep);
+        private int CardsFor(int tier)
+        {
+            if (tier < 0 || tier >= TierCount) tier = NormalTier;
+            int baseCards = _tierCards[tier];
+            return baseCards <= 0 ? 0 : baseCards + (int)(Streak / _cardsStreakStep);
+        }
 
         /// <summary>Smoothstep, so the hull eases off the horizon and settles onto the pier.</summary>
         private static float Ease(float t)

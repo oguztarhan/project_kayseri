@@ -211,7 +211,7 @@ namespace Game.Systems
             {
                 Id = "contract:offers",
                 Title = Loc.T("bildirim.kontrat_geldi_baslik"),
-                Message = Loc.T("bildirim.kontrat_geldi"),
+                Message = string.Format(Loc.T("bildirim.kontrat_geldi"), ContractService.TierCount),
                 Target = "contract",
                 AfterSeconds = untilOffers,
                 Priority = 80

@@ -84,8 +84,32 @@ namespace Game.UI
         [Tooltip("Sayaç akarken ekranın yenilenme aralığı (saniye).")]
         [SerializeField] private float refreshInterval = 0.1f;
 
+        [Header("Reklamla iki katı")]
+        [Tooltip("Kontrat ödülünü ikiye katlamak için günde kaç kez reklam izlenebilir. Mağazadan " +
+                 "alınan ek hak bu yuvaya işlemez — bkz. AdSlotId.")]
+        [SerializeField] private int adChargesPerDay = 2;
+
+        /// <summary>
+        /// This screen's own rewarded-ad slot. Separate from every other slot on purpose: the daily
+        /// allowance here is the contract loop's, and sharing an id with the offline bonus or the free
+        /// cash button would let one screen eat the other's charges.
+        ///
+        /// The store's freeRewardBonusCharges perk is deliberately NOT added to this slot's allowance.
+        /// Contract cash scales with the empire rather than being a flat handout, so a bought charge
+        /// here would be worth more the further in the player is — an unbounded purchase, which is not
+        /// what that perk was priced as. AdRewardUI is the only place it applies.
+        /// </summary>
+        private const string AdSlotId = "kontrat";
+
         private ContractService _contract;
         private CoalOperation _op;
+        private IAdService _ad;
+        private FreeRewardService _free;
+        private BoostService _boost;
+        private AdRewardUI _adScreen;
+        private GameObject _pacePrompt;
+        private GameObject _adPill;
+        private TMP_Text _adPillLabel;
         private GameObject _slotRoot;   // the authored "SIRADAKİ KONTRAT" slot — part of the running view
         private float _barFullWidth;
         private float _timer;
@@ -117,6 +141,13 @@ namespace Game.UI
         private void Start()
         {
             _contract = ServiceLocator.Get<ContractService>();
+            _ad = ServiceLocator.Get<IAdService>();
+            _free = ServiceLocator.Get<FreeRewardService>();
+            _boost = ServiceLocator.Get<BoostService>();
+            // The ad screen is a scene object rather than a service, so it is found once here and kept.
+            // HudUI has it as an Inspector field; this screen does not need one wired to ask it for the
+            // same boost the HUD's own button asks for.
+            _adScreen = FindAnyObjectByType<AdRewardUI>(FindObjectsInactive.Include);
             if (barFillArea != null) _barFullWidth = barFillArea.rect.width;
             if (cardRoot == null && cardImage != null) cardRoot = cardImage.gameObject;
             _slotRoot = SiblingOfCard(streakText);
@@ -126,6 +157,8 @@ namespace Game.UI
 
             BuildOffers();
             BuildStatus();
+            BuildAdPill();
+            BuildPacePrompt();
 
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
@@ -210,6 +243,8 @@ namespace Game.UI
             else if (card) RefreshCard(reward);
             else RefreshStatus(state);
 
+            RefreshPacePrompt(state);
+
             if (card && streakText != null)
                 streakText.text = _contract.Streak > 0
                     ? string.Format(Loc.T("kontrat.seri"), _contract.Streak)
@@ -225,6 +260,13 @@ namespace Game.UI
             if (timerChip != null) timerChip.SetActive(!done);
             if (rewardRow != null) rewardRow.SetActive(!done);
             if (claimButton != null) claimButton.gameObject.SetActive(done);
+            // Out of charges hides the pill rather than dimming it, the way the offline bonus does: a
+            // dead control on a reward screen reads as the game being broken, not as a limit.
+            if (_adPill != null)
+            {
+                bool offer = done && AdReady && CanDouble;
+                if (_adPill.activeSelf != offer) _adPill.SetActive(offer);
+            }
 
             if (targetText != null)
                 targetText.text = done
@@ -238,6 +280,157 @@ namespace Game.UI
             if (rewardCashText != null) rewardCashText.text = "$" + NumberFormatter.Format(_contract.Reward);
             if (rewardGemsText != null) rewardGemsText.text = "+" + _contract.RewardGems;
             if (claimLabel != null) claimLabel.text = Loc.T("ortak.odulu_al");
+        }
+
+        /// <summary>
+        /// The "you are going to miss this" strip, shown under the running card only while the job is
+        /// actually heading for a miss. It offers the one thing that changes the outcome: a boost speeds
+        /// the furnace up rather than only the money, so the ×2 really does close the gap — see
+        /// <see cref="ContractService.Pace"/>.
+        ///
+        /// Under the card rather than on it. The card is full — badge, target, clock, bar, reward row —
+        /// and every attempt to fit another control onto it lands on top of something. The panel below it
+        /// is empty, the strip only exists while it is needed, and it is anchored off the card's own rect
+        /// so the two stay together in whichever layout is running.
+        /// </summary>
+        private void BuildPacePrompt()
+        {
+            if (runningCard == null || runningCard.parent == null) return;
+
+            var go = new GameObject("HizUyarisi", typeof(RectTransform), typeof(Image), typeof(Button));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(runningCard.parent, false);
+            rt.anchorMin = runningCard.anchorMin;
+            rt.anchorMax = runningCard.anchorMax;
+            rt.pivot = runningCard.pivot;
+            float height = 96f;
+            rt.sizeDelta = new Vector2(runningCard.sizeDelta.x * 0.86f, height);
+            rt.anchoredPosition = runningCard.anchoredPosition
+                                - new Vector2(0f, runningCard.rect.height * 0.5f + height * 0.5f + 22f);
+
+            Sprite pill = acceptButtons != null && acceptButtons.Length > ContractService.NormalTier
+                        ? acceptButtons[ContractService.NormalTier] : null;
+            var img = go.GetComponent<Image>();
+            img.sprite = pill != null ? pill : UiSkin.Flat;
+            img.type = Image.Type.Sliced;
+            img.color = pill != null ? Color.white : (Color)new Color32(0xE8, 0xA3, 0x17, 0xFF);
+            if (pill != null) PillFit.Wrap(img);
+
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(OnPacePrompt);
+
+            TMP_Text label = Text(rt, "Yazi", 28, TextAlignmentOptions.Center,
+                                  new Vector2(0.05f, 0.12f), new Vector2(0.95f, 0.88f));
+            label.text = Loc.T("kontrat.geride");
+            label.color = new Color32(0x1B, 0x22, 0x3A, 0xFF);
+
+            _pacePrompt = go;
+            _pacePrompt.SetActive(false);
+        }
+
+        /// <summary>
+        /// Hidden unless it can do something. Not behind, no ad to show, or a boost already running —
+        /// in all three the strip would be either a lie or a control that refuses, and the running card
+        /// is the last place in the game to put one of those.
+        /// </summary>
+        private void RefreshPacePrompt(ContractService.PortState state)
+        {
+            if (_pacePrompt == null) return;
+            bool warn = state == ContractService.PortState.Active
+                     && _contract.BehindPace
+                     && AdReady
+                     && _adScreen != null
+                     && (_boost == null || !_boost.IsActive);
+            if (_pacePrompt.activeSelf != warn) _pacePrompt.SetActive(warn);
+        }
+
+        private void OnPacePrompt()
+        {
+            if (_adScreen == null) return;
+            _adScreen.WatchBoost();
+        }
+
+        /// <summary>Whether an ad can be shown at all — owning remove-ads counts as ready.</summary>
+        private bool AdReady => (_free != null && _free.AdsRemoved) || (_ad != null && _ad.Available);
+
+        /// <summary>
+        /// No cooldown is passed. A contract is its own spacing: the ship has to sail, come back and be
+        /// finished again before this button exists a second time, which is minutes at the very best.
+        /// The daily charge count is what caps it.
+        /// </summary>
+        private bool CanDouble => _free == null || _free.CanWatch(AdSlotId, adChargesPerDay, 0f);
+
+        private void OnDoubleClaim()
+        {
+            if (_contract == null || !_contract.Claimable || !AdReady || !CanDouble) return;
+            if (_free != null && _free.AdsRemoved) { PayDoubled(); return; }
+            _ad.ShowRewarded(PayDoubled);
+        }
+
+        /// <summary>
+        /// Runs when the ad has actually paid out. The charge is spent BEFORE the claim so that the one
+        /// save the claim writes carries both — a charge that reached the wallet but not the disk is a
+        /// free second ad on the next launch. Re-checking Claimable first is what makes that safe: the
+        /// state is Reward, so the claim below cannot fail and cannot leave the charge spent for nothing.
+        /// </summary>
+        private void PayDoubled()
+        {
+            if (_contract == null || !_contract.Claimable) return;
+            if (_free != null) _free.Consume(AdSlotId);
+            if (!_contract.Claim(2d)) return;
+            var audio = ServiceLocator.Get<AudioService>();
+            if (audio != null) audio.Play(SoundId.Coin);
+            ServiceLocator.Get<RatingPromptService>()?.RecordContractSuccess();
+            Refresh();
+        }
+
+        /// <summary>
+        /// The double-it pill, built into the slot the countdown chip occupies while the job is running.
+        /// That slot is the one piece of the card that is guaranteed free at exactly the moment this
+        /// button exists: <see cref="RefreshCard"/> hides the chip the instant the target is met, and the
+        /// rest of the card — the ore badge, the TARGET MET pill, the full bar, the claim button — is
+        /// occupied in this state. Borrowing the chip's rect rather than authoring numbers means the two
+        /// cannot drift apart if the card is ever relaid out.
+        ///
+        /// Built in code rather than wired in the Inspector because the authored card has no slot for it,
+        /// and the three offer cards already set the precedent for this screen drawing its own controls.
+        /// </summary>
+        private void BuildAdPill()
+        {
+            var chipRt = timerChip != null ? timerChip.transform as RectTransform : null;
+            if (chipRt == null || chipRt.parent == null) return;
+
+            var go = new GameObject("ReklamIkiKat", typeof(RectTransform), typeof(Image), typeof(Button));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(chipRt.parent, false);
+            rt.anchorMin = chipRt.anchorMin;
+            rt.anchorMax = chipRt.anchorMax;
+            rt.pivot = chipRt.pivot;
+            rt.sizeDelta = new Vector2(chipRt.sizeDelta.x, chipRt.sizeDelta.y * 0.8f);
+            rt.anchoredPosition = chipRt.anchoredPosition;
+
+            // The amber accept pill this screen already owns — the colour the game's ad buttons wear,
+            // and art that is already in the atlas rather than a flat rectangle pretending to be a button.
+            Sprite pill = acceptButtons != null && acceptButtons.Length > ContractService.NormalTier
+                        ? acceptButtons[ContractService.NormalTier] : null;
+            var img = go.GetComponent<Image>();
+            img.sprite = pill != null ? pill : UiSkin.Flat;
+            img.type = Image.Type.Sliced;
+            img.color = pill != null ? Color.white : (Color)new Color32(0xE8, 0xA3, 0x17, 0xFF);
+            if (pill != null) PillFit.Wrap(img);
+
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(OnDoubleClaim);
+
+            _adPillLabel = Text(rt, "Yazi", 26, TextAlignmentOptions.Center,
+                                new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.88f));
+            _adPillLabel.text = Loc.T("kontrat.odul_iki_kat");
+            _adPillLabel.color = new Color32(0x1B, 0x22, 0x3A, 0xFF);   // dark ink, as on the amber tier
+
+            _adPill = go;
+            _adPill.SetActive(false);
         }
 
         private void OnClaim()
@@ -273,9 +466,13 @@ namespace Game.UI
                 if (_offerTime[i] != null) _offerTime[i].text = ClockText(o.Seconds);
                 if (_offerPay[i] != null) _offerPay[i].text = "$" + NumberFormatter.Format(new BigDouble(o.Cash));
                 if (_offerGems[i] != null) _offerGems[i].text = "+" + o.Gems;
+                // The easy job pays one, and "+1 cards" is not something a shipped game says. Only
+                // the singular needs its own word: the plural row already covers every count above one,
+                // and the languages that inflect further than that do not agree on where.
                 if (_offerCards[i] != null)
                     _offerCards[i].text = o.Cards > 0
-                        ? "+" + o.Cards + " " + Loc.T("ustabasi.kart")
+                        ? "+" + o.Cards + " " + Loc.T(o.Cards == 1 ? "ustabasi.kart_tekil"
+                                                                  : "ustabasi.kart")
                         : string.Empty;
                 // The budget is per visit, not per card: once it is spent every swap goes, so the
                 // screen does not present a control that would only ever refuse.

@@ -203,32 +203,37 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void ABoardRolledDuringABoostIsNotPricedAtTheBoostedRate()
+        public void ABoardRolledDuringABoostIsNeitherPricedNorSizedAtTheBoostedRate()
         {
-            // The market multiplies every sale by the running boost while the smelters that have to
-            // fill the job do not speed up at all, so a x2 boost reaches Tick as a doubled income. Both
-            // boards below are handed what the meter would really read, and must price alike: otherwise
-            // a boost ad watched a minute before the ship docks doubles every offer on the table.
+            // A boost on the island being played is spent on TIME, not on price — the whole chain runs
+            // at x2 — so during one the cash meter reads double AND the furnace reports double. Each
+            // board below is fed what it would really see, and the two have to come out identical: a
+            // boost ad watched a minute before the ship docks must not change a single card, because
+            // Accept then freezes whatever is on it for the length of the contract.
             var plainData = new SaveData();
             var plain = new ContractService(new WalletService(plainData.wallet), null, plainData,
                                             new TimeService());
-            plain.Tick(61f, 1000d);
-            plain.Tick(15f, 1000d);
+            Run(plain, 61, 1d, 1000d);
+            Run(plain, 15, 1d, 1000d);
 
             var boostData = new SaveData();
             var boost = new BoostService(boostData, new TimeService());
             boost.AddRewardedAdBoost(2d);
             var boosted = new ContractService(new WalletService(boostData.wallet), null, boostData,
                                               new TimeService(), null, null, null, null, boost);
-            boosted.Tick(61f, 2000d);
-            boosted.Tick(15f, 2000d);
+            Run(boosted, 61, 2d, 2000d);
+            Run(boosted, 15, 2d, 2000d);
 
             Assert.That(boost.ActiveMultiplier, Is.EqualTo(2d));
             Assert.That(plain.HasOffers, Is.True);
             Assert.That(boosted.HasOffers, Is.True);
             for (int tier = 0; tier < ContractService.TierCount; tier++)
+            {
+                Assert.That(boosted.GetOffer(tier).Units, Is.EqualTo(plain.GetOffer(tier).Units),
+                            "the boosted board asked for a different amount of ore");
                 Assert.That(boosted.GetOffer(tier).Cash,
-                            Is.EqualTo(plain.GetOffer(tier).Cash).Within(0.0001d));
+                            Is.EqualTo(plain.GetOffer(tier).Cash).Within(1e-4d).Percent);
+            }
         }
 
         /// <summary>Rolls a board and returns the service sitting on it.</summary>
@@ -333,23 +338,27 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void TheClaimPaysTheCardCountTheOfferPromised()
+        public void TheClaimPaysTheCardCountTheOfferPromised(
+            [Values(ContractService.EasyTier, ContractService.NormalTier, ContractService.HardTier)]
+            int tier)
         {
             var data = new SaveData();
             var wallet = new WalletService(data.wallet);
             var foremen = new ForemanService(data, wallet, Game.Core.Foremen.Tuning.Default);
             var service = Docked(data, wallet, foremen);
 
-            int promised = service.GetOffer(ContractService.NormalTier).Cards;
+            int promised = service.GetOffer(tier).Cards;
             Assert.That(promised, Is.GreaterThan(0));
 
-            Assert.That(service.Accept(ContractService.NormalTier, "COAL"), Is.True);
+            Assert.That(service.Accept(tier, "COAL"), Is.True);
             service.ReportProcessed(service.TargetUnits);
             service.Tick(0.1f, 1000d);
             Assert.That(service.Claim(), Is.True);
 
             // The card is a promise the player reads before choosing. Whatever the claim works out
-            // later, the number they were shown is the number that has to arrive.
+            // later, the number they were shown is the number that has to arrive — and now that the
+            // three tiers pay different counts, a claim that recomputed against the wrong one shows up
+            // here instead of hiding behind a single flat number.
             Assert.That(service.LastCards, Is.EqualTo(promised));
             Assert.That(service.LastCardStation, Is.GreaterThanOrEqualTo(0));
         }
@@ -738,6 +747,296 @@ namespace Game.Tests.EditMode
                 Assert.That(first, Is.Not.EqualTo(1f));
                 Assert.That(Game.Core.ContractBoard.WindowScale(seed + 1, first), Is.Not.EqualTo(first));
             }
+        }
+
+        /// <summary>Runs a docked board through to a claimable reward on the given tier.</summary>
+        private static ContractService Delivered(SaveData data, WalletService wallet, int tier,
+                                                 ForemanService foremen = null)
+        {
+            var service = new ContractService(wallet, null, data, new TimeService(), foremen);
+            service.Tick(61f, 1000d);
+            service.Tick(15f, 1000d);
+            Assert.That(service.Accept(tier, "COAL"), Is.True);
+            service.ReportProcessed(service.TargetUnits);
+            service.Tick(0.1f, 1000d);
+            Assert.That(service.Claimable, Is.True);
+            return service;
+        }
+
+        [Test]
+        public void ADoubledClaimPaysTwiceTheCashAndNotAGemOrCardMore()
+        {
+            var plainData = new SaveData();
+            var plainWallet = new WalletService(plainData.wallet);
+            var plainForemen = new ForemanService(plainData, plainWallet, Game.Core.Foremen.Tuning.Default);
+            var plain = Delivered(plainData, plainWallet, ContractService.NormalTier, plainForemen);
+            double promisedCash = plain.Reward.ToDouble();
+            long promisedGems = plain.RewardGems;
+            Assert.That(plain.Claim(), Is.True);
+
+            var adData = new SaveData();
+            var adWallet = new WalletService(adData.wallet);
+            var adForemen = new ForemanService(adData, adWallet, Game.Core.Foremen.Tuning.Default);
+            var watched = Delivered(adData, adWallet, ContractService.NormalTier, adForemen);
+            Assert.That(watched.Reward.ToDouble(), Is.EqualTo(promisedCash));
+            Assert.That(watched.Claim(2d), Is.True);
+
+            // Cash doubles. Gems and foreman cards must not: cards are the one reward that cannot be
+            // bought, and an ad that multiplied them would make watching ads the fastest way to build
+            // the roster.
+            Assert.That(adWallet.Cash.ToDouble(),
+                        Is.EqualTo(plainWallet.Cash.ToDouble() * 2d).Within(1e-6d).Percent);
+            Assert.That(adWallet.Gems, Is.EqualTo(plainWallet.Gems));
+            Assert.That(watched.LastCards, Is.EqualTo(plain.LastCards));
+            Assert.That(promisedGems, Is.GreaterThan(0L));
+        }
+
+        [Test]
+        public void ADoubledClaimIsStillOnlyClaimableOnce()
+        {
+            var data = new SaveData();
+            var wallet = new WalletService(data.wallet);
+            var service = Delivered(data, wallet, ContractService.NormalTier);
+            Assert.That(service.Claim(2d), Is.True);
+
+            double cash = wallet.Cash.ToDouble();
+            long gems = wallet.Gems;
+            Assert.That(service.Claim(2d), Is.False);
+            Assert.That(service.Claim(), Is.False);
+            Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(cash));
+            Assert.That(wallet.Gems, Is.EqualTo(gems));
+
+            // And a relaunch does not reopen it — the doubled figure went to disk with the claim.
+            var restored = new ContractService(wallet, null, data, new TimeService());
+            Assert.That(restored.Claimable, Is.False);
+            Assert.That(restored.Claim(2d), Is.False);
+            Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(cash));
+        }
+
+        [Test]
+        public void AMultiplierCannotBeSmuggledIntoAContractThatIsNotFinished()
+        {
+            var data = new SaveData();
+            var wallet = new WalletService(data.wallet);
+            var service = new ContractService(wallet, null, data, new TimeService());
+            service.Tick(61f, 1000d);
+            service.Tick(15f, 1000d);
+            Assert.That(service.Accept(ContractService.NormalTier, "COAL"), Is.True);
+
+            double cash = wallet.Cash.ToDouble();
+            service.ReportProcessed(service.TargetUnits * 0.5d);
+            service.Tick(1f, 1000d);
+            Assert.That(service.Claim(2d), Is.False);
+            Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(cash));
+        }
+
+        [Test]
+        public void TheContractAdSlotAllowsTwoADayAndSharesWithNoOtherScreen()
+        {
+            // The screen passes 2 and never adds the store's freeRewardBonusCharges, so this is the
+            // whole of the allowance. The separate id is what stops the offline bonus and the free-cash
+            // button from eating into it.
+            var data = new SaveData();
+            var free = new FreeRewardService(data, new TimeService());
+
+            Assert.That(free.CanWatch("kontrat", 2, 0f), Is.True);
+            free.Consume("kontrat");
+            Assert.That(free.CanWatch("kontrat", 2, 0f), Is.True);
+            free.Consume("kontrat");
+            Assert.That(free.CanWatch("kontrat", 2, 0f), Is.False);
+            Assert.That(free.ChargesLeft("kontrat", 2), Is.EqualTo(0));
+
+            // Spending this screen's allowance leaves every other screen's untouched.
+            Assert.That(free.CanWatch("hosgeldin", 1, 0f), Is.True);
+            Assert.That(free.UsedToday("hosgeldin"), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void PaceSeesTheEasyJobHomeAndTheHardJobMissing()
+        {
+            // EASY asks for less than passive play already delivers over a long window and HARD asks for
+            // more than it can over a short one — that is the whole tier design, so the projection has
+            // to agree with it or it is measuring something else.
+            var easyData = new SaveData();
+            var easy = new ContractService(new WalletService(easyData.wallet), null, easyData,
+                                           new TimeService());
+            Run(easy, 61, 1d, 1000d);
+            Run(easy, 15, 1d, 1000d);
+            Assert.That(easy.Accept(ContractService.EasyTier, "COAL"), Is.True);
+            Run(easy, 5, 1d, 1000d);
+            Assert.That(easy.Pace, Is.GreaterThan(1d));
+            Assert.That(easy.BehindPace, Is.False);
+
+            var hardData = new SaveData();
+            var hard = new ContractService(new WalletService(hardData.wallet), null, hardData,
+                                           new TimeService());
+            Run(hard, 61, 1d, 1000d);
+            Run(hard, 15, 1d, 1000d);
+            Assert.That(hard.Accept(ContractService.HardTier, "COAL"), Is.True);
+            Run(hard, 5, 1d, 1000d);
+            Assert.That(hard.Pace, Is.LessThan(1d));
+            Assert.That(hard.BehindPace, Is.True);
+        }
+
+        [Test]
+        public void ARunningBoostIsWhatTurnsAMissedJobIntoADeliveredOne()
+        {
+            // The reason a pace warning is worth showing at all: the thing it prompts actually works.
+            // A boost speeds the furnace up, so the same job that was going to be missed is not.
+            var data = new SaveData();
+            var boost = new BoostService(data, new TimeService());
+            var service = new ContractService(new WalletService(data.wallet), null, data,
+                                              new TimeService(), null, null, null, null, boost);
+            Run(service, 61, 1d, 1000d);
+            Run(service, 15, 1d, 1000d);
+            Assert.That(service.Accept(ContractService.HardTier, "COAL"), Is.True);
+            Run(service, 5, 1d, 1000d);
+            Assert.That(service.BehindPace, Is.True);
+
+            boost.AddRewardedAdBoost(2d);
+            Assert.That(service.BehindPace, Is.False);
+            Assert.That(service.Pace, Is.GreaterThan(1d));
+        }
+
+        [Test]
+        public void PaceStaysSilentUntilTheMeterHasReadSomething()
+        {
+            // A fresh save projects from a meter reading zero, which would call every job hopeless
+            // before the furnace had run for ten seconds.
+            var data = new SaveData();
+            var service = Docked(data, new WalletService(data.wallet));
+            Assert.That(service.Accept(ContractService.HardTier, "COAL"), Is.True);
+            service.Tick(1f, 1000d);
+            Assert.That(service.Pace, Is.LessThan(0.95d), "the projection would have warned");
+            Assert.That(service.BehindPace, Is.False);
+        }
+
+        [Test]
+        public void OfferCountAnswersOnlyWhileTheShipIsOffering()
+        {
+            var data = new SaveData();
+            var service = new ContractService(new WalletService(data.wallet), null, data,
+                                              new TimeService());
+            Assert.That(service.OfferCount, Is.EqualTo(0));
+
+            service.Tick(61f, 1000d);
+            service.Tick(15f, 1000d);
+            Assert.That(service.OfferCount, Is.EqualTo(ContractService.TierCount));
+
+            Assert.That(service.Accept(ContractService.NormalTier, "COAL"), Is.True);
+            Assert.That(service.OfferCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void OfferCountDoesNotCountASlotThatHasNothingInIt()
+        {
+            // Counted rather than assumed to be TierCount, because the number is read straight out to
+            // the player on the HUD chip and a restored board can carry an empty slot.
+            var data = new SaveData();
+            data.contract.initialized = true;
+            data.contract.state = (int)ContractService.PortState.Offering;
+            data.contract.offers.Add(new ContractOfferSave { units = 80d, seconds = 900f, cash = 300d });
+            data.contract.offers.Add(new ContractOfferSave { units = 0d, seconds = 600f, cash = 500d });
+            data.contract.offers.Add(new ContractOfferSave { units = 90d, seconds = 420f, cash = 1100d });
+
+            var service = new ContractService(new WalletService(data.wallet), null, data,
+                                              new TimeService());
+            Assert.That(service.HasOffers, Is.True);
+            Assert.That(service.OfferCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void EachTierPromisesItsOwnCardCount()
+        {
+            // One, two, three. Cash separates the tiers too, but cash inflates and by the third island
+            // the gap between the easy job's pay and the hard one's is a rounding error against passive
+            // income. Cards do not inflate, so they are what keeps the choice a real one.
+            var data = new SaveData();
+            var service = Docked(data, new WalletService(data.wallet));
+
+            Assert.That(service.GetOffer(ContractService.EasyTier).Cards, Is.EqualTo(1));
+            Assert.That(service.GetOffer(ContractService.NormalTier).Cards, Is.EqualTo(2));
+            Assert.That(service.GetOffer(ContractService.HardTier).Cards, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void AStreakLiftsEveryTierTogether()
+        {
+            // Restored mid-streak with no board saved: the Away deadline has already passed, so the
+            // service cuts a fresh one on construction — against the streak it just restored.
+            var data = new SaveData();
+            data.contract.initialized = true;
+            data.contract.streak = 5;   // one full step of the streak bonus
+            data.contract.state = (int)ContractService.PortState.Away;
+            var service = new ContractService(new WalletService(data.wallet), null, data,
+                                              new TimeService());
+
+            Assert.That(service.Streak, Is.EqualTo(5));
+            Assert.That(service.HasOffers, Is.True);
+            Assert.That(service.GetOffer(ContractService.EasyTier).Cards, Is.EqualTo(2));
+            Assert.That(service.GetOffer(ContractService.NormalTier).Cards, Is.EqualTo(3));
+            Assert.That(service.GetOffer(ContractService.HardTier).Cards, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ASwappedCardKeepsItsTiersCardCount()
+        {
+            // A swap moves the window and nothing else, so the reason to have picked that tier has to
+            // survive it — otherwise the swap button is a way to trade the hard job's cards for a
+            // shorter clock.
+            var data = new SaveData();
+            var service = Measured(data, new WalletService(data.wallet), 1d);
+            ContractService.Offer before = service.GetOffer(ContractService.HardTier);
+            Assert.That(before.Cards, Is.EqualTo(3));
+
+            Assert.That(service.Swap(ContractService.HardTier, before.Id), Is.True);
+            ContractService.Offer after = service.GetOffer(ContractService.HardTier);
+            Assert.That(after.Seconds, Is.Not.EqualTo(before.Seconds));
+            Assert.That(after.Cards, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void ABoardRestoredWithoutCardCountsGetsThemPerTier()
+        {
+            // The pre-identity repair path from slice 2, which used to stamp one flat number onto all
+            // three slots. It has to stamp the tier's own count now, or a restored board quietly pays
+            // the easy job as though it were hard.
+            var data = new SaveData();
+            data.contract.initialized = true;
+            data.contract.state = (int)ContractService.PortState.Offering;
+            for (int tier = 0; tier < ContractService.TierCount; tier++)
+                data.contract.offers.Add(new ContractOfferSave
+                {
+                    units = 100d * (tier + 1), seconds = 600f, cash = 500d, gems = 2L,
+                });
+
+            var service = new ContractService(new WalletService(data.wallet), null, data,
+                                              new TimeService());
+            Assert.That(service.GetOffer(ContractService.EasyTier).Cards, Is.EqualTo(1));
+            Assert.That(service.GetOffer(ContractService.NormalTier).Cards, Is.EqualTo(2));
+            Assert.That(service.GetOffer(ContractService.HardTier).Cards, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void AJobSignedBeforeTiersHadTheirOwnCardsPaysWhatItWasSignedFor()
+        {
+            // An in-flight contract from a save written before this change carries no tier and no frozen
+            // count. NORMAL is the honest fallback: its count IS the old flat cardsPerContract, so the
+            // job pays exactly what the player agreed to rather than being rounded by this slice.
+            var data = new SaveData();
+            var wallet = new WalletService(data.wallet);
+            data.contract.initialized = true;
+            data.contract.state = (int)ContractService.PortState.Active;
+            data.contract.target = 100d;
+            data.contract.secondsLeft = 600f;
+            data.contract.rewardCash = 500d;
+
+            var foremen = new ForemanService(data, wallet, Game.Core.Foremen.Tuning.Default);
+            var service = new ContractService(wallet, null, data, new TimeService(), foremen);
+            service.ReportProcessed(100d);
+            service.Tick(0.1f, 1000d);
+            Assert.That(service.Claim(), Is.True);
+            Assert.That(service.LastCards, Is.EqualTo(2));
         }
     }
 }
