@@ -304,7 +304,10 @@ namespace Game.Systems
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
-            var contract = new ContractService(Wallet, contractConfig, Data, _time, Foremen, Goals);
+            // Save so a claim reaches the disk before the screen says it paid; boost so the offers are
+            // priced off what the empire earns rather than off a x2 minute the player arranged.
+            var contract = new ContractService(Wallet, contractConfig, Data, _time, Foremen, Goals,
+                                               Save, ServiceLocator.Get<IAnalytics>(), boost);
             ServiceLocator.Register(contract);
 
             Offline = new OfflineReport();

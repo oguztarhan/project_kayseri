@@ -64,6 +64,9 @@ namespace Game.Systems
         private readonly WalletService _wallet;
         private readonly ForemanService _foremen;
         private readonly GoalService _goals;
+        private readonly SaveService _saveService;
+        private readonly IAnalytics _analytics;
+        private readonly BoostService _boost;
         private readonly int _cardsPerContract;
         private readonly int _cardsStreakStep;
 
@@ -100,15 +103,20 @@ namespace Game.Systems
         private double _target, _done;
         private double _activeCash;
         private long _activeGems;
+        private int _activeTier = -1;   // -1 = restored from a save written before this was tracked
         private float _left;
 
         public ContractService(WalletService wallet, ContractConfig config, SaveData data = null,
                                TimeService time = null, ForemanService foremen = null,
-                               GoalService goals = null)
+                               GoalService goals = null, SaveService saveService = null,
+                               IAnalytics analytics = null, BoostService boost = null)
         {
             _wallet = wallet;
             _foremen = foremen;
             _goals = goals;
+            _saveService = saveService;
+            _analytics = analytics;
+            _boost = boost;
             _data = data;
             _time = time;
             if (_data != null && _data.contract == null) _data.contract = new ContractSaveData();
@@ -239,7 +247,7 @@ namespace Game.Systems
         /// </summary>
         public void Tick(float dt, double cashPerMinute)
         {
-            if (cashPerMinute > 0d) _cashPerMinute = cashPerMinute;
+            if (cashPerMinute > 0d) _cashPerMinute = Unboosted(cashPerMinute);
             SampleRate(dt);
 
             switch (_state)
@@ -278,6 +286,7 @@ namespace Game.Systems
                         Streak = 0;
                         _difficulty = _difficulty > 1d ? _difficulty / StreakStep : 1d;
                         Enter(PortState.Departing, _departSeconds);
+                        _analytics?.Log("contract_missed", "tier", _activeTier);
                     }
                     break;
 
@@ -308,10 +317,13 @@ namespace Game.Systems
             _left = o.Seconds;
             _activeCash = o.Cash;
             _activeGems = o.Gems;
+            _activeTier = tier;
             if (!string.IsNullOrEmpty(unitWord)) UnitWord = unitWord;
             LastResult = Result.None;
             Enter(PortState.Active, 0f);
             Sync();
+            Commit();
+            _analytics?.Log("contract_accept", "tier", tier);
             return true;
         }
 
@@ -342,6 +354,8 @@ namespace Game.Systems
             if (_difficulty > StreakCap) _difficulty = StreakCap;
             Enter(PortState.Departing, _departSeconds);
             Sync();
+            Commit();
+            _analytics?.Log("contract_claim", "tier", _activeTier);
             return true;
         }
 
@@ -428,6 +442,20 @@ namespace Game.Systems
             _save.stateEndUnix = 0L;
         }
 
+        /// <summary>
+        /// Puts the save on disk. Called from <see cref="Accept"/> and <see cref="Claim"/> and NOWHERE
+        /// ELSE — never from <see cref="Tick"/>: <see cref="SaveService.Save"/> is an AES pass, an HMAC
+        /// and a whole-file write, and one of those per frame would stall the frame and burn GC.
+        ///
+        /// It is what makes a claim survive being killed. The paid cash, the paid gems and the state
+        /// flip that stops it being claimable again all live in the same <see cref="SaveData"/>, so one
+        /// write means the file holds every part of the claim or none of it.
+        /// </summary>
+        private void Commit()
+        {
+            if (_saveService != null && _data != null) _saveService.Save(_data);
+        }
+
         private void Sync()
         {
             if (_save == null) return;
@@ -470,6 +498,25 @@ namespace Game.Systems
 
         private static bool ValidResult(int value)
             => value >= (int)Result.None && value <= (int)Result.Failed;
+
+        /// <summary>
+        /// The income figure with any running boost divided back out.
+        ///
+        /// The meter handed to <see cref="Tick"/> comes from the market, which multiplies every sale by
+        /// the active boost — while the smelter output that SIZES the job does not move at all, because
+        /// a boost is applied when a bar is sold, not when ore is processed. Priced off the raw meter, a
+        /// board rolled during a x2 boost asks for the same units at twice the cash, and
+        /// <see cref="Accept"/> then freezes that number for the whole contract: watch a boost ad, wait
+        /// a minute for the ship, and every offer on the table pays double for the same ore.
+        ///
+        /// An offer has to be priced off what the empire earns, not off what it happens to be earning
+        /// in the ninety seconds the player arranged for the ship to arrive in.
+        /// </summary>
+        private double Unboosted(double cashPerMinute)
+        {
+            double mult = _boost != null ? _boost.ActiveMultiplier : 1d;
+            return mult > 1d ? cashPerMinute / mult : cashPerMinute;
+        }
 
         /// <summary>
         /// Folds the units reported since the last sample into a per-minute figure. Blended rather than
