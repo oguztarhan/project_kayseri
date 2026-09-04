@@ -34,6 +34,7 @@ namespace Game.Systems
         private static readonly string[] NonConsumables =
         {
             "offer_hazine", "offer_gecevardiyasi", "offer_madenpatronu",
+            "industry_pass_2026_09",
         };
 
         private StoreController _store;

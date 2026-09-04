@@ -36,6 +36,7 @@ namespace Game.Systems
         private readonly SaveData _data;
         private readonly TimeService _time;
         private readonly IAnalytics _analytics;
+        private readonly ChapterService _chapters;
         private readonly List<LiveEvents.Definition> _defs;
 
         /// <summary>Raised when anything the hub shows has moved.</summary>
@@ -48,11 +49,13 @@ namespace Game.Systems
         /// could not be built in a test without one.
         /// </summary>
         public LiveEventService(SaveData data, List<LiveEvents.Definition> definitions,
-                                TimeService time = null, IAnalytics analytics = null)
+                                TimeService time = null, IAnalytics analytics = null,
+                                ChapterService chapters = null)
         {
             _data = data;
             _time = time;
             _analytics = analytics;
+            _chapters = chapters;
             _defs = definitions ?? new List<LiveEvents.Definition>();
             Normalise();
         }
@@ -62,11 +65,22 @@ namespace Game.Systems
         private long NowUnix()
             => _time != null ? _time.NowUnix() : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-        /// <summary>Islands owned, the one eligibility axis the hub gates on. Coal is owned implicitly
-        /// and is not in the list, so it is counted here — the same correction ChapterService.Progress
-        /// makes for the same reason.</summary>
+        /// <summary>Islands owned. Coal is owned implicitly and is not in the list, so it is counted
+        /// here — the same correction ChapterService.Progress makes for the same reason.</summary>
         private int IslandsOwned()
             => _data != null && _data.unlockedIslands != null ? _data.unlockedIslands.Count + 1 : 1;
+
+        private int CompletedChapters()
+        {
+            if (_chapters == null) return 0;
+            int completed = 0;
+            for (int chapter = 0; chapter < Chapters.Count; chapter++)
+            {
+                if (!_chapters.Complete(chapter)) break;
+                completed++;
+            }
+            return completed;
+        }
 
         // ------------------------------------------------------------- save shape
         /// <summary>
@@ -195,12 +209,13 @@ namespace Game.Systems
         /// enough in. A closed event still shows while it holds an unclaimed slot — that is the module's
         /// call, made with <see cref="HasUnclaimed"/>.</summary>
         public bool Visible(string id)
-            => TryDefinition(id, out LiveEvents.Definition d) && LiveEvents.Eligible(d, IslandsOwned());
+            => TryDefinition(id, out LiveEvents.Definition d)
+               && LiveEvents.Eligible(d, IslandsOwned(), CompletedChapters());
 
         /// <summary>Whether progress may accrue right now. Every module asks this before recording.</summary>
         public bool Accruing(string id)
             => TryDefinition(id, out LiveEvents.Definition d)
-               && LiveEvents.Accruing(d, NowUnix(), IslandsOwned());
+               && LiveEvents.Accruing(d, NowUnix(), IslandsOwned(), CompletedChapters());
 
         public long Progress(string id, int slot)
         {
@@ -235,7 +250,7 @@ namespace Game.Systems
         {
             if (amount <= 0L) return false;
             if (!TryDefinition(id, out LiveEvents.Definition d)) return false;
-            if (!LiveEvents.Accruing(d, NowUnix(), IslandsOwned())) return false;
+            if (!LiveEvents.Accruing(d, NowUnix(), IslandsOwned(), CompletedChapters())) return false;
             if (slot < 0 || slot >= d.Slots) return false;
 
             LiveEventState s = Row(d);

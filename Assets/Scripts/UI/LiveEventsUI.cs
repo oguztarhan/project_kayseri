@@ -65,6 +65,12 @@ namespace Game.UI
         private LiveEventService _events;
         private FoundryFestivalService _festival;
         private FoundryFestivalUI _festivalUI;
+        private HarborFestivalService _harborFestival;
+        private HarborFestivalUI _harborFestivalUI;
+        private ProductionSprintService _productionSprint;
+        private ProductionSprintUI _productionSprintUI;
+        private SeasonalIndustryPassService _industryPass;
+        private SeasonalIndustryPassUI _industryPassUI;
         private LocalizationService _loc;
         private RectTransform _root;
 
@@ -88,10 +94,37 @@ namespace Game.UI
             _events = ServiceLocator.Get<LiveEventService>();
             _festival = ServiceLocator.Get<FoundryFestivalService>();
             _festivalUI = FindAnyObjectByType<FoundryFestivalUI>(FindObjectsInactive.Include);
+            _harborFestival = ServiceLocator.Get<HarborFestivalService>();
+            _harborFestivalUI = FindAnyObjectByType<HarborFestivalUI>(FindObjectsInactive.Include);
+            if (_harborFestivalUI == null)
+            {
+                var harbor = new GameObject("LimanFestivaliEkrani");
+                harbor.transform.SetParent(transform, false);
+                _harborFestivalUI = harbor.AddComponent<HarborFestivalUI>();
+            }
+            _productionSprint = ServiceLocator.Get<ProductionSprintService>();
+            _productionSprintUI = FindAnyObjectByType<ProductionSprintUI>(FindObjectsInactive.Include);
+            if (_productionSprintUI == null)
+            {
+                var sprint = new GameObject("UretimSprintiEkrani");
+                sprint.transform.SetParent(transform, false);
+                _productionSprintUI = sprint.AddComponent<ProductionSprintUI>();
+            }
+            _industryPass = ServiceLocator.Get<SeasonalIndustryPassService>();
+            _industryPassUI = FindAnyObjectByType<SeasonalIndustryPassUI>(FindObjectsInactive.Include);
+            if (_industryPassUI == null)
+            {
+                var pass = new GameObject("SezonlukSanayiBiletiEkrani");
+                pass.transform.SetParent(transform, false);
+                _industryPassUI = pass.AddComponent<SeasonalIndustryPassUI>();
+            }
             Build();
             BuildOpener();
             if (_events != null) _events.Changed += OnChanged;
             if (_festival != null) _festival.Changed += OnChanged;
+            if (_harborFestival != null) _harborFestival.Changed += OnChanged;
+            if (_productionSprint != null) _productionSprint.Changed += OnChanged;
+            if (_industryPass != null) _industryPass.Changed += OnChanged;
             _loc = ServiceLocator.Get<LocalizationService>();
             if (_loc != null) _loc.Changed += OnLanguageChanged;
             Hide();
@@ -102,6 +135,9 @@ namespace Game.UI
         {
             if (_events != null) _events.Changed -= OnChanged;
             if (_festival != null) _festival.Changed -= OnChanged;
+            if (_harborFestival != null) _harborFestival.Changed -= OnChanged;
+            if (_productionSprint != null) _productionSprint.Changed -= OnChanged;
+            if (_industryPass != null) _industryPass.Changed -= OnChanged;
             if (_loc != null) _loc.Changed -= OnLanguageChanged;
         }
 
@@ -300,7 +336,12 @@ namespace Game.UI
             if (_cardClock[i] == null) return;
             if (owed)
             {
-                _cardClock[i].text = Loc.T("gorev.al") + " ×" + _festival.PendingCount();
+                int pending = d.Kind == FoundryFestival.Kind && _festival != null ? _festival.PendingCount()
+                    : d.Kind == HarborFestival.Kind && _harborFestival != null ? _harborFestival.PendingCount()
+                    : d.Kind == ProductionSprint.Kind && _productionSprint != null ? _productionSprint.PendingCount()
+                    : d.Kind == SeasonalIndustryPass.Kind && _industryPass != null ? _industryPass.PendingCount()
+                    : 0;
+                _cardClock[i].text = Loc.T("gorev.al") + " ×" + pending;
                 return;
             }
 
@@ -316,11 +357,20 @@ namespace Game.UI
         /// </summary>
         private int SeatOwed(int used)
         {
-            if (_festival == null || used >= MaxCards) return used;
-            if (_festival.PendingCount() <= 0) return used;
+            used = SeatOwed(_festival != null ? _festival.Id : null,
+                _festival != null ? _festival.PendingCount() : 0, used);
+            used = SeatOwed(_harborFestival != null ? _harborFestival.Id : null,
+                _harborFestival != null ? _harborFestival.PendingCount() : 0, used);
+            used = SeatOwed(_productionSprint != null ? _productionSprint.SeasonId : null,
+                _productionSprint != null ? _productionSprint.PendingCount() : 0, used);
+            used = SeatOwed(_industryPass != null ? _industryPass.SeasonId : null,
+                _industryPass != null ? _industryPass.PendingCount() : 0, used);
+            return used;
+        }
 
-            string id = _festival.Id;
-            if (string.IsNullOrEmpty(id)) return used;
+        private int SeatOwed(string id, int pending, int used)
+        {
+            if (used >= MaxCards || pending <= 0 || string.IsNullOrEmpty(id)) return used;
 
             for (int e = 0; e < _events.Count; e++)
             {
@@ -331,12 +381,15 @@ namespace Game.UI
             return used;
         }
 
-        /// <summary>Opens the module behind a card. Only the festival has a screen so far.</summary>
+        /// <summary>Opens the module behind a card.</summary>
         private void OpenCard(int card)
         {
             if (_events == null || card < 0 || card >= MaxCards || _cardEvent[card] < 0) return;
-            if (_events.At(_cardEvent[card]).Kind != FoundryFestival.Kind) return;
-            if (_festivalUI != null) _festivalUI.Show();
+            int kind = _events.At(_cardEvent[card]).Kind;
+            if (kind == FoundryFestival.Kind && _festivalUI != null) _festivalUI.Show();
+            else if (kind == HarborFestival.Kind && _harborFestivalUI != null) _harborFestivalUI.Show();
+            else if (kind == ProductionSprint.Kind && _productionSprintUI != null) _productionSprintUI.Show();
+            else if (kind == SeasonalIndustryPass.Kind && _industryPassUI != null) _industryPassUI.Show();
         }
 
         private void RefreshOpener()
@@ -353,6 +406,9 @@ namespace Game.UI
                 if (_events.Visible(d.Id) && _events.PhaseOf(d.Id) == LiveEvents.Phase.Active) waiting++;
             }
             if (_festival != null) waiting += _festival.PendingCount();
+            if (_harborFestival != null) waiting += _harborFestival.PendingCount();
+            if (_productionSprint != null) waiting += _productionSprint.PendingCount();
+            if (_industryPass != null) waiting += _industryPass.PendingCount();
 
             if (_openerChip.activeSelf != (waiting > 0)) _openerChip.SetActive(waiting > 0);
             if (waiting > 0 && _openerCount != null)

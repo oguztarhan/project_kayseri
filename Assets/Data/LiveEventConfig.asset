@@ -20,3 +20,28 @@ MonoBehaviour:
     configVersion: 1
     slots: 32
     minIslands: 0
+    minCompletedChapters: 0
+  - id: liman_festivali_2026_09
+    kind: 2
+    startUtc: 2026-09-04 00:00
+    durationDays: 7
+    configVersion: 1
+    slots: 33
+    minIslands: 0
+    minCompletedChapters: 0
+  - id: production_sprint_2026_09
+    kind: 3
+    startUtc: 2026-09-12 00:00
+    durationDays: 3
+    configVersion: 1
+    slots: 15
+    minIslands: 0
+    minCompletedChapters: 1
+  - id: industry_pass_2026_09
+    kind: 4
+    startUtc: 2026-09-01 00:00
+    durationDays: 30
+    configVersion: 1
+    slots: 30
+    minIslands: 0
+    minCompletedChapters: 1

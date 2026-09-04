@@ -634,6 +634,41 @@ senlik.kilitli	Kilitli	Locked	Gesperrt	Verrouillé	Bloqueado	Bloqueado	Bloccato	
 senlik.hepsini_al	HEPSİNİ AL	CLAIM ALL	ALLE HOLEN	TOUT RÉCLAMER	RECLAMAR TODO	RESGATAR TUDO	RISCUOTI TUTTO	ODBIERZ WSZYSTKO	ЗАБРАТЬ ВСЁ	AMBIL SEMUA	NHẬN TẤT CẢ
 senlik.sandiklar	SANDIKLAR	CHESTS	TRUHEN	COFFRES	COFRES	BAÚS	FORZIERI	SKRZYNIE	СУНДУКИ	PETI	RƯƠNG
 senlik.puan	puan	points	Punkte	points	puntos	pontos	punti	punkty	очки	poin	điểm
+# liman festivali (HarborFestivalUI)
+etkinlik.liman_festivali_2026_09	Liman Festivali	Harbor Festival	Hafenfest	Festival du port	Festival del puerto	Festival do porto	Festival del porto	Festiwal portowy	Портовый фестиваль	Festival Pelabuhan	Lễ hội Bến cảng
+liman.baslik	LİMAN FESTİVALİ	HARBOR FESTIVAL	HAFENFEST	FESTIVAL DU PORT	FESTIVAL DEL PUERTO	FESTIVAL DO PORTO	FESTIVAL DEL PORTO	FESTIWAL PORTOWY	ПОРТОВЫЙ ФЕСТИВАЛЬ	FESTIVAL PELABUHAN	LỄ HỘI BẾN CẢNG
+liman.gorevler	GÖREVLER	TASKS	AUFGABEN	MISSIONS	TAREAS	TAREFAS	MISSIONI	ZADANIA	ЗАДАНИЯ	TUGAS	NHIỆM VỤ
+liman.oduller	ÖDÜLLER	REWARDS	BELOHNUNGEN	RÉCOMPENSES	RECOMPENSAS	RECOMPENSAS	RICOMPENSE	NAGRODY	НАГРАДЫ	HADIAH	PHẦN THƯỞNG
+liman.katalog	KATALOG	CATALOGUE	KATALOG	CATALOGUE	CATÁLOGO	CATÁLOGO	CATALOGO	KATALOG	КАТАЛОГ	KATALOG	DANH MỤC
+liman.jeton	Liman Jetonu	Harbor Token	Hafenmarke	Jeton du port	Ficha del puerto	Ficha do porto	Gettone del porto	Żeton portowy	Портовый жетон	Token Pelabuhan	Xu Bến cảng
+liman.ucretsiz	ÜCRETSİZ	FREE	KOSTENLOS	GRATUIT	GRATIS	GRÁTIS	GRATIS	DARMOWE	БЕСПЛАТНО	GRATIS	MIỄN PHÍ
+liman.premium	PREMİUM	PREMIUM	PREMIUM	PREMIUM	PREMIUM	PREMIUM	PREMIUM	PREMIUM	ПРЕМИУМ	PREMIUM	CAO CẤP
+liman.kilitli	KİLİTLİ	LOCKED	GESPERRT	VERROUILLÉ	BLOQUEADO	BLOQUEADO	BLOCCATO	ZABLOKOWANE	ЗАКРЫТО	TERKUNCI	ĐÃ KHÓA
+liman.takas	TAKAS	REDEEM	TAUSCHEN	ÉCHANGER	CANJEAR	TROCAR	SCAMBIA	WYMIEŃ	ОБМЕНЯТЬ	TUKAR	ĐỔI
+liman.yok	Planlanmış Liman Festivali yok.	No Harbor Festival is scheduled.	Kein Hafenfest geplant.	Aucun Festival du port n'est prévu.	No hay Festival del puerto programado.	Nenhum Festival do porto está programado.	Nessun Festival del porto è programmato.	Nie zaplanowano Festiwalu portowego.	Портовый фестиваль не запланирован.	Belum ada Festival Pelabuhan terjadwal.	Chưa có Lễ hội Bến cảng nào được lên lịch.
+liman.donusum	Kalan jeton dönüşümü	Remaining-token conversion	Umwandlung übriger Marken	Conversion des jetons restants	Conversión de fichas restantes	Conversão das fichas restantes	Conversione dei gettoni rimasti	Wymiana pozostałych żetonów	Обмен оставшихся жетонов	Konversi token tersisa	Đổi xu còn lại
+# üretim sprinti (ProductionSprintUI)
+etkinlik.production_sprint_2026_09	Üretim Sprinti	Production Sprint	Produktionssprint	Sprint de production	Sprint de producción	Sprint de produção	Sprint di produzione	Sprint produkcyjny	Производственный спринт	Sprint Produksi	Nước rút Sản xuất
+sprint.baslik	ÜRETİM SPRINTİ	PRODUCTION SPRINT	PRODUKTIONSSPRINT	SPRINT DE PRODUCTION	SPRINT DE PRODUCCIÓN	SPRINT DE PRODUÇÃO	SPRINT DI PRODUZIONE	SPRINT PRODUKCYJNY	ПРОИЗВОДСТВЕННЫЙ СПРИНТ	SPRINT PRODUKSI	NƯỚC RÚT SẢN XUẤT
+sprint.gorevler	GÖREVLER	TASKS	AUFGABEN	MISSIONS	TAREAS	TAREFAS	MISSIONI	ZADANIA	ЗАДАНИЯ	TUGAS	NHIỆM VỤ
+sprint.kilometre	KİLOMETRE TAŞLARI	MILESTONES	MEILENSTEINE	JALONS	HITOS	MARCOS	TRAGUARDI	KAMIENIE MILOWE	ЭТАПЫ	TONGGAK	CỘT MỐC
+sprint.puan	puan	points	Punkte	points	puntos	pontos	punti	punkty	очки	poin	điểm
+sprint.eylem_puani	eylem başına puan	points per action	Punkte pro Aktion	points par action	puntos por acción	pontos por ação	punti per azione	punktów za akcję	очков за действие	poin per aksi	điểm mỗi hành động
+sprint.yok	Planlanmış Üretim Sprinti yok.	No Production Sprint is scheduled.	Kein Produktionssprint geplant.	Aucun Sprint de production n’est prévu.	No hay Sprint de producción programado.	Nenhum Sprint de produção está programado.	Nessuno Sprint di produzione è programmato.	Nie zaplanowano Sprintu produkcyjnego.	Производственный спринт не запланирован.	Belum ada Sprint Produksi terjadwal.	Chưa có Nước rút Sản xuất nào được lên lịch.
+sprint.bitti	Sprint sona erdi; kazanılan ödüller alınabilir.	Sprint ended; earned rewards remain claimable.	Der Sprint ist beendet; verdiente Belohnungen bleiben abholbar.	Le sprint est terminé ; les récompenses gagnées restent disponibles.	El sprint terminó; las recompensas obtenidas siguen disponibles.	O sprint terminou; as recompensas ganhas continuam disponíveis.	Lo sprint è terminato; le ricompense ottenute restano disponibili.	Sprint zakończony; zdobyte nagrody nadal można odebrać.	Спринт завершён; заработанные награды можно забрать.	Sprint berakhir; hadiah yang diperoleh tetap bisa diklaim.	Nước rút đã kết thúc; phần thưởng đã kiếm vẫn có thể nhận.
+sprint.nakit_dakika	dk. nakit	min cash	Min. Bargeld	min de trésorerie	min de efectivo	min de dinheiro	min di denaro	min gotówki	мин. дохода	mnt uang	phút tiền
+# sezonluk sanayi bileti (SeasonalIndustryPassUI)
+etkinlik.industry_pass_2026_09	Sezonluk Sanayi Bileti	Seasonal Industry Pass	Saison-Industriepass	Pass industriel saisonnier	Pase industrial de temporada	Passe Industrial Sazonal	Pass Industria Stagionale	Sezonowa Przepustka Przemysłowa	Сезонный промышленный пропуск	Pass Industri Musiman	Thẻ Công nghiệp Mùa
+pass.baslik	SEZONLUK SANAYİ BİLETİ	SEASONAL INDUSTRY PASS	SAISON-INDUSTRIEPASS	PASS INDUSTRIEL SAISONNIER	PASE INDUSTRIAL DE TEMPORADA	PASSE INDUSTRIAL SAZONAL	PASS INDUSTRIA STAGIONALE	SEZONOWA PRZEPUSTKA PRZEMYSŁOWA	СЕЗОННЫЙ ПРОМЫШЛЕННЫЙ ПРОПУСК	PASS INDUSTRI MUSIMAN	THẺ CÔNG NGHIỆP MÙA
+pass.ucretsiz	ÜCRETSİZ YOL	FREE TRACK	KOSTENLOSE SPUR	PARCOURS GRATUIT	RUTA GRATIS	TRILHA GRÁTIS	PERCORSO GRATUITO	DARMOWA ŚCIEŻKA	БЕСПЛАТНАЯ ЛИНИЯ	JALUR GRATIS	NHÁNH MIỄN PHÍ
+pass.premium	PREMİUM YOL	PREMIUM TRACK	PREMIUM-SPUR	PARCOURS PREMIUM	RUTA PREMIUM	TRILHA PREMIUM	PERCORSO PREMIUM	ŚCIEŻKA PREMIUM	ПРЕМИУМ-ЛИНИЯ	JALUR PREMIUM	NHÁNH CAO CẤP
+pass.puan	puan	points	Punkte	points	puntos	pontos	punti	punkty	очки	poin	điểm
+pass.kademe	KADEME	TIER	STUFE	PALIER	NIVEL	NÍVEL	LIVELLO	POZIOM	УРОВЕНЬ	TINGKAT	BẬC
+pass.yok	Planlanmış sezon bileti yok.	No Seasonal Industry Pass is scheduled.	Kein Saison-Industriepass geplant.	Aucun Pass industriel saisonnier n’est prévu.	No hay Pase industrial de temporada programado.	Nenhum Passe Industrial Sazonal está programado.	Nessun Pass Industria Stagionale è programmato.	Nie zaplanowano Sezonowej Przepustki Przemysłowej.	Сезонный промышленный пропуск не запланирован.	Belum ada Pass Industri Musiman terjadwal.	Chưa có Thẻ Công nghiệp Mùa nào được lên lịch.
+pass.bitti	Sezon sona erdi; kazanılan ödüller alınabilir.	Season ended; earned rewards remain claimable.	Die Saison ist beendet; verdiente Belohnungen bleiben abholbar.	La saison est terminée ; les récompenses gagnées restent disponibles.	La temporada terminó; las recompensas obtenidas siguen disponibles.	A temporada terminou; as recompensas ganhas continuam disponíveis.	La stagione è terminata; le ricompense ottenute restano disponibili.	Sezon zakończony; zdobyte nagrody nadal można odebrać.	Сезон завершён; заработанные награды можно забрать.	Musim berakhir; hadiah yang diperoleh tetap bisa diklaim.	Mùa đã kết thúc; phần thưởng đã kiếm vẫn có thể nhận.
+pass.premium_aktif	PREMİUM AKTİF	PREMIUM ACTIVE	PREMIUM AKTIV	PREMIUM ACTIF	PREMIUM ACTIVO	PREMIUM ATIVO	PREMIUM ATTIVO	PREMIUM AKTYWNE	ПРЕМИУМ АКТИВЕН	PREMIUM AKTIF	ĐÃ KÍCH HOẠT CAO CẤP
+pass.satin_basarili	Premium yol açıldı.	Premium track unlocked.	Premium-Spur freigeschaltet.	Parcours premium débloqué.	Ruta premium desbloqueada.	Trilha premium desbloqueada.	Percorso premium sbloccato.	Odblokowano ścieżkę premium.	Премиум-линия открыта.	Jalur premium terbuka.	Đã mở nhánh cao cấp.
+pass.satin_basarisiz	Satın alma tamamlanamadı.	Purchase could not be completed.	Kauf konnte nicht abgeschlossen werden.	L’achat n’a pas pu être finalisé.	No se pudo completar la compra.	Não foi possível concluir a compra.	Impossibile completare l’acquisto.	Nie udało się dokończyć zakupu.	Не удалось завершить покупку.	Pembelian tidak dapat diselesaikan.	Không thể hoàn tất giao dịch.
 # depo (InventoryUI) + islenmis urun adlari
 depo.baslik	DEPO	STORAGE	LAGER	STOCK	ALMACÉN	DEPÓSITO	DEPOSITO	MAGAZYN	СКЛАД	GUDANG	KHO
 depo.donanim	DONANIM	GEAR	AUSRÜSTUNG	ÉQUIPEMENT	EQUIPO	EQUIPAMENTO	EQUIPAGGIAMENTO	EKWIPUNEK	СНАРЯЖЕНИЕ	PERLENGKAPAN	TRANG BỊ

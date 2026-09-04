@@ -88,6 +88,21 @@ namespace Game.UI
             ServiceLocator.Get<HapticService>()?.Medium();
         }
 
+        /// <summary>Shows an already committed reward rendered by another reward-owning service.</summary>
+        public void Present(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return;
+            _title.text = Loc.T("gorev.odul_alindi");
+            _value.text = value;
+            _shownAt = Time.unscaledTime;
+            _group.alpha = 0f;
+            _card.localScale = Vector3.one * 0.82f;
+            transform.SetAsLastSibling();
+            gameObject.SetActive(true);
+            ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
+            ServiceLocator.Get<HapticService>()?.Medium();
+        }
+
         private void Update()
         {
             float elapsed = Time.unscaledTime - _shownAt;

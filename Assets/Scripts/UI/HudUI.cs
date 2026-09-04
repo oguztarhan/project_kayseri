@@ -108,6 +108,8 @@ namespace Game.UI
         private WalletService _wallet;
         private ContractService _contract;
         private FoundryFestivalService _festival;
+        private HarborFestivalService _harborFestival;
+        private ProductionSprintService _productionSprint;
         private BoostService _boost;
         private MaintenanceService _maintenance;
         private WorldIslands _world;
@@ -139,6 +141,8 @@ namespace Game.UI
             _wallet = ServiceLocator.Get<WalletService>();
             _contract = ServiceLocator.Get<ContractService>();
             _festival = ServiceLocator.Get<FoundryFestivalService>();
+            _harborFestival = ServiceLocator.Get<HarborFestivalService>();
+            _productionSprint = ServiceLocator.Get<ProductionSprintService>();
             _boost = ServiceLocator.Get<BoostService>();
             _maintenance = ServiceLocator.Get<MaintenanceService>();
             _world = FindAnyObjectByType<WorldIslands>();
@@ -392,6 +396,8 @@ namespace Game.UI
             // festival can swallow to a quarter of one — the same reason ContractService is ticked
             // from this Update rather than from its own screen.
             _festival?.Sync();
+            _harborFestival?.Sync();
+            _productionSprint?.Sync();
             Refresh();
         }
 

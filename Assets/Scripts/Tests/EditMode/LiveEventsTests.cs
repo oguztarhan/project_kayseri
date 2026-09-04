@@ -119,6 +119,16 @@ namespace Game.Tests
         }
 
         [Test]
+        public void ChapterOneCompletionCanGateAnEvent()
+        {
+            var d = Def(1000L, 2000L);
+            d.MinCompletedChapters = 1;
+
+            Assert.That(LiveEvents.Accruing(d, 1500L, 1, 0), Is.False);
+            Assert.That(LiveEvents.Accruing(d, 1500L, 1, 1), Is.True);
+        }
+
+        [Test]
         public void EligibilityDoesNotOpenAClosedWindow()
         {
             var d = Def(1000L, 2000L, minIslands: 0);

@@ -1,0 +1,191 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bad9163fa3b03d41a9d0a692db0994b, type: 3}
+  m_Name: SeasonalIndustryPassConfig
+  m_EditorClassIdentifier: Game.Data::Game.Data.SeasonalIndustryPassConfig
+  premiumSku: industry_pass_2026_09
+  fallbackPrice: "\u20BA179,99"
+  sources:
+  - metric: 1
+    pointsPerAction: 3
+  - metric: 2
+    pointsPerAction: 15
+  - metric: 3
+    pointsPerAction: 8
+  - metric: 5
+    pointsPerAction: 20
+  tiers:
+  - points: 30
+    free:
+      gems: 15
+      cards: 0
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 30
+      cards: 1
+      charts: 0
+      cashMinutes: 0
+  - points: 70
+    free:
+      gems: 20
+      cards: 0
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 40
+      cards: 1
+      charts: 0
+      cashMinutes: 0
+  - points: 120
+    free:
+      gems: 25
+      cards: 1
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 55
+      cards: 2
+      charts: 0
+      cashMinutes: 0
+  - points: 180
+    free:
+      gems: 30
+      cards: 0
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 70
+      cards: 2
+      charts: 0
+      cashMinutes: 0
+  - points: 250
+    free:
+      gems: 40
+      cards: 1
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 90
+      cards: 2
+      charts: 20
+      cashMinutes: 0
+  - points: 330
+    free:
+      gems: 45
+      cards: 0
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 105
+      cards: 3
+      charts: 0
+      cashMinutes: 0
+  - points: 420
+    free:
+      gems: 55
+      cards: 1
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 125
+      cards: 3
+      charts: 0
+      cashMinutes: 0
+  - points: 520
+    free:
+      gems: 65
+      cards: 0
+      charts: 25
+      cashMinutes: 0
+    premium:
+      gems: 145
+      cards: 3
+      charts: 35
+      cashMinutes: 0
+  - points: 630
+    free:
+      gems: 75
+      cards: 1
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 170
+      cards: 4
+      charts: 0
+      cashMinutes: 0
+  - points: 750
+    free:
+      gems: 90
+      cards: 1
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 200
+      cards: 4
+      charts: 50
+      cashMinutes: 0
+  - points: 880
+    free:
+      gems: 105
+      cards: 0
+      charts: 40
+      cashMinutes: 0
+    premium:
+      gems: 230
+      cards: 5
+      charts: 0
+      cashMinutes: 0
+  - points: 1020
+    free:
+      gems: 120
+      cards: 2
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 260
+      cards: 5
+      charts: 60
+      cashMinutes: 0
+  - points: 1170
+    free:
+      gems: 140
+      cards: 1
+      charts: 0
+      cashMinutes: 0
+    premium:
+      gems: 300
+      cards: 6
+      charts: 0
+      cashMinutes: 0
+  - points: 1330
+    free:
+      gems: 165
+      cards: 2
+      charts: 50
+      cashMinutes: 0
+    premium:
+      gems: 350
+      cards: 7
+      charts: 80
+      cashMinutes: 0
+  - points: 1500
+    free:
+      gems: 220
+      cards: 3
+      charts: 75
+      cashMinutes: 0
+    premium:
+      gems: 500
+      cards: 10
+      charts: 120
+      cashMinutes: 0

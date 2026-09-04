@@ -73,6 +73,10 @@ namespace Game.Core
             /// <summary>Islands the player must own before the event is offered at all. 0 = everyone.
             /// The one eligibility axis the hub needs; anything richer belongs to the module.</summary>
             public int MinIslands;
+
+            /// <summary>How many chapters must be complete before the event is visible. 0 keeps
+            /// legacy schedules open; 1 means Chapter 1 is complete.</summary>
+            public int MinCompletedChapters;
         }
 
         /// <summary>
@@ -86,6 +90,7 @@ namespace Game.Core
             if (string.IsNullOrEmpty(d.Id)) return false;
             if (d.Slots <= 0 || d.Slots > MaxSlots) return false;
             if (d.StartUnix <= 0L || d.EndUnix <= 0L) return false;
+            if (d.MinIslands < 0 || d.MinCompletedChapters < 0) return false;
             return d.EndUnix > d.StartUnix;
         }
 
@@ -116,10 +121,16 @@ namespace Game.Core
         /// <summary>Whether the player is far enough in to be shown the event at all.</summary>
         public static bool Eligible(in Definition d, int islandsOwned) => islandsOwned >= d.MinIslands;
 
+        public static bool Eligible(in Definition d, int islandsOwned, int completedChapters)
+            => islandsOwned >= d.MinIslands && completedChapters >= d.MinCompletedChapters;
+
         /// <summary>Whether progress may accrue right now: the window is open AND the player qualifies.
         /// The single question every module asks before recording anything.</summary>
         public static bool Accruing(in Definition d, long nowUnix, int islandsOwned)
             => PhaseAt(d, nowUnix) == Phase.Active && Eligible(d, islandsOwned);
+
+        public static bool Accruing(in Definition d, long nowUnix, int islandsOwned, int completedChapters)
+            => PhaseAt(d, nowUnix) == Phase.Active && Eligible(d, islandsOwned, completedChapters);
 
         /// <summary>
         /// Whether progress saved under <paramref name="savedVersion"/> still counts for a definition.

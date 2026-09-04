@@ -56,6 +56,10 @@ namespace Game.Data
 
             [Tooltip("Etkinliğin görünmesi için gereken ada sayısı. 0 = herkese açık.")]
             [Min(0)] public int minIslands;
+
+            [Tooltip("Etkinliğin görünmesi için tamamlanmış olması gereken bölüm sayısı. " +
+                     "0 = bölüm şartı yok, 1 = Bölüm 1 tamamlanmış.")]
+            [Min(0)] public int minCompletedChapters;
         }
 
         [Header("Etkinlikler")]
@@ -93,6 +97,7 @@ namespace Game.Data
                     ConfigVersion = r.configVersion,
                     Slots         = r.slots,
                     MinIslands    = r.minIslands,
+                    MinCompletedChapters = r.minCompletedChapters,
                 };
 
                 if (!Game.Core.LiveEvents.IsWellFormed(d))

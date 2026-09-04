@@ -33,6 +33,12 @@ namespace Game.Systems
         [SerializeField] private LiveEventConfig liveEventConfig;
         [Tooltip("Döküm Şenliği'nin görev ve sandık tablosu. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
         [SerializeField] private FoundryFestivalConfig foundryFestivalConfig;
+        [Tooltip("Liman Festivali görev, ödül şeridi ve takas tablosu. Boş bırakılırsa varsayılanlarla çalışır.")]
+        [SerializeField] private HarborFestivalConfig harborFestivalConfig;
+        [Tooltip("Üretim Sprinti puan kuralları ve kişisel kilometre taşları. Boş bırakılırsa varsayılanlarla çalışır.")]
+        [SerializeField] private ProductionSprintConfig productionSprintConfig;
+        [Tooltip("Sezonluk Sanayi Bileti puan kaynakları, kademeleri ve premium ürünü. Boş bırakılırsa varsayılanlarla çalışır.")]
+        [SerializeField] private SeasonalIndustryPassConfig seasonalIndustryPassConfig;
         [SerializeField] private ContractConfig contractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
@@ -73,6 +79,9 @@ namespace Game.Systems
         public CraftingService Crafting { get; private set; }
         public LiveEventService LiveEvents { get; private set; }
         public FoundryFestivalService Festival { get; private set; }
+        public HarborFestivalService HarborFestival { get; private set; }
+        public ProductionSprintService ProductionSprint { get; private set; }
+        public SeasonalIndustryPassService IndustryPass { get; private set; }
 
         private TimeService _time;
         private NotificationService _notifications;
@@ -293,18 +302,39 @@ namespace Game.Systems
             // is exactly right for a build made before any were authored.
             LiveEvents = new LiveEventService(Data,
                 liveEventConfig != null ? liveEventConfig.Definitions() : null,
-                _time, ServiceLocator.Get<IAnalytics>());
+                _time, ServiceLocator.Get<IAnalytics>(), Chapters);
             ServiceLocator.Register(LiveEvents);
 
             // The first module on top of it. Last of the lot on purpose: it pays out through the
-            // wallet, the roster, the captains and the boost clock, and reads the goal tallies, so
-            // every one of them has to exist first. With no festival on the schedule it is inert —
+            // wallet and roster and reads the goal tallies, so those services have to exist first.
+            // With no festival on the schedule it is inert —
             // Available reads false and nothing above it draws.
             Festival = new FoundryFestivalService(LiveEvents, Goals, Wallet,
                 foundryFestivalConfig != null ? foundryFestivalConfig.ToTuning()
                                               : Game.Core.FoundryFestival.Tuning.Default,
                 Foremen, Captains, boost, Data, Save, _time);
             ServiceLocator.Register(Festival);
+
+            HarborFestival = new HarborFestivalService(LiveEvents, Goals, Wallet,
+                harborFestivalConfig != null ? harborFestivalConfig.ToTuning()
+                                             : Game.Core.HarborFestival.Tuning.Default,
+                Foremen, Captains, boost, Data, Save, _time,
+                ServiceLocator.Get<IIAPService>(), ServiceLocator.Get<IAnalytics>());
+            ServiceLocator.Register(HarborFestival);
+
+            ProductionSprint = new ProductionSprintService(LiveEvents, Goals, Wallet,
+                productionSprintConfig != null ? productionSprintConfig.ToTuning()
+                                               : Game.Core.ProductionSprint.Tuning.Default,
+                Foremen, Data, Save, _time,
+                ServiceLocator.Get<ILeaderboardService>(), ServiceLocator.Get<IAnalytics>());
+            ServiceLocator.Register(ProductionSprint);
+
+            IndustryPass = new SeasonalIndustryPassService(LiveEvents, Goals, Wallet,
+                seasonalIndustryPassConfig != null ? seasonalIndustryPassConfig.ToTuning()
+                                                   : Game.Core.SeasonalIndustryPass.Tuning.Default,
+                Foremen, Captains, Data, Save, _time,
+                ServiceLocator.Get<IIAPService>(), ServiceLocator.Get<IAnalytics>());
+            ServiceLocator.Register(IndustryPass);
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
             ServiceLocator.Register(new FreeRewardService(Data, _time));
@@ -419,6 +449,9 @@ namespace Game.Systems
                 // window is still open. A player who finishes a task and immediately leaves on the
                 // last evening would otherwise lose it to the closing second.
                 Festival?.Sync();
+                HarborFestival?.Sync();
+                ProductionSprint?.Sync();
+                IndustryPass?.Sync();
                 Save?.Save(Data);
                 _notifications?.ScheduleAway();
             }
@@ -436,6 +469,10 @@ namespace Game.Systems
 
         private void OnApplicationQuit()
         {
+            Festival?.Sync();
+            HarborFestival?.Sync();
+            ProductionSprint?.Sync();
+            IndustryPass?.Sync();
             Save?.Save(Data);
             // Android normally pauses before it quits, so this is usually a re-queue of the same plan
             // a second later. ScheduleAway clears the queue before rebuilding it, so that is harmless.
