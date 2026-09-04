@@ -172,6 +172,7 @@ namespace Game.UI
                 for (int i = 0; i < bottomRow.Length; i++) InsertBottom(AuthoredOrder + i, bottomRow[i]);
             LayoutBottomRow();
             BuildObjectiveStrip();
+            BuildLadder();
 
             if (_wallet != null) _wallet.GemsChanged += RefreshGems;
             RefreshGems();
@@ -189,6 +190,10 @@ namespace Game.UI
         /// <summary>Inspector'daki siranin anahtarlari buradan basliyor; koddan eklenen acicilar
         /// solda durmak icin 0-9 arasi bir anahtar veriyor.</summary>
         private const int AuthoredOrder = 10;
+
+        /// <summary>Where the scene keeps its code-built screens. A plain root object — deliberately
+        /// outside every Canvas, which is what a screen building its own overlay canvas needs.</summary>
+        private const string UiSystemsObject = "UI_Sistemler";
 
         /// <summary>
         /// Hangs a code-built screen's opener in the bottom row: same parent, same size, same line.
@@ -372,6 +377,32 @@ namespace Game.UI
                 banner = go.AddComponent<ObjectiveBannerUI>();
             }
             banner.Adopt(this);
+        }
+
+        /// <summary>
+        /// The league screen, made here for the same reason the strip above is: it is built in code
+        /// and there is no authored sheet to wire it into. One already in the scene is adopted instead,
+        /// so its art becomes Inspector-tunable without this method changing.
+        ///
+        /// It attaches its own opener (order 6) from its Awake, and draws none at all when the build
+        /// has no ladder registered — so a stub-backed build costs one dormant component.
+        ///
+        /// IT MUST NOT BE PARENTED TO THE HUD, however convenient that looks from in here. The screen
+        /// builds its own ScreenSpaceOverlay canvas, and a Canvas nested inside another Canvas has its
+        /// render mode ignored: it becomes a sub-canvas laid out inside the parent's RectTransform.
+        /// Hung under the HUD it therefore inherited a zero-sized rect and every anchored child
+        /// collapsed onto a single point — the whole screen drawn as one pile of overlapping text.
+        /// It goes beside the other code-built screens on UI_Sistemler, which is a plain object, and
+        /// falls back to the scene root, which is also outside every canvas.
+        /// </summary>
+        private void BuildLadder()
+        {
+            if (FindAnyObjectByType<LadderUI>(FindObjectsInactive.Include) != null) return;
+
+            var go = new GameObject("LigEkrani");
+            GameObject systems = GameObject.Find(UiSystemsObject);
+            if (systems != null) go.transform.SetParent(systems.transform, false);
+            go.AddComponent<LadderUI>();
         }
 
         private void Update()

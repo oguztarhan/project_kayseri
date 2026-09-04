@@ -62,6 +62,9 @@ namespace Game.UI
         /// <summary>The rail button's icon. Missing until the art lands — see Docs/ASSETS.md.</summary>
         private const string OpenerIconResource = "UI/Buttons/kaptan";
 
+        /// <summary>The odds badge on the crate card. Loaded the same way, for the same reason.</summary>
+        private const string InfoIconResource = "UI/Buttons/bilgi";
+
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
         private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
@@ -96,6 +99,7 @@ namespace Game.UI
         private RosterFilterMode _filterMode;
         private Text _sortText, _filterText, _emptyText;
         private RosterInspectPanel _inspect;
+        private OddsSheetUI _odds;
         private int _selected = -1;
 
         private void Awake()
@@ -130,6 +134,7 @@ namespace Game.UI
         public void Hide()
         {
             if (_inspect != null) _inspect.Hide();
+            if (_odds != null) _odds.Hide();
             if (_root != null) _root.gameObject.SetActive(false);
         }
 
@@ -163,6 +168,7 @@ namespace Game.UI
                             new Vector2(right, top - row * rh - 0.006f));
             }
             _inspect = new RosterInspectPanel(_root);
+            _odds = new OddsSheetUI(_root);
         }
 
         private void BuildBrowseBar()
@@ -230,8 +236,20 @@ namespace Game.UI
         {
             RectTransform c = Art(_root, "Sandik", cardPanel, new Vector2(0.035f, 0.030f), new Vector2(0.330f, 0.815f));
 
-            UiBuild.Label(Slot(c, "Baslik", new Vector2(0.07f, 0.900f), new Vector2(0.93f, 0.975f)),
+            UiBuild.Label(Slot(c, "Baslik", new Vector2(0.07f, 0.900f), new Vector2(0.78f, 0.975f)),
                           "Text", Loc.T("kaptan.sandik"), 32, TextAnchor.MiddleCenter).color = Ink;
+
+            // Charts cannot be bought, so this crate is outside the platforms' paid-loot-box rule. The
+            // badge is here anyway: the card already shows how far each guarantee is away, and the
+            // weights behind it are the half that was still taken on faith.
+            Sprite infoIcon = Resources.Load<Sprite>(InfoIconResource);
+            Button odds = UiBuild.Btn(c, "Oran", infoIcon != null ? string.Empty : "i",
+                                      infoIcon != null ? infoIcon : UiSkin.ButtonGrey,
+                                      new Color(0.45f, 0.49f, 0.56f, 1f), 22,
+                                      () => { if (_odds != null && _captains != null)
+                                                  _odds.ShowCaptainCrate(_captains.CrateTuning); });
+            UiBuild.Anchor((RectTransform)odds.transform,
+                           new Vector2(0.805f, 0.900f), new Vector2(0.945f, 0.975f));
 
             _collectedLabel = UiBuild.Label(Slot(c, "Toplandi", new Vector2(0.07f, 0.840f), new Vector2(0.93f, 0.895f)),
                                             "Text", string.Empty, 24, TextAnchor.MiddleCenter);

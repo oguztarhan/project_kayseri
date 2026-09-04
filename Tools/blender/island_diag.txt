@@ -1,11 +1,11 @@
-time            : 21:17:16
+time            : 01:01:36
 colorSpace      : Linear
 activeBuildTgt  : Android
 
 MESH VERTEX COLOURS: 815/815 meshes have colours (from 6 fbx)
     Civic.Tree0 verts=198 cols=198 first=(87,129,87) mid=(101,143,87)
-    Civic.Tower verts=152 cols=152 first=(142,119,85) mid=(255,232,198)
-    Civic.Plaza verts=24 cols=24 first=(138,127,127) mid=(138,127,127)
+    Civic.Lamp0 verts=96 cols=96 first=(248,248,220) mid=(149,156,163)
+    Civic.Shop0 verts=1650 cols=1650 first=(163,137,97) mid=(202,97,71)
 
 PREFAB RENDERERS: 2693
     kayseriShader=2214 default=0 other=1293 null=0

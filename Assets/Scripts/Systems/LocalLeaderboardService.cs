@@ -117,6 +117,35 @@ namespace Game.Systems
         public long AcceptedScore(string seasonId)
             => seasonId != null && _accepted.TryGetValue(seasonId, out long best) ? best : 0L;
 
+        /// <summary>
+        /// Hands a season's score back to the double after an app restart — the one thing it cannot
+        /// work out for itself, because it persists nothing (see the class note).
+        ///
+        /// IT IS NOT A BACK DOOR AROUND THE SEASON CHECK, and the distinction matters. A closed season
+        /// is exactly what this is for: the owner (<c>LadderService</c>) keeps the score in the save,
+        /// and on the launch that discovers the season has ended it replays the number so the
+        /// settlement ranks the player on what they actually earned rather than on the zero a fresh
+        /// dictionary would report. <see cref="SubmitScore"/> cannot do that job — it refuses a closed
+        /// season by design, which is right for a score being EARNED and wrong for one being RESTORED.
+        ///
+        /// It merges rather than overwrites, so replaying a stale snapshot over a live one cannot
+        /// lower a score, and replaying the same one twice is the no-op that <see cref="MergeScore"/>
+        /// makes it everywhere else.
+        /// </summary>
+        public void Restore(string seasonId, long score, long achievedUnix)
+        {
+            if (string.IsNullOrEmpty(seasonId) || score <= 0L || achievedUnix <= 0L) return;
+
+            long best = AcceptedScore(seasonId);
+            long merged = Leaderboards.MergeScore(best, score);
+            bool moved = merged > best || !_accepted.ContainsKey(seasonId);
+
+            _accepted[seasonId] = merged;
+            // The achievement stamp only moves when the score does — the same rule Commit keeps, and
+            // for the same reason: a restore must not push the player down the tie-break.
+            if (moved) _achieved[seasonId] = achievedUnix;
+        }
+
         /// <summary>Whether a submission is waiting for a flush. Read by tests, and by any UI that
         /// wants to show "gönderiliyor" rather than a stale number.</summary>
         public bool HasPending => _hasPending;

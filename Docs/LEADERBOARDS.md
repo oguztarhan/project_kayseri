@@ -1,8 +1,11 @@
 # Sıralama ve turnuvalar (Leaderboards) — the decision, and the seam it hangs on
 
-**Date:** 2026-09-04 · **Status:** decision document + client seam. **Nothing is wired into the game.**
-**Verified:** compiles clean, **694 EditMode tests green** in Unity's own Test Runner — see §15.
-**Blocked on:** seven product-owner decisions, §14. Until D1 is answered no ladder is shown to anybody.
+**Date:** 2026-09-04 · **Status:** **decisions answered and the league is built** — option A, three-day
+seasons. See §17 for what shipped. The decision record below is kept as written.
+**Verified:** all six assemblies compile clean; 16 new EditMode tests green plus the 44 that were
+already here, and the full suite passes outside the Editor — see §17.
+**Was blocked on:** seven product-owner decisions, §14. D1, D4, D5 and D7 are answered (§17); D3 and
+D6 took the defaults this document proposed.
 
 This is integration-pack system **12**, and it is the one system in the pack whose own brief says
 *plan only*. It is also the third and last of the three gaps `FIVE_LAYERS.md` §1 named — "Chapters,
@@ -361,3 +364,227 @@ The pack recommends folder 13 (battle pass) before 12. That order is right for *
 pass gives a ladder something to pay into — but 12's deliverable is a decision, and the decision
 gates weeks of other people's work (a processor, a DPA, a privacy review). Producing it now costs
 nothing and unblocks the calendar. Nothing in §4 depends on 13; the reward brackets in D6 will.
+
+---
+
+## 17. As built — 2026-09-04 · the three-day league
+
+Integration-pack system **12**, shipped on option **A**. Compile-verified across all six assemblies
+and test-verified outside the Editor; **not played** — the in-game pass is the user's.
+
+### The decisions, answered
+
+| | Decision | Answer |
+|---|---|---|
+| **D1** | Ladder, and which option | **A — local league.** No package, no account, no network, no privacy change. The seam is untouched, so C remains a swap rather than a rewrite |
+| **D3** | What the score is | **Bars sold in the season**, the default §14 proposed — already metered by `Goals`, so no new hook anywhere |
+| **D4** | Generated opponents | **Yes, labelled.** `lig.temsili` is written from the board's own `Synthetic` flag on every refresh |
+| **D5** | Paid entry | **No.** Free entry; no ticket SKU exists to be enabled by accident |
+| **D6** | What the brackets pay | 150 / 100 / 75 / 40 / 20 / 10 gems, with 3 / 2 / 2 / 1 / – / – master cards |
+| **D7** | Cadence | **Three days**, not the weekly default this document assumed |
+
+**What the cadence does to the calendar,** recorded because it looks like a bug the first time it is
+seen: the epoch is a Monday and three does not divide seven, so season boundaries walk through the
+week — Monday, Thursday, Sunday, Wednesday. Every window is measured from the epoch in seconds
+rather than from a weekday, so nothing else cares.
+
+**Sizing for D6.** A whole Production Sprint's milestone ladder pays 210 gems and 6 cards, and the
+master set costs ~14,400 gems. Winning every three-day season for a month is ~1,500 gems, a tenth of
+the set — beside the sprint rather than ahead of it. The tail still pays, so 27th is a reason to come
+back rather than a reason to stop.
+
+### Files
+
+| File | |
+|---|---|
+| `Assets/Scripts/Core/Ladder.cs` | new — the payout table only. Separate from `Leaderboards` for the reason that file keeps from `LiveEvents`: a ranking is arithmetic, a payout is content |
+| `Assets/Scripts/Core/Leaderboards.cs` | `+ThreeDayCadenceSeconds`. Nothing else — cadence was already a parameter everywhere |
+| `Assets/Scripts/Systems/LadderService.cs` | new — the score cursor, the settlement sweep, the claim |
+| `Assets/Scripts/Systems/LocalLeaderboardService.cs` | `+Restore` — see below |
+| `Assets/Scripts/Systems/Save/SaveData.cs` | `LadderState ladder` + `LadderInboxRow`. **No version bump** |
+| `Assets/Scripts/Systems/GameBootstrap.cs` | registers the double as `ILeaderboardService`, then the service |
+| `Assets/Scripts/UI/LadderUI.cs` | new — ten rows, a pinned "you" row, the claim strip, opener order 6 |
+| `Assets/Scripts/UI/HudUI.cs` | `BuildLadder` — makes the screen at runtime, the route `ObjectiveBannerUI` already took |
+| `Assets/Resources/Diller/metinler.txt` | 6 `lig.*` keys × 11 languages, appended |
+| `Assets/Scripts/Tests/EditMode/LadderTests.cs` | new — 16 tests |
+| `Assets/Scripts/Tests/EditMode/LadderUiSmokeTests.cs` | new — the screen builds with no service and no scene |
+
+**No scene was touched, and none needs to be.** `HudUI` makes the screen when the scene has none, so
+this needs no prefab wiring to appear — which also means there is nothing here waiting on the Editor.
+
+### Four things worth keeping
+
+**1. The score is derived, not reported.** Bars sold minus a baseline snapshotted when the season
+opened — the same shape `GoalService`'s day and week baselines use. Nothing reports into the league,
+which is why the market, the yards and the dock needed no edit, and why an existing player's first
+season starts at zero instead of counting their whole career.
+
+**2. The league follows the counter, not the screen.** The first build synced only on read. That is
+enough for a screen and wrong for a score: a player who sold all season and never opened the ladder
+would have had nothing recorded when it closed, and would have settled as if they had not played —
+so the reward would have gone to whoever opened a screen. It subscribes to `GoalService.Changed` now.
+That path does the least it can: it updates the season's best in the save and nothing else — no
+submission, no save, no allocation — and hands over to the full sync only when the season has ended,
+which it detects with one comparison against a cached end-second rather than by building a season id.
+
+**3. `Restore`, and why the double needed it.** `LocalLeaderboardService` persists nothing by design.
+A season that closed while the app was shut would therefore settle on the zero a fresh dictionary
+reports — paying the tail bracket to a player who may have led the board. The owner keeps the score
+in the save and replays it on the launch that discovers the rollover. `SubmitScore` cannot do that
+job: it refuses a closed season, which is right for a score being *earned* and wrong for one being
+*restored*. It merges rather than overwrites, so a replayed stale snapshot can never lower a score.
+
+**4. A season nobody played is not settled.** Rolling one over with a zero score would hand the
+player the tail bracket for having been asleep, and a reward for absence makes the bottom of the
+board worth as much as playing.
+
+### What the sprint's ranking does now
+
+Nothing, and correctly. `ProductionSprintService` asks the locator for a ladder and only ranks when
+the ladder's season id equals its own event id; a `lig-N` season never will. It now receives the real
+service instead of a stub and still stays dark — which is what PLAN_11 specified.
+
+### Verification
+
+- **All six assemblies compile: 0 errors, 0 new warnings.** Run against Unity's bundled Roslyn with
+  the Editor closed (the MCP bridge was refused all session — something else holds port 8080).
+- **16 new EditMode tests pass**, plus the 44 `LeaderboardsTests` that were already here.
+- **The full suite runs 815 passing.** The 28 failures are all the offline runner's own limits —
+  engine natives (`ECall`), the `Resources`-loading `EconomySimTests`, and one `[TestCase]` the naive
+  runner cannot invoke. None are assertion failures and none are in this work.
+- **Not played, and not seen.** Every claim about how the screen looks is a guess: no Editor was
+  available, so `LadderUiSmokeTests` is the only thing that has exercised `Build()`.
+
+### What to test in game
+
+1. **The opener.** Seventh button in the HUD's bottom row, after the events board. It should carry a
+   counter chip only when a closed season owes you something.
+2. **Open it.** Ten rows, your row tinted green wherever it sits, the countdown to the season's end,
+   and **"Rakipler temsilidir"** under it — that line is the condition the generated cohort pays
+   rewards under, and it must never be missing.
+3. **Sell some bars, reopen.** Your score should have moved. Rank moves with it — the cohort does not
+   chase you, so a big enough day genuinely climbs.
+4. **The pinned row.** Outside the top ten, your own row sits at the bottom instead. Fresh save with
+   no bars sold: it should read "Listede değil".
+5. **Roll a season.** Three days is a long wait, so the honest check is a device-clock jump forward.
+   The closed season should file one reward row, the board should reset to zero, and the strip at the
+   bottom should say a reward is waiting.
+6. **Claim it.** Gems land in the HUD pill, master cards go to the roster, the chip counts down, and
+   a second tap pays nothing.
+7. **Kill the app mid-season, jump the clock past the end, relaunch.** The settlement must rank you
+   on what you actually earned — this is the `Restore` path, and the failure mode it exists to
+   prevent is silently finishing last.
+8. **A season you never played** should file no row at all.
+9. **Switch language** with the screen open, then reopen — the title, the temsili line, "Listede
+   değil" and the claim strip should all follow.
+
+### Still to do
+
+- **No opener icon.** `Assets/Resources/UI/Buttons/lig.png` does not exist, so the button falls back
+  to the plain blue pill — the same gap the chapter and captain openers had before
+  `Tools/ui/hud_bolum_kaptan.py` drew theirs. A trophy collides with the goals opener; a pennant or a
+  podium is the obvious piece.
+- **`LadderUI`'s sprite slots are empty.** It renders through `UiSkin` fallbacks. Wiring them the way
+  `GoalsUI` is wired is an Inspector job.
+- **No `LadderConfig` asset.** The payout table runs from `Ladder.Tuning.Default`. An SO would need a
+  `.asset` created in the Editor, which was not available; the numbers cannot be tuned without a
+  rebuild until one exists — the same state `ChapterConfig` and `CaptainConfig` shipped in.
+- **The bracket payouts are worked, not played.** D6's numbers are sized against the sprint and the
+  master set, not measured against how a real player's three days actually go.
+
+### The first in-game pass — 2026-09-05
+
+The screen did not open; it drew as one pile of overlapping text. Two causes, both mine.
+
+**1. The canvas was nested inside the HUD's.** `HudUI` made the screen and parented it to itself, the
+way it parents `ObjectiveBannerUI`. But the banner has no canvas of its own — it is fitted into the
+HUD's rect — whereas this screen builds a `ScreenSpaceOverlay` canvas. **A Canvas inside another
+Canvas has its render mode ignored** and becomes a sub-canvas laid out inside the parent's
+RectTransform, which here was a zero-sized host: every anchored child collapsed onto one point.
+
+It is made on `UI_Sistemler` now, the plain root object the other code-built screens live on
+(verified: root, no Canvas component). `LadderUI.Detach` also leaves any canvas it finds itself
+under, so the mistake cannot be made again from a new call site, and
+`ScreenLeavesAnyCanvasItWasCreatedInside` pins it.
+
+**2. Ten full-width rows stacked down a landscape screen.** `ChapterUI` already recorded this rule —
+*"thirteen full-width rows stacked down a landscape screen come out as a letterbox with bars in it"* —
+and this screen was built without applying it. The board is two columns of five now: ranks 1-5 down
+the left, 6-10 down the right, the shape the chapter log and the goals screen use.
+
+**Also corrected while there:** the board was being re-requested once a second from `Update`, which
+`ILeaderboardService.RequestBoard`'s own contract says not to do — it allocates a board and thirty
+entries per call. The per-second tick now only redraws the countdown and syncs the service; the
+standings are re-requested on open and on `Changed`.
+
+**Still not verified by me:** how any of it looks. There is no Editor in this session, so the layout
+above is reasoning from the other screens' rules rather than a screenshot.
+
+### The second in-game pass — 2026-09-05
+
+Reported: empty buttons, and the board not working at all. One root cause behind the look, plus the
+missing icon.
+
+**`Art()` decided the 9-slice from the argument instead of the sprite it assigned.** The helper —
+copied verbatim from `LiveEventsUI`, which is where it is correct — reads:
+
+```csharp
+img.sprite = sprite != null ? sprite : UiSkin.Panel;
+img.type = sprite != null && sprite.border.sqrMagnitude > 0f ? Sliced : Simple;
+img.preserveAspect = img.type == Image.Type.Simple;
+```
+
+With a null argument it falls back to `UiSkin.Panel` — which **is** 9-sliceable (`Button_Square_Disable`,
+border 26) — and then types it Simple with `preserveAspect` on anyway. Every panel, row and strip
+therefore rendered as an aspect-locked square that would not fill its rect.
+
+The screens that carry this helper never see it, because their sprite slots are wired in the
+Inspector. **A runtime-built screen has no Inspector, so every slot is null by definition** — which
+is the whole reason this one was hit. `ScreenBuildsItsBoardAndClaimStripWithoutSceneReferences` now
+asserts a row is not `preserveAspect`.
+
+**Theme.** `UiSkin`'s own rule is that the kit art is pre-coloured and state is picked by swapping the
+sprite, never by tinting a neutral plate — the tints here were doing exactly what that rule forbids.
+The header band takes `UiSkin.Pill`, a normal row `UiSkin.Panel`, the player's row and the claim
+button `UiSkin.ButtonGreen`, and the reward strip `UiSkin.ButtonYellow`. The two tint fields are gone.
+
+**The opener icon.** `Tools/ui/hud_lig.py` draws `lig.png`: a podium, gold first step in the middle.
+A trophy would have been the natural symbol for a ranking but it is already the goals opener, and a
+podium collides with nothing else in the row. It lifts the plate from `gorev.png` exactly as
+`hud_bolum_kaptan.py` does, so it sits in the same family.
+
+**And why that icon would still have imported blank.** The project is in 3D behaviour mode, so a new
+PNG imports as a plain texture and `Resources.Load<Sprite>` answers null for it — a blank coloured
+plate, indistinguishable from a missing file. Every icon under `Assets/Resources/UI/` is generated by
+a script and loaded that way, so `Assets/Editor/UI/UiSpriteImporter.cs` now sets the sprite defaults
+on **first** import only (`importSettingsMissing`), leaving every setting anybody has since chosen —
+the sea set's Repeat wrap among them — untouched.
+
+### The third in-game pass — 2026-09-05 · the frozen score, and the podium
+
+**The score sat at 53 and never moved. That was a real bug, and mine.** The "league follows the
+counter" fix has `OnGoalsChanged` move the season's best in the save silently, on the hot path. But
+`Track` — the thing that actually submits — then asked *"is the score higher than the save's best?"*,
+which by that point is never true. So after the first submission it returned early forever: nothing
+new ever reached the board, `Changed` never fired, and the number froze at whatever was last sent
+while the player went on selling.
+
+`Track` measures against **what was submitted** now, not against the save.
+`TheBoardFollowsTheScoreInsteadOfFreezingAtTheFirstSubmission` pins it, at 53.
+
+**The screen is laid out like the reference now.** Frame 0027's structure, not its art:
+
+| | |
+|---|---|
+| Podium | ranks 1-3 as cards, **first in the middle and tallest** — the arrangement is what says "podium" before a number is read |
+| Rows | ranks 4-9, two columns of three (landscape, per `ChapterUI`'s rule) |
+| Chests | **on every position**, gold / silver / bronze / plain by bracket |
+| Tap a chest | opens what it holds: which ranks share that bracket, and the gems and cards it pays |
+| Player | their card or row takes the green plate; pinned underneath when outside the nine |
+
+**The chest is the reward table, not decoration.** Before this there was nowhere in the game a player
+could find out what finishing 7th was worth — the brackets existed only in this document. That is
+why the reference puts a chest on every row, and why tapping one had to open.
+
+**New art.** `Tools/ui/lig_sandik.py` draws four chests into `Assets/Resources/UI/Lig/`, in the same
+outline-plus-gradient language as the rest of the kit.

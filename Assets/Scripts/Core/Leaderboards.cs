@@ -44,9 +44,21 @@ namespace Game.Core
         /// </summary>
         public const long SeasonEpochUnix = 1767571200L;
 
-        /// <summary>A week. The only cadence the design calls for today; it is a parameter everywhere
-        /// below, so a daily or fortnightly ladder needs no new arithmetic.</summary>
+        /// <summary>A week. Kept because the tests measure the arithmetic against it, and because a
+        /// cadence is a parameter everywhere below rather than a constant anything reads directly.</summary>
         public const long WeeklyCadenceSeconds = 604800L;
+
+        /// <summary>
+        /// Three days — the shipping cadence (Docs/LEADERBOARDS.md D7). Short enough that a season
+        /// ends while the player still remembers entering it, and long enough that missing an evening
+        /// is not the same as missing the season.
+        ///
+        /// Note what it does to the calendar: the epoch is a Monday and three does not divide seven,
+        /// so season boundaries walk through the week — Monday, Thursday, Sunday, Wednesday. That is
+        /// inherent to any cadence that is not a multiple of a week, and it is harmless here because
+        /// every window is measured from the epoch in seconds rather than from a weekday.
+        /// </summary>
+        public const long ThreeDayCadenceSeconds = 259200L;
 
         /// <summary>
         /// How many entrants share one board. Fixed, and fixed at a number that fits a phone screen in

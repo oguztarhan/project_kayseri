@@ -258,6 +258,57 @@ namespace Game.Systems
         // not identity: a ticket filed the day before an economy reset still has to name the same
         // device the day after, or the desk is answering a stranger.
         public string playerId = "";
+
+        // ---- lig (LadderService) -----------------------------------------------------------------
+        // The three-day league. Added WITHOUT a save-version bump, on the precedent every block above
+        // set: a default-constructed row is a player who has never entered a season, which is exactly
+        // what every existing save is.
+        public LadderState ladder = new LadderState();
+    }
+
+    /// <summary>
+    /// The league's whole persisted state — deliberately small, because most of what a ladder appears
+    /// to hold is DERIVED rather than stored.
+    ///
+    /// The running season's score is <c>lifetime[BarsSold] - baseline</c>, both of which are already
+    /// in the save, so the score survives an app kill without being written twice and can never drift
+    /// from the counter it is measured off. What genuinely has to be kept is here:
+    ///
+    /// <see cref="bestScore"/> exists for one reason — a season that closes while the app is shut. The
+    /// delta would then include bars sold AFTER the window ended, and would settle a closed season
+    /// with a score that was never earned inside it. So the number is snapshotted while the season is
+    /// open and settled from the snapshot.
+    ///
+    /// <see cref="settledSeasons"/> is the idempotency key list, the same shape
+    /// <c>processedIapTransactions</c> keeps: a settlement delivered twice must pay once.
+    /// </summary>
+    [Serializable]
+    public class LadderState
+    {
+        public string seasonId = "";      // the season baseline/bestScore belong to; "" = never entered
+        public long baseline;             // lifetime[BarsSold] when this season opened
+        public long bestScore;            // the best seen WHILE the season was open (see the class note)
+        public long bestAchievedUnix;     // when bestScore was first reached — the ranking tie-break
+        public List<string> settledSeasons = new List<string>();
+        public List<LadderInboxRow> inbox = new List<LadderInboxRow>();
+    }
+
+    /// <summary>
+    /// One closed season's result, waiting to be collected. Keyed by the season id, which is what
+    /// makes the grant idempotent: the flag is written and saved BEFORE the reward is handed over,
+    /// exactly as <c>ChapterService.Claim</c> and <c>IapTransactionJournal</c> gate theirs.
+    ///
+    /// NOTHING HERE EXPIRES. A row waits indefinitely, like an unclaimed contract at the port — an
+    /// inbox that swept itself would be the first thing in this game that punished absence
+    /// (Docs/FIVE_LAYERS.md R3).
+    /// </summary>
+    [Serializable]
+    public class LadderInboxRow
+    {
+        public string seasonId;
+        public int rank;                  // final 1-based rank; 0 when the player did not take part
+        public int tier;                  // bracket index, or -1 for no payout
+        public bool claimed;
     }
 
     /// <summary>

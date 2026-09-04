@@ -68,6 +68,9 @@ namespace Game.UI
         /// <summary>The rail button's icon, loaded at runtime — this screen has no Inspector to wire.</summary>
         private const string OpenerIconResource = "UI/Buttons/ustabasi";
 
+        /// <summary>The odds badge on the chest shelf. Loaded the same way, for the same reason.</summary>
+        private const string InfoIconResource = "UI/Buttons/bilgi";
+
         // The card is white art now, so every label on it has to be ink rather than paper.
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
@@ -119,6 +122,7 @@ namespace Game.UI
         private RosterFilterMode _filterMode;
         private Text _sortText, _filterText, _emptyText;
         private RosterInspectPanel _inspect;
+        private OddsSheetUI _odds;
         private int _selected = -1;
 
         // ---- the chest shelf ----
@@ -222,6 +226,7 @@ namespace Game.UI
             _revealing = false;
             if (_reveal != null) _reveal.gameObject.SetActive(false);
             if (_inspect != null) _inspect.Hide();
+            if (_odds != null) _odds.Hide();
             if (_root != null) _root.gameObject.SetActive(false);
         }
         public void Toggle()
@@ -257,6 +262,7 @@ namespace Game.UI
 
             BuildReveal();
             _inspect = new RosterInspectPanel(_root);
+            _odds = new OddsSheetUI(_root);
         }
 
         private void BuildBrowseBar()
@@ -310,10 +316,22 @@ namespace Game.UI
                                       new Vector2(0.035f, 0.035f), new Vector2(0.288f, 0.845f));
             if (cardPanel == null) shelf.GetComponent<Image>().color = cardHired;
 
-            _chestTitle = UiBuild.Label(Slot(shelf, "Baslik", new Vector2(0.06f, 0.885f), new Vector2(0.94f, 0.975f)),
+            _chestTitle = UiBuild.Label(Slot(shelf, "Baslik", new Vector2(0.06f, 0.885f), new Vector2(0.79f, 0.975f)),
                                         "Text", Loc.T("usta.sandik"), 30, TextAnchor.MiddleCenter);
             _chestTitle.color = Ink;
             Fit(_chestTitle, 18, 30);
+
+            // The odds badge. Gems buy this chest and gems are sold for money, which makes it a paid
+            // randomised mechanic — both stores require the chance to be readable before the purchase,
+            // so this sits on the shelf beside the price rather than behind a settings menu.
+            Sprite infoIcon = Resources.Load<Sprite>(InfoIconResource);
+            Button odds = UiBuild.Btn(shelf, "Oran", infoIcon != null ? string.Empty : "i",
+                                      infoIcon != null ? infoIcon : UiSkin.ButtonGrey,
+                                      new Color(0.45f, 0.49f, 0.56f, 1f), 22,
+                                      () => { if (_odds != null && _foremen != null)
+                                                  _odds.ShowMasterChest(_foremen.ChestTuning); });
+            UiBuild.Anchor((RectTransform)odds.transform,
+                           new Vector2(0.815f, 0.885f), new Vector2(0.955f, 0.975f));
 
             Icon(shelf, "Gorsel", chestIcon != null ? chestIcon : cardPanel,
                  new Vector2(0.13f, 0.520f), new Vector2(0.87f, 0.875f));

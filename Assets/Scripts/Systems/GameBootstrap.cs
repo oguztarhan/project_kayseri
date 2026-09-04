@@ -77,6 +77,7 @@ namespace Game.Systems
         public CaptainService Captains { get; private set; }
         public ExpeditionService Expeditions { get; private set; }
         public CraftingService Crafting { get; private set; }
+        public LadderService Ladder { get; private set; }
         public LiveEventService LiveEvents { get; private set; }
         public FoundryFestivalService Festival { get; private set; }
         public HarborFestivalService HarborFestival { get; private set; }
@@ -295,6 +296,24 @@ namespace Game.Systems
             ServiceLocator.Register(Expeditions);
             Expeditions.Crafting = Crafting;   // scraps teach the bench, wins can drop a point
             Crafting.Expeditions = Expeditions;   // wearing a crafted item goes through the sea's Equip
+
+            // The three-day league. The local double is what ships (Docs/LEADERBOARDS.md D1 = option
+            // A): a generated cohort, no package, no account, no network, and every board it returns
+            // carries Synthetic so the screen can say so — which decision D4 requires it to.
+            //
+            // Registered BEFORE the sprint below, which asks the locator for a ladder. It will get
+            // this one and correctly do nothing with it: the sprint only ranks when the ladder's
+            // season id equals its own event id, and a "lig-N" season never will.
+            var ladder = new LocalLeaderboardService(_time, Leaderboards.SeasonEpochUnix,
+                                                     Leaderboards.ThreeDayCadenceSeconds);
+            ServiceLocator.Register<ILeaderboardService>(ladder);
+
+            // What turns that ranking into a game: the score cursor, the settlement sweep and the
+            // claim. After the goals because the score is a delta off their bars-sold tally, and after
+            // the roster and the wallet because a bracket pays gems and master cards.
+            Ladder = new LadderService(Data, Save, Goals, ladder, Wallet, Foremen, _time,
+                                       Game.Core.Ladder.Tuning.Default, ServiceLocator.Get<IAnalytics>());
+            ServiceLocator.Register(Ladder);
 
             // The live-ops wrapper: the schedule only. After the goals because event tasks are read
             // off metrics that already exist, and after nothing else — it owns a window and two
