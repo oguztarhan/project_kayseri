@@ -127,6 +127,24 @@ namespace Game.Tests
             Assert.That(foremen.DuplicatesOf(IslandEconomy.Storage), Is.Zero);
         }
 
+        [Test]
+        public void SharedCardStateDistinguishesLockedAndUpgradeReadyMasters()
+        {
+            SaveData data; WalletService wallet;
+            ForemanService foremen = Build(out data, out wallet);
+
+            RosterCardState locked = foremen.CardState(IslandEconomy.Storage);
+            Assert.That(locked.CardStatus, Is.EqualTo(RosterCardState.Status.Locked));
+            Assert.That(locked.NeedsAttention, Is.False);
+
+            foremen.GrantDuplicates(IslandEconomy.Storage, 2);
+            RosterCardState ready = foremen.CardState(IslandEconomy.Storage);
+            Assert.That(ready.CardStatus, Is.EqualTo(RosterCardState.Status.Owned));
+            Assert.That(ready.Progress, Is.EqualTo(1f));
+            Assert.That(ready.CanUpgrade, Is.True);
+            Assert.That(foremen.PendingCount(), Is.EqualTo(1));
+        }
+
         // ---- the aimed card ----------------------------------------------------------------------
 
         [Test]

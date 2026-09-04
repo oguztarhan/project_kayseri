@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Data;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
@@ -67,6 +68,8 @@ namespace Game.UI
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
 
         private const float RibbonBand = 0.677f;
+        private static readonly System.Globalization.CultureInfo Culture =
+            System.Globalization.CultureInfo.InvariantCulture;
 
         private CaptainService _captains;
         private LocalizationService _loc;
@@ -86,6 +89,14 @@ namespace Game.UI
         private readonly Image[] _rowFill = new Image[Captains.Count];
         private readonly Button[] _rowBtn = new Button[Captains.Count];
         private readonly Text[] _rowBtnText = new Text[Captains.Count];
+        private readonly RectTransform[] _rowRoot = new RectTransform[Captains.Count];
+        private readonly RosterCardState[] _cardState = new RosterCardState[Captains.Count];
+        private readonly int[] _visibleOrder = new int[Captains.Count];
+        private RosterSortMode _sortMode;
+        private RosterFilterMode _filterMode;
+        private Text _sortText, _filterText, _emptyText;
+        private RosterInspectPanel _inspect;
+        private int _selected = -1;
 
         private void Awake()
         {
@@ -116,7 +127,11 @@ namespace Game.UI
         private void OnChanged() { Refresh(); RefreshOpener(); }
 
         public void Show() { if (_root != null) _root.gameObject.SetActive(true); Refresh(); }
-        public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }
+        public void Hide()
+        {
+            if (_inspect != null) _inspect.Hide();
+            if (_root != null) _root.gameObject.SetActive(false);
+        }
 
         // ------------------------------------------------------------------ build
         private void Build()
@@ -131,9 +146,10 @@ namespace Game.UI
 
             BuildHeader();
             BuildCrate();
+            BuildBrowseBar();
 
             // Sağ taraf: beş ve beş. Tek sütunda on satır, yatay ekranda şeritten ibaret kalıyor.
-            const float top = 0.815f, bottom = 0.030f;
+            const float top = 0.765f, bottom = 0.030f;
             int perColumn = (Captains.Count + 1) / 2;
             float rh = (top - bottom) / perColumn;
 
@@ -146,6 +162,47 @@ namespace Game.UI
                 BuildRow(c, new Vector2(left, top - (row + 1) * rh + 0.006f),
                             new Vector2(right, top - row * rh - 0.006f));
             }
+            _inspect = new RosterInspectPanel(_root);
+        }
+
+        private void BuildBrowseBar()
+        {
+            Button sort = UiBuild.Btn(_root, "Sirala", string.Empty,
+                                      actionButton != null ? actionButton : UiSkin.ButtonGreen,
+                                      new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleSort);
+            UiBuild.Anchor((RectTransform)sort.transform,
+                           new Vector2(0.355f, 0.775f), new Vector2(0.565f, 0.815f));
+            PillFit.Wrap(sort.GetComponent<Image>());
+            _sortText = sort.GetComponentInChildren<Text>();
+            Fit(_sortText, 12, 22);
+
+            Button filter = UiBuild.Btn(_root, "Filtre", string.Empty,
+                                        actionButton != null ? actionButton : UiSkin.ButtonGreen,
+                                        new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleFilter);
+            UiBuild.Anchor((RectTransform)filter.transform,
+                           new Vector2(0.575f, 0.775f), new Vector2(0.785f, 0.815f));
+            PillFit.Wrap(filter.GetComponent<Image>());
+            _filterText = filter.GetComponentInChildren<Text>();
+            Fit(_filterText, 12, 22);
+
+            _emptyText = UiBuild.Label(Slot(_root, "FiltreBos", new Vector2(0.39f, 0.35f), new Vector2(0.92f, 0.58f)),
+                                       "Text", Loc.T("kadro.bos"), 28, TextAnchor.MiddleCenter);
+            _emptyText.color = Paper;
+            Fit(_emptyText, 16, 28);
+            _emptyText.gameObject.SetActive(false);
+        }
+
+        private void CycleSort()
+        {
+            _sortMode = (RosterSortMode)(((int)_sortMode + 1) % 4);
+            Refresh();
+        }
+
+        private void CycleFilter()
+        {
+            _filterMode = (RosterFilterMode)(((int)_filterMode + 1) % 4);
+            if (_inspect != null) _inspect.Hide();
+            Refresh();
         }
 
         private void BuildHeader()
@@ -213,7 +270,13 @@ namespace Game.UI
         private void BuildRow(int captain, Vector2 aMin, Vector2 aMax)
         {
             RectTransform c = Art(_root, "Kaptan_" + captain, cardPanel, aMin, aMax);
+            _rowRoot[captain] = c;
             _rowArt[captain] = c.GetComponent<Image>();
+            _rowArt[captain].raycastTarget = true;
+            var inspect = c.gameObject.AddComponent<Button>();
+            inspect.transition = Selectable.Transition.None;
+            int selected = captain;
+            inspect.onClick.AddListener(() => ShowDetails(selected));
 
             // A grade stripe down the left edge — the fastest read on the screen, and the one thing a
             // collection row has to answer before anything else.
@@ -289,6 +352,9 @@ namespace Game.UI
                               + NumberFormatter.Format((double)_captains.Charts, 0);
             _collectedLabel.text = string.Format(Loc.T("kaptan.toplandi"),
                                                  _captains.OwnedCount, Captains.Count);
+            _sortText.text = "↕ " + Loc.T("kadro.sirala." + (int)_sortMode);
+            _filterText.text = "⌄ " + Loc.T("kadro.filtre." + (int)_filterMode);
+            _emptyText.text = Loc.T("kadro.bos");
 
             CaptainCrate.Tuning ct = _captains.CrateTuning;
             // COUNT, THEN PRICE, WITH A SEPARATOR. These read "OPEN 100" and "OPEN 10 900" before,
@@ -303,7 +369,37 @@ namespace Game.UI
 
             _pityLabel.text = PityLine(ct);
 
-            for (int c = 0; c < Captains.Count; c++) RefreshRow(c);
+            for (int c = 0; c < Captains.Count; c++)
+            {
+                _cardState[c] = _captains.CardState(c);
+                RefreshRow(c);
+            }
+            ReflowRows();
+            if (_selected >= 0 && _inspect != null && _inspect.Visible) ShowDetails(_selected);
+        }
+
+        private void ReflowRows()
+        {
+            int count = RosterCardQuery.Fill(_cardState, Captains.Count, _sortMode, _filterMode, _visibleOrder);
+            for (int c = 0; c < Captains.Count; c++) _rowRoot[c].gameObject.SetActive(false);
+
+            int perColumn = Mathf.Max(1, (count + 1) / 2);
+            const float top = 0.765f, bottom = 0.030f;
+            float rowHeight = (top - bottom) / perColumn;
+            for (int position = 0; position < count; position++)
+            {
+                int captain = _visibleOrder[position];
+                int column = position / perColumn;
+                int row = position % perColumn;
+                float left = column == 0 ? 0.355f : 0.665f;
+                float right = column == 0 ? 0.650f : 0.965f;
+                RectTransform card = _rowRoot[captain];
+                UiBuild.Anchor(card,
+                    new Vector2(left, top - (row + 1) * rowHeight + 0.006f),
+                    new Vector2(right, top - row * rowHeight - 0.006f));
+                card.gameObject.SetActive(true);
+            }
+            _emptyText.gameObject.SetActive(count == 0);
         }
 
         /// <summary>
@@ -331,28 +427,29 @@ namespace Game.UI
 
         private void RefreshRow(int captain)
         {
-            bool owned = _captains.Owned(captain);
-            int level = _captains.Level(captain);
+            RosterCardState state = _cardState[captain];
+            bool owned = state.Owned;
+            int level = state.Level;
             var grade = Captains.RankOf(captain);
 
             _rowGrade[captain].color = TintOf(captain);
             _rowArt[captain].color = owned ? Color.white : new Color(0.82f, 0.84f, 0.88f, 1f);
 
-            _rowName[captain].text = owned
-                ? Loc.T("kaptan.ad." + Captains.IdOf(captain))
-                : Loc.T("kaptan.bulunmadi");
+            // Locked entries stay named and visible as collection goals. Ownership is stated on the
+            // second line and by the disabled action; hiding the name would turn a goal into a blank.
+            _rowName[captain].text = Loc.T("kaptan.ad." + Captains.IdOf(captain));
             _rowName[captain].color = owned ? Ink : InkFaint;
 
             string role = Loc.T("kaptan.rol." + Captains.RoleOf(captain));
             string rank = Loc.T("kaptan.derece." + (int)grade);
             _rowRole[captain].text = owned
                 ? string.Format("{0} · {1} · Lv {2}", rank, role, level)
-                : string.Format("{0} · {1}", rank, role);
+                : string.Format("{0} · {1} · {2}", rank, role, Loc.T("kaptan.bulunmadi"));
             _rowRole[captain].color = owned ? InkSoft : InkFaint;
 
-            int need = _captains.DuplicatesNeeded(captain);
-            int have = _captains.Duplicates(captain);
-            Progress(_rowFill[captain], need > 0 ? Goals.Progress(have, need) : (owned ? 1f : 0f));
+            int need = state.DuplicatesRequired;
+            int have = state.Duplicates;
+            Progress(_rowFill[captain], state.Progress);
 
             if (!owned)
             {
@@ -368,11 +465,94 @@ namespace Game.UI
             {
                 // The ACTION when it can be taken, the PROGRESS when it cannot. A button that only
                 // ever reads "3/2" is a readout somebody has made clickable.
-                bool ready = _captains.CanLevel(captain);
+                bool ready = state.CanUpgrade;
                 _rowBtnText[captain].text = ready ? Loc.T("kaptan.yukselt") : have + "/" + need;
                 Dress(_rowBtn[captain], ready);
             }
         }
+
+        private void ShowDetails(int captain)
+        {
+            if (_captains == null || _inspect == null || !Captains.Exists(captain)) return;
+            _selected = captain;
+            RosterCardState state = _captains.CardState(captain);
+            string name = Loc.T("kaptan.ad." + Captains.IdOf(captain));
+            string rarity = Loc.T("kaptan.derece." + (int)state.Tier);
+            string role = Loc.T("kaptan.rol." + state.Role);
+            string identity = state.Owned
+                ? rarity + " · " + role + " · " + string.Format(Loc.T("atolye.seviye"), state.Level)
+                : rarity + " · " + role;
+            int nextLevel = state.Owned ? Mathf.Min(Captains.MaxLevel, state.Level + 1) : 1;
+            string next = state.IsMaxed ? Loc.T("sefer.azami")
+                                        : EffectDeltaAt(captain, state.Level, nextLevel);
+            string progress = state.Owned && !state.IsMaxed
+                ? string.Format(Loc.T("kadro.ilerleme"), state.Duplicates, state.DuplicatesRequired)
+                : state.IsMaxed ? Loc.T("sefer.azami") : Loc.T("kaptan.bulunmadi");
+            string status = !state.Owned ? Loc.T("kaptan.bulunmadi")
+                : state.Busy ? Loc.T("kaptan.denizde")
+                : state.IsMaxed ? Loc.T("sefer.azami")
+                : state.CanUpgrade ? Loc.T("kaptan.yukselt") : string.Empty;
+
+            int selected = captain;
+            _inspect.Show(name, identity,
+                          string.Format(Loc.T("kadro.simdi"), EffectAt(captain, state.Level)),
+                          string.Format(Loc.T("kadro.sonraki"), next),
+                          progress, status, Loc.T("kaptan.yukselt"), state.CanUpgrade,
+                          () => { _captains.TryLevelUp(selected); ShowDetails(selected); });
+        }
+
+        private string EffectAt(int captain, int level)
+        {
+            int role = Captains.RoleOf(captain);
+            double first;
+            double second;
+            switch (role)
+            {
+                case Captains.Gunner:
+                    first = (Captains.SalvageMultiplier(captain, level, _captains.Tuning) - 1d) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.1.not"), Percent(first));
+                case Captains.Bosun:
+                    first = Captains.RiskReduction(captain, level, _captains.Tuning) * 100d;
+                    second = (1d - Captains.RepairMultiplier(captain, level, _captains.Tuning)) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.2.not"), Percent(first), Percent(second));
+                case Captains.Purser:
+                    first = Captains.DirectedShare(captain, level, _captains.Tuning) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.3.not"), Percent(first));
+                default:
+                    first = (Captains.ChartMultiplier(captain, level, _captains.Tuning) - 1d) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.0.not"), Percent(first));
+            }
+        }
+
+        private string EffectDeltaAt(int captain, int fromLevel, int toLevel)
+        {
+            int role = Captains.RoleOf(captain);
+            double first;
+            double second;
+            switch (role)
+            {
+                case Captains.Gunner:
+                    first = (Captains.SalvageMultiplier(captain, toLevel, _captains.Tuning)
+                           - Captains.SalvageMultiplier(captain, fromLevel, _captains.Tuning)) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.1.not"), Percent(first));
+                case Captains.Bosun:
+                    first = (Captains.RiskReduction(captain, toLevel, _captains.Tuning)
+                           - Captains.RiskReduction(captain, fromLevel, _captains.Tuning)) * 100d;
+                    second = (Captains.RepairMultiplier(captain, fromLevel, _captains.Tuning)
+                            - Captains.RepairMultiplier(captain, toLevel, _captains.Tuning)) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.2.not"), Percent(first), Percent(second));
+                case Captains.Purser:
+                    first = (Captains.DirectedShare(captain, toLevel, _captains.Tuning)
+                           - Captains.DirectedShare(captain, fromLevel, _captains.Tuning)) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.3.not"), Percent(first));
+                default:
+                    first = (Captains.ChartMultiplier(captain, toLevel, _captains.Tuning)
+                           - Captains.ChartMultiplier(captain, fromLevel, _captains.Tuning)) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.0.not"), Percent(first));
+            }
+        }
+
+        private static string Percent(double value) => value.ToString("0.#", Culture);
 
         private Color TintOf(int captain)
         {
@@ -462,9 +642,11 @@ namespace Game.UI
 
         private static void Fit(Text label, int min, int max)
         {
+            AccessibilityConfig accessibility = ServiceLocator.Get<AccessibilityConfig>();
+            float scale = accessibility != null ? accessibility.TextScale : 1f;
             label.resizeTextForBestFit = true;
-            label.resizeTextMinSize = min;
-            label.resizeTextMaxSize = max;
+            label.resizeTextMinSize = Mathf.Max(1, Mathf.RoundToInt(min * scale));
+            label.resizeTextMaxSize = Mathf.Max(label.resizeTextMinSize, Mathf.RoundToInt(max * scale));
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
         }

@@ -106,11 +106,39 @@ namespace Game.Systems
             return need > 0 && Duplicates(captain) >= need;
         }
 
+        /// <summary>
+        /// Shared roster-card state. Effect is the captain's current primary contribution: chart or
+        /// salvage bonus, risk reduction, or directed-card share according to role.
+        /// </summary>
+        public RosterCardState CardState(int captain)
+        {
+            int role = Captains.RoleOf(captain);
+            double effect;
+            switch (role)
+            {
+                case Captains.Gunner: effect = SalvageMultiplier(captain) - 1d; break;
+                case Captains.Bosun:  effect = RiskReduction(captain); break;
+                case Captains.Purser: effect = DirectedShare(captain); break;
+                default:              effect = ChartMultiplier(captain) - 1d; break;
+            }
+
+            return new RosterCardState(
+                captain,
+                (RosterCardState.Rarity)(int)Captains.RankOf(captain),
+                role,
+                Level(captain),
+                Captains.MaxLevel,
+                Duplicates(captain),
+                DuplicatesNeeded(captain),
+                effect,
+                Busy(captain));
+        }
+
         /// <summary>How many captains are waiting to be levelled — the number on the opener's badge.</summary>
         public int PendingCount()
         {
             int n = 0;
-            for (int c = 0; c < Captains.Count; c++) if (CanLevel(c)) n++;
+            for (int c = 0; c < Captains.Count; c++) if (CardState(c).NeedsAttention) n++;
             return n;
         }
 

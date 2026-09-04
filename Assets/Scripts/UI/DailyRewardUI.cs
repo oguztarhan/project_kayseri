@@ -72,6 +72,7 @@ namespace Game.UI
         private WorldIslands _world;
         private CoalOperation _op;
         private SaveData _data;
+        private SaveService _save;
 
         private void Start()
         {
@@ -79,6 +80,7 @@ namespace Game.UI
             _wallet = ServiceLocator.Get<WalletService>();
             _haptic = ServiceLocator.Get<HapticService>();
             _data = ServiceLocator.Get<SaveData>();
+            _save = ServiceLocator.Get<SaveService>();
             _world = FindAnyObjectByType<WorldIslands>();
 
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
@@ -117,6 +119,9 @@ namespace Game.UI
                     _wallet.AddCash(new BigDouble(reward.incomeMinutes * mult * IncomePerMinute()));
             }
             if (gems > 0) _wallet.AddGems(gems);
+            // The streak stamp and wallet grant reach disk before any reward presentation starts.
+            // A repeated tap or a relaunch therefore sees the claim as already consumed.
+            if (_save != null && _data != null) _save.Save(_data);
             if (_haptic != null) _haptic.Medium();
             var audio = ServiceLocator.Get<AudioService>();
             if (audio != null) audio.Play(SoundId.Reward);

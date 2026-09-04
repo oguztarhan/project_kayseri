@@ -96,7 +96,7 @@ namespace Game.Systems
                     Id = "away:" + kind,
                     Title = Loc.T(TitleKey(kind)),
                     Message = Body(kind, money),
-                    Target = string.Empty,
+                    Target = kind == NotificationKind.NewDay ? "goals:daily" : string.Empty,
                     AfterSeconds = _slots[i].AfterSeconds,
                     Priority = 10
                 };

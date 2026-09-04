@@ -278,6 +278,25 @@ namespace Game.Tests
             Assert.That(s.PendingCount(), Is.EqualTo(1));
         }
 
+        [Test]
+        public void SharedCardStateCarriesCaptainRoleRarityAndUpgradeReadiness()
+        {
+            var data = new SaveData();
+            CaptainService s = Make(data);
+            int captain = 0;
+
+            Assert.That(s.CardState(captain).CardStatus, Is.EqualTo(RosterCardState.Status.Locked));
+
+            data.captainLevels[captain] = 1;
+            data.captainDuplicates[captain] = s.DuplicatesNeeded(captain);
+            RosterCardState ready = s.CardState(captain);
+
+            Assert.That(ready.Role, Is.EqualTo(Captains.RoleOf(captain)));
+            Assert.That((int)ready.Tier, Is.EqualTo((int)Captains.RankOf(captain)));
+            Assert.That(ready.CanUpgrade, Is.True);
+            Assert.That(ready.Effect, Is.GreaterThan(0d));
+        }
+
         // ---- the dock ----------------------------------------------------------------------------
 
         [Test]

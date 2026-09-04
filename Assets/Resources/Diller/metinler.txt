@@ -78,6 +78,7 @@ harita.tamamlandi	{0} · TAMAMLANDI	{0} · COMPLETE	{0} · FERTIG	{0} · TERMIN�
 harita.soru	Bu adayı açmak istiyor musun?	Unlock this island?	Diese Insel freischalten?	Débloquer cette île ?	¿Desbloquear esta isla?	Desbloquear esta ilha?	Sbloccare quest'isola?	Odblokować tę wyspę?	Открыть этот остров?	Buka pulau ini?	Mở khóa đảo này?
 harita.oran	{0} · %{1}	{0} · {1}%	{0} · {1} %	{0} · {1} %	{0} · {1} %	{0} · {1}%	{0} · {1}%	{0} · {1}%	{0} · {1} %	{0} · {1}%	{0} · {1}%
 harita.tavana_kadar	{0}/dk'ya kadar	up to {0}/min	bis zu {0}/Min	jusqu'à {0}/min	hasta {0}/min	até {0}/min	fino a {0}/min	do {0}/min	до {0}/мин	hingga {0}/mnt	tối đa {0}/phút
+harita.hedefleri_tamamla	{0} hedeflerini tamamla	Complete {0} objectives	Ziele von {0} abschließen	Terminer les objectifs de {0}	Completa los objetivos de {0}	Conclua os objetivos de {0}	Completa gli obiettivi di {0}	Ukończ cele: {0}	Завершите цели: {0}	Selesaikan target {0}	Hoàn thành mục tiêu {0}
 # reklam odulu
 reklam.baslik	BEDAVA ÖDÜL	FREE REWARD	GRATIS-BELOHNUNG	BONUS GRATUIT	PREMIO GRATIS	PRÊMIO GRÁTIS	PREMIO GRATIS	DARMOWA NAGRODA	ПОДАРОК	HADIAH GRATIS	THƯỞNG MIỄN PHÍ
 reklam.yarin_gel	YARIN TEKRAR GEL	COME BACK TOMORROW	MORGEN WIEDER	REVENEZ DEMAIN	VUELVE MAÑANA	VOLTE AMANHÃ	TORNA DOMANI	WRÓĆ JUTRO	ЗАЙДИ ЗАВТРА	KEMBALI BESOK	QUAY LẠI MAI
@@ -119,6 +120,14 @@ yukseltme.kilitli_ile	KİLİTLİ · {0}	LOCKED · {0}	GESPERRT · {0}	VERROUILL�
 yukseltme.insa_edildi	İnşa edildi	Built	Gebaut	Construit	Construido	Construído	Costruito	Zbudowane	Построено	Dibangun	Đã xây
 yukseltme.seviye	Sv {0}	Lv {0}	St {0}	Niv {0}	Niv {0}	Nív {0}	Liv {0}	Poz {0}	Ур {0}	Lv {0}	Cấp {0}
 yukseltme.tek_seferlik	Tek seferlik	One-time	Einmalig	Une seule fois	Una sola vez	Uma vez	Una tantum	Jednorazowo	Один раз	Sekali saja	Một lần
+# ada gelisimi
+gelisim.baslik	ADA GELİŞİMİ	ISLAND DEVELOPMENT	INSELENTWICKLUNG	DÉVELOPPEMENT DE L'ÎLE	DESARROLLO DE LA ISLA	DESENVOLVIMENTO DA ILHA	SVILUPPO DELL'ISOLA	ROZWÓJ WYSPY	РАЗВИТИЕ ОСТРОВА	PENGEMBANGAN PULAU	PHÁT TRIỂN ĐẢO
+gelisim.seviye	GELİŞİM SEVİYESİ	DEVELOPMENT LEVEL	ENTWICKLUNGSSTUFE	NIVEAU DE DÉVELOPPEMENT	NIVEL DE DESARROLLO	NÍVEL DE DESENVOLVIMENTO	LIVELLO DI SVILUPPO	POZIOM ROZWOJU	УРОВЕНЬ РАЗВИТИЯ	LEVEL PENGEMBANGAN	CẤP PHÁT TRIỂN
+gelisim.seviye_deger	Sv {0} / {1}	Lv {0} / {1}	St {0} / {1}	Niv {0} / {1}	Niv {0} / {1}	Nív {0} / {1}	Liv {0} / {1}	Poz {0} / {1}	Ур {0} / {1}	Lv {0} / {1}	Cấp {0} / {1}
+gelisim.sonraki	Sonraki seviyeye {0}/{1} puan	{0}/{1} points to next level	{0}/{1} Punkte bis zur nächsten Stufe	{0}/{1} points avant le niveau suivant	{0}/{1} puntos para el siguiente nivel	{0}/{1} pontos para o próximo nível	{0}/{1} punti al livello successivo	{0}/{1} pkt do następnego poziomu	{0}/{1} очков до следующего уровня	{0}/{1} poin ke level berikutnya	{0}/{1} điểm đến cấp tiếp theo
+gelisim.tamamlandi	Ada tamamen geliştirildi	Island fully developed	Insel vollständig entwickelt	Île entièrement développée	Isla completamente desarrollada	Ilha totalmente desenvolvida	Isola completamente sviluppata	Wyspa w pełni rozwinięta	Остров полностью развит	Pulau dikembangkan sepenuhnya	Đảo đã phát triển hoàn toàn
+gelisim.oneri_ad	{0} · {1}	{0} · {1}	{0} · {1}	{0} · {1}	{0} · {1}	{0} · {1}	{0} · {1}	{0} · {1}	{0} · {1}	{0} · {1}	{0} · {1}
+gelisim.istasyon_ilerleme	İstasyon {0}/{1}	Station {0}/{1}	Station {0}/{1}	Station {0}/{1}	Estación {0}/{1}	Estação {0}/{1}	Stazione {0}/{1}	Stacja {0}/{1}	Станция {0}/{1}	Stasiun {0}/{1}	Trạm {0}/{1}
 # magaza
 magaza.altin_paketleri	NAKİT PAKETLERİ	CASH PACKS	GELD-PAKETE	PACKS D'ARGENT	PAQUETES DE DINERO	PACOTES DE DINHEIRO	PACCHETTI DI CONTANTI	PAKIETY GOTÓWKI	НАБОРЫ ДЕНЕГ	PAKET UANG	GÓI TIỀN
 magaza.elmas_paketleri	ELMAS PAKETLERİ	GEM PACKS	DIAMANT-PAKETE	PACKS DE GEMMES	PAQUETES DE GEMAS	PACOTES DE GEMAS	PACCHETTI DI GEMME	PAKIETY KLEJNOTÓW	НАБОРЫ АЛМАЗОВ	PAKET PERMATA	GÓI KIM CƯƠNG
@@ -389,6 +398,15 @@ ustabasi.kart_tekil	kart	card	Karte	carte	carta	carta	carta	karta	карта	kar
 gorev.baslik	GÖREVLER	TASKS	AUFGABEN	MISSIONS	MISIONES	MISSÕES	MISSIONI	ZADANIA	ЗАДАНИЯ	MISI	NHIỆM VỤ
 gorev.gunluk	GÜNLÜK GÖREVLER	DAILY TASKS	TAGESAUFGABEN	MISSIONS DU JOUR	MISIONES DIARIAS	MISSÕES DIÁRIAS	MISSIONI GIORNALIERE	ZADANIA DZIENNE	ЕЖЕДНЕВНЫЕ ЗАДАНИЯ	MISI HARIAN	NHIỆM VỤ HÀNG NGÀY
 gorev.basarimlar	BAŞARIMLAR	ACHIEVEMENTS	ERFOLGE	SUCCÈS	LOGROS	CONQUISTAS	OBIETTIVI	OSIĄGNIĘCIA	ДОСТИЖЕНИЯ	PENCAPAIAN	THÀNH TỰU
+gorev.sekme.gunluk	GÜNLÜK	DAILY	TÄGLICH	QUOTIDIEN	DIARIO	DIÁRIO	GIORNALIERO	DZIENNE	ЕЖЕДНЕВНО	HARIAN	HẰNG NGÀY
+gorev.sekme.haftalik	HAFTALIK	WEEKLY	WÖCHENTLICH	HEBDO	SEMANAL	SEMANAL	SETTIMANALE	TYGODNIOWE	ЕЖЕНЕДЕЛЬНО	MINGGUAN	HẰNG TUẦN
+gorev.sekme.basarim	BAŞARIMLAR	ACHIEVEMENTS	ERFOLGE	SUCCÈS	LOGROS	CONQUISTAS	OBIETTIVI	OSIĄGNIĘCIA	ДОСТИЖЕНИЯ	PENCAPAIAN	THÀNH TỰU
+gorev.haftalik_gorevler	HAFTALIK GÖREVLER	WEEKLY TASKS	WOCHENAUFGABEN	MISSIONS HEBDO	MISIONES SEMANALES	MISSÕES SEMANAIS	MISSIONI SETTIMANALI	ZADANIA TYGODNIOWE	ЕЖЕНЕДЕЛЬНЫЕ ЗАДАНИЯ	MISI MINGGUAN	NHIỆM VỤ TUẦN
+gorev.haftalik_oduller	HAFTALIK ÖDÜLLER	WEEKLY REWARDS	WOCHENBELOHNUNGEN	RÉCOMPENSES HEBDO	RECOMPENSAS SEMANALES	RECOMPENSAS SEMANAIS	RICOMPENSE SETTIMANALI	NAGRODY TYGODNIOWE	ЕЖЕНЕДЕЛЬНЫЕ НАГРАДЫ	HADIAH MINGGUAN	PHẦN THƯỞNG TUẦN
+gorev.hepsini_al	HEPSİNİ AL	CLAIM ALL	ALLE ABHOLEN	TOUT RÉCLAMER	RECLAMAR TODO	RESGATAR TUDO	RITIRA TUTTO	ODBIERZ WSZYSTKO	ЗАБРАТЬ ВСЁ	AMBIL SEMUA	NHẬN TẤT CẢ
+gorev.kilitli	KİLİTLİ	LOCKED	GESPERRT	VERROUILLÉ	BLOQUEADO	BLOQUEADO	BLOCCATO	ZABLOKOWANE	ЗАКРЫТО	TERKUNCI	ĐÃ KHÓA
+gorev.puan	puan	pts.	Pkt.	pts	pts.	pts.	punti	pkt	очк.	poin	điểm
+gorev.odul_alindi	ÖDÜL ALINDI	REWARD CLAIMED	BELOHNUNG ERHALTEN	RÉCOMPENSE OBTENUE	RECOMPENSA OBTENIDA	RECOMPENSA RECEBIDA	RICOMPENSA RICEVUTA	NAGRODA ODEBRANA	НАГРАДА ПОЛУЧЕНА	HADIAH DIAMBIL	ĐÃ NHẬN THƯỞNG
 gorev.al	AL	CLAIM	ABHOLEN	RÉCLAMER	RECLAMAR	RESGATAR	RISCUOTI	ODBIERZ	ЗАБРАТЬ	AMBIL	NHẬN
 gorev.alindi	ALINDI	CLAIMED	ABGEHOLT	RÉCLAMÉ	RECLAMADO	RESGATADO	RISCOSSO	ODEBRANE	ПОЛУЧЕНО	DIAMBIL	ĐÃ NHẬN
 gorev.kademe	Kademe	Tier	Stufe	Palier	Nivel	Nível	Livello	Poziom	Ступень	Tingkat	Bậc
@@ -640,3 +658,16 @@ urun.ruby_ring	YAKUT YÜZÜK	RUBY RING	RUBINRING	BAGUE DE RUBIS	ANILLO DE RUBÍ	
 urun.cut_emerald	YONTULMUŞ ZÜMRÜT	CUT EMERALD	GESCHLIFFENER SMARAGD	ÉMERAUDE TAILLÉE	ESMERALDA TALLADA	ESMERALDA LAPIDADA	SMERALDO TAGLIATO	SZLIFOWANY SZMARAGD	ОГРАНЁННЫЙ ИЗУМРУД	ZAMRUD ASAHAN	NGỌC LỤC BẢO ĐÃ CẮT
 urun.polished_diamond	PARLATILMIŞ ELMAS	POLISHED DIAMOND	POLIERTER DIAMANT	DIAMANT POLI	DIAMANTE PULIDO	DIAMANTE POLIDO	DIAMANTE LUCIDATO	OSZLIFOWANY DIAMENT	ОГРАНЁННЫЙ АЛМАЗ	BERLIAN ASAHAN	KIM CƯƠNG ĐÁNH BÓNG
 urun.diamond_crown	ELMAS TAÇ	DIAMOND CROWN	DIAMANTKRONE	COURONNE DE DIAMANT	CORONA DE DIAMANTE	COROA DE DIAMANTE	CORONA DI DIAMANTI	DIAMENTOWA KORONA	АЛМАЗНАЯ КОРОНА	MAHKOTA BERLIAN	VƯƠNG MIỆN KIM CƯƠNG
+# ortak kadro tarama ve detay dili (usta + kaptan)
+kadro.sirala.0	SIRA	ORDER	REIHENFOLGE	ORDRE	ORDEN	ORDEM	ORDINE	KOLEJNOŚĆ	ПОРЯДОК	URUTAN	THỨ TỰ
+kadro.sirala.1	HAZIR	READY	BEREIT	PRÊT	LISTO	PRONTO	PRONTO	GOTOWE	ГОТОВО	SIAP	SẴN SÀNG
+kadro.sirala.2	NADİRLİK	RARITY	SELTENHEIT	RARETÉ	RAREZA	RARIDADE	RARITÀ	RZADKOŚĆ	РЕДКОСТЬ	KELANGKAAN	ĐỘ HIẾM
+kadro.sirala.3	SEVİYE	LEVEL	STUFE	NIVEAU	NIVEL	NÍVEL	LIVELLO	POZIOM	УРОВЕНЬ	LEVEL	CẤP
+kadro.filtre.0	TÜMÜ	ALL	ALLE	TOUS	TODOS	TODOS	TUTTI	WSZYSTKIE	ВСЕ	SEMUA	TẤT CẢ
+kadro.filtre.1	SAHİP	OWNED	IM BESITZ	POSSÉDÉS	OBTENIDOS	OBTIDOS	POSSEDUTI	POSIADANE	ПОЛУЧЕНЫ	DIMILIKI	ĐÃ SỞ HỮU
+kadro.filtre.2	KİLİTLİ	LOCKED	GESPERRT	VERROUILLÉS	BLOQUEADOS	BLOQUEADOS	BLOCCATI	ZABLOKOWANE	ЗАКРЫТЫ	TERKUNCI	ĐÃ KHÓA
+kadro.filtre.3	HAZIR	READY	BEREIT	PRÊTS	LISTOS	PRONTOS	PRONTI	GOTOWE	ГОТОВЫ	SIAP	SẴN SÀNG
+kadro.bos	Bu filtrede kart yok	No cards match this filter	Keine Karten für diesen Filter	Aucune carte pour ce filtre	No hay cartas con este filtro	Nenhuma carta neste filtro	Nessuna carta per questo filtro	Brak kart dla tego filtra	Нет карт для этого фильтра	Tidak ada kartu untuk filter ini	Không có thẻ phù hợp bộ lọc
+kadro.simdi	ŞİMDİ: {0}	CURRENT: {0}	AKTUELL: {0}	ACTUEL : {0}	ACTUAL: {0}	ATUAL: {0}	ORA: {0}	TERAZ: {0}	СЕЙЧАС: {0}	SAAT INI: {0}	HIỆN TẠI: {0}
+kadro.sonraki	SONRAKİ SEVİYE: {0}	NEXT LEVEL: {0}	NÄCHSTE STUFE: {0}	NIVEAU SUIVANT : {0}	SIGUIENTE NIVEL: {0}	PRÓXIMO NÍVEL: {0}	PROSSIMO LIVELLO: {0}	NASTĘPNY POZIOM: {0}	СЛЕДУЮЩИЙ УРОВЕНЬ: {0}	LEVEL BERIKUTNYA: {0}	CẤP TIẾP THEO: {0}
+kadro.ilerleme	İLERLEME: {0}/{1}	PROGRESS: {0}/{1}	FORTSCHRITT: {0}/{1}	PROGRESSION : {0}/{1}	PROGRESO: {0}/{1}	PROGRESSO: {0}/{1}	PROGRESSO: {0}/{1}	POSTĘP: {0}/{1}	ПРОГРЕСС: {0}/{1}	PROGRES: {0}/{1}	TIẾN ĐỘ: {0}/{1}

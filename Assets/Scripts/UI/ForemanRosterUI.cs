@@ -99,6 +99,7 @@ namespace Game.UI
         private LocalizationService _loc;
         private Text _balance;
         private TMP_Text _openerCount;
+        private GameObject _openerChip;
 
         // One entry per slot, built once. No allocation after Build().
         private readonly Text[] _name = new Text[Foremen.Count];
@@ -111,6 +112,14 @@ namespace Game.UI
         private readonly Image[] _portrait = new Image[Foremen.Count];
         private readonly Image[] _fill = new Image[Foremen.Count];
         private readonly Image[] _rule = new Image[Foremen.Count];
+        private readonly RectTransform[] _cardRoot = new RectTransform[Foremen.Count];
+        private readonly RosterCardState[] _cardState = new RosterCardState[Foremen.Count];
+        private readonly int[] _visibleOrder = new int[Foremen.Count];
+        private RosterSortMode _sortMode;
+        private RosterFilterMode _filterMode;
+        private Text _sortText, _filterText, _emptyText;
+        private RosterInspectPanel _inspect;
+        private int _selected = -1;
 
         // ---- the chest shelf ----
         private Text _chestTitle, _chestBlurb, _chestSingle, _chestBulk, _freeLabel;
@@ -178,8 +187,8 @@ namespace Game.UI
         /// <see cref="HudUI.AttachBottomButton"/> for why a code-built screen borrows a row button's
         /// rect instead of anchoring itself to a fraction of the screen.
         ///
-        /// How many slots are hired rides under it in the row's own counter chip, so the button says
-        /// whether there is anything to come back for.
+        /// The row's counter chip is a notification, not a collection counter: like the captain
+        /// opener, it appears only when at least one card can be upgraded now.
         /// </summary>
         private void BuildOpener()
         {
@@ -189,14 +198,16 @@ namespace Game.UI
             Button open = hud.AttachBottomButton(1, "BtnUstabasi", Resources.Load<Sprite>(OpenerIconResource), Show);
             if (open == null) return;
 
-            GameObject chip = hud.AttachCounterChip(open);
-            if (chip != null) _openerCount = chip.GetComponentInChildren<TMP_Text>(true);
+            _openerChip = hud.AttachCounterChip(open);
+            if (_openerChip != null) _openerCount = _openerChip.GetComponentInChildren<TMP_Text>(true);
         }
 
         private void RefreshOpener()
         {
-            if (_openerCount == null || _foremen == null) return;
-            _openerCount.text = string.Format("{0}/{1}", _foremen.HiredCount, Foremen.Count);
+            if (_openerChip == null || _foremen == null) return;
+            int pending = _foremen.PendingCount();
+            _openerChip.SetActive(pending > 0);
+            if (pending > 0 && _openerCount != null) _openerCount.text = pending.ToString();
         }
 
         public void Show() { if (_root != null) _root.gameObject.SetActive(true); Refresh(); }
@@ -210,6 +221,7 @@ namespace Game.UI
         {
             _revealing = false;
             if (_reveal != null) _reveal.gameObject.SetActive(false);
+            if (_inspect != null) _inspect.Hide();
             if (_root != null) _root.gameObject.SetActive(false);
         }
         public void Toggle()
@@ -226,11 +238,12 @@ namespace Game.UI
 
             BuildHeader();
             BuildChestShelf();
+            BuildBrowseBar();
 
             int rows = (Foremen.Count + columns - 1) / columns;
             // The grid starts where the chest shelf ends. The shelf is the reason to come back to this
             // screen once the roster is complete, so it gets the reading position rather than a corner.
-            const float left = 0.305f, right = 0.965f, top = 0.845f, bottom = 0.035f;
+            const float left = 0.305f, right = 0.965f, top = 0.795f, bottom = 0.035f;
             float cellW = (right - left) / columns, cellH = (top - bottom) / rows;
             const float padX = 0.006f, padY = 0.014f;
 
@@ -243,6 +256,47 @@ namespace Game.UI
             }
 
             BuildReveal();
+            _inspect = new RosterInspectPanel(_root);
+        }
+
+        private void BuildBrowseBar()
+        {
+            Button sort = UiBuild.Btn(_root, "Sirala", string.Empty,
+                                      actionButton != null ? actionButton : UiSkin.ButtonGreen,
+                                      new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleSort);
+            UiBuild.Anchor((RectTransform)sort.transform,
+                           new Vector2(0.315f, 0.805f), new Vector2(0.545f, 0.845f));
+            PillFit.Wrap(sort.GetComponent<Image>());
+            _sortText = sort.GetComponentInChildren<Text>();
+            Fit(_sortText, 12, 22);
+
+            Button filter = UiBuild.Btn(_root, "Filtre", string.Empty,
+                                        actionButton != null ? actionButton : UiSkin.ButtonGreen,
+                                        new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleFilter);
+            UiBuild.Anchor((RectTransform)filter.transform,
+                           new Vector2(0.555f, 0.805f), new Vector2(0.785f, 0.845f));
+            PillFit.Wrap(filter.GetComponent<Image>());
+            _filterText = filter.GetComponentInChildren<Text>();
+            Fit(_filterText, 12, 22);
+
+            _emptyText = UiBuild.Label(Slot(_root, "FiltreBos", new Vector2(0.35f, 0.35f), new Vector2(0.92f, 0.58f)),
+                                       "Text", Loc.T("kadro.bos"), 28, TextAnchor.MiddleCenter);
+            _emptyText.color = Paper;
+            Fit(_emptyText, 16, 28);
+            _emptyText.gameObject.SetActive(false);
+        }
+
+        private void CycleSort()
+        {
+            _sortMode = (RosterSortMode)(((int)_sortMode + 1) % 4);
+            Refresh();
+        }
+
+        private void CycleFilter()
+        {
+            _filterMode = (RosterFilterMode)(((int)_filterMode + 1) % 4);
+            if (_inspect != null) _inspect.Hide();
+            Refresh();
         }
 
         /// <summary>
@@ -329,7 +383,13 @@ namespace Game.UI
         private void BuildCard(int station, Vector2 aMin, Vector2 aMax)
         {
             RectTransform card = Art(_root, "Kart_" + station, cardPanel, aMin, aMax);
+            _cardRoot[station] = card;
             _card[station] = card.GetComponent<Image>();
+            _card[station].raycastTarget = true;
+            var inspect = card.gameObject.AddComponent<Button>();
+            inspect.transition = Selectable.Transition.None;
+            int selected = station;
+            inspect.onClick.AddListener(() => ShowDetails(selected));
             if (cardPanel == null) _card[station].color = cardHired;
 
             // The tier mark. It used to be fixed per slot and set once; a master's tier now moves every
@@ -537,9 +597,11 @@ namespace Game.UI
         /// <summary>Shrinks a label until it fits its box, so a long station name cannot run off the card.</summary>
         private static void Fit(Text label, int min, int max)
         {
+            AccessibilityConfig accessibility = ServiceLocator.Get<AccessibilityConfig>();
+            float scale = accessibility != null ? accessibility.TextScale : 1f;
             label.resizeTextForBestFit = true;
-            label.resizeTextMinSize = min;
-            label.resizeTextMaxSize = max;
+            label.resizeTextMinSize = Mathf.Max(1, Mathf.RoundToInt(min * scale));
+            label.resizeTextMaxSize = Mathf.Max(label.resizeTextMinSize, Mathf.RoundToInt(max * scale));
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
         }
@@ -744,9 +806,44 @@ namespace Game.UI
 
             _multiplier.text = string.Format(Culture, "×{0:0.00}", _foremen.IncomeMultiplier);
             _balance.text = (_wallet != null ? _wallet.Gems : 0L).ToString();
+            _sortText.text = "↕ " + Loc.T("kadro.sirala." + (int)_sortMode);
+            _filterText.text = "⌄ " + Loc.T("kadro.filtre." + (int)_filterMode);
+            _emptyText.text = Loc.T("kadro.bos");
 
             RefreshChest();
-            for (int s = 0; s < Foremen.Count; s++) RefreshCard(s);
+            for (int s = 0; s < Foremen.Count; s++)
+            {
+                _cardState[s] = _foremen.CardState(s);
+                RefreshCard(s);
+            }
+            ReflowCards();
+            if (_selected >= 0 && _inspect != null && _inspect.Visible) ShowDetails(_selected);
+        }
+
+        private void ReflowCards()
+        {
+            int count = RosterCardQuery.Fill(_cardState, Foremen.Count, _sortMode, _filterMode, _visibleOrder);
+            for (int s = 0; s < Foremen.Count; s++) _cardRoot[s].gameObject.SetActive(false);
+
+            int safeColumns = Mathf.Max(1, columns);
+            int rows = Mathf.Max(1, (count + safeColumns - 1) / safeColumns);
+            const float left = 0.305f, right = 0.965f, top = 0.795f, bottom = 0.035f;
+            const float padX = 0.006f, padY = 0.014f;
+            float cellW = (right - left) / safeColumns;
+            float cellH = (top - bottom) / rows;
+
+            for (int position = 0; position < count; position++)
+            {
+                int station = _visibleOrder[position];
+                int col = position % safeColumns;
+                int row = position / safeColumns;
+                RectTransform card = _cardRoot[station];
+                UiBuild.Anchor(card,
+                    new Vector2(left + col * cellW + padX, top - (row + 1) * cellH + padY),
+                    new Vector2(left + (col + 1) * cellW - padX, top - row * cellH - padY));
+                card.gameObject.SetActive(true);
+            }
+            _emptyText.gameObject.SetActive(count == 0);
         }
 
         private void RefreshChest()
@@ -773,9 +870,10 @@ namespace Game.UI
 
         private void RefreshCard(int s)
         {
-            bool owned = _foremen.IsHired(s);
-            bool maxed = _foremen.IsMaxed(s);
-            int stars = _foremen.LevelOf(s);
+            RosterCardState state = _cardState[s];
+            bool owned = state.Owned;
+            bool maxed = state.IsMaxed;
+            int stars = state.Level;
             Color tint = TintFor(s);
 
             if (cardPanel == null) _card[s].color = owned ? cardHired : cardLocked;
@@ -797,13 +895,12 @@ namespace Game.UI
 
             // What this master is worth to his own station right now. The empire gets a share of the
             // same number rather than a second one — see Game.Core.Foremen.
-            _effect[s].text = string.Format(Culture, "+{0:0.#}%", Foremen.Boost(stars, _foremen.Tuning) * 100d);
+            _effect[s].text = string.Format(Culture, "+{0:0.#}%", state.Effect * 100d);
             _effect[s].color = owned ? Darken(tint) : InkFaint;
 
-            int have = _foremen.DuplicatesOf(s);
-            int need = owned && !maxed ? _foremen.DuplicatesToLevel(s) : 0;
-            float t = need > 0 ? Mathf.Clamp01(have / (float)need) : (maxed ? 1f : 0f);
-            Progress(_fill[s], t);
+            int have = state.Duplicates;
+            int need = state.DuplicatesRequired;
+            Progress(_fill[s], state.Progress);
             _cards[s].color = InkFaint;
 
             if (maxed)
@@ -816,7 +913,7 @@ namespace Game.UI
             {
                 _cards[s].text = string.Format("{0} / {1} {2}", have, need, Loc.T("ustabasi.kart"));
                 _actionText[s].text = Loc.T("usta.yildizatla");
-                _action[s].interactable = _foremen.CanLevel(s);
+                _action[s].interactable = state.CanUpgrade;
             }
             else
             {
@@ -827,6 +924,36 @@ namespace Game.UI
             }
 
             Dress(_action[s], _actionText[s], _action[s].interactable);
+        }
+
+        private void ShowDetails(int station)
+        {
+            if (_foremen == null || _inspect == null || station < 0 || station >= Foremen.Count) return;
+            _selected = station;
+            RosterCardState state = _foremen.CardState(station);
+            string name = Loc.Id("istasyon", IslandEconomy.Stations[station]);
+            string rarity = Loc.T("usta.kademe." + (int)state.Tier);
+            string identity = state.Owned
+                ? rarity + " · " + string.Format(Loc.T("atolye.seviye"), state.Level)
+                : rarity + " · " + Loc.T("usta.bulunmadi");
+            string current = string.Format(Culture, "+{0:0.#}%", state.Effect * 100d);
+            string next = state.IsMaxed
+                ? Loc.T("sefer.azami")
+                : string.Format(Culture, "+{0:0.#}%",
+                    (Foremen.Boost(Mathf.Max(1, state.Level + 1), _foremen.Tuning) - state.Effect) * 100d);
+            string progress = state.Owned && !state.IsMaxed
+                ? string.Format(Loc.T("kadro.ilerleme"), state.Duplicates, state.DuplicatesRequired)
+                : state.IsMaxed ? Loc.T("sefer.azami") : Loc.T("usta.sandiktan");
+            string status = !state.Owned ? Loc.T("usta.bulunmadi")
+                : state.IsMaxed ? Loc.T("sefer.azami")
+                : state.CanUpgrade ? Loc.T("usta.yildizatla") : string.Empty;
+
+            int selected = station;
+            _inspect.Show(name, identity,
+                          string.Format(Loc.T("kadro.simdi"), current),
+                          string.Format(Loc.T("kadro.sonraki"), next),
+                          progress, status, Loc.T("usta.yildizatla"), state.CanUpgrade,
+                          () => { _foremen.TryLevelUp(selected); ShowDetails(selected); });
         }
 
         /// <summary>

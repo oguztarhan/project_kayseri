@@ -410,7 +410,8 @@ namespace Game.UI
             int next = -1;                                   // first island the player does not own yet
             for (int k = 0; k < _world.Count; k++)
                 if (!_world.IsOwned(k)) { next = k; break; }
-            bool buyable = !owned && i == next;
+            bool nextTarget = !owned && i == next;
+            bool buyable = nextTarget && _world.CanBuy(i);
 
             // The BRAND, not the ore — see WorldIslands.BrandColor. Half the ore palette is grey by
             // design, and this screen was showing that grey.
@@ -477,7 +478,7 @@ namespace Game.UI
                 barFillArea.sizeDelta = new Vector2(full * p, barFillArea.sizeDelta.y);
             }
 
-            RefreshCta(owned, here, buyable);
+            RefreshCta(owned, here, buyable, nextTarget);
             RefreshSides(i);
             RefreshPips(i);
         }
@@ -493,7 +494,7 @@ namespace Game.UI
             return Loc.Id("ada", _world.IslandKey(i));
         }
 
-        private void RefreshCta(bool owned, bool here, bool buyable)
+        private void RefreshCta(bool owned, bool here, bool buyable, bool nextTarget)
         {
             if (ctaButton == null) return;
             bool afford = false;
@@ -518,6 +519,12 @@ namespace Game.UI
                 label = Loc.T("ortak.satin_al");
                 sub = "$" + NumberFormatter.Format(cost);
                 art = ctaHere != null ? ctaHere : (afford ? ctaBuy : ctaIdle);
+            }
+            else if (nextTarget)
+            {
+                label = Loc.T("ortak.kilitli");
+                sub = string.Format(Loc.T("harita.hedefleri_tamamla"), IslandName(Mathf.Max(0, _shown - 1)));
+                art = ctaHere != null ? ctaHere : ctaIdle;
             }
             else
             {

@@ -36,6 +36,7 @@ namespace Game.Gameplay
         private MarketService _market;
         private TimeService _time;
         private SaveService _save;
+        private ChapterService _chapters;
         private SaveData _data;
         private int _active;
 
@@ -120,6 +121,17 @@ namespace Game.Gameplay
         // _ops is built in Awake alongside the ladder, so it needs its own guard rather than Has().
         public CoalOperation Operation(int i) => _ops != null && i >= 0 && i < _ops.Length ? _ops[i] : null;
         public bool IsOwned(int i) => i == 0 || (Has(i) && _data != null && _data.unlockedIslands.Contains(islands[i].key));
+        /// <summary>
+        /// Whether the next island may be purchased. The destination stays visible on the map, but
+        /// its button is held until the previous island's chapter objectives are complete.
+        /// Chapter state is derived from the same saved upgrades, so this adds no migration field.
+        /// </summary>
+        public bool CanBuy(int i)
+        {
+            if (!Has(i) || i <= 0 || IsOwned(i) || !IsOwned(i - 1)) return false;
+            if (_chapters == null) _chapters = ServiceLocator.Get<ChapterService>();
+            return _chapters == null || IslandDevelopment.CanUnlockNext(i, true, _chapters.Complete(i - 1));
+        }
         public bool IsMaxed(int i)
         {
             var op = Operation(i);
@@ -147,6 +159,7 @@ namespace Game.Gameplay
             _market = ServiceLocator.Get<MarketService>();
             _time = ServiceLocator.Get<TimeService>();
             _save = ServiceLocator.Get<SaveService>();
+            _chapters = ServiceLocator.Get<ChapterService>();
 
             // match each entry to its operation component (they all live on this controller object)
             _ops = new CoalOperation[islands.Length];
@@ -178,7 +191,7 @@ namespace Game.Gameplay
         /// <summary>Buy an island (world-map purchase). Does not travel — the map UI does that next.</summary>
         public bool TryBuy(int i)
         {
-            if (i < 0 || i >= islands.Length || IsOwned(i)) return false;
+            if (!CanBuy(i)) return false;
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
             if (_wallet == null || !_wallet.TrySpendCash(new BigDouble(islands[i].unlockCost))) return false;
             _data.unlockedIslands.Add(islands[i].key);

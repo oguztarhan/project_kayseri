@@ -33,6 +33,15 @@ namespace Game.UI
                 return;
             }
 
+            if (_pending == "goals" || _pending.StartsWith("goals:", System.StringComparison.Ordinal))
+            {
+                GoalsUI goals = FindAnyObjectByType<GoalsUI>(FindObjectsInactive.Include);
+                if (goals == null) return;
+                goals.Show(_pending);
+                _pending = null;
+                return;
+            }
+
             const string prefix = "island:";
             if (!_pending.StartsWith(prefix, System.StringComparison.Ordinal))
             {

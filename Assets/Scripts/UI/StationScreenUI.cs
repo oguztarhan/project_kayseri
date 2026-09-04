@@ -92,6 +92,8 @@ namespace Game.UI
         [Tooltip("Şeridin sonundaki genişletmeler yuvasının ikonu. Boş bırakılırsa o yuva hiç kurulmaz " +
                  "ve tek seferlik satın alımlara ulaşacak bir kapı kalmaz.")]
         [SerializeField] private Sprite expansionIcon;
+        [Tooltip("Önerilen yükseltmeler sayfasının ikonu. Boşsa zincir ikonu, o da boşsa ilk istasyon ikonu kullanılır.")]
+        [SerializeField] private Sprite recommendationIcon;
         [Tooltip("Şeridin en sonundaki ZİNCİR sayfasının ikonu — adanın dakikada ne ürettiğini gösteren " +
                  "rapor. Boş bırakılırsa yuva kurulmaz; HUD'daki $/dk hapı yine de bu sayfayı açar.")]
         [SerializeField] private Sprite reportIcon;
@@ -126,7 +128,10 @@ namespace Game.UI
         private sealed class Row
         {
             public int axis;
+            public int station = -1;
             public int unlock = -1;       // unlock row when >= 0, axis row otherwise
+            public bool recommendation;
+            public bool developmentSummary;
             public RectTransform icon;
             public TMP_Text name, level, detail, price, badgeText;
             public Button buyBtn;
@@ -135,6 +140,8 @@ namespace Game.UI
         }
 
         private readonly List<Row> _rows = new List<Row>();
+        private readonly List<IslandDevelopment.Recommendation> _recommendations =
+            new List<IslandDevelopment.Recommendation>(IslandEconomy.Stations.Length * 3);
         private Image[] _slots;
         private Image[] _slotIcons;
         private int[] _slotPage;      // which page each tile opens — a station index, or one of the two virtual pages
@@ -211,7 +218,7 @@ namespace Game.UI
             if (_titleRibbon != null && _titleRibbon.GetComponent<RectMask2D>() == null)
                 _titleRibbon.gameObject.AddComponent<RectMask2D>();
 
-            // Ten selectors on one line. They were 74 across, which on a phone held at arm's length
+            // Eleven selectors on one line. They were 74 across, which on a phone held at arm's length
             // is a thumbnail of a thumbnail — the whole point of the row is telling the buildings
             // apart at a glance. 100 with 10 of spacing still leaves the selected one room to grow
             // its 1.12x without touching its neighbours.
@@ -264,7 +271,7 @@ namespace Game.UI
         private void LayoutLandscapeHeader()
         {
             SetCentered(_titleRibbon, new Vector2(0f, 430f), new Vector2(700f, 150f));
-            SetCentered(stripContent, new Vector2(0f, 268f), new Vector2(1160f, 140f));
+            SetCentered(stripContent, new Vector2(0f, 268f), new Vector2(1260f, 140f));
             // Beside the ribbon, not under it. Centred, it sat exactly on the top edge of both content
             // columns and read as a chip stuck to the panels — and the HUD is already showing the same
             // balance in the corner, so it was the third thing competing for the middle of the screen.
@@ -364,8 +371,11 @@ namespace Game.UI
         /// </summary>
         public void Open()
         {
-            Open(_station != -1 ? _station : (stations.Count > 0 ? stations[0].station : 0));
+            Open(_station != -1 ? _station : RecommendedPage);
         }
+
+        /// <summary>Opens the island-wide development summary and ranked upgrade shortlist.</summary>
+        public void OpenRecommended() => Open(RecommendedPage);
 
         /// <summary>
         /// Opens straight onto the chain report — what the HUD's $/min pill does. The pill states a
@@ -604,7 +614,8 @@ namespace Game.UI
             }
             _rows.Clear();
 
-            if (_station == ExpansionPage) BuildUnlockCards();
+            if (_station == RecommendedPage) BuildRecommendedCards();
+            else if (_station == ExpansionPage) BuildUnlockCards();
             else if (_station == ReportPage) BuildReportCards();
             else BuildAxisCards();
             CentreCards();
@@ -621,6 +632,55 @@ namespace Game.UI
                 {
                     Row captured = row;
                     row.buyBtn.onClick.AddListener(() => Buy(captured));
+                }
+            }
+        }
+
+        /// <summary>
+        /// One derived development card followed by the four best next purchases. The price buttons
+        /// navigate to the owning station instead of spending: the station page remains the single
+        /// purchase surface, so insufficient funds and phase feedback still follow the established path.
+        /// </summary>
+        private void BuildRecommendedCards()
+        {
+            Row summary = AddCard("Kart_Gelisim", RecommendedIcon());
+            summary.developmentSummary = true;
+            if (summary.name != null) summary.name.text = Loc.T("gelisim.seviye");
+
+            _recommendations.Clear();
+            for (int station = 0; station < _op.StationCount; station++)
+                for (int axis = 0; axis < _op.AxisCount(station); axis++)
+                {
+                    if (_op.AxisMaxed(station, axis) || _op.AxisLocked(station, axis)) continue;
+                    BigDouble cost = _op.AxisCost(station, axis);
+                    _recommendations.Add(new IslandDevelopment.Recommendation
+                    {
+                        Station = station,
+                        Axis = axis,
+                        Level = _op.AxisLevel(station, axis),
+                        Cap = _op.Economy.AxisCap(station, axis),
+                        Cost = cost,
+                        Affordable = _wallet != null && _wallet.CanAfford(cost),
+                    });
+                }
+
+            _recommendations.Sort((left, right) => IslandDevelopment.Compare(left, right));
+            int count = Mathf.Min(IslandDevelopment.RecommendedCount, _recommendations.Count);
+            for (int i = 0; i < count; i++)
+            {
+                IslandDevelopment.Recommendation pick = _recommendations[i];
+                Row row = AddCard("Kart_Oneri_" + pick.Station + "_" + pick.Axis, IconFor(pick.Station));
+                row.recommendation = true;
+                row.station = pick.Station;
+                row.axis = pick.Axis;
+                if (row.name != null)
+                    row.name.text = string.Format(Loc.T("gelisim.oneri_ad"),
+                        Loc.Id("istasyon", _op.StationName(pick.Station)),
+                        Loc.Id("eksen", _op.AxisName(pick.Station, pick.Axis)));
+                if (row.buyBtn != null)
+                {
+                    int captured = pick.Station;
+                    row.buyBtn.onClick.AddListener(() => Select(captured));
                 }
             }
         }
@@ -996,21 +1056,25 @@ namespace Game.UI
             if (stripContent == null || stripTemplate == null) return;
             stripTemplate.SetActive(false);
 
-            // The stations, then the two pages that are not stations: the one-time expansions, and the
-            // chain report. Both are optional and both drop out silently when their icon is missing,
-            // which is what keeps this list a page order rather than a set of special cases.
-            int n = stations.Count + (expansionIcon != null ? 1 : 0) + (reportIcon != null ? 1 : 0);
+            // The stations, then the island-wide pages: recommendations, one-time expansions, and the
+            // chain report. Recommendations are always reachable; the other two drop out silently
+            // when their icon is missing, keeping this a page order rather than a set of special cases.
+            int n = stations.Count + 1 + (expansionIcon != null ? 1 : 0) + (reportIcon != null ? 1 : 0);
             _slots = new Image[n];
             _slotIcons = new Image[n];
             _slotPage = new int[n];
             for (int i = 0; i < n; i++)
             {
                 bool station = i < stations.Count;
-                bool expansion = !station && expansionIcon != null && i == stations.Count;
-                _slotPage[i] = station ? stations[i].station : expansion ? ExpansionPage : ReportPage;
+                bool recommended = !station && i == stations.Count;
+                bool expansion = !station && !recommended && expansionIcon != null && i == stations.Count + 1;
+                _slotPage[i] = station ? stations[i].station
+                             : recommended ? RecommendedPage
+                             : expansion ? ExpansionPage : ReportPage;
 
                 GameObject go = Instantiate(stripTemplate, stripContent);
                 go.name = station ? "Yuva_" + stations[i].station
+                                  : recommended ? "Yuva_Oneriler"
                                   : expansion ? "Yuva_Genisletmeler" : "Yuva_Zincir";
                 go.SetActive(true);
 
@@ -1021,6 +1085,7 @@ namespace Game.UI
                     _slotIcons[i] = t.GetComponent<Image>();
                     if (_slotIcons[i] != null)
                         _slotIcons[i].sprite = station ? stations[i].icon
+                                             : recommended ? RecommendedIcon()
                                              : expansion ? expansionIcon : reportIcon;
                 }
 
@@ -1050,6 +1115,7 @@ namespace Game.UI
 
         private Sprite IconFor(int station)
         {
+            if (station == RecommendedPage) return RecommendedIcon();
             if (station == ExpansionPage) return expansionIcon;
             if (station == ReportPage) return reportIcon;
             for (int i = 0; i < stations.Count; i++)
@@ -1059,12 +1125,20 @@ namespace Game.UI
 
         private string TitleFor(int station)
         {
+            if (station == RecommendedPage) return Loc.T("gelisim.baslik");
             if (station == ExpansionPage) return Loc.T("yukseltme.genisletmeler");
             if (station == ReportPage) return Loc.T("rapor.baslik");
             for (int i = 0; i < stations.Count; i++)
                 if (stations[i] != null && stations[i].station == station && !string.IsNullOrEmpty(stations[i].title))
                     return stations[i].title;
             return _op != null ? Loc.Id("istasyon", _op.StationName(station)) : "";
+        }
+
+        private Sprite RecommendedIcon()
+        {
+            if (recommendationIcon != null) return recommendationIcon;
+            if (reportIcon != null) return reportIcon;
+            return stations.Count > 0 && stations[0] != null ? stations[0].icon : null;
         }
 
         // ---------- refresh ----------
@@ -1084,6 +1158,8 @@ namespace Game.UI
                 titleIcon.enabled = !_landscapeLayout && titleIcon.sprite != null;
                 if (_landscapeLayout && titleIcon.gameObject.activeSelf) titleIcon.gameObject.SetActive(false);
             }
+
+            if (_station == RecommendedPage) { RefreshRecommendations(); return; }
 
             if (_station == ExpansionPage)
             {
@@ -1120,6 +1196,43 @@ namespace Game.UI
                 }
 
             for (int i = 0; i < _rows.Count; i++) RefreshRow(_rows[i]);
+        }
+
+        private void RefreshRecommendations()
+        {
+            IslandDevelopment.Progress progress = IslandDevelopment.Measure(_op.Economy);
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                Row row = _rows[i];
+                if (row.developmentSummary)
+                {
+                    SetRow(row, false, progress.IsMaxed, false);
+                    if (row.level != null)
+                        row.level.text = string.Format(Loc.T("gelisim.seviye_deger"), progress.Level, progress.MaxLevel);
+                    if (row.detail != null)
+                        row.detail.text = progress.IsMaxed
+                            ? Loc.T("gelisim.tamamlandi")
+                            : string.Format(Loc.T("gelisim.sonraki"),
+                                progress.PointsIntoLevel, progress.PointsForNextLevel);
+                    if (row.badgeText != null) row.badgeText.text = Loc.T("market.maks");
+                    if (row.badge != null && badgeMax != null) row.badge.sprite = badgeMax;
+                    continue;
+                }
+
+                if (!row.recommendation) continue;
+                BigDouble cost = _op.AxisCost(row.station, row.axis);
+                bool afford = _wallet != null && _wallet.CanAfford(cost);
+                SetRow(row, true, false, false);
+                if (row.level != null)
+                    row.level.text = string.Format(Loc.T("yukseltme.seviye"), _op.AxisLevel(row.station, row.axis));
+                if (row.detail != null)
+                    row.detail.text = string.Format(Loc.T("gelisim.istasyon_ilerleme"),
+                        _op.StationLevelTotal(row.station), _op.StationLevelCap(row.station));
+                if (row.price != null) row.price.text = "$" + NumberFormatter.Format(cost);
+                if (row.buyImg != null) row.buyImg.sprite = afford ? priceGreen : priceGrey;
+                // This control is navigation, not a purchase. It remains useful when cash is short.
+                if (row.buyBtn != null) row.buyBtn.interactable = !_busy;
+            }
         }
 
         private void RefreshRow(Row r)
@@ -1549,6 +1662,7 @@ namespace Game.UI
 
         /// <summary>The two tiles at the end of the strip that are not stations. Both are negative, which
         /// is what every "is this a building?" test on this screen actually asks.</summary>
+        private const int RecommendedPage = -4;
         private const int ExpansionPage = -2;
         private const int ReportPage = -3;
         private const float ExpansionTop = 530f;      // altın hapının altı: tepsi genişletmelerde buraya kadar büyür

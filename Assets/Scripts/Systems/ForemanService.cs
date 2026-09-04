@@ -171,6 +171,25 @@ namespace Game.Systems
         public Foremen.Tier TierOf(int station) => Foremen.TierOfStation(Levels, station);
 
         /// <summary>
+        /// Shared roster-card state. The UI should not have to reconstruct ownership, upgrade
+        /// readiness or progress from separate arrays; captains expose the same contract.
+        /// </summary>
+        public RosterCardState CardState(int station)
+        {
+            int level = LevelOf(station);
+            return new RosterCardState(
+                station,
+                (RosterCardState.Rarity)(int)TierOf(station),
+                station,
+                level,
+                Foremen.MaxLevel,
+                DuplicatesOf(station),
+                DuplicatesToLevel(station),
+                Foremen.Boost(level, _tuning),
+                false);
+        }
+
+        /// <summary>
         /// One tier's colour. Lives here rather than on either screen because BOTH read it — the card
         /// frame in Game.UI and the plinth under his feet in Game.Gameplay — and the two must never
         /// disagree about what Legendary looks like.
@@ -190,6 +209,15 @@ namespace Game.Systems
         {
             if (!IsHired(station) || IsMaxed(station)) return false;
             return DuplicatesOf(station) >= DuplicatesToLevel(station);
+        }
+
+        /// <summary>Cards currently ready to star up; used by the roster opener badge.</summary>
+        public int PendingCount()
+        {
+            int count = 0;
+            for (int station = 0; station < Foremen.Count; station++)
+                if (CardState(station).NeedsAttention) count++;
+            return count;
         }
 
         // ------------------------------------------------------------------ chest

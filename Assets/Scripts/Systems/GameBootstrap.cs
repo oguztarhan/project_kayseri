@@ -233,7 +233,7 @@ namespace Game.Systems
 
             // The checklist. After the roster because a goal can pay out foreman cards, and before
             // the yards and the contracts because both of them report into it.
-            Goals = new GoalService(Data, Wallet, Foremen, _time);
+            Goals = new GoalService(Data, Wallet, Foremen, _time, Save);
             ServiceLocator.Register(Goals);
 
             // The spine over the island ladder. After the roster and the wallet because a beat pays

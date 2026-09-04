@@ -5,6 +5,7 @@
         "Game.Core",
         "Game.Systems",
         "Game.Data",
+        "Game.UI",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

@@ -34,6 +34,9 @@ namespace Game.Core
         /// <summary>How many daily tasks are up at once.</summary>
         public const int DailySlots = 3;
 
+        /// <summary>How many longer tasks feed the weekly milestone track.</summary>
+        public const int WeeklySlots = 4;
+
         // ------------------------------------------------------------------ dailies
         public struct Task
         {
@@ -54,6 +57,43 @@ namespace Game.Core
             new Task { Metric = Contracts,     Target = 1,  Gems = 40, Cards = 1 },
             new Task { Metric = Repairs,       Target = 2,  Gems = 30, Cards = 0 },
             new Task { Metric = ForemanLevels, Target = 1,  Gems = 35, Cards = 0 },
+        };
+
+        public struct WeeklyTask
+        {
+            public string Id;
+            public int Metric;
+            public long Target;
+            public int Points;
+        }
+
+        /// <summary>
+        /// Weekly tasks deliberately reuse the same count-based metrics as dailies. Their immutable
+        /// IDs are persistence/analytics keys; array positions are only presentation order.
+        /// </summary>
+        public static readonly WeeklyTask[] WeeklyTasks =
+        {
+            new WeeklyTask { Id = "weekly_upgrades",  Metric = Upgrades,      Target = 50, Points = 25 },
+            new WeeklyTask { Id = "weekly_contracts", Metric = Contracts,     Target = 7,  Points = 25 },
+            new WeeklyTask { Id = "weekly_repairs",   Metric = Repairs,       Target = 12, Points = 25 },
+            new WeeklyTask { Id = "weekly_foremen",   Metric = ForemanLevels, Target = 5,  Points = 25 },
+        };
+
+        public struct WeeklyMilestone
+        {
+            public string Id;
+            public int Points;
+            public long Gems;
+            public int Cards;
+        }
+
+        /// <summary>Stable IDs make reordering the visible track safe for existing saves.</summary>
+        public static readonly WeeklyMilestone[] WeeklyMilestones =
+        {
+            new WeeklyMilestone { Id = "weekly_25",  Points = 25,  Gems = 35,  Cards = 0 },
+            new WeeklyMilestone { Id = "weekly_50",  Points = 50,  Gems = 60,  Cards = 1 },
+            new WeeklyMilestone { Id = "weekly_75",  Points = 75,  Gems = 90,  Cards = 1 },
+            new WeeklyMilestone { Id = "weekly_100", Points = 100, Gems = 150, Cards = 3 },
         };
 
         /// <summary>
@@ -164,5 +204,12 @@ namespace Game.Core
 
         /// <summary>The UTC day number a timestamp falls on — what a daily reset is measured in.</summary>
         public static int DayNumber(long unixSeconds) => (int)Math.Floor(unixSeconds / 86400d);
+
+        /// <summary>
+        /// UTC week number with Monday as the boundary. This is timezone-independent and does not
+        /// depend on locale or ISO calendar APIs.
+        /// </summary>
+        public static int WeekNumber(long unixSeconds)
+            => (int)Math.Floor((unixSeconds / 86400d + 3d) / 7d);
     }
 }

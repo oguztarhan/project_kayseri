@@ -12,10 +12,10 @@ namespace Game.Core
     ///
     /// THREE DELIBERATE CHOICES:
     ///
-    /// A chapter NEVER gates the next island. Docs/VOYAGES.md §16 considered making a won resource a
-    /// requirement for an island and dropped it, because a new resource in front of the ladder can
-    /// stall a player behind a system they have not engaged with. Islands stay bought with cash.
-    /// A chapter gates its own rewards and nothing else, which is why nothing here can deadlock.
+    /// A completed chapter now gates the next island, but it does so only with state the core loop
+    /// already produces: station levels, expansions and a staffed yard. It never asks for a won
+    /// voyage resource or an event currency, so a player cannot be stalled behind an optional system.
+    /// Cash remains the second half of the purchase gate.
     ///
     /// Every beat is COUNT-based, and the thresholds are the same on all eight islands. This is
     /// <see cref="Goals"/>'s reasoning applied one layer up: cash and bars inflate 3.2x per ore tier,

@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Game.Core;
+using Game.Systems;
 
 namespace Game.Tests
 {
@@ -159,6 +160,114 @@ namespace Game.Tests
             Assert.That(Goals.DayNumber(86400L), Is.EqualTo(1));
             // and it must not go wrong before 1970, because a device clock can be set backwards
             Assert.That(Goals.DayNumber(-1L), Is.EqualTo(-1));
+        }
+
+        [Test]
+        public void WeekNumber_RollsAtMondayUtc()
+        {
+            // 1970-01-01 was Thursday; the first boundary after the epoch is Monday 1970-01-05.
+            Assert.That(Goals.WeekNumber(0L), Is.Zero);
+            Assert.That(Goals.WeekNumber(345599L), Is.Zero);
+            Assert.That(Goals.WeekNumber(345600L), Is.EqualTo(1));
+            Assert.That(Goals.WeekNumber(-259201L), Is.EqualTo(-1));
+        }
+
+        [Test]
+        public void WeeklyDefinitions_HaveStableUniqueIdsAndAscendingMilestones()
+        {
+            var ids = new System.Collections.Generic.HashSet<string>();
+            Assert.That(Goals.WeeklyTasks.Length, Is.EqualTo(Goals.WeeklySlots));
+            for (int i = 0; i < Goals.WeeklyTasks.Length; i++)
+            {
+                Goals.WeeklyTask task = Goals.WeeklyTasks[i];
+                Assert.That(task.Id, Is.Not.Null.And.Not.Empty);
+                Assert.That(ids.Add(task.Id), Is.True, task.Id);
+                Assert.That(task.Metric, Is.InRange(0, Goals.MetricCount - 1));
+                Assert.That(task.Target, Is.GreaterThan(0L));
+                Assert.That(task.Points, Is.GreaterThan(0));
+            }
+
+            int lastPoints = 0;
+            for (int i = 0; i < Goals.WeeklyMilestones.Length; i++)
+            {
+                Goals.WeeklyMilestone milestone = Goals.WeeklyMilestones[i];
+                Assert.That(milestone.Id, Is.Not.Null.And.Not.Empty);
+                Assert.That(ids.Add(milestone.Id), Is.True, milestone.Id);
+                Assert.That(milestone.Points, Is.GreaterThan(lastPoints));
+                Assert.That(milestone.Gems + milestone.Cards, Is.GreaterThan(0L));
+                lastPoints = milestone.Points;
+            }
+        }
+
+        [Test]
+        public void WeeklyProgress_UsesLifetimeDeltaAndOldSavesStartClean()
+        {
+            var data = new SaveData();
+            data.goals.lifetime[Goals.Upgrades] = 900L;
+            data.goals.weekBaseline = null;
+            data.goals.weeklyMilestonesClaimed = null;
+
+            var service = new GoalService(data, new WalletService(data.wallet), null, new TimeService());
+
+            Assert.That(service.WeekProgress(Goals.Upgrades), Is.Zero);
+            service.Record(Goals.Upgrades, 12L);
+            Assert.That(service.WeekProgress(Goals.Upgrades), Is.EqualTo(12L));
+            Assert.That(data.goals.weekBaseline.Length, Is.EqualTo(Goals.MetricCount));
+            Assert.That(data.goals.weeklyMilestonesClaimed, Is.Not.Null);
+        }
+
+        [Test]
+        public void WeeklyClaim_IsIdempotentAcrossRepeatedTaps()
+        {
+            var data = new SaveData();
+            var wallet = new WalletService(data.wallet);
+            var service = new GoalService(data, wallet, null, new TimeService());
+            Goals.WeeklyTask task = Goals.WeeklyTasks[0];
+            service.Record(task.Metric, task.Target);
+
+            long before = wallet.Gems;
+            Assert.That(service.ClaimWeeklyMilestone(0, out GoalService.ClaimReceipt receipt), Is.True);
+            Assert.That(receipt.Items, Is.EqualTo(1));
+            Assert.That(receipt.Gems, Is.EqualTo(Goals.WeeklyMilestones[0].Gems));
+            Assert.That(receipt.Cards, Is.EqualTo(Goals.WeeklyMilestones[0].Cards));
+            long afterFirst = wallet.Gems;
+            Assert.That(afterFirst, Is.EqualTo(before + Goals.WeeklyMilestones[0].Gems));
+            Assert.That(service.ClaimWeeklyMilestone(0), Is.False);
+            Assert.That(wallet.Gems, Is.EqualTo(afterFirst));
+        }
+
+        [Test]
+        public void WeeklyRollover_DropsPartialProgressAndClaims()
+        {
+            var data = new SaveData();
+            data.goals.week = Goals.WeekNumber(System.DateTimeOffset.UtcNow.ToUnixTimeSeconds()) - 1;
+            data.goals.lifetime[Goals.Upgrades] = 40L;
+            data.goals.weekBaseline[Goals.Upgrades] = 10L;
+            data.goals.weeklyMilestonesClaimed = new[] { Goals.WeeklyMilestones[0].Id };
+
+            var service = new GoalService(data, new WalletService(data.wallet), null, new TimeService());
+
+            Assert.That(service.WeekProgress(Goals.Upgrades), Is.Zero);
+            Assert.That(service.WeeklyMilestoneClaimed(0), Is.False);
+        }
+
+        [Test]
+        public void ClaimAll_TakesEveryReadyKindExactlyOnce()
+        {
+            var data = new SaveData();
+            var wallet = new WalletService(data.wallet);
+            var service = new GoalService(data, wallet, null, new TimeService());
+            for (int metric = 0; metric < Goals.MetricCount; metric++)
+                service.Record(metric, 30000000L);
+
+            int expected = Goals.DailySlots + Goals.WeeklyMilestones.Length + Goals.Ladder.Length;
+            Assert.That(service.ClaimAll(), Is.EqualTo(expected));
+            long afterFirst = wallet.Gems;
+
+            Assert.That(service.ClaimAll(), Is.Zero);
+            Assert.That(wallet.Gems, Is.EqualTo(afterFirst));
+            for (int i = 0; i < Goals.WeeklyMilestones.Length; i++)
+                Assert.That(service.WeeklyMilestoneClaimed(i), Is.True);
         }
     }
 }

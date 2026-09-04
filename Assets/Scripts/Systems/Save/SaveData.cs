@@ -461,6 +461,9 @@ namespace Game.Systems
         public long[] dayBaseline = new long[Game.Core.Goals.MetricCount];
         public bool[] dailyClaimed = new bool[Game.Core.Goals.DailySlots];
         public int[] tiersClaimed = new int[Game.Core.Goals.Ladder.Length];
+        public int week = int.MinValue;                                   // Monday-based UTC week
+        public long[] weekBaseline = new long[Game.Core.Goals.MetricCount];
+        public string[] weeklyMilestonesClaimed = new string[0];          // immutable tier IDs
     }
 
     [Serializable]

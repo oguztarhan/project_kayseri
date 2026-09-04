@@ -48,5 +48,15 @@ namespace Game.Tests.EditMode
 
             Assert.That(sink.Requests.Exists(n => n.Id == "contract:reward" && n.Target == "contract"), Is.True);
         }
+
+        [Test]
+        public void NewDayNotificationLinksToDailyGoalsTab()
+        {
+            var data = new SaveData();
+            var sink = new Sink();
+            new NotificationService(data, null, new TimeService(), sink, null, 1).ScheduleAway();
+
+            Assert.That(sink.Requests.Exists(n => n.Id == "away:NewDay" && n.Target == "goals:daily"), Is.True);
+        }
     }
 }
