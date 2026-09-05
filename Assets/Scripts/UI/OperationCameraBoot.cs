@@ -218,16 +218,22 @@ namespace Game.UI
             // that axis makes every island read identically in portrait — mountains at the top, market at
             // the bottom, the road straight down the middle — instead of each one at a random diagonal.
             float useYaw = verticalShipyard ? authoredYaw : yaw;
-            Transform mine = null, market = null;
-            foreach (Transform ch in root.transform)
+            // CoalOperation spawns generic "mine_<Ore>"/"market" anchors on every island, authored ones
+            // included, so this lookup would otherwise override authoredYaw with a few stray degrees
+            // from those gameplay pins instead of the artist's own axis.
+            if (!verticalShipyard)
             {
-                if (ch.name.StartsWith("mine_")) mine = ch;
-                else if (ch.name == "market") market = ch;
-            }
-            if (mine != null && market != null)
-            {
-                Vector3 f = mine.position - market.position; f.y = 0f;   // screen-up points at the mountains
-                if (f.sqrMagnitude > 1f) useYaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
+                Transform mine = null, market = null;
+                foreach (Transform ch in root.transform)
+                {
+                    if (ch.name.StartsWith("mine_")) mine = ch;
+                    else if (ch.name == "market") market = ch;
+                }
+                if (mine != null && market != null)
+                {
+                    Vector3 f = mine.position - market.position; f.y = 0f;   // screen-up points at the mountains
+                    if (f.sqrMagnitude > 1f) useYaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
+                }
             }
 
             Quaternion rot = Quaternion.Euler(pitch, useYaw, 0f);

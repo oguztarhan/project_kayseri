@@ -1142,7 +1142,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 1
-  far clip plane: 7467.133
+  far clip plane: 7645.797
   field of view: 42
   orthographic: 0
   orthographic size: 26
@@ -1169,8 +1169,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 150744235}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.4848096, y: 0, z: 0, w: 0.8746197}
-  m_LocalPosition: {x: -79.983826, y: 3457.0938, z: -1941.4225}
+  m_LocalRotation: {x: 0.48479113, y: 0.0076324, z: -0.0042307083, w: 0.8745864}
+  m_LocalPosition: {x: -115.69693, y: 3551.6694, z: -1999.0413}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -17371,7 +17371,7 @@ MonoBehaviour:
   zoomOutFactor: 0.52
   panPadding: 40
   verticalShipyard: 1
-  authoredYaw: 0
+  authoredYaw: 1
   hudSideFraction: 0.1
   hudRailOnLeft: 1
   widthMargin: 0.74
