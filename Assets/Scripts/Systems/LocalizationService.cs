@@ -140,7 +140,9 @@ namespace Game.Systems
                 if (c.Length <= col || c[0].Length == 0 || c[0][0] == '#') continue;
                 string v = c[col];
                 if (v.Length == 0) continue;
-                into[c[0]] = v.Replace("\\n", "\n");
+                // Accept both one- and two-backslash escaped line breaks. This keeps imported
+                // translator rows readable even when a spreadsheet/export pass doubles escapes.
+                into[c[0]] = v.Replace("\\\\n", "\n").Replace("\\n", "\n");
             }
         }
 

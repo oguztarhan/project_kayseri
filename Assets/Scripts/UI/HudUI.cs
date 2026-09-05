@@ -96,6 +96,8 @@ namespace Game.UI
                  "dugmelerde 162, sekiz aciciyi iki sutuna sigdiriyor; 172'de uc sutun gerekiyor " +
                  "ve ray adanin uzerine tasiyor.")]
         [SerializeField] private float railPitch = 162f;
+        [Tooltip("Çentik ve hareket çubuğundan sonra bırakılan minimum boşluk.")]
+        [SerializeField] private float safeAreaMargin = 24f;
 
         [Header("Alt")]
         [SerializeField] private Button upgradeButton;
@@ -160,6 +162,9 @@ namespace Game.UI
         private float _topStripWidth, _topStripHeight, _topStripGap;
         private Vector2 _sheetSize = new Vector2(-1f, -1f);
         private static readonly Vector3[] Corners = new Vector3[4];
+        private Rect _appliedSafeArea = new Rect(-1f, -1f, -1f, -1f);
+        private Vector2Int _appliedScreenSize;
+        private Vector2 _appliedSheetSize = new Vector2(-1f, -1f);
 
         private void Start()
         {
@@ -209,6 +214,7 @@ namespace Game.UI
                 InsertBottom(PromoOrder + 0, adButton != null ? (RectTransform)adButton.transform : null);
                 InsertBottom(PromoOrder + 1, offerButton != null ? (RectTransform)offerButton.transform : null);
             }
+            ApplySafeArea();
             LayoutBottomRow();
             if (!compactShipyardHud)
             {
@@ -335,17 +341,28 @@ namespace Game.UI
             if (count == 0) return;
 
             float height = RailHeight();
+            RectTransform sheet = transform as RectTransform;
+            float width = sheet != null && sheet.rect.width > 100f ? sheet.rect.width : 1080f;
+            Rect safe = Screen.safeArea;
+            float screenWidth = Mathf.Max(1f, Screen.width);
+            float screenHeight = Mathf.Max(1f, Screen.height);
+            float sheetPerScreenX = width / screenWidth;
             // The band the button CENTRES may occupy. The pills are pinned to the top of the same
             // rect, so the rail starts under them rather than at the screen edge; half a pitch comes
             // off each end so the first and last buttons sit inside the band rather than straddling it.
-            float top = height * 0.5f - railTopReserve - railPitch * 0.5f;
-            float bottom = -height * 0.5f + railPitch * 0.5f;
+            float safeTop = (safe.yMax / screenHeight - 0.5f) * height;
+            float safeBottom = (safe.yMin / screenHeight - 0.5f) * height;
+            float top = safeTop - railTopReserve - railPitch * 0.5f;
+            float bottom = safeBottom + railPitch * 0.5f;
             float band = Mathf.Max(railPitch, top - bottom);
             float centre = (top + bottom) * 0.5f;
 
             int perColumn = Mathf.Max(1, Mathf.FloorToInt(band / railPitch) + 1);
             int columns = Mathf.CeilToInt(count / (float)perColumn);
-            _railWidth = railInset + (columns - 1) * railPitch + railPitch * 0.5f;
+            float safeEdgeInset = railOnLeft
+                ? safe.xMin * sheetPerScreenX + railInset
+                : (screenWidth - safe.xMax) * sheetPerScreenX + railInset;
+            _railWidth = safeEdgeInset + (columns - 1) * railPitch + railPitch * 0.5f;
             float edge = railOnLeft ? 0f : 1f;
             float dir = railOnLeft ? 1f : -1f;
 
@@ -364,7 +381,7 @@ namespace Game.UI
 
                 rect.anchorMin = rect.anchorMax = new Vector2(edge, 0.5f);
                 rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.anchoredPosition = new Vector2(dir * (railInset + column * railPitch),
+                rect.anchoredPosition = new Vector2(dir * (safeEdgeInset + column * railPitch),
                                                     centre + columnSpan * 0.5f - row * railPitch);
                 placed++;
             }
@@ -386,6 +403,71 @@ namespace Game.UI
                 if (_bottomRects[i] != null) parent = _bottomRects[i].parent as RectTransform;
             float h = parent != null ? parent.rect.height : 0f;
             return h > 100f ? h : 1080f;
+        }
+
+        /// <summary>
+        /// Returns the device safe area in normalized coordinates. Keeping this pure makes the inset
+        /// contract testable without a device and avoids special-case portrait layout assets.
+        /// </summary>
+        public static Rect SafeAreaNormalized(Rect safeArea, Vector2 screenSize)
+        {
+            float width = Mathf.Max(1f, screenSize.x);
+            float height = Mathf.Max(1f, screenSize.y);
+            return new Rect(safeArea.xMin / width, safeArea.yMin / height,
+                            safeArea.width / width, safeArea.height / height);
+        }
+
+        private bool SafeAreaChanged()
+        {
+            RectTransform sheet = transform as RectTransform;
+            return Screen.safeArea != _appliedSafeArea
+                   || _appliedScreenSize.x != Screen.width
+                   || _appliedScreenSize.y != Screen.height
+                   || (sheet != null && sheet.rect.size != _appliedSheetSize);
+        }
+
+        /// <summary>
+        /// Clamps the authored top controls to the current safe rectangle. Buttons are moved rather
+        /// than their text children so the currency and income pills remain internally aligned.
+        /// </summary>
+        private void ApplySafeArea()
+        {
+            Rect safe = Screen.safeArea;
+            _appliedSafeArea = safe;
+            _appliedScreenSize = new Vector2Int(Screen.width, Screen.height);
+            RectTransform sheet = transform as RectTransform;
+            _appliedSheetSize = sheet != null ? sheet.rect.size : Vector2.zero;
+            float margin = Mathf.Max(0f, safeAreaMargin);
+            ClampToSafeArea(goldButton != null ? (RectTransform)goldButton.transform : null, safe, margin);
+            ClampToSafeArea(gemsButton != null ? (RectTransform)gemsButton.transform : null, safe, margin);
+            ClampToSafeArea(rateButton != null ? (RectTransform)rateButton.transform : null, safe, margin);
+            ClampToSafeArea(settingsButton != null ? (RectTransform)settingsButton.transform : null, safe, margin);
+            ClampToSafeArea(boostIndicator != null ? (RectTransform)boostIndicator.transform : null, safe, margin);
+            ClampToSafeArea(shieldIndicator != null ? (RectTransform)shieldIndicator.transform : null, safe, margin);
+        }
+
+        private static void ClampToSafeArea(RectTransform rect, Rect safe, float margin)
+        {
+            if (rect == null) return;
+            rect.GetWorldCorners(Corners);
+            float minX = Corners[0].x, maxX = Corners[0].x;
+            float minY = Corners[0].y, maxY = Corners[0].y;
+            for (int i = 1; i < Corners.Length; i++)
+            {
+                minX = Mathf.Min(minX, Corners[i].x);
+                maxX = Mathf.Max(maxX, Corners[i].x);
+                minY = Mathf.Min(minY, Corners[i].y);
+                maxY = Mathf.Max(maxY, Corners[i].y);
+            }
+
+            float dx = 0f;
+            if (minX < safe.xMin + margin) dx = safe.xMin + margin - minX;
+            else if (maxX > safe.xMax - margin) dx = safe.xMax - margin - maxX;
+            float dy = 0f;
+            if (minY < safe.yMin + margin) dy = safe.yMin + margin - minY;
+            else if (maxY > safe.yMax - margin) dy = safe.yMax - margin - maxY;
+            if (Mathf.Abs(dx) > 0.01f || Mathf.Abs(dy) > 0.01f)
+                rect.position += new Vector3(dx, dy, 0f);
         }
 
         /// <summary>
@@ -533,6 +615,11 @@ namespace Game.UI
         {
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
             if (_op == null || !_op.enabled) BindEnabledOp();
+            if (SafeAreaChanged())
+            {
+                ApplySafeArea();
+                LayoutBottomRow();
+            }
             if (_topStrip != null)
             {
                 var sheet = transform as RectTransform;

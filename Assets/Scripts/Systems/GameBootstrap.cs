@@ -30,6 +30,8 @@ namespace Game.Systems
         [SerializeField] private SeaCombatConfig seaCombatConfig;
         [Tooltip("Atölye (zanaat) ayarları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
         [SerializeField] private CraftingConfig craftingConfig;
+        [Tooltip("İlk gemi tezgâhının Cannon tarifi. Boş bırakılırsa Stage 3 başlangıç tarifi kullanılır.")]
+        [SerializeField] private ShipyardRecipeDefinition cannonRecipe;
         [SerializeField] private LiveEventConfig liveEventConfig;
         [Tooltip("Döküm Şenliği'nin görev ve sandık tablosu. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
         [SerializeField] private FoundryFestivalConfig foundryFestivalConfig;
@@ -48,6 +50,8 @@ namespace Game.Systems
                  "(editörde zaten anında ödül veren taklit servis çalışır).")]
         [SerializeField] private AdsConfig adsConfig;
         [SerializeField] private string mainSceneName = "Main";
+        [Tooltip("Portrait shipyard presentation. The saved UsePortraitShipyard switch chooses this or Main.")]
+        [SerializeField] private string portraitSceneName = "Shipyard";
         [SerializeField] private bool loadMainOnStart = true;
         [Tooltip("Boşsa Main tek karede yüklenir ve açılış görseli görünmez.")]
         [SerializeField] private LoadingScreen loadingScreen;
@@ -65,6 +69,19 @@ namespace Game.Systems
         public GameClock Clock { get; private set; }
         public SaveService Save { get; private set; }
         public SaveData Data { get; private set; }
+        public bool UsePortraitShipyard => ShipyardFeatureSwitch.IsEnabled(Data);
+
+        /// <summary>
+        /// Persist the reversible rollout choice. The next bootstrap selects the matching presentation;
+        /// keeping scene reload out of this setter prevents a settings tap from interrupting a queue or
+        /// an active Sea Combat encounter.
+        /// </summary>
+        public bool SetUsePortraitShipyard(bool enabled)
+        {
+            if (Data == null || !ShipyardFeatureSwitch.Set(Data, enabled)) return false;
+            Save?.Save(Data);
+            return true;
+        }
         public WalletService Wallet { get; private set; }
         public EconomyService Economy { get; private set; }
         public OfflineReport Offline { get; private set; }
@@ -77,6 +94,8 @@ namespace Game.Systems
         public CaptainService Captains { get; private set; }
         public ExpeditionService Expeditions { get; private set; }
         public CraftingService Crafting { get; private set; }
+        public CannonProductionService CannonProduction { get; private set; }
+        public ShipyardUnlockService ShipyardUnlocks { get; private set; }
         public LadderService Ladder { get; private set; }
         public LiveEventService LiveEvents { get; private set; }
         public FoundryFestivalService Festival { get; private set; }
@@ -298,6 +317,18 @@ namespace Game.Systems
             Expeditions.Crafting = Crafting;   // scraps teach the bench, wins can drop a point
             Crafting.Expeditions = Expeditions;   // wearing a crafted item goes through the sea's Equip
 
+            // The portrait services are registered only in portrait mode. Their save payload remains
+            // present in both modes, so turning the feature off pauses presentation and production
+            // entry points without deleting queued or completed shipyard data.
+            if (UsePortraitShipyard)
+            {
+                CannonProduction = new CannonProductionService(Data, Save, _time, Wallet, Expeditions,
+                                                                cannonRecipe);
+                ServiceLocator.Register(CannonProduction);
+                ShipyardUnlocks = new ShipyardUnlockService(Data, Save, _time, Wallet);
+                ServiceLocator.Register(ShipyardUnlocks);
+            }
+
             // The three-day league. The local double is what ships (Docs/LEADERBOARDS.md D1 = option
             // A): a generated cohort, no package, no account, no network, and every board it returns
             // carries Synthetic so the screen can say so — which decision D4 requires it to.
@@ -423,10 +454,12 @@ namespace Game.Systems
         private void Start()
         {
             if (!loadMainOnStart || string.IsNullOrEmpty(mainSceneName)) return;
+            string presentation = ShipyardFeatureSwitch.PresentationScene(
+                Data, portraitSceneName, mainSceneName);
             // Synchronous LoadScene finishes inside one frame, which is why the splash was never visible.
             // The loading screen owns the async load so it can hold itself up until Main is actually there.
-            if (loadingScreen != null) loadingScreen.Begin(mainSceneName, Data);
-            else SceneManager.LoadScene(mainSceneName, LoadSceneMode.Single);
+            if (loadingScreen != null) loadingScreen.Begin(presentation, Data);
+            else SceneManager.LoadScene(presentation, LoadSceneMode.Single);
         }
 
         private void Update()
@@ -439,6 +472,9 @@ namespace Game.Systems
             // Strictly after the yards: a hold pulls off the pads, and the pads have to have taken
             // this tick's deliveries first or the dock is always one frame behind the lorries.
             Voyages?.Tick(dt);
+            CannonProduction?.Poll();
+            ShipyardUnlocks?.Poll();
+            CannonProduction?.RefreshOrders();
             // Same reason: a repair the player started before sailing away has to keep running while
             // they are somewhere else, and it is the crew's own clock that finishes it.
             Maintenance?.Tick(dt);
@@ -464,6 +500,9 @@ namespace Game.Systems
         {
             if (paused)
             {
+                CannonProduction?.Poll();
+                ShipyardUnlocks?.Poll();
+                CannonProduction?.RefreshOrders();
                 // Before the save, because the festival's counters only move when something reads
                 // them: this is the one moment a read cannot be relied on to happen again while the
                 // window is still open. A player who finishes a task and immediately leaves on the
@@ -489,6 +528,9 @@ namespace Game.Systems
 
         private void OnApplicationQuit()
         {
+            CannonProduction?.Poll();
+            ShipyardUnlocks?.Poll();
+            CannonProduction?.RefreshOrders();
             Festival?.Sync();
             HarborFestival?.Sync();
             ProductionSprint?.Sync();

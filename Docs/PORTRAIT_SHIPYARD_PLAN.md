@@ -1,5 +1,7 @@
 # Portrait Shipyard — Focus Ladder Production Plan
 
+> **Historical / superseded.** The current source of truth is [UPDATED_PORTRAIT_SHIPYARD_WORKLIST.md](../UPDATED_PORTRAIT_SHIPYARD_WORKLIST.md). Keep this document for historical context only.
+
 **Status:** proposal for approval  
 **Goal:** turn the current island game into one vertically scrollable portrait shipyard where the player can watch the complete production flow and unlock ship-equipment stations one at a time.
 

@@ -139,6 +139,10 @@ namespace Game.UI
 
         private void Open()
         {
+            // Equipment demand belongs to the portrait world while the feature is active. Keeping this
+            // guard at the legacy entry point prevents an old marker or a late scene activation from
+            // bypassing the rollout policy.
+            if (!ShipyardFeatureSwitch.AllowsLegacyMarket(ServiceLocator.Get<SaveData>())) return;
             // Main is parked rather than destroyed while the market is open. The same marker instance
             // therefore wakes on return, and an old true value must not block every later visit.
             if (_opening && SceneCurtain.Busy) return;
@@ -181,6 +185,11 @@ namespace Game.UI
 
         private void Update()
         {
+            if (!ShipyardFeatureSwitch.AllowsLegacyMarket(ServiceLocator.Get<SaveData>()))
+            {
+                Hide();
+                return;
+            }
             if (_opening && !SceneCurtain.Busy) _opening = false;
             float dt = Time.unscaledDeltaTime;
             _rebindIn -= dt;
