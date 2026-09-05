@@ -1,0 +1,1355 @@
+{
+  "anchors": {
+    "Camera_Bounds": {
+      "max": [
+        9.593,
+        18.492,
+        16.013
+      ],
+      "min": [
+        -9.664,
+        -0.189,
+        -17.54
+      ],
+      "note": "island and customer islands, sea planes excluded",
+      "on": "IndustrialReference_Map"
+    },
+    "Camera_Stop_01": {
+      "note": "centred on 04_Mine/Crusher_Tower",
+      "on": "04_Mine/Crusher_Tower",
+      "pos": [
+        0.465,
+        6.415,
+        12.078
+      ]
+    },
+    "Camera_Stop_02": {
+      "note": "centred on 05_Smelter/Smelting_Plant",
+      "on": "05_Smelter/Smelting_Plant",
+      "pos": [
+        -1.113,
+        5.065,
+        6.75
+      ]
+    },
+    "Camera_Stop_03": {
+      "note": "centred on 06_Factory/Blue_Factory",
+      "on": "06_Factory/Blue_Factory",
+      "pos": [
+        0.194,
+        3.715,
+        0.494
+      ]
+    },
+    "Camera_Stop_04": {
+      "note": "centred on 07_Refinery/Refinery",
+      "on": "07_Refinery/Refinery",
+      "pos": [
+        0.335,
+        2.365,
+        -4.562
+      ]
+    },
+    "Camera_Stop_05": {
+      "note": "centred on 08_Harbor/Warehouse",
+      "on": "08_Harbor/Warehouse",
+      "pos": [
+        0.295,
+        1.065,
+        -8.986
+      ]
+    },
+    "Camera_Stop_06": {
+      "note": "centred on 08_Harbor/Port",
+      "on": "08_Harbor/Port",
+      "pos": [
+        -1.605,
+        0.655,
+        -12.05
+      ]
+    },
+    "Camera_Stop_07": {
+      "note": "centred on 09_Customers/Customer_Island_02",
+      "on": "09_Customers/Customer_Island_02",
+      "pos": [
+        0.0,
+        0.395,
+        -16.0
+      ]
+    },
+    "Customer_Berth_01": {
+      "note": "customer plaza at the bridge landing",
+      "on": "09_Customers/Customer_Island_01",
+      "pos": [
+        -4.72,
+        0.541,
+        -14.93
+      ]
+    },
+    "Customer_Berth_02": {
+      "note": "customer plaza at the bridge landing",
+      "on": "09_Customers/Customer_Island_02",
+      "pos": [
+        0.0,
+        0.541,
+        -14.93
+      ]
+    },
+    "Customer_Berth_03": {
+      "note": "customer plaza at the bridge landing",
+      "on": "09_Customers/Customer_Island_03",
+      "pos": [
+        4.72,
+        0.541,
+        -14.93
+      ]
+    },
+    "Mine_Output": {
+      "note": "ore leaves the portal onto the rail",
+      "on": "04_Mine/Mine_Portal",
+      "pos": [
+        -2.065,
+        6.415,
+        11.21
+      ]
+    },
+    "Player_Outfitting": {
+      "note": "quay deck under the crane boom",
+      "on": "08_Harbor/Port",
+      "pos": [
+        -3.894,
+        0.655,
+        -11.725
+      ]
+    },
+    "Refinery_Input": {
+      "note": "uphill half of the first free flank",
+      "on": "07_Refinery/Horizontal_Tank",
+      "pos": [
+        -5.512,
+        2.366,
+        -4.112
+      ]
+    },
+    "Refinery_Output": {
+      "note": "downhill face",
+      "on": "07_Refinery/Horizontal_Tank",
+      "pos": [
+        -3.516,
+        2.366,
+        -5.832
+      ]
+    },
+    "Set_Sail": {
+      "note": "quay lip alongside the moored ship",
+      "on": "08_Harbor/Port",
+      "pos": [
+        -4.519,
+        0.655,
+        -12.375
+      ]
+    },
+    "Station_Cannon_Input": {
+      "note": "+x flank, uphill half - materials arrive here",
+      "on": "05_Smelter/Smelting_Plant",
+      "pos": [
+        2.738,
+        5.065,
+        7.513
+      ]
+    },
+    "Station_Cannon_Output": {
+      "note": "-z face, downhill - finished equipment leaves here",
+      "on": "05_Smelter/Smelting_Plant",
+      "pos": [
+        -1.113,
+        5.187,
+        4.224
+      ]
+    },
+    "Station_Cannon_Upgrade": {
+      "note": "badge, clear of the roof - not a ground anchor",
+      "on": "05_Smelter/Smelting_Plant",
+      "pos": [
+        -1.113,
+        9.036,
+        6.75
+      ]
+    },
+    "Station_Cannon_Work": {
+      "note": "plot centre",
+      "on": "05_Smelter/Smelting_Plant",
+      "pos": [
+        -1.113,
+        5.065,
+        6.75
+      ]
+    },
+    "Station_Cannon_Worker": {
+      "note": "+x flank, downhill half - worker idle spot",
+      "on": "05_Smelter/Smelting_Plant",
+      "pos": [
+        2.738,
+        5.065,
+        5.987
+      ]
+    },
+    "Station_Figurehead_Input": {
+      "note": "pad +x edge, uphill half - materials arrive here",
+      "on": "IndustrialReference_Map",
+      "pos": [
+        -0.109,
+        1.066,
+        -11.484
+      ]
+    },
+    "Station_Figurehead_Output": {
+      "note": "pad -z edge, downhill - finished equipment leaves here",
+      "on": "IndustrialReference_Map",
+      "pos": [
+        -0.559,
+        1.066,
+        -11.859
+      ]
+    },
+    "Station_Figurehead_Upgrade": {
+      "note": "badge, above the future roof - not a ground anchor",
+      "on": "IndustrialReference_Map",
+      "pos": [
+        -0.559,
+        3.266,
+        -11.659
+      ]
+    },
+    "Station_Figurehead_Work": {
+      "note": "pad centre",
+      "on": "IndustrialReference_Map",
+      "pos": [
+        -0.559,
+        1.066,
+        -11.659
+      ]
+    },
+    "Station_Figurehead_Worker": {
+      "note": "pad +x edge, downhill half - worker idle spot",
+      "on": "IndustrialReference_Map",
+      "pos": [
+        -0.109,
+        1.066,
+        -11.834
+      ]
+    },
+    "Station_Hull_Input": {
+      "note": "+x flank, uphill half - materials arrive here",
+      "on": "06_Factory/Blue_Factory",
+      "pos": [
+        4.305,
+        3.792,
+        1.634
+      ]
+    },
+    "Station_Hull_Output": {
+      "note": "-z face, downhill - finished equipment leaves here",
+      "on": "06_Factory/Blue_Factory",
+      "pos": [
+        0.194,
+        3.716,
+        -2.685
+      ]
+    },
+    "Station_Hull_Upgrade": {
+      "note": "badge, clear of the roof - not a ground anchor",
+      "on": "06_Factory/Blue_Factory",
+      "pos": [
+        0.194,
+        9.012,
+        0.494
+      ]
+    },
+    "Station_Hull_Work": {
+      "note": "plot centre",
+      "on": "06_Factory/Blue_Factory",
+      "pos": [
+        0.194,
+        3.715,
+        0.494
+      ]
+    },
+    "Station_Hull_Worker": {
+      "note": "+x flank, downhill half - worker idle spot",
+      "on": "06_Factory/Blue_Factory",
+      "pos": [
+        4.305,
+        3.716,
+        -0.645
+      ]
+    },
+    "Station_Navigation_Input": {
+      "note": "+x flank, uphill half - materials arrive here",
+      "on": "08_Harbor/Warehouse",
+      "pos": [
+        3.316,
+        1.066,
+        -8.221
+      ]
+    },
+    "Station_Navigation_Output": {
+      "note": "-z face, downhill - finished equipment leaves here",
+      "on": "08_Harbor/Warehouse",
+      "pos": [
+        0.295,
+        1.066,
+        -11.515
+      ]
+    },
+    "Station_Navigation_Upgrade": {
+      "note": "badge, clear of the roof - not a ground anchor",
+      "on": "08_Harbor/Warehouse",
+      "pos": [
+        0.295,
+        3.585,
+        -8.986
+      ]
+    },
+    "Station_Navigation_Work": {
+      "note": "plot centre",
+      "on": "08_Harbor/Warehouse",
+      "pos": [
+        0.295,
+        1.065,
+        -8.986
+      ]
+    },
+    "Station_Navigation_Worker": {
+      "note": "+x flank, downhill half - worker idle spot",
+      "on": "08_Harbor/Warehouse",
+      "pos": [
+        3.316,
+        1.066,
+        -9.75
+      ]
+    },
+    "Station_Rigging_Input": {
+      "note": "+x flank, uphill half - materials arrive here",
+      "on": "07_Refinery/Refinery",
+      "pos": [
+        4.165,
+        2.366,
+        -3.718
+      ]
+    },
+    "Station_Rigging_Output": {
+      "note": "-z face, downhill - finished equipment leaves here",
+      "on": "07_Refinery/Refinery",
+      "pos": [
+        0.335,
+        2.366,
+        -7.25
+      ]
+    },
+    "Station_Rigging_Upgrade": {
+      "note": "badge, clear of the roof - not a ground anchor",
+      "on": "07_Refinery/Refinery",
+      "pos": [
+        0.335,
+        5.821,
+        -4.562
+      ]
+    },
+    "Station_Rigging_Work": {
+      "note": "plot centre",
+      "on": "07_Refinery/Refinery",
+      "pos": [
+        0.335,
+        2.365,
+        -4.562
+      ]
+    },
+    "Station_Rigging_Worker": {
+      "note": "+x flank, downhill half - worker idle spot",
+      "on": "07_Refinery/Refinery",
+      "pos": [
+        4.165,
+        2.366,
+        -5.406
+      ]
+    },
+    "Storage_Input": {
+      "note": "uphill half of the first free flank",
+      "on": "08_Containers_Intermodal_container",
+      "pos": [
+        4.788,
+        1.066,
+        -9.007
+      ]
+    },
+    "Storage_Output": {
+      "note": "downhill face",
+      "on": "08_Containers_Intermodal_container",
+      "pos": [
+        3.044,
+        1.066,
+        -10.483
+      ]
+    },
+    "Train_Load": {
+      "note": "uphill end of the existing rail",
+      "on": "04_Mine/Railway",
+      "pos": [
+        3.984,
+        6.416,
+        11.283
+      ]
+    },
+    "Train_Unload": {
+      "note": "downhill end of the existing rail",
+      "on": "04_Mine/Railway",
+      "pos": [
+        -1.706,
+        6.415,
+        11.283
+      ]
+    }
+  },
+  "generated_by": "Tools/blender/IndustrialReference/build_anchors.py",
+  "map_prefab": "Assets/Prefabs/Island/IndustrialReference/IndustrialReference_Map.prefab",
+  "routes": {
+    "Delivery_Cannon_to_Hull": {
+      "from": "Station_Cannon_Output",
+      "kind": "delivery",
+      "points": [
+        [
+          -1.113,
+          5.187,
+          4.224
+        ],
+        [
+          -1.664,
+          5.116,
+          3.71
+        ],
+        [
+          -2.914,
+          5.191,
+          3.71
+        ],
+        [
+          -3.414,
+          4.887,
+          3.46
+        ],
+        [
+          -3.664,
+          4.398,
+          3.21
+        ],
+        [
+          -3.414,
+          3.766,
+          2.96
+        ],
+        [
+          -1.664,
+          3.842,
+          2.96
+        ],
+        [
+          0.586,
+          3.992,
+          2.96
+        ],
+        [
+          2.586,
+          3.766,
+          2.96
+        ],
+        [
+          3.836,
+          3.842,
+          1.71
+        ],
+        [
+          4.305,
+          3.792,
+          1.634
+        ]
+      ],
+      "to": "Station_Hull_Input"
+    },
+    "Delivery_Figurehead_to_Sail": {
+      "from": "Station_Figurehead_Output",
+      "kind": "delivery",
+      "points": [
+        [
+          -0.559,
+          1.066,
+          -11.859
+        ],
+        [
+          -0.914,
+          1.071,
+          -12.04
+        ],
+        [
+          -1.164,
+          0.687,
+          -12.29
+        ],
+        [
+          -4.519,
+          0.655,
+          -12.375
+        ]
+      ],
+      "to": "Set_Sail"
+    },
+    "Delivery_Hull_to_Refinery": {
+      "from": "Station_Hull_Output",
+      "kind": "delivery",
+      "points": [
+        [
+          0.194,
+          3.716,
+          -2.685
+        ],
+        [
+          -1.664,
+          3.842,
+          -2.54
+        ],
+        [
+          -2.414,
+          2.57,
+          -3.29
+        ],
+        [
+          -4.414,
+          2.416,
+          -3.54
+        ],
+        [
+          -4.914,
+          2.416,
+          -4.04
+        ],
+        [
+          -5.512,
+          2.366,
+          -4.112
+        ]
+      ],
+      "to": "Refinery_Input"
+    },
+    "Delivery_Mine_to_Cannon": {
+      "from": "Mine_Output",
+      "kind": "delivery",
+      "points": [
+        [
+          -2.065,
+          6.415,
+          11.21
+        ],
+        [
+          -2.414,
+          6.465,
+          10.96
+        ],
+        [
+          -2.414,
+          6.466,
+          9.96
+        ],
+        [
+          -1.914,
+          6.466,
+          9.46
+        ],
+        [
+          4.836,
+          6.588,
+          9.46
+        ],
+        [
+          5.086,
+          6.507,
+          9.21
+        ],
+        [
+          5.336,
+          6.006,
+          8.71
+        ],
+        [
+          4.836,
+          5.116,
+          7.96
+        ],
+        [
+          4.336,
+          5.116,
+          7.46
+        ],
+        [
+          2.738,
+          5.065,
+          7.513
+        ]
+      ],
+      "to": "Station_Cannon_Input"
+    },
+    "Delivery_Navigation_to_Figurehead": {
+      "from": "Station_Navigation_Output",
+      "kind": "delivery",
+      "points": [
+        [
+          0.295,
+          1.066,
+          -11.515
+        ],
+        [
+          -0.109,
+          1.066,
+          -11.484
+        ]
+      ],
+      "to": "Station_Figurehead_Input"
+    },
+    "Delivery_Refinery_to_Rigging": {
+      "from": "Refinery_Output",
+      "kind": "delivery",
+      "points": [
+        [
+          -3.516,
+          2.366,
+          -5.832
+        ],
+        [
+          -2.414,
+          2.517,
+          -5.79
+        ],
+        [
+          -1.914,
+          2.416,
+          -6.29
+        ],
+        [
+          0.336,
+          2.416,
+          -6.29
+        ],
+        [
+          3.086,
+          2.416,
+          -6.54
+        ],
+        [
+          4.086,
+          2.416,
+          -5.54
+        ],
+        [
+          4.165,
+          2.366,
+          -3.718
+        ]
+      ],
+      "to": "Station_Rigging_Input"
+    },
+    "Delivery_Rigging_to_Storage": {
+      "from": "Station_Rigging_Output",
+      "kind": "delivery",
+      "points": [
+        [
+          0.335,
+          2.366,
+          -7.25
+        ],
+        [
+          -2.664,
+          2.416,
+          -7.29
+        ],
+        [
+          -2.914,
+          1.358,
+          -7.54
+        ],
+        [
+          -1.914,
+          1.115,
+          -8.54
+        ],
+        [
+          -1.414,
+          1.115,
+          -9.29
+        ],
+        [
+          -0.914,
+          1.115,
+          -9.29
+        ],
+        [
+          0.586,
+          1.115,
+          -9.79
+        ],
+        [
+          2.336,
+          1.116,
+          -10.54
+        ],
+        [
+          3.086,
+          1.116,
+          -9.79
+        ],
+        [
+          3.836,
+          1.116,
+          -9.79
+        ],
+        [
+          4.788,
+          1.066,
+          -9.007
+        ]
+      ],
+      "to": "Storage_Input"
+    },
+    "Delivery_Storage_to_Navigation": {
+      "from": "Storage_Output",
+      "kind": "delivery",
+      "points": [
+        [
+          3.044,
+          1.066,
+          -10.483
+        ],
+        [
+          4.086,
+          1.116,
+          -9.54
+        ],
+        [
+          4.086,
+          1.116,
+          -8.79
+        ],
+        [
+          3.316,
+          1.066,
+          -8.221
+        ]
+      ],
+      "to": "Station_Navigation_Input"
+    },
+    "Rail_Mine": {
+      "from": "Train_Load",
+      "kind": "rail",
+      "points": [
+        [
+          3.984,
+          6.416,
+          11.283
+        ],
+        [
+          3.628,
+          6.466,
+          11.283
+        ],
+        [
+          3.273,
+          6.466,
+          11.283
+        ],
+        [
+          2.917,
+          6.465,
+          11.283
+        ],
+        [
+          2.562,
+          6.465,
+          11.283
+        ],
+        [
+          2.206,
+          6.465,
+          11.283
+        ],
+        [
+          1.85,
+          6.465,
+          11.283
+        ],
+        [
+          1.495,
+          6.465,
+          11.283
+        ],
+        [
+          1.139,
+          6.465,
+          11.283
+        ],
+        [
+          0.783,
+          6.465,
+          11.283
+        ],
+        [
+          0.428,
+          6.465,
+          11.283
+        ],
+        [
+          0.072,
+          6.465,
+          11.283
+        ],
+        [
+          -0.284,
+          6.465,
+          11.283
+        ],
+        [
+          -0.639,
+          6.465,
+          11.283
+        ],
+        [
+          -0.995,
+          6.465,
+          11.283
+        ],
+        [
+          -1.35,
+          6.465,
+          11.283
+        ],
+        [
+          -1.706,
+          6.415,
+          11.283
+        ]
+      ],
+      "to": "Train_Unload"
+    },
+    "Sail_to_Berth_01": {
+      "from": "Set_Sail",
+      "kind": "sea",
+      "points": [
+        [
+          -4.519,
+          0.655,
+          -12.375
+        ],
+        [
+          -4.569,
+          -0.085,
+          -13.014
+        ],
+        [
+          -4.62,
+          -0.085,
+          -13.652
+        ],
+        [
+          -4.67,
+          -0.085,
+          -14.291
+        ],
+        [
+          -4.72,
+          0.541,
+          -14.93
+        ]
+      ],
+      "to": "Customer_Berth_01"
+    },
+    "Sail_to_Berth_02": {
+      "from": "Set_Sail",
+      "kind": "sea",
+      "points": [
+        [
+          -4.519,
+          0.655,
+          -12.375
+        ],
+        [
+          -3.389,
+          -0.085,
+          -13.014
+        ],
+        [
+          -2.26,
+          -0.085,
+          -13.652
+        ],
+        [
+          -1.13,
+          -0.085,
+          -14.291
+        ],
+        [
+          0.0,
+          0.541,
+          -14.93
+        ]
+      ],
+      "to": "Customer_Berth_02"
+    },
+    "Sail_to_Berth_03": {
+      "from": "Set_Sail",
+      "kind": "sea",
+      "points": [
+        [
+          -4.519,
+          0.655,
+          -12.375
+        ],
+        [
+          -2.209,
+          -0.085,
+          -13.014
+        ],
+        [
+          0.101,
+          -0.085,
+          -13.652
+        ],
+        [
+          2.41,
+          -0.085,
+          -14.291
+        ],
+        [
+          4.72,
+          0.541,
+          -14.93
+        ]
+      ],
+      "to": "Customer_Berth_03"
+    },
+    "Worker_Cannon": {
+      "from": "Station_Cannon_Worker",
+      "kind": "worker",
+      "points": [
+        [
+          2.738,
+          5.065,
+          5.987
+        ],
+        [
+          2.738,
+          5.065,
+          7.513
+        ],
+        [
+          2.086,
+          5.115,
+          6.71
+        ],
+        [
+          2.086,
+          5.116,
+          5.21
+        ],
+        [
+          1.086,
+          5.223,
+          4.21
+        ],
+        [
+          -1.113,
+          5.187,
+          4.224
+        ],
+        [
+          -0.414,
+          5.116,
+          4.96
+        ],
+        [
+          1.836,
+          5.116,
+          4.96
+        ],
+        [
+          2.738,
+          5.065,
+          5.987
+        ]
+      ],
+      "to": "Station_Cannon_Worker"
+    },
+    "Worker_Figurehead": {
+      "from": "Station_Figurehead_Worker",
+      "kind": "worker",
+      "points": [
+        [
+          -0.109,
+          1.066,
+          -11.834
+        ],
+        [
+          -0.109,
+          1.066,
+          -11.484
+        ],
+        [
+          -0.559,
+          1.066,
+          -11.859
+        ],
+        [
+          -0.109,
+          1.066,
+          -11.834
+        ]
+      ],
+      "to": "Station_Figurehead_Worker"
+    },
+    "Worker_Hull": {
+      "from": "Station_Hull_Worker",
+      "kind": "worker",
+      "points": [
+        [
+          4.305,
+          3.716,
+          -0.645
+        ],
+        [
+          4.336,
+          3.992,
+          0.96
+        ],
+        [
+          4.305,
+          3.792,
+          1.634
+        ],
+        [
+          3.586,
+          3.765,
+          0.96
+        ],
+        [
+          3.586,
+          3.842,
+          -1.79
+        ],
+        [
+          3.086,
+          3.842,
+          -2.29
+        ],
+        [
+          2.836,
+          3.519,
+          -2.54
+        ],
+        [
+          0.836,
+          3.842,
+          -2.54
+        ],
+        [
+          0.586,
+          3.48,
+          -2.79
+        ],
+        [
+          0.336,
+          3.452,
+          -2.79
+        ],
+        [
+          0.194,
+          3.716,
+          -2.685
+        ],
+        [
+          0.586,
+          3.842,
+          -2.29
+        ],
+        [
+          1.836,
+          3.842,
+          -2.29
+        ],
+        [
+          2.086,
+          3.992,
+          -2.04
+        ],
+        [
+          3.336,
+          3.842,
+          -2.04
+        ],
+        [
+          4.336,
+          3.766,
+          -1.04
+        ],
+        [
+          4.305,
+          3.716,
+          -0.645
+        ]
+      ],
+      "to": "Station_Hull_Worker"
+    },
+    "Worker_Navigation": {
+      "from": "Station_Navigation_Worker",
+      "kind": "worker",
+      "points": [
+        [
+          3.316,
+          1.066,
+          -9.75
+        ],
+        [
+          3.836,
+          1.116,
+          -9.79
+        ],
+        [
+          4.086,
+          1.116,
+          -8.79
+        ],
+        [
+          3.316,
+          1.066,
+          -8.221
+        ],
+        [
+          3.586,
+          1.116,
+          -8.54
+        ],
+        [
+          4.086,
+          1.116,
+          -8.79
+        ],
+        [
+          4.086,
+          1.116,
+          -9.54
+        ],
+        [
+          2.086,
+          1.116,
+          -11.54
+        ],
+        [
+          0.295,
+          1.066,
+          -11.515
+        ],
+        [
+          1.336,
+          1.235,
+          -10.54
+        ],
+        [
+          2.336,
+          1.116,
+          -10.54
+        ],
+        [
+          3.086,
+          1.116,
+          -9.79
+        ],
+        [
+          3.316,
+          1.066,
+          -9.75
+        ]
+      ],
+      "to": "Station_Navigation_Worker"
+    },
+    "Worker_Rigging": {
+      "from": "Station_Rigging_Worker",
+      "kind": "worker",
+      "points": [
+        [
+          4.165,
+          2.366,
+          -5.406
+        ],
+        [
+          4.165,
+          2.366,
+          -3.718
+        ],
+        [
+          3.336,
+          2.415,
+          -4.54
+        ],
+        [
+          3.336,
+          2.416,
+          -6.29
+        ],
+        [
+          2.336,
+          2.416,
+          -7.29
+        ],
+        [
+          0.335,
+          2.366,
+          -7.25
+        ],
+        [
+          1.086,
+          2.416,
+          -6.54
+        ],
+        [
+          3.086,
+          2.416,
+          -6.54
+        ],
+        [
+          4.165,
+          2.366,
+          -5.406
+        ]
+      ],
+      "to": "Station_Rigging_Worker"
+    }
+  },
+  "source": "Tools/blender/IndustrialReference/map_geometry.json",
+  "space": "unity-world-metres",
+  "zones": [
+    {
+      "art_group": "05_Smelter/Smelting_Plant",
+      "hide_when_locked": [
+        "05_Smelter/Smelting_Plant"
+      ],
+      "id": "Station_Cannon",
+      "needs_art": false,
+      "pad": {
+        "centre": [
+          -1.113,
+          5.065,
+          6.75
+        ],
+        "note": "footprint of his building - show the pad while the group above is hidden",
+        "size": [
+          5.702,
+          3.052
+        ]
+      }
+    },
+    {
+      "art_group": "06_Factory/Blue_Factory",
+      "hide_when_locked": [
+        "06_Factory/Blue_Factory"
+      ],
+      "id": "Station_Hull",
+      "needs_art": false,
+      "pad": {
+        "centre": [
+          0.194,
+          3.715,
+          0.494
+        ],
+        "note": "footprint of his building - show the pad while the group above is hidden",
+        "size": [
+          6.222,
+          4.559
+        ]
+      }
+    },
+    {
+      "art_group": "07_Refinery/Refinery",
+      "hide_when_locked": [
+        "07_Refinery/Refinery"
+      ],
+      "id": "Station_Rigging",
+      "needs_art": false,
+      "pad": {
+        "centre": [
+          0.335,
+          2.365,
+          -4.562
+        ],
+        "note": "footprint of his building - show the pad while the group above is hidden",
+        "size": [
+          5.659,
+          3.376
+        ]
+      }
+    },
+    {
+      "art_group": "08_Harbor/Warehouse",
+      "hide_when_locked": [
+        "08_Harbor/Warehouse"
+      ],
+      "id": "Station_Navigation",
+      "needs_art": false,
+      "pad": {
+        "centre": [
+          0.295,
+          1.065,
+          -8.986
+        ],
+        "note": "footprint of his building - show the pad while the group above is hidden",
+        "size": [
+          4.042,
+          3.058
+        ]
+      }
+    },
+    {
+      "art_group": null,
+      "hide_when_locked": [],
+      "id": "Station_Figurehead",
+      "needs_art": true,
+      "pad": {
+        "centre": [
+          -0.559,
+          1.066,
+          -11.659
+        ],
+        "note": "clear level ground - NO ART EXISTS for this station, the pad is all there is",
+        "size": [
+          1.2,
+          0.7
+        ]
+      }
+    },
+    {
+      "always_on": [
+        "07_Refinery/Horizontal_Tank"
+      ],
+      "art_group": "07_Refinery/Horizontal_Tank",
+      "hide_when_locked": [],
+      "id": "Refinery",
+      "needs_art": false,
+      "pad": null
+    },
+    {
+      "always_on": [
+        "08_Containers_Intermodal_container",
+        "08_Containers_Intermodal_container_001"
+      ],
+      "art_group": "08_Containers_Intermodal_container",
+      "hide_when_locked": [],
+      "id": "Storage",
+      "needs_art": false,
+      "pad": null
+    }
+  ]
+}

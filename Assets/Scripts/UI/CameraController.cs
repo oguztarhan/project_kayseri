@@ -26,6 +26,10 @@ namespace Game.UI
         [SerializeField] private float smoothTime = 0.07f;        // transform → target easing
         [SerializeField] private float inertiaDamping = 6f;       // higher = flick stops sooner
         [SerializeField] private float inertiaCutoff = 0.4f;      // world units/sec below which a flick stops
+        [Tooltip("Dikey kaydirma kilidi. Acikken parmak sadece kameranin kendi ileri eksenini " +
+                 "surer; ekranin sag-sol ekseninde hicbir hareket birikmez. Tersine cevirmek " +
+                 "adayi eski serbest surukleme davranisina dondurur.")]
+        [SerializeField] private bool verticalDragOnly = true;
         [SerializeField] private Vector2 boundsX = new Vector2(-250f, 250f);
         [SerializeField] private Vector2 boundsZ = new Vector2(-250f, 250f);
         [SerializeField] private float groundY = 6f;   // ground plane height — perspective zoom is the dolly distance to it
@@ -45,12 +49,18 @@ namespace Game.UI
         private Vector3 _panVel;      // world units/sec, for flick inertia
         private bool _pannedThisFrame;
 
+        // The line the camera is allowed to travel along when verticalDragOnly is on: it runs through
+        // this point in the _forward direction. Set from the opening framing, so "sideways" means the
+        // screen's own right axis rather than world X — the two are only the same when yaw is 0.
+        private Vector3 _lane;
+
         private void Awake()
         {
             if (cam == null) cam = GetComponent<Camera>();
             if (cam == null) cam = Camera.main;
             CacheBasis();
             _target = transform.position;
+            _lane = _target;
         }
 
         private void CacheBasis()
@@ -231,7 +241,8 @@ namespace Game.UI
             float worldPerPixel = (2f * CurrentZoom * Mathf.Tan(halfFov)) / Mathf.Max(1, Screen.height) * panSpeed;
             float sinPitch = Mathf.Max(0.25f, -transform.forward.y);
 
-            Vector3 move = _right * (screenDx * worldPerPixel) + _forward * (screenDy * worldPerPixel / sinPitch);
+            Vector3 move = _forward * (screenDy * worldPerPixel / sinPitch);
+            if (!verticalDragOnly) move += _right * (screenDx * worldPerPixel);
             _target += move;
             ClampTarget();
             if (dt > 0.0001f) _panVel = move / dt;
@@ -242,6 +253,16 @@ namespace Game.UI
         {
             _target.x = Mathf.Clamp(_target.x, boundsX.x, boundsX.y);
             _target.z = Mathf.Clamp(_target.z, boundsZ.x, boundsZ.y);
+
+            // Back onto the lane. Dropping _right out of PanBy stops a drag from wandering sideways,
+            // but a flick that was already banked, the box clamp above and a dolly on a tilted yaw can
+            // all still push the target off the line. Projecting here is the one place that catches
+            // every one of them. Zoom is unaffected: the dolly runs along transform.forward, which has
+            // no _right component by construction.
+            if (!verticalDragOnly) return;
+            Vector3 off = _target - _lane;
+            _target -= _right * Vector3.Dot(off, _right);
+            _panVel -= _right * Vector3.Dot(_panVel, _right);
         }
 
         // ---- camera profiles (used by OperationCameraBoot when framing / travelling) ----
@@ -275,6 +296,7 @@ namespace Game.UI
             transform.SetPositionAndRotation(pos, rot);
             CacheBasis();
             _target = pos;
+            _lane = pos;
             _smoothVel = Vector3.zero;
             _panVel = Vector3.zero;
             if (cam != null && cam.orthographic) cam.orthographicSize = Mathf.Clamp(size, minSize, maxSize);

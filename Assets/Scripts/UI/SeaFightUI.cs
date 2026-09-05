@@ -9,11 +9,11 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The adventure screen, in the reference game's shape fitted to landscape: the 2D sea STAGE on
-    /// the left two-thirds, and a persistent SHEET PANEL on the right — the POWER headline, the
+    /// The adventure screen, in the reference game's own portrait shape: the 2D sea STAGE as a band
+    /// across the top, and a persistent SHEET PANEL filling the bottom half — the POWER headline, the
     /// whole stat block, the four worn items with their grade stars, who captains, the energy pill, and
     /// the SEARCH and AUTO buttons. The sheet is on from the moment the player is aboard; fights
-    /// come and go on the stage beside it.
+    /// come and go on the stage above it. The thumb reaches the sheet; the stage is only watched.
     ///
     /// THE FLOW MIRRORS THE REFERENCE: search → the find slides in → a DETAILS CARD (name,
     /// signature chip, TEHLİKELİ when it outguns us, its sheet, the rewards) with SAVAŞ!/VAZGEÇ →
@@ -199,8 +199,8 @@ namespace Game.UI
             _rootGroup.alpha = 0f;
             _rootGroup.blocksRaycasts = false;
 
-            // The stage stops at x 0.655 (the panel's shore) and y 0.85 (SeaHudUI's strip).
-            _stage = UiBuild.Flat(_root, "Sahne", SkyTint, Vector2.zero, new Vector2(0.655f, 0.85f));
+            // A full-width band between the sheet's top edge (0.545) and SeaHudUI's strip (0.885).
+            _stage = UiBuild.Flat(_root, "Sahne", SkyTint, new Vector2(0f, 0.545f), new Vector2(1f, 0.885f));
             _stage.GetComponent<Image>().raycastTarget = false;
 
             BuildBackdrop();
@@ -353,13 +353,13 @@ namespace Game.UI
 
         // ------------------------------------------------------------- the sheet
         /// <summary>
-        /// The right-hand panel — the reference game's bottom sheet turned on its side for
-        /// landscape: POWER, the four core stats big, the nine procs under them, the worn items,
-        /// the captain, and the two buttons that drive the whole loop.
+        /// The bottom sheet: POWER, the four core stats big, the nine procs under them, the worn
+        /// items, the captain, and the two buttons that drive the whole loop. Its inner fractions are
+        /// unchanged from the landscape build — the sheet kept its height and only grew wider.
         /// </summary>
         private void BuildPanel()
         {
-            _panel = UiBuild.Flat(_root, "Levha", Chrome, new Vector2(0.663f, 0.02f), new Vector2(0.995f, 0.98f));
+            _panel = UiBuild.Flat(_root, "Levha", Chrome, new Vector2(0.015f, 0.020f), new Vector2(0.985f, 0.535f));
             var img = _panel.GetComponent<Image>();
             img.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
             img.type = Image.Type.Sliced;
@@ -574,7 +574,7 @@ namespace Game.UI
         /// does, whether it outguns us, and the one decision: SAVAŞ! or VAZGEÇ.</summary>
         private void BuildFoundCard()
         {
-            _foundCard = Card("DetayKarti", new Vector2(0.06f, 0.14f), new Vector2(0.60f, 0.88f));
+            _foundCard = Card("DetayKarti", new Vector2(0.06f, 0.31f), new Vector2(0.94f, 0.69f));
 
             _foundTitle = Line(_foundCard, "Baslik", 36f, new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.97f));
             _foundTitle.fontStyle = FontStyles.Bold;
@@ -610,7 +610,7 @@ namespace Game.UI
         /// the worn thing beside the dropped thing, row by row, delta on top.</summary>
         private void BuildLootCard()
         {
-            _lootCard = Card("GanimetKarti", new Vector2(0.05f, 0.08f), new Vector2(0.615f, 0.92f));
+            _lootCard = Card("GanimetKarti", new Vector2(0.05f, 0.29f), new Vector2(0.95f, 0.71f));
 
             _lootTitle = Line(_lootCard, "Baslik", 32f, new Vector2(0.05f, 0.885f), new Vector2(0.95f, 0.975f));
             _lootTitle.fontStyle = FontStyles.Bold;
@@ -651,7 +651,7 @@ namespace Game.UI
         /// <summary>The worn-item popup off the sheet's slots: what it does, SÖK for salvage.</summary>
         private void BuildGearCard()
         {
-            _gearCard = Card("TakiKarti", new Vector2(0.15f, 0.22f), new Vector2(0.52f, 0.80f));
+            _gearCard = Card("TakiKarti", new Vector2(0.14f, 0.32f), new Vector2(0.86f, 0.68f));
             _gearTitle = Line(_gearCard, "Baslik", 30f, new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.96f));
             _gearTitle.fontStyle = FontStyles.Bold;
             _gearRows = Line(_gearCard, "Satirlar", 24f, new Vector2(0.08f, 0.30f), new Vector2(0.92f, 0.82f));

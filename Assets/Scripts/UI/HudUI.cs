@@ -22,6 +22,11 @@ namespace Game.UI
     /// </summary>
     public sealed class HudUI : MonoBehaviour
     {
+        public const string SailButtonName = "BtnDenizSavasi";
+
+        [Header("Dikey tersane sade HUD")]
+        [Tooltip("Yalnızca Inspector'daki dört ana eylemi kenar rayında tutar; eski bölüm bildirimi ve yinelenen kısayolları gizler.")]
+        [SerializeField] private bool compactShipyardHud = true;
         [Header("Üst bar")]
         [SerializeField] private TMP_Text goldValue;
         [SerializeField] private TMP_Text gemsValue;
@@ -72,6 +77,25 @@ namespace Game.UI
                  "sigmiyordu. 195'te 1905 birim tutuyor, yani kenar boslugu dokuz dugmelik eski " +
                  "siranin biraktigiyla ayni kaliyor.")]
         [SerializeField] private float bottomPitch = 195f;
+
+        [Header("Yan ray")]
+        // The row used to run across the bottom of the screen. In landscape that is the one dimension
+        // the game has none of - the canvas is about 2340x1080, so a 150px row plus its margin took a
+        // sixth of the HEIGHT while both side margins sat empty over open sea. As a rail it costs
+        // width, which is the thing there is plenty of, and the camera gets that height back (see
+        // OperationCameraBoot.hudSideFraction).
+        [Tooltip("Alt sira yerine kenar rayi. Kapatilirsa eski yatay alt sira geri gelir.")]
+        [SerializeField] private bool sideRail = true;
+        [Tooltip("Ray solda mi? OperationCameraBoot.hudRailOnLeft ile ayni tarafta olmali.")]
+        [SerializeField] private bool railOnLeft = true;
+        [Tooltip("Ekran kenari ile ilk sutunun merkezi arasindaki mesafe.")]
+        [SerializeField] private float railInset = 105f;
+        [Tooltip("Ust bardaki haplara birakilan yukseklik. Ray bunun altinda basliyor.")]
+        [SerializeField] private float railTopReserve = 400f;
+        [Tooltip("Ray dugmelerinin dikey araligi ve tasan sutunlarin yatay araligi. 150'lik " +
+                 "dugmelerde 162, sekiz aciciyi iki sutuna sigdiriyor; 172'de uc sutun gerekiyor " +
+                 "ve ray adanin uzerine tasiyor.")]
+        [SerializeField] private float railPitch = 162f;
 
         [Header("Alt")]
         [SerializeField] private Button upgradeButton;
@@ -128,6 +152,7 @@ namespace Game.UI
         // rather than a sorted dictionary: it is six items, written twice at startup and never again.
         private readonly List<int> _bottomOrder = new List<int>();
         private readonly List<RectTransform> _bottomRects = new List<RectTransform>();
+        private float _railWidth;         // what the side rail takes off the sheet, for the top strip
 
         // The objective strip under the currency bar. Its position is solved from the authored rects
         // above it rather than authored itself, so it is re-solved whenever the sheet changes size.
@@ -170,9 +195,26 @@ namespace Game.UI
             // giriyor ve sira bir kez ortalaniyor.
             if (bottomRow != null)
                 for (int i = 0; i < bottomRow.Length; i++) InsertBottom(AuthoredOrder + i, bottomRow[i]);
+            // Ad and offer were pinned down the top-left edge, which is where the rail now runs. Left
+            // out of it they would sit on top of it; folded in they are just the two lowest-priority
+            // openers, which is what they are. Their counter chips are their own children, so both
+            // travel with the button.
+            if (compactShipyardHud)
+            {
+                if (adButton != null) adButton.gameObject.SetActive(false);
+                if (offerButton != null) offerButton.gameObject.SetActive(false);
+            }
+            else if (sideRail)
+            {
+                InsertBottom(PromoOrder + 0, adButton != null ? (RectTransform)adButton.transform : null);
+                InsertBottom(PromoOrder + 1, offerButton != null ? (RectTransform)offerButton.transform : null);
+            }
             LayoutBottomRow();
-            BuildObjectiveStrip();
-            BuildLadder();
+            if (!compactShipyardHud)
+            {
+                BuildObjectiveStrip();
+                BuildLadder();
+            }
 
             if (_wallet != null) _wallet.GemsChanged += RefreshGems;
             RefreshGems();
@@ -190,6 +232,9 @@ namespace Game.UI
         /// <summary>Inspector'daki siranin anahtarlari buradan basliyor; koddan eklenen acicilar
         /// solda durmak icin 0-9 arasi bir anahtar veriyor.</summary>
         private const int AuthoredOrder = 10;
+
+        /// <summary>Reklam ve teklif butonlari rayin sonunda durur.</summary>
+        private const int PromoOrder = 20;
 
         /// <summary>Where the scene keeps its code-built screens. A plain root object — deliberately
         /// outside every Canvas, which is what a screen building its own overlay canvas needs.</summary>
@@ -212,6 +257,9 @@ namespace Game.UI
         public Button AttachBottomButton(int order, string name, Sprite icon,
                                          UnityEngine.Events.UnityAction onClick)
         {
+            // Compact mode rejects the old collection of secondary openers, but sea combat is a
+            // primary loop in the new five-station game and keeps its dedicated rail button.
+            if (compactShipyardHud && name != SailButtonName) return null;
             RectTransform model = FirstAuthored();
             if (model == null) return null;
 
@@ -255,20 +303,89 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// Spreads the row evenly and centres it on the screen. It used to be four buttons at three
-        /// different gaps whose middle sat a hundred units right of centre: right on the phone it was
-        /// authored against, visibly crooked on everything else.
+        /// Lays the openers out as a vertical rail down one side, wrapping into a second column when
+        /// the count outgrows the height. Falls back to the old centred horizontal row when
+        /// <see cref="sideRail"/> is off.
+        ///
+        /// Anchors are rewritten here rather than authored, because the buttons come from three
+        /// places - the prefab's own row, the ad and offer buttons that were pinned to the top-left,
+        /// and the openers <see cref="AttachBottomButton"/> hangs at runtime - and a rail is only
+        /// straight if one piece of code owns every position in it.
+        ///
+        /// It used to be four buttons at three different gaps whose middle sat a hundred units right
+        /// of centre: right on the phone it was authored against, visibly crooked on everything else.
         /// </summary>
         private void LayoutBottomRow()
         {
-            float span = (_bottomRects.Count - 1) * bottomPitch;
+            if (!sideRail)
+            {
+                float span = (_bottomRects.Count - 1) * bottomPitch;
+                for (int i = 0; i < _bottomRects.Count; i++)
+                {
+                    RectTransform rect = _bottomRects[i];
+                    if (rect == null) continue;
+                    rect.anchoredPosition = new Vector2(i * bottomPitch - span * 0.5f,
+                                                        rect.anchoredPosition.y);
+                }
+                return;
+            }
+
+            int count = 0;
+            for (int i = 0; i < _bottomRects.Count; i++) if (_bottomRects[i] != null) count++;
+            if (count == 0) return;
+
+            float height = RailHeight();
+            // The band the button CENTRES may occupy. The pills are pinned to the top of the same
+            // rect, so the rail starts under them rather than at the screen edge; half a pitch comes
+            // off each end so the first and last buttons sit inside the band rather than straddling it.
+            float top = height * 0.5f - railTopReserve - railPitch * 0.5f;
+            float bottom = -height * 0.5f + railPitch * 0.5f;
+            float band = Mathf.Max(railPitch, top - bottom);
+            float centre = (top + bottom) * 0.5f;
+
+            int perColumn = Mathf.Max(1, Mathf.FloorToInt(band / railPitch) + 1);
+            int columns = Mathf.CeilToInt(count / (float)perColumn);
+            _railWidth = railInset + (columns - 1) * railPitch + railPitch * 0.5f;
+            float edge = railOnLeft ? 0f : 1f;
+            float dir = railOnLeft ? 1f : -1f;
+
+            int placed = 0;
             for (int i = 0; i < _bottomRects.Count; i++)
             {
                 RectTransform rect = _bottomRects[i];
                 if (rect == null) continue;
-                rect.anchoredPosition = new Vector2(i * bottomPitch - span * 0.5f,
-                                                    rect.anchoredPosition.y);
+
+                int column = placed / perColumn;
+                int row = placed - column * perColumn;
+                // The last column is usually short; centre each column on its own contents so the
+                // rail never ends in a ragged half-column hanging off the bottom.
+                int inColumn = Mathf.Min(perColumn, count - column * perColumn);
+                float columnSpan = (inColumn - 1) * railPitch;
+
+                rect.anchorMin = rect.anchorMax = new Vector2(edge, 0.5f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.anchoredPosition = new Vector2(dir * (railInset + column * railPitch),
+                                                    centre + columnSpan * 0.5f - row * railPitch);
+                placed++;
             }
+
+            // The objective strip is measured against the rail, so a late opener that adds a column
+            // has to push it over rather than end up underneath it.
+            SolveTopStrip(transform as RectTransform);
+        }
+
+        /// <summary>
+        /// Height of the rect the rail is laid out in. Falls back to the canvas design height: at boot
+        /// the safe-area rect can still be zero-sized on the frame Start runs, and a rail solved
+        /// against zero stacks every button on one spot.
+        /// </summary>
+        private float RailHeight()
+        {
+            RectTransform parent = null;
+            for (int i = 0; i < _bottomRects.Count && parent == null; i++)
+                if (_bottomRects[i] != null) parent = _bottomRects[i].parent as RectTransform;
+            float h = parent != null ? parent.rect.height : 0f;
+            return h > 100f ? h : 1080f;
         }
 
         /// <summary>
@@ -334,8 +451,15 @@ namespace Game.UI
             clear = Mathf.Min(clear, BottomOf(sheet, boostIndicator));
             clear = Mathf.Min(clear, BottomOf(sheet, shieldIndicator));
 
-            _topStrip.sizeDelta = new Vector2(sheet.rect.width * _topStripWidth, _topStripHeight);
-            _topStrip.anchoredPosition = new Vector2(0f, clear - sheet.rect.yMax - _topStripGap);
+            // Keep clear of the side rail. The strip is 78% of the sheet and centred, which on a
+            // landscape canvas reaches past the rail's second column; give the rail its width back and
+            // slide what is left into the middle of the free area.
+            float inset = sideRail ? _railWidth : 0f;
+            float width = Mathf.Min(sheet.rect.width * _topStripWidth,
+                                    Mathf.Max(100f, sheet.rect.width - inset - 24f));
+            _topStrip.sizeDelta = new Vector2(width, _topStripHeight);
+            _topStrip.anchoredPosition = new Vector2((railOnLeft ? 1f : -1f) * inset * 0.5f,
+                                                     clear - sheet.rect.yMax - _topStripGap);
             _sheetSize = sheet.rect.size;
         }
 

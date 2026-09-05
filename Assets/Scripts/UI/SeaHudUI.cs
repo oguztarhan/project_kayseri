@@ -37,24 +37,33 @@ namespace Game.UI
             _sea = sea;
             RectTransform canvas = UiBuild.Canvas(transform, "DenizKanvas", sortingOrder);
 
-            RectTransform bar = Plate(canvas, new Vector2(0.205f, 0.885f), new Vector2(0.635f, 0.985f));
+            // Portrait puts the notch straight through the top strip, which landscape never did.
+            // SafeArea is added AFTER the stretch — its Apply runs on Awake, so adding it first
+            // would just have the stretch overwrite the insets it had already worked out.
+            RectTransform safe = UiBuild.Anchor(
+                (RectTransform)new GameObject("GuvenliAlan", typeof(RectTransform)).transform,
+                Vector2.zero, Vector2.one);
+            safe.SetParent(canvas, false);
+            safe.gameObject.AddComponent<SafeArea>();
+
+            RectTransform bar = Plate(safe, new Vector2(0.29f, 0.905f), new Vector2(0.985f, 0.978f));
             _route = Line(bar, "Rota", 34f, 0.52f, 1f);
             _clock = Line(bar, "Saat", 26f, 0.04f, 0.50f);
 
             // The crossing bar sits under the caption rather than at the foot of the screen: it and the
             // words it explains are one reading, and splitting them across the whole display makes the
             // player hunt for the half they did not look at first.
-            RectTransform track = UiBuild.Bar(canvas, "Yol", new Color(0f, 0f, 0f, 0.45f), Fill,
-                                              new Vector2(0.225f, 0.862f), new Vector2(0.615f, 0.882f),
+            RectTransform track = UiBuild.Bar(safe, "Yol", new Color(0f, 0f, 0f, 0.45f), Fill,
+                                              new Vector2(0.31f, 0.887f), new Vector2(0.965f, 0.901f),
                                               out _progressFill);
             track.GetComponent<Image>().raycastTarget = false;
             _progressFill.GetComponent<Image>().raycastTarget = false;
 
-            Button ashore = UiBuild.Btn(canvas, "Karaya", Loc.T("deniz.karaya"),
+            Button ashore = UiBuild.Btn(safe, "Karaya", Loc.T("deniz.karaya"),
                                         UiSkin.ButtonGrey, Chrome, 28,
                                         () => { ServiceLocator.Get<HapticService>()?.Medium(); onAshore?.Invoke(); });
-            UiBuild.Anchor((RectTransform)ashore.transform, new Vector2(0.030f, 0.885f),
-                           new Vector2(0.185f, 0.975f));
+            UiBuild.Anchor((RectTransform)ashore.transform, new Vector2(0.025f, 0.912f),
+                           new Vector2(0.265f, 0.972f));
             PillFit.Wrap(ashore.GetComponent<Image>());
 
             Refresh();

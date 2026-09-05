@@ -30,6 +30,9 @@ namespace Game.UI
     /// </summary>
     public sealed class BuildingSigns : MonoBehaviour
     {
+        [Header("Görünürlük")]
+        [Tooltip("Dikey tersanedeki beş oyuncu istasyonunu ekran üstünde adlandırır.")]
+        [SerializeField] private bool showBuildingNames = true;
         [Header("Yazı")]
         [Tooltip("Tabelanın yazı tipi. Baloo2-ExtraBold SDF.")]
         [SerializeField] private TMP_FontAsset _font;
@@ -42,8 +45,8 @@ namespace Game.UI
         // offset would not: at the far end of the zoom they would converge into one another.
         [Tooltip("Tabelanın yükseltme rozetinin altında kalması için ekranda kaydırılacağı piksel.")]
         [SerializeField] private float _screenDrop = 72f;
-        [Tooltip("HUD 100, yükseltme rozetleri 92. Tabela rozetin altında durmalı.")]
-        [SerializeField] private int _sortingOrder = 88;
+        [Tooltip("HUD 100. Tabelalar harita rozetlerinin üstünde, sabit HUD'nin altında kalır.")]
+        [SerializeField] private int _sortingOrder = 99;
 
         // The drop above is measured down the screen, so a station low in frame lands under the
         // bottom HUD row and a station at the edge slides under the left and right icon rails.
@@ -86,9 +89,9 @@ namespace Game.UI
         // indirirseniz tabelalar varsayılan karede geri gelir ve temiz görünüm bozulur.
         [Header("Yakınlaşınca sönme")]
         [Tooltip("Bu yakınlık oranının altında tabelalar tamamen görünmez (0 = tam yakın, 1 = tam uzak).")]
-        [SerializeField] private float _fadeInStartT = 0.30f;
+        [SerializeField] private float _fadeInStartT = 0f;
         [Tooltip("Bu oranın üstünde tamamen görünür.")]
-        [SerializeField] private float _fadeInEndT = 0.50f;
+        [SerializeField] private float _fadeInEndT = 0.08f;
 
         [Header("Bağlanma")]
         [Tooltip("Hangi operasyonun canlı olduğuna bu sıklıkta bakılır.")]
@@ -102,9 +105,6 @@ namespace Game.UI
         private CoalOperation _operation;
         private RectTransform _canvas;
 
-        /// <summary>MARKET's index in IslandEconomy.Stations — the one station that gets no sign.</summary>
-        private const int MarketStation = 6;
-
         private RectTransform[] _signs;
         private Image[] _plates;
         private TextMeshProUGUI[] _labels;
@@ -117,6 +117,11 @@ namespace Game.UI
 
         private void Awake()
         {
+            if (!showBuildingNames)
+            {
+                enabled = false;
+                return;
+            }
             _camera = Camera.main;
 
             if (_modernStyle)
@@ -227,7 +232,6 @@ namespace Game.UI
 
             for (int station = 0; station < total; station++)
             {
-                if (station == MarketStation) continue;   // the door button owns that roof
                 if (!_operation.StationHasBody(station)) continue;
                 _stations[_count] = station;
                 _signs[_count] = BuildSign(station, out _plates[_count], out _labels[_count]);
@@ -298,7 +302,7 @@ namespace Game.UI
             label.fontSizeMax = _fontSize;
             label.fontStyle = FontStyles.Bold;
             label.raycastTarget = false;
-            label.text = Loc.Id("istasyon", _operation.StationName(station));
+            label.text = PlayerStationTitle(station);
 
             // The plate is sized to the text rather than to a number typed in here: the names are
             // localised, and "POWER PLANT" and its Turkish are not the same width.
@@ -312,6 +316,19 @@ namespace Game.UI
                 : new Vector2(text.x + 44f, Mathf.Max(52f, text.y + 22f));
 
             return rect;
+        }
+
+        private static string PlayerStationTitle(int station)
+        {
+            switch (station)
+            {
+                case IslandEconomy.Mine: return Loc.T("shipyard.mine");
+                case IslandEconomy.Storage: return Loc.T("shipyard.deposit");
+                case IslandEconomy.Smelter: return Loc.T("shipyard.refinery");
+                case IslandEconomy.Market: return Loc.T("shipyard.market");
+                case IslandEconomy.Power: return Loc.T("shipyard.port");
+                default: return "";
+            }
         }
 
         /// <summary>Day to night. Only touched when the value actually moves — fifty-five minutes of
@@ -372,7 +389,56 @@ namespace Game.UI
                 if (loX < hiX) x = x < loX ? loX : (x > hiX ? hiX : x);
                 if (loY < hiY) y = y < loY ? loY : (y > hiY ? hiY : y);
 
+                // Deposit, Market and Port all meet at the harbour end of this portrait map. When
+                // their anchors touch the bottom-safe edge, fan them around the contextual market
+                // and sail actions instead of hiding their names underneath those buttons.
+                if (y <= loY + 1f)
+                {
+                    if (_stations[i] == IslandEconomy.Storage)
+                        x = Mathf.Min(hiX, x + halfW + 72f);
+                    else if (_stations[i] == IslandEconomy.Market)
+                        y = Mathf.Min(hiY, y + sign.sizeDelta.y + 16f);
+                }
+
                 sign.anchoredPosition = new Vector2(x, y);
+            }
+
+            SeparateOverlappingSigns();
+        }
+
+        /// <summary>
+        /// Several lower-terrace anchors can reach the HUD-safe edge at the same time. Keep their
+        /// labels in a small readable stack instead of drawing Deposit and Market on top of one
+        /// another. Positions are rebuilt from their world anchors every frame, so this pass is
+        /// deterministic and cannot accumulate drift while the camera moves.
+        /// </summary>
+        private void SeparateOverlappingSigns()
+        {
+            if (_canvas == null) return;
+
+            float h = _canvas.rect.height;
+            for (int i = 0; i < _count; i++)
+            {
+                RectTransform current = _signs[i];
+                if (current == null || !current.gameObject.activeSelf) continue;
+
+                Vector2 p = current.anchoredPosition;
+                for (int j = 0; j < i; j++)
+                {
+                    RectTransform previous = _signs[j];
+                    if (previous == null || !previous.gameObject.activeSelf) continue;
+
+                    Vector2 q = previous.anchoredPosition;
+                    float xGap = (current.sizeDelta.x + previous.sizeDelta.x) * 0.5f + 10f;
+                    float yGap = (current.sizeDelta.y + previous.sizeDelta.y) * 0.5f + 10f;
+                    if (Mathf.Abs(p.x - q.x) >= xGap || Mathf.Abs(p.y - q.y) >= yGap) continue;
+                    p.y = q.y + yGap;
+                }
+
+                float halfH = current.sizeDelta.y * 0.5f;
+                float hiY = h * 0.5f - h * _hudTopFraction - halfH;
+                p.y = Mathf.Min(p.y, hiY);
+                current.anchoredPosition = p;
             }
         }
 

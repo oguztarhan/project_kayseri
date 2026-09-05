@@ -53,6 +53,7 @@ namespace Game.UI
         private RectTransform _canvasRect, _rect;
         private GameObject _root;
         private Text _label;
+        private Button _hudButton;
         private LocalizationService _loc;
         private float _rebindIn;
         private bool _opening;
@@ -146,12 +147,30 @@ namespace Game.UI
         private void Rebind()
         {
             if (_cam == null) _cam = Camera.main;
-            if (_op != null && _op.enabled) return;
+            EnsureHudButton();
+            // isActiveAndEnabled, not enabled: parking the island for the sea or market scene only
+            // deactivates its root, so a component-level enabled flag stays true and the marker
+            // would keep tracking — and drawing a "put to sea" button — over a scene it has left.
+            if (_op != null && _op.isActiveAndEnabled) return;
 
             var all = FindObjectsByType<CoalOperation>(FindObjectsInactive.Exclude);
             _op = null;
             for (int i = 0; i < all.Length; i++)
                 if (all[i].enabled) { _op = all[i]; return; }
+        }
+
+        /// <summary>
+        /// Sea combat is a primary action, so compact HUD mode gives it one permanent rail slot as
+        /// well as the contextual button over the moored ship. The host persists across scenes;
+        /// Unity's null semantics let this reattach when a newly loaded Main scene creates a new HUD.
+        /// </summary>
+        private void EnsureHudButton()
+        {
+            if (_hudButton != null) return;
+            HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Exclude);
+            if (hud == null) return;
+            Sprite icon = Resources.Load<Sprite>("UI/Sea/gemi");
+            _hudButton = hud.AttachBottomButton(14, HudUI.SailButtonName, icon, Open);
         }
 
         private void Update()
@@ -164,7 +183,8 @@ namespace Game.UI
                 Rebind();
                 PlaceHull();
             }
-            if (_op == null || _cam == null || _hull == null) { Hide(); return; }
+            if (_op == null || !_op.isActiveAndEnabled || _cam == null || !_cam.isActiveAndEnabled
+                || _hull == null) { Hide(); return; }
 
             Vector3 world = _hull.position;
             world.y += worldLift;

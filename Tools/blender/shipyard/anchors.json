@@ -1,0 +1,464 @@
+{
+  "anchors": {
+    "Camera_Bounds": {
+      "collection": "Anchors",
+      "pos": [
+        323.5758,
+        -323.5758,
+        40.0
+      ]
+    },
+    "Camera_Stop_01": {
+      "collection": "Camera_Stops",
+      "pos": [
+        43.342,
+        -51.8273,
+        88.0
+      ]
+    },
+    "Camera_Stop_02": {
+      "collection": "Camera_Stops",
+      "pos": [
+        115.5908,
+        -107.1055,
+        76.0
+      ]
+    },
+    "Camera_Stop_03": {
+      "collection": "Camera_Stops",
+      "pos": [
+        172.2832,
+        -177.94,
+        65.0
+      ]
+    },
+    "Camera_Stop_04": {
+      "collection": "Camera_Stops",
+      "pos": [
+        244.532,
+        -233.2182,
+        55.0
+      ]
+    },
+    "Camera_Stop_05": {
+      "collection": "Camera_Stops",
+      "pos": [
+        299.103,
+        -306.1741,
+        46.0
+      ]
+    },
+    "Camera_Stop_06": {
+      "collection": "Camera_Stops",
+      "pos": [
+        371.3518,
+        -361.4523,
+        38.0
+      ]
+    },
+    "Camera_Stop_07": {
+      "collection": "Camera_Stops",
+      "pos": [
+        427.3371,
+        -432.994,
+        30.0
+      ]
+    },
+    "Camera_Stop_08": {
+      "collection": "Camera_Stops",
+      "pos": [
+        496.7574,
+        -491.1006,
+        22.0
+      ]
+    },
+    "Customer_Berth_01": {
+      "collection": "Anchors",
+      "pos": [
+        567.2266,
+        -671.8785,
+        8.0
+      ]
+    },
+    "Customer_Berth_02": {
+      "collection": "Anchors",
+      "pos": [
+        619.5526,
+        -619.5526,
+        8.0
+      ]
+    },
+    "Customer_Berth_03": {
+      "collection": "Anchors",
+      "pos": [
+        671.8785,
+        -567.2266,
+        8.0
+      ]
+    },
+    "Mine_Output": {
+      "collection": "Anchors",
+      "pos": [
+        39.5619,
+        -53.7041,
+        82.0
+      ]
+    },
+    "Player_Outfitting": {
+      "collection": "Anchors",
+      "pos": [
+        510.7208,
+        -640.8285,
+        2.0
+      ]
+    },
+    "Refinery_Input": {
+      "collection": "Anchors",
+      "pos": [
+        99.492,
+        -107.9772,
+        68.0
+      ]
+    },
+    "Refinery_Output": {
+      "collection": "Anchors",
+      "pos": [
+        110.1472,
+        -158.2304,
+        68.0
+      ]
+    },
+    "Set_Sail": {
+      "collection": "Anchors",
+      "pos": [
+        483.8508,
+        -667.6985,
+        2.0
+      ]
+    },
+    "Station_Cannon_Input": {
+      "collection": "Anchors",
+      "pos": [
+        126.7618,
+        -166.3598,
+        68.0
+      ]
+    },
+    "Station_Cannon_Output": {
+      "collection": "Anchors",
+      "pos": [
+        182.4492,
+        -224.8756,
+        66.0
+      ]
+    },
+    "Station_Cannon_Upgrade": {
+      "collection": "Anchors",
+      "pos": [
+        170.869,
+        -179.3543,
+        99.0
+      ]
+    },
+    "Station_Cannon_Work": {
+      "collection": "Anchors",
+      "pos": [
+        170.869,
+        -179.3543,
+        59.0
+      ]
+    },
+    "Station_Cannon_Worker": {
+      "collection": "Anchors",
+      "pos": [
+        189.2005,
+        -149.6025,
+        59.0
+      ]
+    },
+    "Station_Figurehead_Input": {
+      "collection": "Anchors",
+      "pos": [
+        381.8157,
+        -421.4137,
+        33.0
+      ]
+    },
+    "Station_Figurehead_Output": {
+      "collection": "Anchors",
+      "pos": [
+        437.5031,
+        -479.9295,
+        31.0
+      ]
+    },
+    "Station_Figurehead_Upgrade": {
+      "collection": "Anchors",
+      "pos": [
+        425.9229,
+        -434.4082,
+        64.0
+      ]
+    },
+    "Station_Figurehead_Work": {
+      "collection": "Anchors",
+      "pos": [
+        425.9229,
+        -434.4082,
+        24.0
+      ]
+    },
+    "Station_Figurehead_Worker": {
+      "collection": "Anchors",
+      "pos": [
+        444.2543,
+        -404.6564,
+        24.0
+      ]
+    },
+    "Station_Hull_Input": {
+      "collection": "Anchors",
+      "pos": [
+        203.2532,
+        -217.3954,
+        58.0
+      ]
+    },
+    "Station_Hull_Output": {
+      "collection": "Anchors",
+      "pos": [
+        258.9406,
+        -275.9112,
+        56.0
+      ]
+    },
+    "Station_Hull_Upgrade": {
+      "collection": "Anchors",
+      "pos": [
+        247.3604,
+        -230.3898,
+        89.0
+      ]
+    },
+    "Station_Hull_Work": {
+      "collection": "Anchors",
+      "pos": [
+        247.3604,
+        -230.3898,
+        49.0
+      ]
+    },
+    "Station_Hull_Worker": {
+      "collection": "Anchors",
+      "pos": [
+        265.6919,
+        -200.638,
+        49.0
+      ]
+    },
+    "Station_Navigation_Input": {
+      "collection": "Anchors",
+      "pos": [
+        330.0731,
+        -345.6294,
+        41.0
+      ]
+    },
+    "Station_Navigation_Output": {
+      "collection": "Anchors",
+      "pos": [
+        385.7605,
+        -404.1452,
+        39.0
+      ]
+    },
+    "Station_Navigation_Upgrade": {
+      "collection": "Anchors",
+      "pos": [
+        374.1802,
+        -358.6239,
+        72.0
+      ]
+    },
+    "Station_Navigation_Work": {
+      "collection": "Anchors",
+      "pos": [
+        374.1802,
+        -358.6239,
+        32.0
+      ]
+    },
+    "Station_Navigation_Worker": {
+      "collection": "Anchors",
+      "pos": [
+        392.5117,
+        -328.8721,
+        32.0
+      ]
+    },
+    "Station_Rigging_Input": {
+      "collection": "Anchors",
+      "pos": [
+        253.5817,
+        -294.5939,
+        49.0
+      ]
+    },
+    "Station_Rigging_Output": {
+      "collection": "Anchors",
+      "pos": [
+        309.2691,
+        -353.1097,
+        47.0
+      ]
+    },
+    "Station_Rigging_Upgrade": {
+      "collection": "Anchors",
+      "pos": [
+        297.6888,
+        -307.5883,
+        80.0
+      ]
+    },
+    "Station_Rigging_Work": {
+      "collection": "Anchors",
+      "pos": [
+        297.6888,
+        -307.5883,
+        40.0
+      ]
+    },
+    "Station_Rigging_Worker": {
+      "collection": "Anchors",
+      "pos": [
+        316.0203,
+        -277.8365,
+        40.0
+      ]
+    },
+    "Storage_Input": {
+      "collection": "Anchors",
+      "pos": [
+        122.5019,
+        -65.9334,
+        68.0
+      ]
+    },
+    "Storage_Output": {
+      "collection": "Anchors",
+      "pos": [
+        168.5391,
+        -86.5148,
+        68.0
+      ]
+    },
+    "Train_Load": {
+      "collection": "Anchors",
+      "pos": [
+        72.8712,
+        -87.0133,
+        74.0
+      ]
+    },
+    "Train_Unload": {
+      "collection": "Anchors",
+      "pos": [
+        132.8012,
+        -141.2865,
+        66.0
+      ]
+    }
+  },
+  "bands": [
+    {
+      "key": "Mine",
+      "s": 50,
+      "t": -6,
+      "z": 78
+    },
+    {
+      "key": "Works",
+      "s": 117,
+      "t": 6,
+      "z": 66
+    },
+    {
+      "key": "Cannon",
+      "s": 184,
+      "t": -4,
+      "z": 55
+    },
+    {
+      "key": "Hull",
+      "s": 251,
+      "t": 8,
+      "z": 45
+    },
+    {
+      "key": "Rigging",
+      "s": 318,
+      "t": -5,
+      "z": 36
+    },
+    {
+      "key": "Navigation",
+      "s": 385,
+      "t": 7,
+      "z": 28
+    },
+    {
+      "key": "Figurehead",
+      "s": 452,
+      "t": -4,
+      "z": 20
+    },
+    {
+      "key": "Dock",
+      "s": 519,
+      "t": 4,
+      "z": 12
+    }
+  ],
+  "frame": {
+    "band": 67.0,
+    "camera_euler_deg": [
+      42.0,
+      0.0,
+      45.0
+    ],
+    "camera_ortho": true,
+    "k": 0.7071067811865476,
+    "s_stretch": 1.3458980337503152,
+    "screen_x": "0.7071*(x+y)",
+    "screen_y": "0.5254*(y-x) + 0.669*z",
+    "view_h": 520.0,
+    "view_w": 240.0
+  },
+  "stations": [
+    {
+      "colour": "factory",
+      "key": "Cannon",
+      "t": -2
+    },
+    {
+      "colour": "mine",
+      "key": "Hull",
+      "t": 4
+    },
+    {
+      "colour": "storage",
+      "key": "Rigging",
+      "t": -2
+    },
+    {
+      "colour": "navigation",
+      "key": "Navigation",
+      "t": 4
+    },
+    {
+      "colour": "figurehead",
+      "key": "Figurehead",
+      "t": -2
+    }
+  ]
+}

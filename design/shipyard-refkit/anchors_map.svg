@@ -1,0 +1,241 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="736" height="1610" viewBox="0 0 736 1610">
+<rect width="100%%" height="100%%" fill="#0e1a24"/>
+<rect x="59.6" y="1047.2" width="617.7" height="294.4" fill="#1d3a4a" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="31.0" y="814.9" width="677.0" height="325.3" fill="#1d3a4a" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="9.1" y="538.3" width="721.3" height="377.3" fill="#1d3a4a" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="34.4" y="292.3" width="671.8" height="340.3" fill="#1d3a4a" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="39.1" y="45.4" width="656.0" height="363.5" fill="#1d3a4a" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="129.2" y="257.9" width="508.8" height="1149.9" fill="#24523c" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="136.3" y="263.2" width="494.7" height="1144.5" fill="#24523c" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="143.6" y="268.7" width="480.0" height="1138.9" fill="#24523c" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="136.2" y="629.4" width="485.3" height="272.4" fill="#24523c" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="151.4" y="642.2" width="454.9" height="246.7" fill="#24523c" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="136.6" y="1380.0" width="310.4" height="94.4" fill="#24523c" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="354.2" y="1401.9" width="93.6" height="72.5" fill="#24523c" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="446.1" y="1396.2" width="153.1" height="78.3" fill="#24523c" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="397.3" y="301.4" width="49.9" height="31.9" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="399.3" y="312.4" fill="#6f8ba4" font-size="10" font-family="monospace">Ore_wagon_chassis</text>
+<rect x="455.9" y="301.4" width="49.9" height="31.9" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="457.9" y="312.4" fill="#6f8ba4" font-size="10" font-family="monospace">Ore_wagon_chassis_001</text>
+<rect x="514.6" y="301.4" width="49.9" height="31.9" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="516.6" y="312.4" fill="#6f8ba4" font-size="10" font-family="monospace">Ore_wagon_chassis_002</text>
+<rect x="181.3" y="282.5" width="99.1" height="56.0" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="183.3" y="293.5" fill="#6f8ba4" font-size="10" font-family="monospace">Truck_chassis</text>
+<rect x="214.1" y="188.6" width="117.8" height="31.7" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="216.1" y="199.6" fill="#6f8ba4" font-size="10" font-family="monospace">Mine_Portal</text>
+<rect x="320.0" y="174.8" width="138.8" height="103.2" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="322.0" y="185.8" fill="#6f8ba4" font-size="10" font-family="monospace">Crusher_Tower</text>
+<rect x="271.1" y="191.8" width="298.5" height="142.4" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="273.1" y="202.8" fill="#6f8ba4" font-size="10" font-family="monospace">Railway</text>
+<rect x="127.5" y="89.2" width="175.4" height="106.7" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="129.5" y="100.2" fill="#6f8ba4" font-size="10" font-family="monospace">Mine_faceted_mountain</text>
+<rect x="197.5" y="57.9" width="165.1" height="100.5" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="199.5" y="68.9" fill="#6f8ba4" font-size="10" font-family="monospace">Mine_faceted_mountain_001</text>
+<rect x="294.6" y="54.1" width="154.8" height="94.2" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="296.6" y="65.1" fill="#6f8ba4" font-size="10" font-family="monospace">Mine_faceted_mountain_002</text>
+<rect x="388.6" y="78.8" width="134.1" height="81.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="390.6" y="89.8" fill="#6f8ba4" font-size="10" font-family="monospace">Mine_faceted_mountain_003</text>
+<rect x="115.3" y="154.2" width="98.0" height="59.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="117.3" y="165.2" fill="#6f8ba4" font-size="10" font-family="monospace">Mine_faceted_mountain_004</text>
+<rect x="261.5" y="552.7" width="54.6" height="37.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="263.5" y="563.7" fill="#6f8ba4" font-size="10" font-family="monospace">Ore_wagon_chassis_003</text>
+<rect x="320.5" y="560.8" width="54.6" height="37.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="322.5" y="571.8" fill="#6f8ba4" font-size="10" font-family="monospace">Ore_wagon_chassis_004</text>
+<rect x="379.4" y="568.9" width="54.6" height="37.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="381.4" y="579.9" fill="#6f8ba4" font-size="10" font-family="monospace">Ore_wagon_chassis_005</text>
+<rect x="438.4" y="576.9" width="54.6" height="37.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="440.4" y="587.9" fill="#6f8ba4" font-size="10" font-family="monospace">Ore_wagon_chassis_006</text>
+<rect x="185.6" y="401.3" width="262.3" height="140.4" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="187.6" y="412.3" fill="#6f8ba4" font-size="10" font-family="monospace">Smelting_Plant</text>
+<rect x="130.7" y="804.3" width="83.8" height="69.2" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="132.7" y="815.3" fill="#6f8ba4" font-size="10" font-family="monospace">Truck_chassis_001</text>
+<rect x="465.8" y="872.2" width="87.1" height="67.3" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="467.8" y="883.2" fill="#6f8ba4" font-size="10" font-family="monospace">Truck_chassis_002</text>
+<rect x="110.8" y="687.9" width="67.3" height="76.0" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="112.8" y="698.9" fill="#6f8ba4" font-size="10" font-family="monospace">Truck_chassis_003</text>
+<rect x="521.7" y="882.0" width="106.2" height="66.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="523.7" y="893.0" fill="#6f8ba4" font-size="10" font-family="monospace">Truck_chassis_004</text>
+<rect x="219.1" y="800.5" width="28.2" height="25.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="221.1" y="811.5" fill="#6f8ba4" font-size="10" font-family="monospace">06_Crates_Wooden_freight_crate</text>
+<rect x="228.9" y="835.7" width="28.2" height="25.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="230.9" y="846.7" fill="#6f8ba4" font-size="10" font-family="monospace">06_Crates_Wooden_freight_crate_001</text>
+<rect x="427.9" y="857.0" width="28.2" height="25.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="429.9" y="868.0" fill="#6f8ba4" font-size="10" font-family="monospace">06_Crates_Wooden_freight_crate_002</text>
+<rect x="329.5" y="860.7" width="28.2" height="25.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="331.5" y="871.7" fill="#6f8ba4" font-size="10" font-family="monospace">06_Crates_Wooden_freight_crate_003</text>
+<rect x="230.8" y="752.4" width="20.9" height="18.2" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="232.8" y="763.4" fill="#6f8ba4" font-size="10" font-family="monospace">06_Barrels_Storage_barrel</text>
+<rect x="217.8" y="773.9" width="20.9" height="18.2" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="219.8" y="784.9" fill="#6f8ba4" font-size="10" font-family="monospace">06_Barrels_Storage_barrel_001</text>
+<rect x="228.0" y="794.7" width="20.9" height="18.2" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="230.0" y="805.7" fill="#6f8ba4" font-size="10" font-family="monospace">06_Barrels_Storage_barrel_002</text>
+<rect x="233.8" y="654.4" width="286.2" height="209.7" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="235.8" y="665.4" fill="#6f8ba4" font-size="10" font-family="monospace">Blue_Factory</text>
+<rect x="244.0" y="983.4" width="53.4" height="67.1" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="246.0" y="994.4" fill="#6f8ba4" font-size="10" font-family="monospace">Truck_chassis_005</text>
+<rect x="468.0" y="998.2" width="22.4" height="19.4" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="470.0" y="1009.2" fill="#6f8ba4" font-size="10" font-family="monospace">07_Barrels_Storage_barrel_003</text>
+<rect x="489.4" y="1001.3" width="22.4" height="19.4" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="491.4" y="1012.3" fill="#6f8ba4" font-size="10" font-family="monospace">07_Barrels_Storage_barrel_004</text>
+<rect x="160.5" y="960.1" width="91.6" height="44.1" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="162.5" y="971.1" fill="#6f8ba4" font-size="10" font-family="monospace">Horizontal_Tank</text>
+<rect x="253.3" y="914.2" width="260.3" height="155.3" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="255.3" y="925.2" fill="#6f8ba4" font-size="10" font-family="monospace">Refinery</text>
+<rect x="423.6" y="1302.9" width="45.2" height="63.4" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="425.6" y="1313.9" fill="#6f8ba4" font-size="10" font-family="monospace">Truck_chassis_006</text>
+<rect x="254.0" y="1190.8" width="32.6" height="30.8" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="256.0" y="1201.8" fill="#6f8ba4" font-size="10" font-family="monospace">08_Crates_Wooden_freight_crate_004</text>
+<rect x="248.6" y="1218.4" width="32.6" height="30.8" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="250.6" y="1229.4" fill="#6f8ba4" font-size="10" font-family="monospace">08_Crates_Wooden_freight_crate_005</text>
+<rect x="457.0" y="1167.8" width="32.6" height="30.8" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="459.0" y="1178.8" fill="#6f8ba4" font-size="10" font-family="monospace">08_Crates_Wooden_freight_crate_006</text>
+<rect x="473.8" y="1189.0" width="68.4" height="29.2" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="475.8" y="1200.0" fill="#6f8ba4" font-size="10" font-family="monospace">08_Containers_Intermodal_container</text>
+<rect x="474.1" y="1189.8" width="64.6" height="27.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="476.1" y="1200.8" fill="#6f8ba4" font-size="10" font-family="monospace">08_Containers_Intermodal_container_001</text>
+<rect x="245.9" y="1316.0" width="43.3" height="18.5" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="247.9" y="1327.0" fill="#6f8ba4" font-size="10" font-family="monospace">08_Containers_Intermodal_container_002</text>
+<rect x="238.2" y="1271.1" width="42.6" height="18.2" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="240.2" y="1282.1" fill="#6f8ba4" font-size="10" font-family="monospace">08_Containers_Intermodal_container_003</text>
+<rect x="136.1" y="1376.0" width="42.6" height="18.2" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="138.1" y="1387.0" fill="#6f8ba4" font-size="10" font-family="monospace">08_Containers_Intermodal_container_004</text>
+<rect x="188.5" y="1376.7" width="38.8" height="16.5" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="190.5" y="1387.7" fill="#6f8ba4" font-size="10" font-family="monospace">08_Containers_Intermodal_container_005</text>
+<rect x="288.6" y="1125.0" width="185.9" height="140.7" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="290.6" y="1136.0" fill="#6f8ba4" font-size="10" font-family="monospace">Warehouse</text>
+<rect x="115.6" y="1260.4" width="357.2" height="151.8" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="117.6" y="1271.4" fill="#6f8ba4" font-size="10" font-family="monospace">Port</text>
+<rect x="88.5" y="1282.7" width="200.8" height="36.3" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="90.5" y="1293.7" fill="#6f8ba4" font-size="10" font-family="monospace">Crane</text>
+<rect x="52.0" y="1357.5" width="216.2" height="55.7" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="54.0" y="1368.5" fill="#6f8ba4" font-size="10" font-family="monospace">Ship</text>
+<rect x="193.5" y="1528.2" width="23.3" height="22.6" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="195.5" y="1539.2" fill="#6f8ba4" font-size="10" font-family="monospace">09_Crates_Wooden_freight_crate_007</text>
+<rect x="67.3" y="1447.2" width="167.2" height="141.7" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="69.3" y="1458.2" fill="#6f8ba4" font-size="10" font-family="monospace">Customer_Island_01</text>
+<rect x="284.4" y="1447.2" width="167.2" height="141.7" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="286.4" y="1458.2" fill="#6f8ba4" font-size="10" font-family="monospace">Customer_Island_02</text>
+<rect x="501.5" y="1447.2" width="167.2" height="141.7" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<text x="503.5" y="1458.2" fill="#6f8ba4" font-size="10" font-family="monospace">Customer_Island_03</text>
+<rect x="29.9" y="274.8" width="26.7" height="2.3" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="713.8" y="688.9" width="26.7" height="2.3" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="2.7" y="1056.9" width="26.7" height="2.3" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<rect x="670.4" y="1240.9" width="26.7" height="2.3" fill="#3d4257" fill-opacity="0.5" stroke="#0b141c"/>
+<polyline points="316.8,587.7 291.5,611.3 234.0,611.3 211.0,622.8 199.5,634.3 211.0,645.8 291.5,645.8 395.0,645.8 487.0,645.8 544.5,703.3 566.0,706.8" fill="none" stroke="#7ee787" stroke-width="3" stroke-opacity="0.95"/>
+<polyline points="342.3,1327.5 326.0,1335.8 314.5,1347.3 160.1,1351.2" fill="none" stroke="#7ee787" stroke-width="3" stroke-opacity="0.95"/>
+<polyline points="376.9,905.5 291.5,898.8 257.0,933.3 165.0,944.8 142.0,967.8 114.4,971.2" fill="none" stroke="#7ee787" stroke-width="3" stroke-opacity="0.95"/>
+<polyline points="273.0,266.3 257.0,277.8 257.0,323.8 280.0,346.8 590.5,346.8 602.0,358.3 613.5,381.3 590.5,415.8 567.5,438.8 493.9,436.4" fill="none" stroke="#7ee787" stroke-width="3" stroke-opacity="0.95"/>
+<polyline points="381.6,1311.7 363.0,1310.3" fill="none" stroke="#7ee787" stroke-width="3" stroke-opacity="0.95"/>
+<polyline points="206.3,1050.3 257.0,1048.3 280.0,1071.3 383.5,1071.3 510.0,1082.8 556.0,1036.8 559.6,953.0" fill="none" stroke="#7ee787" stroke-width="3" stroke-opacity="0.95"/>
+<polyline points="383.4,1115.5 245.5,1117.3 234.0,1128.8 280.0,1174.8 303.0,1209.3 326.0,1209.3 395.0,1232.3 475.5,1266.8 510.0,1232.3 544.5,1232.3 588.2,1196.3" fill="none" stroke="#7ee787" stroke-width="3" stroke-opacity="0.95"/>
+<polyline points="508.0,1264.2 556.0,1220.8 556.0,1186.3 520.5,1160.2" fill="none" stroke="#7ee787" stroke-width="3" stroke-opacity="0.95"/>
+<polyline points="551.3,263.0 534.9,263.0 518.6,263.0 502.2,263.0 485.9,263.0 469.5,263.0 453.1,263.0 436.8,263.0 420.4,263.0 404.0,263.0 387.7,263.0 371.3,263.0 354.9,263.0 338.6,263.0 322.2,263.0 305.9,263.0 289.5,263.0" fill="none" stroke="#ffa657" stroke-width="1.6" stroke-opacity="0.95"/>
+<polyline points="160.1,1351.2 157.8,1380.6 155.5,1410.0 153.2,1439.4 150.9,1468.8" fill="none" stroke="#58a6ff" stroke-width="1.6" stroke-opacity="0.95"/>
+<polyline points="160.1,1351.2 212.1,1380.6 264.0,1410.0 316.0,1439.4 368.0,1468.8" fill="none" stroke="#58a6ff" stroke-width="1.6" stroke-opacity="0.95"/>
+<polyline points="160.1,1351.2 266.4,1380.6 372.6,1410.0 478.9,1439.4 585.1,1468.8" fill="none" stroke="#58a6ff" stroke-width="1.6" stroke-opacity="0.95"/>
+<polyline points="493.9,506.6 493.9,436.4 464.0,473.3 464.0,542.3 418.0,588.3 316.8,587.7 349.0,553.8 452.5,553.8 493.9,506.6" fill="none" stroke="#d2a8ff" stroke-width="1.6" stroke-opacity="0.95"/>
+<polyline points="363.0,1326.4 363.0,1310.3 342.3,1327.5 363.0,1326.4" fill="none" stroke="#d2a8ff" stroke-width="1.6" stroke-opacity="0.95"/>
+<polyline points="566.0,811.7 567.5,737.8 566.0,706.8 533.0,737.8 533.0,864.3 510.0,887.3 498.5,898.8 406.5,898.8 395.0,910.3 383.5,910.3 376.9,905.5 395.0,887.3 452.5,887.3 464.0,875.8 521.5,875.8 567.5,829.8 566.0,811.7" fill="none" stroke="#d2a8ff" stroke-width="1.6" stroke-opacity="0.95"/>
+<polyline points="520.5,1230.5 544.5,1232.3 556.0,1186.3 520.5,1160.2 533.0,1174.8 556.0,1186.3 556.0,1220.8 464.0,1312.8 381.6,1311.7 429.5,1266.8 475.5,1266.8 510.0,1232.3 520.5,1230.5" fill="none" stroke="#d2a8ff" stroke-width="1.6" stroke-opacity="0.95"/>
+<polyline points="559.6,1030.7 559.6,953.0 521.5,990.8 521.5,1071.3 475.5,1117.3 383.4,1115.5 418.0,1082.8 510.0,1082.8 559.6,1030.7" fill="none" stroke="#d2a8ff" stroke-width="1.6" stroke-opacity="0.95"/>
+<rect x="185.7" y="401.3" width="262.3" height="140.4" fill="none" stroke="#4aa3df" stroke-width="2.5" stroke-dasharray="6 4"/>
+<text x="185.7" y="397.3" fill="#4aa3df" font-size="12" font-family="monospace">Station_Cannon</text>
+<rect x="233.8" y="654.4" width="286.2" height="209.7" fill="none" stroke="#4aa3df" stroke-width="2.5" stroke-dasharray="6 4"/>
+<text x="233.8" y="650.4" fill="#4aa3df" font-size="12" font-family="monospace">Station_Hull</text>
+<rect x="253.3" y="914.2" width="260.3" height="155.3" fill="none" stroke="#4aa3df" stroke-width="2.5" stroke-dasharray="6 4"/>
+<text x="253.3" y="910.2" fill="#4aa3df" font-size="12" font-family="monospace">Station_Rigging</text>
+<rect x="288.6" y="1125.0" width="185.9" height="140.7" fill="none" stroke="#4aa3df" stroke-width="2.5" stroke-dasharray="6 4"/>
+<text x="288.6" y="1121.0" fill="#4aa3df" font-size="12" font-family="monospace">Station_Navigation</text>
+<rect x="314.7" y="1302.2" width="55.2" height="32.2" fill="none" stroke="#f0b429" stroke-width="2.5" stroke-dasharray="6 4"/>
+<text x="314.7" y="1298.2" fill="#f0b429" font-size="12" font-family="monospace">Station_Figurehead</text>
+<circle cx="389.4" cy="226.4" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="394.4" y="229.4" fill="#a8bccf" font-size="9" font-family="monospace">Camera_Stop_01</text>
+<circle cx="316.8" cy="471.5" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="321.8" y="474.5" fill="#a8bccf" font-size="9" font-family="monospace">Camera_Stop_02</text>
+<circle cx="376.9" cy="759.3" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="381.9" y="762.3" fill="#a8bccf" font-size="9" font-family="monospace">Camera_Stop_03</text>
+<circle cx="383.4" cy="991.9" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="388.4" y="994.9" fill="#a8bccf" font-size="9" font-family="monospace">Camera_Stop_04</text>
+<circle cx="381.6" cy="1195.4" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="386.6" y="1198.4" fill="#a8bccf" font-size="9" font-family="monospace">Camera_Stop_05</text>
+<circle cx="294.2" cy="1336.3" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="299.2" y="1339.3" fill="#a8bccf" font-size="9" font-family="monospace">Camera_Stop_06</text>
+<circle cx="368.0" cy="1518.0" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="373.0" y="1521.0" fill="#a8bccf" font-size="9" font-family="monospace">Camera_Stop_07</text>
+<circle cx="150.9" cy="1468.8" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="155.9" y="1471.8" fill="#a8bccf" font-size="9" font-family="monospace">Customer_Berth_01</text>
+<circle cx="368.0" cy="1468.8" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="373.0" y="1471.8" fill="#a8bccf" font-size="9" font-family="monospace">Customer_Berth_02</text>
+<circle cx="585.1" cy="1468.8" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="590.1" y="1471.8" fill="#a8bccf" font-size="9" font-family="monospace">Customer_Berth_03</text>
+<circle cx="273.0" cy="266.3" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="278.0" y="269.3" fill="#a8bccf" font-size="9" font-family="monospace">Mine_Output</text>
+<circle cx="188.9" cy="1321.4" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="193.9" y="1324.4" fill="#a8bccf" font-size="9" font-family="monospace">Player_Outfitting</text>
+<circle cx="114.4" cy="971.2" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="119.4" y="974.2" fill="#a8bccf" font-size="9" font-family="monospace">Refinery_Input</text>
+<circle cx="206.3" cy="1050.3" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="211.3" y="1053.3" fill="#a8bccf" font-size="9" font-family="monospace">Refinery_Output</text>
+<circle cx="160.1" cy="1351.2" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="165.1" y="1354.2" fill="#a8bccf" font-size="9" font-family="monospace">Set_Sail</text>
+<circle cx="493.9" cy="436.4" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="498.9" y="439.4" fill="#a8bccf" font-size="9" font-family="monospace">Station_Cannon_Input</text>
+<circle cx="316.8" cy="587.7" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="321.8" y="590.7" fill="#a8bccf" font-size="9" font-family="monospace">Station_Cannon_Output</text>
+<circle cx="316.8" cy="471.5" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="321.8" y="474.5" fill="#a8bccf" font-size="9" font-family="monospace">Station_Cannon_Upgrade</text>
+<circle cx="316.8" cy="471.5" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="321.8" y="474.5" fill="#a8bccf" font-size="9" font-family="monospace">Station_Cannon_Work</text>
+<circle cx="493.9" cy="506.6" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="498.9" y="509.6" fill="#a8bccf" font-size="9" font-family="monospace">Station_Cannon_Worker</text>
+<circle cx="363.0" cy="1310.3" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="368.0" y="1313.3" fill="#a8bccf" font-size="9" font-family="monospace">Station_Figurehead_Input</text>
+<circle cx="342.3" cy="1327.5" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="347.3" y="1330.5" fill="#a8bccf" font-size="9" font-family="monospace">Station_Figurehead_Output</text>
+<circle cx="342.3" cy="1318.3" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="347.3" y="1321.3" fill="#a8bccf" font-size="9" font-family="monospace">Station_Figurehead_Upgrade</text>
+<circle cx="342.3" cy="1318.3" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="347.3" y="1321.3" fill="#a8bccf" font-size="9" font-family="monospace">Station_Figurehead_Work</text>
+<circle cx="363.0" cy="1326.4" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="368.0" y="1329.4" fill="#a8bccf" font-size="9" font-family="monospace">Station_Figurehead_Worker</text>
+<circle cx="566.0" cy="706.8" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="571.0" y="709.8" fill="#a8bccf" font-size="9" font-family="monospace">Station_Hull_Input</text>
+<circle cx="376.9" cy="905.5" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="381.9" y="908.5" fill="#a8bccf" font-size="9" font-family="monospace">Station_Hull_Output</text>
+<circle cx="376.9" cy="759.3" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="381.9" y="762.3" fill="#a8bccf" font-size="9" font-family="monospace">Station_Hull_Upgrade</text>
+<circle cx="376.9" cy="759.3" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="381.9" y="762.3" fill="#a8bccf" font-size="9" font-family="monospace">Station_Hull_Work</text>
+<circle cx="566.0" cy="811.7" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="571.0" y="814.7" fill="#a8bccf" font-size="9" font-family="monospace">Station_Hull_Worker</text>
+<circle cx="520.5" cy="1160.2" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="525.5" y="1163.2" fill="#a8bccf" font-size="9" font-family="monospace">Station_Navigation_Input</text>
+<circle cx="381.6" cy="1311.7" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="386.6" y="1314.7" fill="#a8bccf" font-size="9" font-family="monospace">Station_Navigation_Output</text>
+<circle cx="381.6" cy="1195.4" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="386.6" y="1198.4" fill="#a8bccf" font-size="9" font-family="monospace">Station_Navigation_Upgrade</text>
+<circle cx="381.6" cy="1195.4" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="386.6" y="1198.4" fill="#a8bccf" font-size="9" font-family="monospace">Station_Navigation_Work</text>
+<circle cx="520.5" cy="1230.5" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="525.5" y="1233.5" fill="#a8bccf" font-size="9" font-family="monospace">Station_Navigation_Worker</text>
+<circle cx="559.6" cy="953.0" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="564.6" y="956.0" fill="#a8bccf" font-size="9" font-family="monospace">Station_Rigging_Input</text>
+<circle cx="383.4" cy="1115.5" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="388.4" y="1118.5" fill="#a8bccf" font-size="9" font-family="monospace">Station_Rigging_Output</text>
+<circle cx="383.4" cy="991.9" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="388.4" y="994.9" fill="#a8bccf" font-size="9" font-family="monospace">Station_Rigging_Upgrade</text>
+<circle cx="383.4" cy="991.9" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="388.4" y="994.9" fill="#a8bccf" font-size="9" font-family="monospace">Station_Rigging_Work</text>
+<circle cx="559.6" cy="1030.7" r="3.2" fill="#ff7b72" stroke="#0b141c"/>
+<text x="564.6" y="1033.7" fill="#a8bccf" font-size="9" font-family="monospace">Station_Rigging_Worker</text>
+<circle cx="588.2" cy="1196.3" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="593.2" y="1199.3" fill="#a8bccf" font-size="9" font-family="monospace">Storage_Input</text>
+<circle cx="508.0" cy="1264.2" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="513.0" y="1267.2" fill="#a8bccf" font-size="9" font-family="monospace">Storage_Output</text>
+<circle cx="551.3" cy="263.0" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="556.3" y="266.0" fill="#a8bccf" font-size="9" font-family="monospace">Train_Load</text>
+<circle cx="289.5" cy="263.0" r="3.2" fill="#ffffff" stroke="#0b141c"/>
+<text x="294.5" y="266.0" fill="#a8bccf" font-size="9" font-family="monospace">Train_Unload</text>
+<text x="12" y="22" fill="#e6edf3" font-size="15" font-family="monospace">IndustrialReference — anchors, pads and routes (top-down, Unity XZ; -Z down the page)</text>
+<text x="12" y="40" fill="#a8bccf" font-size="12" font-family="monospace">green delivery &#183; purple worker loop &#183; orange rail &#183; blue sea lane &#183; blue dashed pad = his art &#183; yellow dashed pad = needs art</text>
+</svg>

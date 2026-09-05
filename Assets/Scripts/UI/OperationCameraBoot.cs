@@ -71,6 +71,31 @@ namespace Game.UI
         [SerializeField] private float zoomOutFactor = 0.52f;  // a step back, not a map view
         [SerializeField] private float panPadding = 40f;       // slack beyond the operation footprint
 
+        [Header("Dikey tersane cercevesi")]
+        // The shipyard is one long island read from the mountain down to the harbour, so the opening
+        // shot is solved from its WIDTH, not from the whole-island fit: the width is what has to be on
+        // screen at once, and the length is what the player scrolls. Off, the component behaves exactly
+        // as it did - defaultZoomFraction of the whole fit, both axes free.
+        [Tooltip("Acilis cercevesini adanin genisligine gore coz ve kaydirma sadece uzun eksende olsun.")]
+        [SerializeField] private bool verticalShipyard = true;
+        // Only consulted when the island has no mine_/market pair to aim between - which is every
+        // AUTHORED map, since those carry the artist's own district names. The shipyard's chain runs
+        // along +Z (mine at +12, harbour at -12), and a yaw of 0 puts screen-up on +Z: mountain at the
+        // top of the screen, customers at the bottom. The serialized `yaw` above is 90, which is right
+        // for the generated islands whose chain runs along X and wrong for this one.
+        [Tooltip("Kurgulanmis haritalarin yon acisi. 0 = +Z ekrana yukari bakar.")]
+        [SerializeField] private float authoredYaw = 0f;
+        // Measured, not guessed. HudUI's compact rail is five openers in one 162-unit column inset
+        // 105 from the edge: 180 of a ~2340-unit landscape canvas. Turn HudUI.compactShipyardHud off
+        // and the ad and offer buttons rejoin it, it wraps to two columns at 342, and this wants 0.15.
+        [Tooltip("HUD yan rayinin kapladigi ekran genisligi orani. Genislik cozumunden dusuluyor ve " +
+                 "ada rayin karsi tarafina kaydiriliyor.")]
+        [SerializeField] private float hudSideFraction = 0.09f;
+        [Tooltip("Yan ray solda mi? Ada her zaman rayin karsi tarafina kayiyor.")]
+        [SerializeField] private bool hudRailOnLeft = true;
+        [Tooltip("Genislik cozumune eklenen pay. 1 = ada tam ekrana siginir, kenar boslugu yok.")]
+        [SerializeField] private float widthMargin = 0.74f;
+
         // Children whose bounds must not influence the framing: locked expansions the player can't act on
         // for hours, the ground/water discs, scenery, and the decorative port out to sea.
         //
@@ -96,7 +121,25 @@ namespace Game.UI
         // island edge at +/-196, three times past the ring road the operation sits on, so
         // counting them framed a playfield of mostly empty grass. The districts and the ring
         // they enclose are what the player watches.
-        private static readonly string[] SkipDistricts = { "Terrain", "Foliage", "Rail", "Roads" };
+        private static readonly string[] SkipDistricts =
+        {
+            "Terrain", "Foliage", "Rail", "Roads",
+
+            // The IndustrialReference map's own group names, which are what its districts are
+            // called. Same reasoning as the four above: 01_Parts is nothing but the ocean quad,
+            // 02_Terrain is the island shell and its shore stones, 10_* is scenery (120 pines,
+            // 249 grass tufts, 80 loose rocks, seabirds) scattered to the island's edge, and
+            // 12_Interface is floating badges. Counting them framed the working site as a knot
+            // in the middle of an ocean.
+            "01_Parts", "02_Terrain", "10_Trees", "10_Scenery", "10_Parts", "12_Interface",
+        };
+
+        /// <summary>
+        /// The node an authored map hangs under, whose children are that map's districts.
+        /// Stepped into rather than measured whole, exactly as a phase root is - see
+        /// <see cref="OperationBounds"/>.
+        /// </summary>
+        private const string AuthoredArtNode = "Art";
 
         private bool _framed;
         private int _reframeChecks;
@@ -174,7 +217,7 @@ namespace Game.UI
             // Each island's chain runs mine → market in its own world direction. Aiming the camera along
             // that axis makes every island read identically in portrait — mountains at the top, market at
             // the bottom, the road straight down the middle — instead of each one at a random diagonal.
-            float useYaw = yaw;
+            float useYaw = verticalShipyard ? authoredYaw : yaw;
             Transform mine = null, market = null;
             foreach (Transform ch in root.transform)
             {
@@ -189,14 +232,32 @@ namespace Game.UI
 
             Quaternion rot = Quaternion.Euler(pitch, useYaw, 0f);
             float surveyDist = FitDistance(b, rot, cam.aspect);
-            float dist = surveyDist * defaultZoomFraction;
+            // Below one is intentional for this art: the measurable building bounds include long
+            // overhangs and route props, so a mathematically exact 1.0 fit still leaves a wide ocean
+            // gutter. 0.74 keeps only a small strip of side water and lets length be explored by the
+            // portrait-only vertical drag.
+            float widthDist = FitWidthDistance(b, rot, cam.aspect) * Mathf.Clamp(widthMargin, .65f, 1.5f);
+            float dist = verticalShipyard ? widthDist : surveyDist * defaultZoomFraction;
             Vector3 pos = b.center - rot * Vector3.forward * dist;
 
-            // The HUD eats more screen at the bottom than the top, so the visual centre of the free area
-            // sits above the screen centre. Slide the camera down its own up-axis to put the operation there.
             float vTan = Mathf.Tan(fieldOfView * 0.5f * Mathf.Deg2Rad);
-            float centreOffset = (hudBottomFraction - hudTopFraction) * 0.5f + aimLiftFraction;
-            pos -= rot * Vector3.up * (centreOffset * 2f * dist * vTan);
+            if (verticalShipyard)
+            {
+                // The HUD is a rail down one side now, so what it eats is width, not height. Sliding
+                // the camera toward the rail pushes the island away from it, into the middle of the
+                // free area - moving the camera one way moves the subject the other, same as the
+                // vertical lift below.
+                float hTan = vTan * Mathf.Max(0.1f, cam.aspect);
+                float away = hudRailOnLeft ? 1f : -1f;      // camera left => subject right
+                pos -= rot * Vector3.right * (away * hudSideFraction * dist * hTan);
+            }
+            else
+            {
+                // The HUD eats more screen at the bottom than the top, so the visual centre of the free area
+                // sits above the screen centre. Slide the camera down its own up-axis to put the operation there.
+                float centreOffset = (hudBottomFraction - hudTopFraction) * 0.5f + aimLiftFraction;
+                pos -= rot * Vector3.up * (centreOffset * 2f * dist * vTan);
+            }
 
             // CameraController measures its perspective zoom to the ground plane, while the fit above
             // is measured to the operation centre. Work in the controller's space for both the zoom
@@ -208,7 +269,11 @@ namespace Game.UI
             float safeCentreDistance = (b.extents.y + cam.nearClipPlane + 8f) / down;
             float minCentreDistance = Mathf.Max(surveyDist * zoomInFactor, safeCentreDistance);
             float minZoom = minCentreDistance + groundToCentre;
-            float maxZoom = Mathf.Max(minZoom, surveyDist * zoomOutFactor + groundToCentre);
+            // Zooming out stops just past the width fit. Beyond that the sea takes over and the
+            // playfield becomes the diagram PORTRAIT_SHIPYARD_PLAN rules out; the 12% is only so a
+            // pinch outward from the opening shot is not a dead gesture.
+            float outerDist = verticalShipyard ? widthDist * 1.12f : surveyDist * zoomOutFactor;
+            float maxZoom = Mathf.Max(minZoom, outerDist + groundToCentre);
             cam.farClipPlane = RequiredFarClip(rot, fieldOfView, cam.aspect, maxZoom, b.size.y);
 
             if (cc != null)
@@ -299,6 +364,39 @@ namespace Game.UI
             return dist;
         }
 
+        /// <summary>
+        /// Smallest dolly distance that keeps the operation inside the frame HORIZONTALLY only, after
+        /// reserving the HUD rail and the edge margin.
+        ///
+        /// This is the whole vertical-shipyard framing in one number. <see cref="FitDistance"/> solves
+        /// both axes, so on an island three times longer than it is wide the length wins and the fit
+        /// pulls back until the island is a strip down the middle of the screen. Fitting the width
+        /// instead puts both shores on screen at the distance the buildings were composed to be read
+        /// at, and leaves the length as the thing the player scrolls.
+        /// </summary>
+        private float FitWidthDistance(Bounds b, Quaternion rot, float aspect)
+        {
+            float vTan = Mathf.Tan(fieldOfView * 0.5f * Mathf.Deg2Rad);
+            float hTan = vTan * Mathf.Max(0.1f, aspect);
+
+            float usable = Mathf.Clamp(1f - hudSideFraction, 0.25f, 1f);
+            float keep = Mathf.Clamp01(1f - edgeMargin);
+            float hSafe = Mathf.Max(0.01f, hTan * usable * keep);
+
+            Quaternion inv = Quaternion.Inverse(rot);
+            Vector3 e = b.extents;
+            float dist = 1f;
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sy = -1; sy <= 1; sy += 2)
+                    for (int sz = -1; sz <= 1; sz += 2)
+                    {
+                        Vector3 local = inv * new Vector3(e.x * sx, e.y * sy, e.z * sz);
+                        float needH = Mathf.Abs(local.x) / hSafe - local.z;
+                        if (needH > dist) dist = needH;
+                    }
+            return dist;
+        }
+
         /// <summary>Bounds of the parts of the island the player actually watches and acts on.</summary>
         private static bool OperationBounds(Transform root, out Bounds b)
         {
@@ -309,9 +407,10 @@ namespace Game.UI
                 if (Skip(ch.name)) continue;
 
                 // An authored island keeps its districts one level down, under the active
-                // phase root. Measuring that root whole would defeat every skip below it,
-                // so step through it and judge each district on its own name.
-                if (ch.name.StartsWith("Island_Phase"))
+                // phase root - or, for a map with no phases at all, under its art node.
+                // Measuring that node whole would defeat every skip below it, so step
+                // through it and judge each district on its own name.
+                if (ch.name.StartsWith("Island_Phase") || ch.name == AuthoredArtNode)
                 {
                     if (!ch.gameObject.activeSelf) continue;
                     foreach (Transform district in ch)

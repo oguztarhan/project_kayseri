@@ -785,7 +785,7 @@ namespace Game.Gameplay
         private sealed class TrainAgent
         {
             public Transform engine;
-            public Transform[] wagons;      // full pool (MaxWagons); only the first ActiveWagons show
+            public Transform[] wagons;      // portrait pool; saved capacity remains economic, not visual
             public GameObject[] wagonOre;
             // The authored hopper carries its ore as its own top submesh, so the rake looked full on the
             // way back however carefully the added blocks were hidden. Two meshes, swapped per leg.
@@ -806,9 +806,9 @@ namespace Game.Gameplay
             public bool active;
             public bool visible;            // the line is running: cars still hide individually under cover
         }
-        // 3 in the scene rake (04_rail.py builds NCARS = 3 at phase 1), cloned up to 7 so the
-        // pool covers phase 3's rake. See ActiveWagons.
-        private const int BaseWagons = Econ.BaseWagons, MaxWagons = Econ.MaxWagons;
+        // Saved fleet levels still affect the economy, but the portrait map shows one representative
+        // vehicle per route. More bodies made the five-step focus ladder read as traffic.
+        [SerializeField, Min(1)] private int visibleVehiclesPerRoute = 1;
         private TrainAgent _train1, _train2, _train3, _train4;   // 1: coal mine · 2: "ghost_mine (1)" · 3: "ghost_mine"+GH rails · 4: "ghostx_mine4"+south line
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -902,8 +902,9 @@ namespace Game.Gameplay
         public string AxisName(int s, int a) => AxisList[s][a];
         public int AxisLevel(int s, int a) => _lv[s][a];
         public bool AxisMaxed(int s, int a) => Ec.AxisMaxed(s, a);
-        /// <summary>The POWER PLANT station only upgrades once its ghost building is bought.</summary>
-        public bool AxisLocked(int s, int a) => s == StPower && !_unlocked[UnlockPowerPlant];
+        /// <summary>The five portrait stations are direct upgrades; the port reuses the legacy
+        /// power slot, so it must not inherit that removed ghost-building gate.</summary>
+        public bool AxisLocked(int s, int a) => false;
         /// <summary>
         /// Whether this station is a building on the island. TRAIN, ORE TRUCKS and CARGO TRUCKS are
         /// fleets: they own no structure, so a floating level chip for them hangs over open grass with
@@ -935,7 +936,16 @@ namespace Game.Gameplay
         public bool PortAnchor(out Vector3 world)
         {
             world = _portBadgeAt;
-            return _contractShip != null;
+            if (_contractShip != null) return true;
+            // IndustrialReference is a single authored map rather than an Island_Phase hierarchy,
+            // so BuildContractShip has no phase-owned hull to claim. Its exported port anchor is the
+            // authoritative fallback and keeps PORT present on both the island and upgrade layer.
+            if (_routes != null && _routes.TryGetAnchor("port", out world))
+            {
+                world += Vector3.up * 35f;
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -949,7 +959,18 @@ namespace Game.Gameplay
             pos = Vector3.zero;
             heading = Vector3.forward;
             parent = _islandRoot;
-            if (_contractShip == null || _islandRoot == null) return false;
+            if (_islandRoot == null) return false;
+            if (_contractShip == null)
+            {
+                Vector3 port, ship;
+                if (_routes == null || !_routes.TryGetAnchor("port", out port)
+                    || !_routes.TryGetAnchor("shipOut", out ship)) return false;
+                pos = ship;
+                heading = Flat(port - ship);
+                if (heading.sqrMagnitude < .01f) heading = Vector3.forward;
+                else heading.Normalize();
+                return true;
+            }
             Vector3 seaward = Flat(_contractHorizon - _contractMoor);
             if (seaward.sqrMagnitude < 0.01f) return false;
             seaward.Normalize();
@@ -976,7 +997,10 @@ namespace Game.Gameplay
                 case StOreTrucks: t = _waitSpot; break;
                 case StSmelter: t = _refinery; break;
                 case StMarket: t = _market; break;
-                case StPower: t = _islandRoot != null ? Child(_islandRoot, "ghostx_power") : null; break;
+                case StPower:
+                    // The portrait game presents the legacy power save slot as PORT. Anchor its
+                    // badge to the authored harbour rather than the removed power-plant ghost.
+                    return PortAnchor(out world);
                 case StTrain:
                     if (_mountain == null || _storage == null) return false;
                     world = (TopOf(_mountain) + TopOf(_storage)) * 0.5f;
@@ -1185,6 +1209,7 @@ namespace Game.Gameplay
 
         private float EffTrainSpeed => Ec.TrainSpeed;
         private int ActiveWagons => Ec.ActiveWagons;
+        private int VisibleWagons => Mathf.Min(ActiveWagons, Mathf.Max(1, visibleVehiclesPerRoute));
 
         // EffStorageFull is both the economic buffer and the size of the visible pile:
         // PileStack widens its grid to match, so buying Capacity enlarges the heap on screen.
@@ -1518,17 +1543,17 @@ namespace Game.Gameplay
         {
             var a = new TrainAgent { engine = engine, engineY = engine.position.y, mountain = mountain };
 
-            // wagon pool: the 3 scene wagons belong to train 1; clones fill each pool up to MaxWagons
+            // One representative wagon communicates the rail leg without filling the portrait view.
+            // The saved capacity level still affects the economy; this is a visual cap only.
             var wagons = new List<Transform>();
             if (engine.name == "train")
             {
                 var w0 = Child(_islandRoot, "wagon"); if (w0 != null) wagons.Add(w0);
-                var w1 = Child(_islandRoot, "wagon.001"); if (w1 != null) wagons.Add(w1);
-                var w2 = Child(_islandRoot, "wagon.002"); if (w2 != null) wagons.Add(w2);
             }
             Transform template = wagons.Count > 0 ? wagons[wagons.Count - 1] : null;
             if (template == null) { var w0 = Child(_islandRoot, "wagon"); template = w0; }
-            while (template != null && wagons.Count < MaxWagons)
+            int visualWagonCap = Mathf.Max(1, visibleVehiclesPerRoute);
+            while (template != null && wagons.Count < visualWagonCap)
             {
                 Transform w = Instantiate(template.gameObject, _islandRoot).transform;
                 w.name = engine.name + "_wagon" + wagons.Count;
@@ -1996,7 +2021,7 @@ namespace Game.Gameplay
         /// <summary>How far the rake reaches behind the engine, nose of the loco to tail of the last car.</summary>
         private float RakeLen(TrainAgent a)
         {
-            int n = Mathf.Min(ActiveWagons, a.wagons.Length);
+            int n = Mathf.Min(VisibleWagons, a.wagons.Length);
             if (n <= 0) return a.locoLen * 0.5f;
             return a.headGap + (n - 1) * a.carGap + a.carLen * 0.5f;
         }
@@ -2061,7 +2086,7 @@ namespace Game.Gameplay
             float sign = toStorage ? 1f : -1f;    // "behind" is back down the path either way
             PlaceCar(a, a.engine, a.dist, a.locoLen, sign);
 
-            int n = ActiveWagons;
+            int n = VisibleWagons;
             for (int i = 0; i < a.wagons.Length; i++)
             {
                 if (i >= n)
@@ -2319,7 +2344,7 @@ namespace Game.Gameplay
 
         private void SetWagonOre(TrainAgent a, bool on)
         {
-            for (int i = 0; i < a.wagonOre.Length; i++) Show(a.wagonOre[i], on && i < ActiveWagons);
+            for (int i = 0; i < a.wagonOre.Length; i++) Show(a.wagonOre[i], on && i < VisibleWagons);
             for (int i = 0; i < a.wagonSkin.Length; i++)
             {
                 if (a.wagonSkin[i] == null || a.wagonEmpty[i] == null) continue;
@@ -2472,6 +2497,7 @@ namespace Game.Gameplay
                 int fleetCap = route == Route.Ore ? OreBaseTrucks + AxisMaxLv[StOreTrucks][0]
                     : route == Route.Market ? CargoBaseTrucks + AxisMaxLv[StCargoTrucks][0]
                     : int.MaxValue;                      // export takes whatever is left
+                fleetCap = Mathf.Min(fleetCap, Mathf.Max(1, visibleVehiclesPerRoute));
                 var fleet = new List<Transform>();
                 for (int ti = 0; ti < sceneTrucks.Count && fleet.Count < fleetCap; ti++)
                     if (!truckClaimed[ti] && sceneTrucks[ti].name.Contains(bodyTag))
@@ -2595,6 +2621,7 @@ namespace Game.Gameplay
                 int count = a.route == Route.Ore ? OreTruckCount
                     : a.route == Route.Market ? CargoTruckCount
                     : _unlocked[UnlockExportDock] ? a.sceneFleet : 0;   // export fleet gated by the dock
+                count = Mathf.Min(count, Mathf.Max(1, visibleVehiclesPerRoute));
                 if (a.slot < count)
                 {
                     if (a.active) continue;

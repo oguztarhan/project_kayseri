@@ -28,6 +28,20 @@ namespace Game.Core
         public const int Mine = 0, Train = 1, Storage = 2, OreTrucks = 3,
                          Smelter = 4, CargoTrucks = 5, Market = 6, Power = 7;
 
+        /// <summary>
+        /// The five stations shown by the portrait focus ladder. Transport levels remain in the
+        /// saved matrix for compatibility, while the legacy power slot supplies the port's two
+        /// global export upgrades without moving any saved index.
+        /// </summary>
+        public static readonly int[] PlayerStations = { Mine, Storage, Smelter, Market, Power };
+
+        public static bool IsPlayerStation(int station)
+        {
+            for (int i = 0; i < PlayerStations.Length; i++)
+                if (PlayerStations[i] == station) return true;
+            return false;
+        }
+
         public const int UnlockSecondMine = 0, UnlockSecondSmelter = 1, UnlockTradePost = 2,
                          UnlockThirdMine = 3, UnlockWarehouse = 4, UnlockDepot = 5,
                          UnlockExportDock = 6, UnlockFourthMine = 7, UnlockPowerPlant = 8,

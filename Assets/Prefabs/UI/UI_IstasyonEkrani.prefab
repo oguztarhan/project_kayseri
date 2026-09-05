@@ -2085,6 +2085,7 @@ MonoBehaviour:
   stripTemplate: {fileID: 9172227590078882110}
   slotIdleTint: {r: 1, g: 1, b: 1, a: 0.86}
   expansionIcon: {fileID: 21300000, guid: ad4b32fa9aa64151a0f97cc554e9f771, type: 3}
+  recommendationIcon: {fileID: 0}
   reportIcon: {fileID: 21300000, guid: 1a2fb2acc69f493e88d8f44a3cdf33d8, type: 3}
   unlockIcons:
   - {fileID: 21300000, guid: 2fa23276e1de4cadaaa4b04a5fe33e52, type: 3}
@@ -2111,27 +2112,18 @@ MonoBehaviour:
   - station: 0
     title: 
     icon: {fileID: 21300000, guid: 2fa23276e1de4cadaaa4b04a5fe33e52, type: 3}
-  - station: 1
-    title: 
-    icon: {fileID: 21300000, guid: 4449657bac3a4219a10b5d4c8c379a24, type: 3}
   - station: 2
     title: 
     icon: {fileID: 21300000, guid: 37051ef7e2be4ef7b85c27c7ce988c18, type: 3}
-  - station: 3
-    title: 
-    icon: {fileID: 21300000, guid: b578ebff2b344719917d1b0cded5038f, type: 3}
   - station: 4
     title: 
     icon: {fileID: 21300000, guid: 0f86a394e55b45b6a54ffef1159597cc, type: 3}
-  - station: 5
-    title: 
-    icon: {fileID: 21300000, guid: 52ab834d7d004fa4949d37f8a094bbd5, type: 3}
   - station: 6
     title: 
     icon: {fileID: 21300000, guid: 41b0527f2bbc4f1cb9fe5d2d45938c3d, type: 3}
   - station: 7
     title: 
-    icon: {fileID: 21300000, guid: 2bcfdc6f85d64eeca8dbac230f3e4331, type: 3}
+    icon: {fileID: 21300000, guid: e104049c86b914498bf79334d044f8f4, type: 3}
   refreshInterval: 0.25
 --- !u!1 &4369827373988491908
 GameObject:

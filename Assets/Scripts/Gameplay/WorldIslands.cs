@@ -278,6 +278,9 @@ namespace Game.Gameplay
         /// (Kayseri/Economy), not assumed: the ladder used to be priced off 29,000 $/min, a rate
         /// no island reaches, so every unlock silently cost about 1.8× the play it intended.
         /// </summary>
+        /// <summary>Scene root built by Tools/Kayseri/Island/Build Shipyard Island.</summary>
+        public const string ShipyardRootName = "Island_Shipyard";
+
         private const double CoalMaxPerMin = Game.Core.EconomyCurve.MaxedCoalPerMin;
 
         /// <summary>
@@ -308,16 +311,17 @@ namespace Game.Gameplay
         /// </summary>
         private static Entry[] DefaultLadder()
         {
+            // ONE island. The archipelago was eight ore islands; the game is now the single
+            // authored IndustrialReference map, so every per-island collection in SaveData
+            // (unlockedIslands, islandRates, islandLevels, conditions, marketYards, chapter
+            // rows) collapses with this table instead of being unpicked field by field.
+            //
+            // The save key stays "coal" deliberately. It is an id, not a name: keeping it means
+            // the first-island-is-owned path, the chapter rows and every existing offer receipt
+            // keep resolving. Only the display name and the scene root actually change.
             var authored = new[]
             {
-                E("coal",    "KÖMÜR ADASI",  "Island_Coal",    "",              new Color(0.10f, 0.10f, 0.12f)),
-                E("copper",  "BAKIR ADASI",  "Island_Copper",  "Tiles_Copper",  new Color(0.72f, 0.45f, 0.20f)),
-                E("iron",    "DEMİR ADASI",  "Island_Iron",    "Tiles_Iron",    new Color(0.62f, 0.63f, 0.68f)),
-                E("silver",  "GÜMÜŞ ADASI",  "Island_Silver",  "Tiles_Silver",  new Color(0.85f, 0.87f, 0.92f)),
-                E("gold",    "ALTIN ADASI",  "Island_Gold",    "Tiles_Gold",    new Color(0.95f, 0.78f, 0.22f)),
-                E("ruby",    "YAKUT ADASI",  "Island_Ruby",    "Tiles_Ruby",    new Color(0.85f, 0.15f, 0.25f)),
-                E("emerald", "ZÜMRÜT ADASI", "Island_Emerald", "Tiles_Emerald", new Color(0.15f, 0.75f, 0.35f)),
-                E("diamond", "ELMAS ADASI",  "Island_Diamond", "Tiles_Diamond", new Color(0.75f, 0.95f, 1f)),
+                E("coal", "SANAYİ ADASI", ShipyardRootName, "", new Color(0.32f, 0.38f, 0.46f)),
             };
             for (int n = 0; n < authored.Length; n++)
             {

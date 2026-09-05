@@ -101,15 +101,16 @@ namespace Game.Systems
             Application.runInBackground = true;
 #endif
 
-            // Landscape, both grips, never portrait. Player Settings already say the same thing, but an
-            // SDK that merges its own <activity> into the manifest can quietly widen it back; this is the
-            // one that holds at runtime. Flags before the mode — the OS refuses to drop the last allowed
-            // orientation, so clearing portrait first just re-enables it.
-            Screen.autorotateToLandscapeLeft = true;
-            Screen.autorotateToLandscapeRight = true;
-            Screen.autorotateToPortrait = false;
+            // Portrait, never landscape. Player Settings already say the same thing, but an SDK that
+            // merges its own <activity> into the manifest can quietly widen it back; this is the one
+            // that holds at runtime. Flags before the mode — the OS refuses to drop the last allowed
+            // orientation, so clearing landscape first just re-enables it.
+            // Upside-down stays off: on a phone it puts the speaker at the bottom.
+            Screen.autorotateToPortrait = true;
+            Screen.autorotateToLandscapeLeft = false;
+            Screen.autorotateToLandscapeRight = false;
             Screen.autorotateToPortraitUpsideDown = false;
-            Screen.orientation = ScreenOrientation.AutoRotation;
+            Screen.orientation = ScreenOrientation.Portrait;
 
             // Quality / device tier + frame-rate cap (GDD §14.5)
             ServiceLocator.Register(new QualityService(

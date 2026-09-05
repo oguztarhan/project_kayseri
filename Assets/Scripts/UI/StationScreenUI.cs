@@ -37,6 +37,8 @@ namespace Game.UI
     [DefaultExecutionOrder(-110)]
     public sealed class StationScreenUI : MonoBehaviour
     {
+        private const int PortStation = IslandEconomy.Power;
+
         /// <summary>One building this screen owns. Its index is a <see cref="CoalOperation"/> station.</summary>
         [Serializable]
         public sealed class StationEntry
@@ -168,6 +170,7 @@ namespace Game.UI
 
         private void Awake()
         {
+            KeepOnlyPlayerStations();
             ApplyLandscapeLayout();
             // Down, not up: this script sits on the prefab root and the letterbox is inside Pencere.
             _letterbox = GetComponentInChildren<LetterboxRoot>(true);
@@ -371,11 +374,11 @@ namespace Game.UI
         /// </summary>
         public void Open()
         {
-            Open(_station != -1 ? _station : RecommendedPage);
+            Open(_station >= 0 && Handles(_station) ? _station : FirstPlayerStation);
         }
 
         /// <summary>Opens the island-wide development summary and ranked upgrade shortlist.</summary>
-        public void OpenRecommended() => Open(RecommendedPage);
+        public void OpenRecommended() => Open(FirstPlayerStation);
 
         /// <summary>
         /// Opens straight onto the chain report — what the HUD's $/min pill does. The pill states a
@@ -435,7 +438,7 @@ namespace Game.UI
         {
             // The chain report takes the same shape as the expansions for the same reason: it is a
             // list about the whole island, so there is no one building to photograph above it.
-            bool listPage = _station < 0 || Phases == null;
+            bool listPage = _station < 0 || _station == PortStation || Phases == null;
             if (stageGroup != null) stageGroup.SetActive(!listPage);
             if (phaseGroup != null) phaseGroup.SetActive(!listPage);
             if (sheet == null) return;
@@ -593,7 +596,8 @@ namespace Game.UI
             if (stage == null) return;
             stage.Clear();
             _model = null;
-            if (_station < 0 || Phases == null) { stage.Live = false; return; }
+            if (_station < 0 || _station == PortStation || Phases == null)
+            { stage.Live = false; return; }
             stage.Zoom = 1f;
             stage.Live = true;
             if (modelView != null) modelView.texture = stage.Texture;
@@ -627,7 +631,7 @@ namespace Game.UI
             {
                 Row row = AddCard("Kart_" + _op.AxisName(_station, a), IconFor(_station));
                 row.axis = a;
-                if (row.name != null) row.name.text = Loc.Id("eksen", _op.AxisName(_station, a));
+                if (row.name != null) row.name.text = PlayerAxisTitle(_station, a);
                 if (row.buyBtn != null)
                 {
                     Row captured = row;
@@ -1056,26 +1060,19 @@ namespace Game.UI
             if (stripContent == null || stripTemplate == null) return;
             stripTemplate.SetActive(false);
 
-            // The stations, then the island-wide pages: recommendations, one-time expansions, and the
-            // chain report. Recommendations are always reachable; the other two drop out silently
-            // when their icon is missing, keeping this a page order rather than a set of special cases.
-            int n = stations.Count + 1 + (expansionIcon != null ? 1 : 0) + (reportIcon != null ? 1 : 0);
+            // Exactly five player-facing stations. Reports can still be opened from the income pill,
+            // but the upgrade selector itself stays the Mine → Deposit → Refinery → Market → Port
+            // focus ladder instead of mixing stations with system pages.
+            int n = stations.Count;
             _slots = new Image[n];
             _slotIcons = new Image[n];
             _slotPage = new int[n];
             for (int i = 0; i < n; i++)
             {
-                bool station = i < stations.Count;
-                bool recommended = !station && i == stations.Count;
-                bool expansion = !station && !recommended && expansionIcon != null && i == stations.Count + 1;
-                _slotPage[i] = station ? stations[i].station
-                             : recommended ? RecommendedPage
-                             : expansion ? ExpansionPage : ReportPage;
+                _slotPage[i] = stations[i].station;
 
                 GameObject go = Instantiate(stripTemplate, stripContent);
-                go.name = station ? "Yuva_" + stations[i].station
-                                  : recommended ? "Yuva_Oneriler"
-                                  : expansion ? "Yuva_Genisletmeler" : "Yuva_Zincir";
+                go.name = "Yuva_" + stations[i].station;
                 go.SetActive(true);
 
                 _slots[i] = go.GetComponent<Image>();
@@ -1084,9 +1081,7 @@ namespace Game.UI
                 {
                     _slotIcons[i] = t.GetComponent<Image>();
                     if (_slotIcons[i] != null)
-                        _slotIcons[i].sprite = station ? stations[i].icon
-                                             : recommended ? RecommendedIcon()
-                                             : expansion ? expansionIcon : reportIcon;
+                        _slotIcons[i].sprite = stations[i].icon;
                 }
 
                 var btn = go.GetComponent<Button>();
@@ -1123,6 +1118,56 @@ namespace Game.UI
             return null;
         }
 
+        private int FirstPlayerStation => stations.Count > 0 && stations[0] != null
+            ? stations[0].station : IslandEconomy.Mine;
+
+        /// <summary>
+        /// Normalises old eight-entry prefabs at runtime as well as newly cleaned assets. Entries are
+        /// reused so their authored icons survive; only the port swaps its obsolete power icon for the
+        /// fighting ship. This is intentionally presentation-only—the save matrix remains eight slots.
+        /// </summary>
+        private void KeepOnlyPlayerStations()
+        {
+            var compact = new List<StationEntry>(IslandEconomy.PlayerStations.Length);
+            for (int p = 0; p < IslandEconomy.PlayerStations.Length; p++)
+            {
+                int station = IslandEconomy.PlayerStations[p];
+                StationEntry found = null;
+                for (int i = 0; i < stations.Count; i++)
+                    if (stations[i] != null && stations[i].station == station)
+                    { found = stations[i]; break; }
+                if (found == null) found = new StationEntry { station = station };
+                found.title = "";
+                if (station == PortStation)
+                {
+                    Sprite ship = Resources.Load<Sprite>("UI/Sea/gemi");
+                    if (ship != null) found.icon = ship;
+                }
+                compact.Add(found);
+            }
+            stations = compact;
+        }
+
+        private static string PlayerStationTitle(int station)
+        {
+            switch (station)
+            {
+                case IslandEconomy.Mine: return Loc.T("shipyard.mine");
+                case IslandEconomy.Storage: return Loc.T("shipyard.deposit");
+                case IslandEconomy.Smelter: return Loc.T("shipyard.refinery");
+                case IslandEconomy.Market: return Loc.T("shipyard.market");
+                case PortStation: return Loc.T("shipyard.port");
+                default: return "";
+            }
+        }
+
+        private string PlayerAxisTitle(int station, int axis)
+        {
+            if (station == PortStation)
+                return Loc.T(axis == 0 ? "shipyard.port_value" : "shipyard.port_speed");
+            return Loc.Id("eksen", _op.AxisName(station, axis));
+        }
+
         private string TitleFor(int station)
         {
             if (station == RecommendedPage) return Loc.T("gelisim.baslik");
@@ -1131,7 +1176,7 @@ namespace Game.UI
             for (int i = 0; i < stations.Count; i++)
                 if (stations[i] != null && stations[i].station == station && !string.IsNullOrEmpty(stations[i].title))
                     return stations[i].title;
-            return _op != null ? Loc.Id("istasyon", _op.StationName(station)) : "";
+            return station >= 0 ? PlayerStationTitle(station) : "";
         }
 
         private Sprite RecommendedIcon()

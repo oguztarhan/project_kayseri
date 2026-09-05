@@ -1,0 +1,22 @@
+{
+  "objects": 540,
+  "mesh_objects": 310,
+  "mesh_faces": 63066,
+  "materials": 44,
+  "collections": [
+    "01_Terrain_Editable",
+    "02_Trees_and_Rocks",
+    "03_Industry_Modules",
+    "04_Railway_Physical",
+    "05_Vehicles_and_Cargo",
+    "06_Harbor_and_Customers",
+    "07_Ocean_and_Shore",
+    "08_Concept_Glow_Toggle",
+    "90_Camera_and_Lighting",
+    "09_Reference_Markers_Toggle"
+  ],
+  "missing_external_images": [],
+  "nonfinite_transforms": [],
+  "unity_imported": false,
+  "reference_image_packed": true
+}

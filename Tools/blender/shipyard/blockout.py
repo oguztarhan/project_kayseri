@@ -1,32 +1,46 @@
-"""Portrait shipyard - Milestone 1 greybox blockout.
+"""Portrait shipyard island, built to match design/attention-focused-concepts/
+01-focus-ladder.png as closely as a generator can.
 
-Coloured blocks only. Its job is to prove the vertical ladder fits and to
-freeze the anchor contract; final art replaces the collections at Milestone 6
-without moving a single anchor.
+READ THIS BEFORE ADDING ANYTHING
+The reference is CLEAN. Each terrace carries one building complex sitting in
+open ground, trees ring the outer rim only, and one glowing route threads the
+whole island. An earlier pass scattered crates, barrels and lamp posts over
+every band chasing a "density" measurement; it read as junk and was removed.
+Open ground is the composition, not space waiting to be filled.
+
+Layout, top to bottom, exactly as the reference orders it:
+
+    1  mountain, mine portal, yellow tipple, dump truck, coal train
+    2  dark coal plant, twin yellow-banded stacks, conveyor, coal wagons
+    3  HERO blue factory, focus halo, upgrade badge, container train  <- focus
+    4  yellow refinery, banded tanks, pipe runs, tanker cars
+    5  grey warehouse, blue containers, loader
+    6  two further clean terraces (Navigation, Figurehead)
+    7  port: yellow gantry crane, container ship, pier
+    8  three customer islands with speech bubbles
 
 SCREEN FRAME
-    s  down-screen along the ladder (0 = mine, 1120 = dock)
+    s  down-screen along the ladder (0 = mine)
     t  across, +t is screen right
     z  world up
 
-`W(s, t)` maps that onto the isomap camera (rot 42/0/45 ortho, the same one
-shot.py builds), which projects as
+W(s, t) maps onto the isomap camera (rot 42/0/45 ortho, the one shot.py
+builds), which projects as
 
     screen_x = 0.7071 (x + y)
     screen_y = 0.5254 (y - x) + 0.669 z
 
-so one unit of s or t is exactly one unit on screen. Buildings stay world-axis
-aligned - that is what gives them the two-visible-faces iso read - while the
-island itself is placed in (s, t) and so runs straight up the portrait frame.
+so one unit of s or t is one unit on screen. Buildings stay world-axis aligned
+- that is what gives them two visible faces - while the island is placed in
+(s, t) and so runs straight up the portrait frame. A box sized (wx, wy) is
+0.7071*(wx+wy) wide on screen: size against that, not against wx.
 
-Run headless:
-    blender --background --python blockout.py
-or from the Blender MCP:
-    exec(compile(open(P).read(), P, "exec"), {"__name__": "__main__"})
+Run headless:  blender --background --python blockout.py
 """
 
 import bpy
 import math
+import random
 
 # ---------------------------------------------------------------- frame ----
 
@@ -35,84 +49,126 @@ S_STRETCH = 1.3458980337503153     # 1 unit of s == 1 unit down-screen
 
 
 def W(s, t):
-    """Screen-frame (s, t) -> world (x, y)."""
     a = s * S_STRETCH
     return ((t + a) * K, (t - a) * K)
 
 
-BAND = 140.0                       # one rung of the ladder, in screen units
-VIEW_W = 200.0                     # play camera sees this much across
 ASPECT = 2340.0 / 1080.0
-VIEW_H = VIEW_W * ASPECT           # 433 -> a little over three bands
+VIEW_W = 240.0
+VIEW_H = VIEW_W * ASPECT           # 520
+BAND = 67.0
 
-# The lateral offset and the uneven radii are what stop the ladder reading as
-# a stack of identical coins - the bands have to interlock into one landmass.
+# MEASURED OFF THE REFERENCE - do not deepen these.
+#   terrace width : depth  = 3.1 : 1      (206 wide, ~66 deep)
+#   row pitch             = 67            (240px of an 864px-wide frame)
+#   island width in frame = 86%
+# half_s was 54 here for several passes, giving 1.9:1 shelves, and that single
+# number is what made the island read as a narrow caterpillar instead of a
+# wide clean stack. Depth is the thing to protect.
 # key            s      z   half_s half_t    t   sides
 BANDS = [
-    ("Mine",       70,  62,   96,  80,   -8,  11),
-    ("Works",     210,  48,   90,  86,   10,  13),
-    ("Cannon",    350,  36,   94,  80,  -10,  12),
-    ("Hull",      490,  26,   88,  84,   12,  11),
-    ("Rigging",   630,  18,   92,  78,   -9,  13),
-    ("Navigation",770,  11,   88,  84,   10,  12),
-    ("Figurehead",910,   6,   90,  76,   -8,  11),
-    ("Dock",     1050,   2,  100,  90,    4,  13),
+    ("Mine",       50,  78,   42, 100,   -6,  19),
+    ("Works",     117,  66,   41, 104,    6,  21),
+    ("Cannon",    184,  55,   44, 108,   -4,  20),
+    ("Hull",      251,  45,   41, 102,    8,  19),
+    ("Rigging",   318,  36,   42, 100,   -5,  21),
+    ("Navigation",385,  28,   41,  96,    7,  20),
+    ("Figurehead",452,  20,   42,  94,   -4,  19),
+    ("Dock",      519,  12,   44,  98,    4,  21),
 ]
 BY_KEY = {b[0]: b for b in BANDS}
 
-# Filler lobes between the bands: they weld the terraces together and give the
-# coastline bays instead of a scalloped edge of circles.
+
+def band(key):
+    b = BY_KEY[key]
+    return b[1], b[2], b[5]
+
+
+def zat(s):
+    """Ground height anywhere down the ladder. Everything on the island
+    derives its height from this; hard-coded z broke on every band move."""
+    pts = [(b[1], b[2]) for b in BANDS]
+    if s <= pts[0][0]:
+        return pts[0][1]
+    if s >= pts[-1][0]:
+        return pts[-1][1]
+    for (s0, z0), (s1, z1) in zip(pts, pts[1:]):
+        if s0 <= s <= s1:
+            return z0 + (z1 - z0) * (s - s0) / (s1 - s0)
+    return pts[-1][1]
+
+
 LOBES = [
-    (140,  38, 55,  44, 40, 9), (140, -44, 55,  36, 32, 8),
-    (280, -46, 42,  42, 36, 9), (280,  40, 42,  34, 30, 8),
-    (420,  44, 31,  40, 36, 9), (420, -40, 31,  32, 30, 8),
-    (560, -48, 22,  42, 34, 9), (560,  38, 22,  34, 32, 8),
-    (700,  44, 15,  40, 34, 9), (700, -38, 15,  32, 30, 8),
-    (840, -46,  9,  42, 34, 9), (840,  40,  9,  34, 30, 8),
-    (980,  42,  4,  44, 36, 9), (980, -40,  4,  36, 32, 8),
+    (84,   62,  21, 40, 13), (84,  -66,  18, 36, 11),
+    (151, -68,  20, 38, 13), (151,  60,  17, 34, 11),
+    (218,  66,  21, 40, 13), (218, -62,  18, 36, 11),
+    (285, -66,  20, 38, 13), (285,  60,  17, 34, 11),
+    (352,  62,  20, 38, 13), (352, -58,  17, 34, 11),
+    (419, -62,  20, 38, 13), (419,  56,  17, 34, 11),
+    (486,  58,  21, 40, 13), (486, -56,  18, 36, 11),
 ]
 
-# key           t     colour key
+# Buildings sit centred on their terrace in the reference, not alternating
+# left and right; the route weaves around them instead.
+# key             t    colour
 STATIONS = [
-    ("Cannon",    -38, "cannon"),
-    ("Hull",       40, "hull"),
-    ("Rigging",   -40, "rigging"),
-    ("Navigation", 40, "navigation"),
-    ("Figurehead",-38, "figurehead"),
+    ("Cannon",     -2, "factory"),
+    ("Hull",        4, "mine"),
+    ("Rigging",    -2, "storage"),
+    ("Navigation",  4, "navigation"),
+    ("Figurehead", -2, "figurehead"),
 ]
 
 # -------------------------------------------------------------- palette ----
 
 PALETTE = {
-    "sea":        (0.04, 0.17, 0.36),
-    "rock":       (0.30, 0.30, 0.34),
-    "rock_dark":  (0.21, 0.21, 0.25),
-    "grass":      (0.24, 0.47, 0.17),
-    "grass_dry":  (0.45, 0.48, 0.22),
-    "sand":       (0.68, 0.58, 0.37),
-    "snow":       (0.86, 0.89, 0.93),
-    "road":       (0.55, 0.53, 0.48),
-    "rail":       (0.26, 0.21, 0.17),
-    "flow":       (0.97, 0.76, 0.10),
-    "mine":       (0.83, 0.58, 0.09),
-    "storage":    (0.52, 0.55, 0.58),
-    "refinery":   (0.27, 0.31, 0.38),
-    "concrete":   (0.58, 0.58, 0.60),
-    "pad":        (0.38, 0.36, 0.33),
-    "pad_mark":   (0.62, 0.60, 0.30),
-    "crane":      (0.91, 0.70, 0.09),
-    "ship":       (0.72, 0.19, 0.16),
-    "ship_deck":  (0.80, 0.78, 0.74),
-    "cannon":     (0.76, 0.21, 0.13),
-    "hull":       (0.15, 0.35, 0.62),
-    "rigging":    (0.16, 0.53, 0.33),
-    "navigation": (0.10, 0.53, 0.60),
-    "figurehead": (0.46, 0.23, 0.60),
-    "trim":       (0.90, 0.88, 0.83),
-    "glass":      (0.35, 0.62, 0.72),
+    "sea":        (0.020, 0.105, 0.30),
+    "sea_lt":     (0.045, 0.19, 0.42),
+    "rock":       (0.33, 0.33, 0.36),
+    "rock_dark":  (0.19, 0.19, 0.22),
+    "grass":      (0.34, 0.42, 0.17),     # warm olive, as the reference
+    "grass_dry":  (0.50, 0.50, 0.24),
+    "sand":       (0.62, 0.55, 0.33),
+    "tree":       (0.045, 0.17, 0.065),
+    "tree_lt":    (0.09, 0.26, 0.10),
+    "trunk":      (0.15, 0.095, 0.055),
+    "road":       (0.46, 0.44, 0.39),
+    "rail":       (0.22, 0.19, 0.15),
+    "flow":       (1.00, 0.80, 0.06),
+    "mine":       (0.94, 0.70, 0.06),     # industrial yellow
+    "storage":    (0.42, 0.46, 0.51),
+    "plant":      (0.20, 0.22, 0.26),     # dark coal plant
+    "concrete":   (0.46, 0.46, 0.49),
+    "roof":       (0.24, 0.26, 0.30),
+    "crane":      (0.96, 0.74, 0.06),
+    "ship":       (0.62, 0.15, 0.13),
+    "ship_hull":  (0.14, 0.19, 0.31),
+    "ship_deck":  (0.72, 0.71, 0.68),
+    "container":  (0.14, 0.36, 0.62),
+    "factory":    (0.13, 0.34, 0.68),     # the hero blue
+    "factory_lt": (0.24, 0.50, 0.80),
+    "navigation": (0.10, 0.50, 0.58),
+    "figurehead": (0.44, 0.22, 0.58),
+    "trim":       (0.66, 0.66, 0.63),
+    "glass":      (0.30, 0.56, 0.72),
+    "focus":      (0.66, 0.98, 0.18),
+    "white":      (0.88, 0.89, 0.88),
+    "coin":       (0.98, 0.76, 0.12),
+    "gem":        (0.30, 0.85, 0.88),
+    "shop_a":     (0.78, 0.22, 0.15),
+    "shop_b":     (0.34, 0.46, 0.56),
+    "shop_c":     (0.88, 0.44, 0.10),
 }
 
 _mats = {}
+
+
+def dark(key, f=0.55):
+    name = "%s_dk" % key
+    if name not in PALETTE:
+        r, g, b = PALETTE[key]
+        PALETTE[name] = (r * f, g * f, b * f)
+    return name
 
 
 def mat(key):
@@ -126,7 +182,10 @@ def mat(key):
     if bsdf:
         bsdf.inputs["Base Color"].default_value = (r, g, b, 1.0)
         if "Roughness" in bsdf.inputs:
-            bsdf.inputs["Roughness"].default_value = 0.75
+            bsdf.inputs["Roughness"].default_value = 0.8
+        if key in ("flow", "focus") and "Emission Color" in bsdf.inputs:
+            bsdf.inputs["Emission Color"].default_value = (r, g, b, 1.0)
+            bsdf.inputs["Emission Strength"].default_value = 0.6
     _mats[key] = m
     return m
 
@@ -143,10 +202,13 @@ def _obj(name, verts, faces, key, coll):
     return ob
 
 
-def box(name, coll, key, s, t, z, wx, wy, wz):
-    """Axis-aligned box, centred on (s, t) at height z, sized in world units."""
+def box(name, coll, key, s, t, z, wx, wy, wz, ox=0.0, oy=0.0):
+    """ox/oy nudge in WORLD xy - how a sub-part sits along its parent's own
+    axis (a truck cab, a crane leg) rather than along the ladder."""
     cx, cy = W(s, t)
-    hx, hy, hz = wx * 0.5, wy * 0.5, wz * 0.5
+    cx += ox
+    cy += oy
+    hx, hy = wx * 0.5, wy * 0.5
     v = [(cx - hx, cy - hy, z), (cx + hx, cy - hy, z),
          (cx + hx, cy + hy, z), (cx - hx, cy + hy, z),
          (cx - hx, cy - hy, z + wz), (cx + hx, cy - hy, z + wz),
@@ -170,39 +232,59 @@ def _ngon(n, r_bot, r_top, h):
     return v, f
 
 
-def drum(name, coll, key, s, t, z, r_bot, r_top, h, n=12):
-    """Cone / cylinder standing on z. Radii in world units."""
+def drum(name, coll, key, s, t, z, r_bot, r_top, h, n=12, ox=0.0, oy=0.0):
     cx, cy = W(s, t)
     v, f = _ngon(n, r_bot, r_top, h)
-    v = [(x + cx, y + cy, zz + z) for x, y, zz in v]
+    v = [(x + cx + ox, y + cy + oy, zz + z) for x, y, zz in v]
     return _obj(name, v, f, key, coll)
 
 
-def terrace(name, coll, key, s, t, z, half_s, half_t, taper=0.78, n=14):
-    """Plateau: an ellipse elongated down the ladder, cliffs sloping inward.
+def terrace(name, coll, key, s, t, z, half_s, half_t, taper=0.80, n=14,
+            seed=0, jitter=0.11):
+    """Plateau with cliffs sloping inward. The per-vertex jitter is what keeps
+    the coastline irregular instead of a stack of clean ellipses."""
+    depth = z + 40.0
+    rng = random.Random(seed)
+    jit = [rng.uniform(1.0 - jitter, 1.0 + jitter * 0.8) for _ in range(n)]
+    v, f = [], []
+    for scale, zz in ((taper, 0.0), (1.0, depth)):
+        for i in range(n):
+            a = 2.0 * math.pi * i / n
+            r = scale * jit[i]
+            v.append((math.cos(a) * r, math.sin(a) * r, zz))
+    for i in range(n):
+        j = (i + 1) % n
+        f.append((i, j, n + j, n + i))
+    f.append(tuple(range(n - 1, -1, -1)))
+    f.append(tuple(range(n, 2 * n)))
+    return _obj(name, [W(s + x * half_s, t + y * half_t) + (zz + z - depth,)
+                       for x, y, zz in v], f, key, coll)
 
-    Authored in screen units, so half_s/half_t are what you read off the
-    portrait frame, not world extents.
-    """
-    depth = z + 34.0
-    v, f = _ngon(n, taper, 1.0, depth)
-    out = []
-    for x, y, zz in v:
-        out.append(W(s + x * half_s, t + y * half_t) + (zz + z - depth,))
-    return _obj(name, out, f, key, coll)
+
+def patch(name, coll, key, s, t, z, hs, ht, seed=0, n=11):
+    """Flat worn-ground disc. Used sparingly - a couple per terrace under the
+    working area, never blanketing the band."""
+    rng = random.Random(seed)
+    verts = []
+    for i in range(n):
+        a = 2.0 * math.pi * i / n
+        j = rng.uniform(0.82, 1.16)
+        verts.append(W(s + math.cos(a) * hs * j, t + math.sin(a) * ht * j)
+                     + (z,))
+    return _obj(name, verts, [tuple(range(n))], key, coll)
 
 
-def ribbon(name, coll, key, pts, width, lift=0.6):
-    """Flat strip through (s, t, z) points - roads, rail, the flow line."""
-    world = [W(s, t) + (z + lift,) for s, t, z in pts]
+def ribbon(name, coll, key, pts, width, lift=2.8, z=None):
+    """Flat strip through (s, t) points. Height from zat() unless overridden."""
+    world = [W(s, t) + ((zat(s) if z is None else z) + lift,) for s, t in pts]
     verts, faces = [], []
-    for i, (x, y, z) in enumerate(world):
+    for i, (x, y, zz) in enumerate(world):
         px, py, _ = world[max(i - 1, 0)]
         nx, ny, _ = world[min(i + 1, len(world) - 1)]
         dx, dy = nx - px, ny - py
         d = math.hypot(dx, dy) or 1.0
         ox, oy = -dy / d * width * 0.5, dx / d * width * 0.5
-        verts += [(x + ox, y + oy, z), (x - ox, y - oy, z)]
+        verts += [(x + ox, y + oy, zz), (x - ox, y - oy, zz)]
     for i in range(len(world) - 1):
         a = i * 2
         faces.append((a, a + 1, a + 3, a + 2))
@@ -219,6 +301,191 @@ def anchor(name, coll, s, t, z, size=6.0, kind='PLAIN_AXES'):
     return e
 
 
+def annulus(name, coll, key, s, t, z, r_s, r_t, w, n=44):
+    verts, faces = [], []
+    for i in range(n):
+        a = 2.0 * math.pi * i / n
+        c_, s_ = math.cos(a), math.sin(a)
+        verts.append(W(s + c_ * r_s, t + s_ * r_t) + (z,))
+        verts.append(W(s + c_ * (r_s + w), t + s_ * (r_t + w)) + (z,))
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append((i * 2, i * 2 + 1, j * 2 + 1, j * 2))
+    return _obj(name, verts, faces, key, coll)
+
+
+# ------------------------------------------------------------ vegetation ----
+
+def _cone_into(verts, faces, cx, cy, cz, r, h, n=6):
+    base = len(verts)
+    for i in range(n):
+        a = 2.0 * math.pi * i / n
+        verts.append((cx + r * math.cos(a), cy + r * math.sin(a), cz))
+    verts.append((cx, cy, cz + h))
+    for i in range(n):
+        faces.append((base + i, base + (i + 1) % n, base + n))
+    faces.append(tuple(range(base + n - 1, base - 1, -1)))
+
+
+def trees(name, coll, ring, rng, key="tree"):
+    """Three-tier conifers, merged into two meshes (foliage, trunks)."""
+    verts, faces, tv, tf = [], [], [], []
+    for s, t, z, sc in ring:
+        cx, cy = W(s, t)
+        h = rng.uniform(20.0, 30.0) * sc
+        r = rng.uniform(3.4, 4.8) * sc
+        base = len(tv)
+        bv, bf = _ngon(5, r * 0.30, r * 0.24, h * 0.26)
+        tv += [(x + cx, y + cy, zz + z) for x, y, zz in bv]
+        tf += [tuple(i + base for i in ff) for ff in bf]
+        for rr, hh, zo in ((1.00, 0.44, 0.14), (0.76, 0.38, 0.40),
+                           (0.50, 0.34, 0.66)):
+            _cone_into(verts, faces, cx, cy, z + h * zo, r * rr, h * hh, n=7)
+    if not verts:
+        return None
+    _obj(name + "_Trunks", tv, tf, "trunk", coll)
+    return _obj(name, verts, faces, key, coll)
+
+
+def rim_cluster(s, t, hs, ht, rng, n, side, z, spread=0.55):
+    """Points in an arc on one flank of a terrace. The reference keeps trees
+    banked on the left and right edges and the working ground clear."""
+    out = []
+    mid = 0.0 if side > 0 else math.pi
+    for _ in range(n):
+        a = mid + rng.uniform(-spread, spread) * math.pi
+        rr = rng.uniform(0.80, 1.02)
+        out.append((s + math.sin(a) * hs * rr * 0.85,
+                    t + math.cos(a) * ht * rr * side,
+                    z, rng.uniform(0.8, 1.25)))
+    return out
+
+
+def rocks(name, coll, ring, rng):
+    verts, faces = [], []
+    for s, t, z, sc in ring:
+        cx, cy = W(s, t)
+        r = rng.uniform(3.0, 6.5) * sc
+        v, f = _ngon(6, r, r * 0.45, r * rng.uniform(0.8, 1.5))
+        base = len(verts)
+        verts += [(x + cx, y + cy, zz + z) for x, y, zz in v]
+        faces += [tuple(i + base for i in ff) for ff in f]
+    if not verts:
+        return None
+    return _obj(name, verts, faces, "rock", coll)
+
+
+# ----------------------------------------------------------------- parts ----
+
+def crag(name, coll, key, s, t, z, r, h, seed=0, n=6, taper=0.14):
+    rng = random.Random(seed)
+    jit = [rng.uniform(0.68, 1.28) for _ in range(n)]
+    off = [rng.uniform(-0.12, 0.12) for _ in range(n)]
+    v, f = [], []
+    for scale, zz in ((1.0, 0.0), (taper, h)):
+        for i in range(n):
+            a = 2.0 * math.pi * i / n + off[i]
+            rr = r * scale * jit[i]
+            v.append((math.cos(a) * rr, math.sin(a) * rr, zz))
+    for i in range(n):
+        j = (i + 1) % n
+        f.append((i, j, n + j, n + i))
+    f.append(tuple(range(n - 1, -1, -1)))
+    f.append(tuple(range(n, 2 * n)))
+    cx, cy = W(s, t)
+    return _obj(name, [(x + cx, y + cy, zz + z) for x, y, zz in v], f, key,
+                coll)
+
+
+def truck(name, coll, s, t, z, key, l=24.0, w=15.0, h=11.0):
+    box(name + "_Chassis", coll, "rock_dark", s, t, z, l, w * 0.74, 3.5)
+    box(name + "_Bed", coll, key, s, t, z + 3.5, l * 0.64, w, h, ox=l * 0.17)
+    box(name + "_Cab", coll, "trim", s, t, z + 3.5, l * 0.30, w * 0.88,
+        h * 1.30, ox=-l * 0.35)
+
+
+def wagon(name, coll, s, t, z, key, load=None, l=21.0, w=13.0, h=9.0):
+    box(name + "_Chassis", coll, "rock_dark", s, t, z, l, w * 0.8, 3.0)
+    box(name + "_Body", coll, key, s, t, z + 3.0, l, w, h)
+    if load:
+        box(name + "_Load", coll, load, s, t, z + 3.0 + h, l * 0.88, w * 0.86,
+            4.0)
+
+
+def tanker(name, coll, s, t, z, l=22.0):
+    box(name + "_Chassis", coll, "rock_dark", s, t, z, l, 10, 3.0)
+    drum(name + "_Tank", coll, "trim", s, t, z + 3.0, 6.5, 6.5, l, n=10)
+
+
+def headframe(name, coll, s, t, z, key, w=20.0, h=44.0):
+    for i, (ox, oy) in enumerate(((-w * .5, -w * .5), (w * .5, -w * .5),
+                                  (-w * .5, w * .5), (w * .5, w * .5))):
+        box("%s_Leg_%02d" % (name, i + 1), coll, key, s, t, z, 3.5, 3.5, h,
+            ox=ox, oy=oy)
+    for lvl in (0.42, 0.78):
+        box("%s_Brace_%02d" % (name, int(lvl * 100)), coll, key, s, t,
+            z + h * lvl, w + 3.5, w + 3.5, 3.0)
+    box(name + "_Head", coll, key, s, t, z + h, w + 4, w + 4, 6.0)
+    drum(name + "_Sheave", coll, "rock_dark", s, t, z + h + 6, 7, 7, 3.0, n=10)
+
+
+def gantry(name, coll, s, t, z, key, span=62.0, height=46.0, jib=58.0,
+           leg=7.0):
+    for i, (ox, oy) in enumerate(((-span * .5, -15), (span * .5, -15),
+                                  (-span * .5, 15), (span * .5, 15))):
+        box("%s_Leg_%02d" % (name, i + 1), coll, key, s, t, z, leg, leg,
+            height, ox=ox, oy=oy)
+    for nm, oy in (("A", -15.0), ("B", 15.0)):
+        box("%s_Beam_%s" % (name, nm), coll, key, s, t, z + height,
+            span + leg, leg, leg, oy=oy)
+    box(name + "_Portal", coll, key, s, t, z + height, leg, 30 + leg, leg)
+    box(name + "_Jib", coll, key, s, t, z + height + leg * 0.4, leg * 0.85,
+        jib, leg * 0.85, oy=-jib * 0.5 - 14)
+    box(name + "_Trolley", coll, "rock_dark", s, t, z + height - 5, leg,
+        leg * 1.5, 5.0, oy=-jib * 0.42)
+    box(name + "_Hoist", coll, "rock_dark", s, t, z + height - 24, 2.0, 2.0,
+        19.0, oy=-jib * 0.42)
+
+
+def ship_hull(name, coll, key, s, t, z, length, width, height, bow=0.30):
+    cx, cy = W(s, t)
+    hl, hw = length * 0.5, width * 0.5
+    b = bow * hw
+    bot = ((-hw, -hl), (hw, -hl), (b, hl), (-b, hl))
+    top = ((-hw * 1.06, -hl), (hw * 1.06, -hl), (b * 1.15, hl * 1.04),
+           (-b * 1.15, hl * 1.04))
+    v = [(cx + x, cy + y, z) for x, y in bot]
+    v += [(cx + x, cy + y, z + height) for x, y in top]
+    f = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5),
+         (2, 3, 7, 6), (3, 0, 4, 7)]
+    return _obj(name, v, f, key, coll)
+
+
+def containers(name, coll, s, t, z, rng, cols=3, rows=2, cw=11.0, cl=22.0,
+               ch=8.0, ox=0.0, oy=0.0):
+    keys = ("container", "ship", "mine", "navigation", "trim")
+    for i in range(cols):
+        for j in range(rows):
+            box("%s_%02d_%02d" % (name, i + 1, j + 1), coll,
+                rng.choice(keys), s, t, z + j * ch, cl, cw, ch,
+                ox=ox, oy=oy + (i - (cols - 1) * 0.5) * (cw + 1.5))
+
+
+def bubble(name, coll, s, t, z, icon):
+    """White speech bubble with a coloured token, as over each customer."""
+    box(name + "_Body", coll, "white", s, t, z, 26, 22, 17)
+    box(name + "_Tail", coll, "white", s, t, z - 5, 7, 6, 6)
+    box(name + "_Icon", coll, icon, s, t, z + 4, 13, 3, 11, oy=-11.5)
+
+
+def shop(name, coll, s, t, z, key):
+    box(name + "_Body", coll, key, s, t, z, 34, 28, 19)
+    box(name + "_Window", coll, "glass", s, t, z + 6, 35, 29, 7)
+    box(name + "_Roof", coll, dark(key), s, t, z + 19, 39, 33, 3)
+    box(name + "_Awning", coll, "white", s, t, z + 15, 11, 30, 2, ox=20)
+    box(name + "_Sign", coll, "white", s, t, z + 22, 13, 3, 9)
+
+
 # ----------------------------------------------------------- collections ----
 
 def coll(name, parent):
@@ -227,193 +494,326 @@ def coll(name, parent):
     return c
 
 
+ASSET_COLLECTION = "ASSETS"
+
+
 def wipe():
+    """Clear the generated island, sparing the downloaded asset library.
+
+    Assets are expensive to re-download and are pure source data - they are
+    never placed directly, only linked-duplicated by assets.py.
+    """
+    lib = bpy.data.collections.get(ASSET_COLLECTION)
+    spared = {ob.name for ob in lib.all_objects} if lib else set()
+
     for ob in list(bpy.data.objects):
-        bpy.data.objects.remove(ob, do_unlink=True)
+        if ob.name not in spared:
+            bpy.data.objects.remove(ob, do_unlink=True)
     for c in list(bpy.data.collections):
-        bpy.data.collections.remove(c)
+        if c is not lib:
+            bpy.data.collections.remove(c)
     for blk in (bpy.data.meshes, bpy.data.materials, bpy.data.cameras,
                 bpy.data.lights):
         for d in list(blk):
-            if d.users == 0:
+            if d.users == 0 and not d.use_fake_user:
                 blk.remove(d)
     _mats.clear()
 
 
 # ---------------------------------------------------------------- island ----
 
+def _weave(s0, s1, amp, step=14.0, phase=0.0):
+    """Smooth sine weave down the ladder, one crossing per band.
+
+    Generated rather than hand-listed: the route has to be sampled densely
+    enough to ride the cliff drop between terraces, otherwise the ribbon
+    spans the gap and the road reads as broken stubs.
+    """
+    pts, s = [], s0
+    while s <= s1:
+        pts.append((s, amp * math.sin(s / BAND * math.pi + phase)))
+        s += step
+    return pts
+
+
+SPINE = _weave(-8.0, 552.0, 24.0)
+RAIL = [(22, -34), (52, -28), (82, -18), (111, -8), (139, -18), (166, -28)]
+
+
 def build_terrain(root):
     c = coll("Terrain", root)
-    x, y = W(560, 0)
-    _obj("Sea", [(x - 1400, y - 1400, 0), (x + 1400, y - 1400, 0),
-                 (x + 1400, y + 1400, 0), (x - 1400, y + 1400, 0)],
+    x, y = W(340, 0)
+    _obj("Sea", [(x - 1600, y - 1600, 0), (x + 1600, y - 1600, 0),
+                 (x + 1600, y + 1600, 0), (x - 1600, y + 1600, 0)],
          [(0, 1, 2, 3)], "sea", c)
 
-    for key, s, z, hs, ht in BANDS:
-        terrace("Land_%s_Rock" % key, c, "rock", s, 0, z, hs, ht)
+    for bi, (key, s, z, hs, ht, t, n) in enumerate(BANDS):
+        sd = 100 + bi
+        terrace("Land_%s_Rock" % key, c, "rock", s, t, z, hs, ht, n=n, seed=sd)
         cap = "sand" if key == "Dock" else ("grass_dry" if key == "Mine"
                                             else "grass")
-        terrace("Land_%s_Cap" % key, c, cap, s, 0, z + 2.0,
-                hs * 0.965, ht * 0.965, taper=0.985)
+        terrace("Land_%s_Cap" % key, c, cap, s, t, z + 2.0, hs * 0.93,
+                ht * 0.93, taper=0.985, n=n, seed=sd)
+        # one soft worn area under the working middle, nothing more
+        patch("Ground_%s" % key, c, "grass_dry" if key != "Dock" else "sand",
+              s, t, z + 2.3, hs * 0.52, ht * 0.44, seed=500 + bi)
 
-    # the massif the mine is cut into, plus two shoulders framing the top
-    drum("Mountain_Peak", c, "rock", -32, -6, 58, 78, 5, 96, n=10)
-    drum("Mountain_Snow", c, "snow", -32, -6, 138, 20, 3, 17, n=10)
-    drum("Mountain_Shoulder_L", c, "rock_dark", 24, -66, 60, 34, 8, 52, n=8)
-    drum("Mountain_Shoulder_R", c, "rock_dark", 10, 62, 60, 30, 7, 44, n=8)
+    for i, (s, t, hs, ht, n) in enumerate(LOBES):
+        z = zat(s)
+        sd = 200 + i
+        terrace("Land_Lobe_%02d_Rock" % (i + 1), c, "rock", s, t, z, hs, ht,
+                n=n, seed=sd)
+        terrace("Land_Lobe_%02d_Cap" % (i + 1), c, "grass", s, t, z + 2.0,
+                hs * 0.92, ht * 0.92, taper=0.985, n=n, seed=sd)
+
+    zm = zat(60)
+    for i, (cs, ct, cr, ch, ck) in enumerate((
+            (2, -14, 46, 46, "rock"), (-6, 16, 38, 38, "rock"),
+            (18, -40, 30, 30, "rock_dark"), (14, 34, 27, 26, "rock_dark"),
+            (-14, -4, 30, 54, "rock"), (30, 6, 24, 22, "rock_dark"),
+            (26, -60, 22, 20, "rock_dark"), (16, 54, 20, 17, "rock_dark"))):
+        crag("Mountain_Crag_%02d" % (i + 1), c, ck, cs, ct, zm - 4, cr, ch,
+             seed=300 + i, n=6 if i % 2 else 7)
     return c
 
 
-SPINE = [
-    (-10, -12, 64), (70, 8, 62), (150, 28, 54), (210, 10, 48),
-    (280, 28, 41), (350, 32, 36), (420, 4, 30), (490, -32, 26),
-    (560, -6, 21), (630, 34, 18), (700, 6, 14), (770, -34, 11),
-    (840, -4, 8), (910, 32, 6), (980, 8, 4), (1052, 0, 2),
-]
+def build_vegetation(root):
+    """Trees banked on the left and right flanks only. The reference never
+    puts a tree in the working middle of a terrace."""
+    c = coll("Vegetation", root)
+    rng = random.Random(19)
+    for key, s, z, hs, ht, t, _n in BANDS:
+        per = 15 if key not in ("Mine", "Dock") else 11
+        ring = (rim_cluster(s, t, hs, ht, rng, per, 1, z + 2.0)
+                + rim_cluster(s, t, hs, ht, rng, per, -1, z + 2.0))
+        trees("Trees_%s" % key, c, ring, rng,
+              "tree_lt" if key == "Mine" else "tree")
+        rocks("Rocks_%s" % key, c,
+              rim_cluster(s, t, hs * 1.02, ht * 1.03, rng, 8, 1, z + 1.0)
+              + rim_cluster(s, t, hs * 1.02, ht * 1.03, rng, 8, -1, z + 1.0),
+              rng)
 
-RAIL = [(14, -36, 63), (60, -32, 61), (120, -22, 55),
-        (176, -14, 50), (216, -20, 48)]
+    for i, (s, t, hs, ht, _n) in enumerate(LOBES):
+        z = zat(s)
+        side = 1 if t > 0 else -1
+        trees("Trees_Lobe_%02d" % (i + 1), c,
+              rim_cluster(s, t, hs, ht, rng, 7, side, z + 2.0, spread=0.7),
+              rng)
+    return c
 
 
 def build_logistics(root):
     c = coll("Logistics", root)
-    ribbon("Road_Spine", c, "road", SPINE, 15.0)
-    ribbon("Flow_Line", c, "flow", SPINE, 4.0, lift=1.6)
-    ribbon("Rail_Mine_To_Works", c, "rail", RAIL, 9.0, lift=1.0)
+    ribbon("Road_Spine", c, "road", SPINE, 26.0)
+    ribbon("Flow_Line", c, "flow", SPINE, 13.0, lift=3.8)
+    ribbon("Rail_Mine_To_Works", c, "rail", RAIL, 9.0, lift=3.2)
     return c
 
 
 def build_source(root):
-    """Mine + train + storage + refinery - the three bands above Cannon."""
+    """Terraces 1 and 2 of the reference: mine, then the coal plant."""
     c = coll("Source", root)
 
-    box("Mine_Headhouse", c, "mine", 40, -34, 64, 30, 22, 26)
-    box("Mine_Portal", c, "rock_dark", 16, -40, 64, 20, 16, 18)
-    drum("Mine_Silo", c, "storage", 58, -14, 64, 9, 9, 30)
-    box("Mine_Conveyor", c, "concrete", 68, -26, 66, 34, 8, 5)
-    drum("Mine_OrePile", c, "rock_dark", 84, -46, 64, 14, 3, 9, n=8)
+    def g(s):
+        return zat(s) + 2.0
 
-    box("Train_Engine", c, "hull", 150, -20, 55, 16, 11, 11)
-    for i, ss in enumerate((168, 184, 200)):
-        box("Train_Wagon_%02d" % (i + 1), c, "rail", ss, -17, 55, 13, 10, 8)
+    # ---- 1: portal in the massif, yellow tipple, dump truck, coal train
+    box("Mine_Portal_Face", c, "rock_dark", 5, -40, g(5), 30, 26, 26)
+    box("Mine_Portal_Mouth", c, "rail", 5, -40, g(5), 15, 13, 16, ox=11)
+    box("Mine_Headhouse", c, "mine", 30, -26, g(30), 40, 30, 28)
+    box("Mine_Headhouse_Roof", c, dark("mine"), 30, -26, g(30) + 28, 44, 34, 3)
+    headframe("Mine_Headframe", c, 30, -26, g(30) + 31, "rail", w=17, h=32)
+    box("Mine_Conveyor", c, "concrete", 52, -14, g(52) + 4, 46, 8, 5)
+    truck("Mine_Truck", c, 20, 22, g(20), "mine", l=30, w=18, h=15)
+    drum("Mine_OrePile", c, "rock_dark", 60, -46, g(60), 16, 3, 10, n=8)
 
-    for i, (ss, tt) in enumerate(((188, 34), (206, 52), (224, 34))):
-        drum("Storage_Silo_%02d" % (i + 1), c, "storage", ss, tt, 50,
-             11, 11, 34)
-    box("Storage_Shed", c, "concrete", 224, 58, 50, 30, 24, 14)
+    box("Train_Engine", c, "mine", 84, -10, g(84), 24, 15, 13)
+    box("Train_Engine_Cab", c, dark("mine"), 84, -10, g(84) + 13, 11, 14, 9,
+        ox=-6)
+    for i, ss in enumerate((104, 124, 144)):
+        wagon("Train_Wagon_%02d" % (i + 1), c, ss, -6, g(ss), "rail",
+              load="rock_dark")
 
-    box("Refinery_Hall", c, "refinery", 214, -30, 50, 40, 30, 22)
-    drum("Refinery_Stack_L", c, "concrete", 200, -44, 72, 5, 4, 34)
-    drum("Refinery_Stack_R", c, "concrete", 212, -52, 72, 5, 4, 28)
-    box("Refinery_Pipes", c, "storage", 236, -20, 50, 26, 10, 8)
+    # ---- 2: dark coal plant, twin yellow-banded stacks, conveyor, silos
+    box("Plant_Hall", c, "plant", 119, 8, g(119), 62, 46, 34)
+    box("Plant_Hall_Roof", c, dark("plant"), 119, 8, g(119) + 34, 66, 50, 3)
+    box("Plant_Annex", c, "plant", 119, 8, g(119), 30, 26, 22, ox=-40)
+    for nm, oy, h in (("L", -14.0, 52.0), ("R", 4.0, 44.0)):
+        drum("Plant_Stack_%s" % nm, c, "rock_dark", 109, 20, g(109) + 20,
+             7, 6, h, oy=oy)
+        drum("Plant_Stack_%s_Band" % nm, c, "mine", 109, 20,
+             g(109) + 20 + h * 0.74, 7.5, 6.5, h * 0.14, oy=oy)
+    box("Plant_Conveyor", c, "storage", 132, -34, g(132) + 6, 44, 10, 6)
+    box("Plant_Crusher", c, "storage", 142, -48, g(142), 26, 22, 16)
+    for i, (ss, tt) in enumerate(((99, 52), (117, 66), (137, 52))):
+        drum("Storage_Silo_%02d" % (i + 1), c, "storage", ss, tt, g(ss),
+             12, 12, 34)
+        box("Storage_Silo_%02d_Cap" % (i + 1), c, dark("storage"), ss, tt,
+            g(ss) + 34, 26, 26, 4)
     return c
 
 
 def build_station(root, key, t, ckey):
-    """One station family: a locked pad state and a built state, siblings."""
-    _, s, z, _, _ = BY_KEY[key]
+    """The reference's hero: a layered factory block with a glazed wing, a
+    tall stack, and an emblem panel - centred on its terrace."""
+    s, z, bt = band(key)
+    t += bt
     fam = coll("Station_%s" % key, root)
     pad = coll("Station_%s_Pad" % key, fam)
     built = coll("Station_%s_Built" % key, fam)
+    g = z + 2.0
 
-    # ---- locked: a levelled pad, a marker post, a stack of timber
-    box("Pad_%s_Slab" % key, pad, "pad", s, t, z + 2.0, 54, 46, 2.5)
-    box("Pad_%s_Kerb" % key, pad, "pad_mark", s, t, z + 4.5, 58, 50, 1.2)
-    drum("Pad_%s_Post" % key, pad, "pad_mark", s - 20, t - 18, z + 4, 2, 2, 16)
-    box("Pad_%s_Timber" % key, pad, "rail", s + 18, t + 14, z + 4.5, 16, 10, 5)
+    # ---- locked: a quiet levelled pad. Deliberately sparse - the reference
+    # gives future space no visual weight at all.
+    patch("Pad_%s_Ground" % key, pad, "sand", s, t, z + 2.3, 40, 34,
+          seed=600 + len(key))
+    box("Pad_%s_Slab" % key, pad, "concrete", s, t, z + 2.4, 56, 46, 2.5)
+    # Perimeter bars. As a filled 60x50 slab this rendered as a solid yellow
+    # blob and was the loudest thing on the island.
+    for nm, wx, wy, ox, oy in (("N", 60, 2.5, 0, -25), ("S", 60, 2.5, 0, 25),
+                               ("W", 2.5, 50, -30, 0), ("E", 2.5, 50, 30, 0)):
+        box("Pad_%s_Kerb_%s" % (key, nm), pad, "mine", s, t, z + 4.9,
+            wx, wy, 1.2, ox=ox, oy=oy)
+    for i, (ds, dt) in enumerate(((-18, -14), (-18, 14), (18, -14), (18, 14))):
+        box("Pad_%s_Footing_%02d" % (key, i + 1), pad, "concrete", s + ds,
+            t + dt, z + 4.9, 12, 10, 6)
 
-    # ---- built: hall + roof trim + the family's identifying silhouette
-    box("%s_Hall" % key, built, ckey, s, t, z + 2.0, 44, 34, 24)
-    box("%s_Roof" % key, built, "trim", s, t, z + 26.0, 48, 38, 3)
-    box("%s_Annex" % key, built, "concrete", s + 24, t + 8, z + 2.0, 20, 18, 13)
-    box("%s_InBin" % key, built, "storage", s - 26, t - 12, z + 2.0, 14, 14, 9)
-    box("%s_OutRack" % key, built, "trim", s + 26, t - 16, z + 2.0, 16, 12, 7)
-
-    if key == "Cannon":
-        drum("%s_Furnace" % key, built, "concrete", s - 8, t + 22, z + 2, 9, 7, 46)
-        drum("%s_Barrel" % key, built, ckey, s + 12, t - 24, z + 8, 4, 3, 22, n=8)
-        box("%s_Barrel_Rack" % key, built, "rail", s + 12, t - 24, z + 2, 12, 10, 6)
-    elif key == "Hull":
-        box("%s_Gantry" % key, built, "crane", s, t - 26, z + 2, 8, 40, 26)
-        box("%s_PlateStack" % key, built, "storage", s + 20, t - 24, z + 2, 18, 14, 6)
-        box("%s_Anvil" % key, built, "rock_dark", s - 20, t + 20, z + 2, 12, 12, 9)
-    elif key == "Rigging":
-        drum("%s_Mast" % key, built, "trim", s - 4, t + 20, z + 2, 3, 2, 56, n=8)
-        box("%s_Yard" % key, built, "trim", s - 4, t + 20, z + 50, 30, 3, 2)
-        drum("%s_RopeDrum" % key, built, "rail", s + 22, t + 18, z + 2, 7, 7, 10)
-    elif key == "Navigation":
-        drum("%s_Dome" % key, built, "glass", s - 6, t + 20, z + 26, 12, 4, 14)
-        drum("%s_Tower" % key, built, "concrete", s - 6, t + 20, z + 2, 12, 12, 24)
-        drum("%s_Scope" % key, built, "trim", s + 20, t - 22, z + 12, 3, 5, 20, n=8)
-    elif key == "Figurehead":
-        box("%s_Plinth" % key, built, "concrete", s - 20, t + 20, z + 2, 16, 16, 12)
-        drum("%s_Figure" % key, built, "trim", s - 20, t + 20, z + 14, 6, 3, 24, n=8)
-        box("%s_Kiln" % key, built, ckey, s + 22, t + 20, z + 2, 16, 14, 15)
+    # ---- built
+    box("%s_Hall" % key, built, ckey, s, t, g, 66, 48, 34)
+    box("%s_Hall_Roof" % key, built, dark(ckey), s, t, g + 34, 70, 52, 4)
+    box("%s_Wing" % key, built, ckey, s, t, g, 34, 30, 46, ox=-30, oy=8)
+    box("%s_Wing_Roof" % key, built, dark(ckey), s, t, g + 46, 38, 34, 4,
+        ox=-30, oy=8)
+    box("%s_Glazing" % key, built, "glass", s, t, g + 10, 67, 49, 9)
+    box("%s_Wing_Glazing" % key, built, "glass", s, t, g + 14, 35, 31, 20,
+        ox=-30, oy=8)
+    box("%s_Emblem" % key, built, "%s_lt" % ckey if "%s_lt" % ckey in PALETTE
+        else "trim", s, t, g + 14, 3, 20, 20, ox=34)
+    drum("%s_Stack" % key, built, ckey, s, t, g + 20, 9, 8, 54, ox=6, oy=-26)
+    drum("%s_Stack_Cap" % key, built, dark(ckey), s, t, g + 74, 10, 9, 4,
+        ox=6, oy=-26)
+    box("%s_Duct" % key, built, dark(ckey), s, t, g + 8, 12, 34, 12,
+        ox=30, oy=-30)
+    box("%s_Annex" % key, built, "concrete", s + 28, t + 20, g, 26, 22, 16)
+    box("%s_InBin" % key, built, "storage", s - 30, t - 22, g, 18, 18, 11)
+    box("%s_OutRack" % key, built, "trim", s + 30, t - 24, g, 20, 16, 9)
+    for i, (ds, dt) in enumerate(((-16, -30), (-4, -34))):
+        box("%s_Crate_%02d" % (key, i + 1), built, "mine", s + ds, t + dt, g,
+            12, 10, 9)
+    truck("%s_Truck" % key, built, s + 12, t - 42, g, "container",
+          l=24, w=15, h=11)
     return fam
 
 
 def build_dock(root):
+    """Port on the left flank, then the three customer islands below."""
     c = coll("Dock", root)
-    _, s, z, _, _ = BY_KEY["Dock"]
+    s, z, bt = band("Dock")
+    rng = random.Random(53)
 
-    box("Dock_Quay", c, "concrete", s + 46, 0, 0.0, 210, 40, 5)
-    box("Dock_Warehouse", c, "storage", s - 14, 40, z + 2, 46, 30, 18)
-    box("Outfitting_Shed", c, "concrete", s + 8, -40, z + 2, 40, 28, 16)
-    box("Dock_Crane_Leg", c, "crane", s + 44, -30, 5, 8, 8, 40)
-    box("Dock_Crane_Jib", c, "crane", s + 44, -46, 42, 6, 44, 5)
+    box("Dock_Warehouse", c, "storage", s - 12, bt + 20, z + 2, 60, 44, 24)
+    box("Dock_Warehouse_Roof", c, dark("storage"), s - 12, bt + 20, z + 26,
+        64, 48, 3)
+    for i in range(3):
+        box("Dock_Awning_%02d" % (i + 1), c, "mine", s - 12, bt + 20, z + 14,
+            4, 12, 8, ox=31, oy=-14 + i * 14)
+    containers("Dock_Stack", c, s + 10, bt + 60, z + 2, rng, cols=3, rows=2)
+    truck("Dock_Truck", c, s - 34, bt + 6, z + 2, "mine", l=24, w=15, h=11)
 
-    for i, tt in enumerate((-62, 0, 62)):
-        ss = s + 84
-        box("Customer_Ship_%02d_Hull" % (i + 1), c, "ship", ss, tt, 1.0, 34, 24, 12)
-        box("Customer_Ship_%02d_Deck" % (i + 1), c, "ship_deck", ss, tt, 13.0,
-            26, 18, 4)
-        drum("Customer_Ship_%02d_Mast" % (i + 1), c, "trim", ss, tt, 17.0,
-             1.6, 1.2, 26, n=6)
+    box("Dock_Quay", c, "concrete", s + 44, bt - 62, 0.0, 62, 76, 7)
+    for i in range(4):
+        drum("Dock_Bollard_%02d" % (i + 1), c, "rock_dark", s + 44, bt - 62,
+             7.0, 2.0, 1.8, 4.5, n=6, ox=-22 + i * 15, oy=-33)
+    gantry("Dock_Crane", c, s + 44, bt - 66, 7.0, "crane", span=40, height=34,
+           jib=36, leg=5)
 
-    box("Player_Ship_Hull", c, "hull", s + 30, -74, 1.0, 30, 22, 12)
-    box("Player_Ship_Deck", c, "ship_deck", s + 30, -74, 13.0, 22, 16, 4)
-    drum("Player_Ship_Mast", c, "trim", s + 30, -74, 17.0, 1.6, 1.2, 30, n=6)
+    ship_hull("Cargo_Ship_Hull", c, "ship", s + 40, bt - 124, 1.0, 106, 34, 9)
+    ship_hull("Cargo_Ship_Upper", c, "ship_hull", s + 40, bt - 124, 9.0, 104,
+              33, 6)
+    box("Cargo_Ship_Super", c, "ship_deck", s + 40, bt - 124, 15.0, 24, 20, 16,
+        oy=-36)
+    box("Cargo_Ship_Bridge", c, "trim", s + 40, bt - 124, 31.0, 19, 14, 4,
+        oy=-36)
+    containers("Cargo_Ship_Cargo", c, s + 40, bt - 124, 15.0, rng, cols=3,
+               rows=2, cl=17, cw=8, ch=7, oy=12)
+
+    ship_hull("Player_Ship_Hull", c, "ship_hull", s + 86, bt - 96, 1.0, 42, 22,
+              11)
+    box("Player_Ship_Deck", c, "ship_deck", s + 86, bt - 96, 12.0, 15, 13, 6)
+    drum("Player_Ship_Mast", c, "trim", s + 86, bt - 96, 18.0, 1.7, 1.1, 30,
+         n=6)
+
+    cust = coll("Customers", root)
+    for i, (tt, ckey, icon) in enumerate(((-74, "shop_a", "coin"),
+                                          (0, "shop_b", "gem"),
+                                          (74, "shop_c", "coin"))):
+        ss = s + 132
+        terrace("Cust_%02d_Rock" % (i + 1), cust, "rock", ss, tt, 6, 30, 32,
+                n=11, seed=400 + i)
+        terrace("Cust_%02d_Cap" % (i + 1), cust, "sand", ss, tt, 8, 27, 29,
+                taper=0.985, n=11, seed=400 + i)
+        shop("Cust_%02d" % (i + 1), cust, ss, tt, 8, ckey)
+        bubble("Cust_%02d_Bubble" % (i + 1), cust, ss - 30, tt, 44, icon)
+        trees("Cust_%02d_Trees" % (i + 1), cust,
+              rim_cluster(ss, tt, 30, 32, rng, 5, 1 if i != 2 else -1, 8.0,
+                          spread=0.5), rng)
+
+    ribbon("Flow_To_Customers", cust, "flow",
+           [(s + 96, 0), (s + 116, 0)], 9.0, lift=3.8, z=8.0)
+    ribbon("Flow_Customer_Row", cust, "flow",
+           [(s + 116, -74), (s + 116, 0), (s + 116, 74)], 9.0, lift=3.8, z=8.0)
+    return c
+
+
+def build_focus(root):
+    """The halo and the upgrade badge the reference puts on the active
+    station."""
+    c = coll("Focus", root)
+    s, z, bt = band("Cannon")
+    annulus("Focus_Ring", c, "focus", s, bt - 2, z + 3.2, 52, 74, 6)
+    box("Upgrade_Badge", c, "focus", s - 4, bt + 62, z + 54, 13, 13, 13)
+    box("Upgrade_Badge_Arrow", c, "white", s - 4, bt + 62, z + 61, 6, 6, 7)
     return c
 
 
 # --------------------------------------------------------------- anchors ----
 
 def build_anchors(root):
-    """The frozen contract. Codex binds gameplay to these names; nothing here
-    may be renamed or moved once art integration starts."""
+    """The frozen contract. Codex binds gameplay to these names."""
     c = coll("Anchors", root)
 
-    anchor("Mine_Output", c, 72, -20, 66)
-    anchor("Train_Load", c, 150, -20, 62)
-    anchor("Train_Unload", c, 206, -18, 55)
-    anchor("Storage_Input", c, 190, 26, 52)
-    anchor("Storage_Output", c, 222, 40, 52)
-    anchor("Refinery_Input", c, 200, -22, 52)
-    anchor("Refinery_Output", c, 232, -28, 52)
+    anchor("Mine_Output", c, 49, -10, 82)
+    anchor("Train_Load", c, 84, -10, 74)
+    anchor("Train_Unload", c, 144, -6, 66)
+    anchor("Storage_Input", c, 99, 40, 68)
+    anchor("Storage_Output", c, 134, 58, 68)
+    anchor("Refinery_Input", c, 109, -6, 68)
+    anchor("Refinery_Output", c, 141, -34, 68)
 
     for key, t, _ in STATIONS:
-        _, s, z, _, _ = BY_KEY[key]
-        anchor("Station_%s_Input" % key, c, s - 26, t - 12, z + 11)
+        s, z, bt = band(key)
+        t += bt
+        anchor("Station_%s_Input" % key, c, s - 30, t - 22, z + 13)
         anchor("Station_%s_Work" % key, c, s, t, z + 4)
-        anchor("Station_%s_Output" % key, c, s + 26, t - 16, z + 9)
-        anchor("Station_%s_Upgrade" % key, c, s, t, z + 34, kind='SPHERE')
-        anchor("Station_%s_Worker" % key, c, s - 4, t + 28, z + 4)
+        anchor("Station_%s_Output" % key, c, s + 30, t - 24, z + 11)
+        anchor("Station_%s_Upgrade" % key, c, s, t, z + 44, kind='SPHERE')
+        anchor("Station_%s_Worker" % key, c, s - 6, t + 34, z + 4)
 
-    _, sd, zd, _, _ = BY_KEY["Dock"]
-    for i, tt in enumerate((-62, 0, 62)):
-        anchor("Customer_Berth_%02d" % (i + 1), c, sd + 84, tt, 2, kind='ARROWS')
-    anchor("Player_Outfitting", c, sd + 30, -74, 2, kind='ARROWS')
-    anchor("Set_Sail", c, sd + 96, -74, 2, size=10, kind='SPHERE')
+    sd, zd, bt = band("Dock")
+    for i, tt in enumerate((-74, 0, 74)):
+        anchor("Customer_Berth_%02d" % (i + 1), c, sd + 132, tt, 8,
+               kind='ARROWS')
+    anchor("Player_Outfitting", c, sd + 86, bt - 96, 2, kind='ARROWS')
+    anchor("Set_Sail", c, sd + 86, bt - 134, 2, size=10, kind='SPHERE')
 
     stops = coll("Camera_Stops", root)
-    for i, (key, s, z, _, _) in enumerate(BANDS):
-        anchor("Camera_Stop_%02d" % (i + 1), stops, s, 0, z + 10,
-               size=12, kind='CUBE').name = "Camera_Stop_%02d" % (i + 1)
+    for i, (key, s, z, _hs, _ht, t, _n) in enumerate(BANDS):
+        anchor("Camera_Stop_%02d" % (i + 1), stops, s, t, z + 10, size=12,
+               kind='CUBE')
 
-    b = anchor("Camera_Bounds", c, 560, 0, 40, kind='CUBE')
+    b = anchor("Camera_Bounds", c, 340, 0, 40, kind='CUBE')
     b.empty_display_size = 1.0
-    # half-extents in screen units: the full scrollable ladder
-    b.scale = (VIEW_W * 0.5, 600.0 * S_STRETCH, 120.0)
+    b.scale = (VIEW_W * 0.5, 420.0 * S_STRETCH, 120.0)
     b.rotation_euler = (0.0, 0.0, math.radians(-45.0))
     return c
 
@@ -421,7 +821,6 @@ def build_anchors(root):
 # --------------------------------------------------------- cameras / lit ----
 
 def _place(cam, s, t, z, scale):
-    """Aim an ortho camera at a screen-frame point."""
     x, y = W(s, t)
     fwd = (-0.4731, 0.4731, -0.7431)
     d = 2200.0
@@ -435,24 +834,24 @@ def _place(cam, s, t, z, scale):
 
 def build_cameras(root):
     c = coll("Cameras", root)
-
-    for name, s, z, scale in (("Cam_Overview", 560, 30, 1460.0),
-                              ("Cam_Play_Cannon", 350, 36, VIEW_H)):
+    for name, s, z, scale in (("Cam_Overview", 293, 40, 850.0),
+                              ("Cam_Concept", 285, 36, 800.0),
+                              ("Cam_Play_Cannon", 159, 46, VIEW_H)):
         cd = bpy.data.cameras.new(name)
         ob = bpy.data.objects.new(name, cd)
         c.objects.link(ob)
         _place(ob, s, 0, z, scale)
 
     sun = bpy.data.lights.new("Sun", 'SUN')
-    sun.energy = 4.2
-    sun.angle = math.radians(6.0)
+    sun.energy = 3.1
+    sun.angle = math.radians(3.0)
     so = bpy.data.objects.new("Sun", sun)
-    so.rotation_euler = (math.radians(48.0), math.radians(6.0),
-                         math.radians(118.0))
+    so.rotation_euler = (math.radians(52.0), math.radians(4.0),
+                         math.radians(128.0))
     c.objects.link(so)
 
     sc = bpy.context.scene
-    sc.camera = bpy.data.objects["Cam_Overview"]
+    sc.camera = bpy.data.objects["Cam_Play_Cannon"]
     sc.render.resolution_x = 1080
     sc.render.resolution_y = 2340
     engines = {e.identifier for e in
@@ -464,25 +863,75 @@ def build_cameras(root):
     world.use_nodes = True
     bg = world.node_tree.nodes.get("Background")
     if bg:
-        bg.inputs[0].default_value = (0.16, 0.30, 0.48, 1.0)
-        bg.inputs[1].default_value = 0.9
+        bg.inputs[0].default_value = (0.09, 0.20, 0.38, 1.0)
+        bg.inputs[1].default_value = 0.30
     sc.world = world
+
+    ev = getattr(sc, "eevee", None)
+    if ev:
+        for attr, val in (("use_raytracing", True), ("use_gtao", True),
+                          ("gtao_distance", 24.0), ("use_shadows", True),
+                          ("shadow_ray_count", 2)):
+            if hasattr(ev, attr):
+                setattr(ev, attr, val)
+    try:
+        sc.view_settings.view_transform = 'Standard'
+        sc.view_settings.look = 'None'
+    except TypeError:
+        pass
     return c
 
 
 # ------------------------------------------------------------------ main ----
 
 def set_locked(locked=True):
-    """Milestone-1 start state: Cannon built, the other four still pads."""
+    """Start state: Cannon built, the other four still pads."""
     for key, _, _ in STATIONS:
         built = key == "Cannon" or not locked
         for suffix, on in (("_Built", built), ("_Pad", not built)):
-            c = bpy.data.collections.get("Station_%s%s" % (key, suffix))
-            if not c:
+            cl = bpy.data.collections.get("Station_%s%s" % (key, suffix))
+            if not cl:
                 continue
-            for ob in c.objects:
+            for ob in cl.objects:
                 ob.hide_viewport = not on
                 ob.hide_render = not on
+
+
+MANIFEST = ("/Users/macbookair/Documents/GitHub/project_kayseri/"
+            "Tools/blender/shipyard/anchors.json")
+
+
+def export_manifest(path=MANIFEST):
+    import json
+    out = {
+        "frame": {
+            "k": K, "s_stretch": S_STRETCH, "band": BAND,
+            "view_w": VIEW_W, "view_h": VIEW_H,
+            "camera_euler_deg": [42.0, 0.0, 45.0], "camera_ortho": True,
+            "screen_x": "0.7071*(x+y)",
+            "screen_y": "0.5254*(y-x) + 0.669*z",
+        },
+        "bands": [{"key": b[0], "s": b[1], "z": b[2], "t": b[5]}
+                  for b in BANDS],
+        "stations": [{"key": k, "t": t, "colour": c} for k, t, c in STATIONS],
+        "anchors": {},
+    }
+    for cname in ("Anchors", "Camera_Stops"):
+        cl = bpy.data.collections.get(cname)
+        if not cl:
+            continue
+        for ob in cl.objects:
+            # ob.location, not matrix_world: matrix_world is stale until the
+            # depsgraph re-evaluates, and these empties are unparented.
+            loc = ob.location
+            out["anchors"][ob.name] = {
+                "pos": [round(loc.x, 4), round(loc.y, 4), round(loc.z, 4)],
+                "collection": cname,
+            }
+    with open(path, "w") as fh:
+        json.dump(out, fh, indent=2, sort_keys=True)
+    print("anchor manifest: %d anchors -> %s" % (len(out["anchors"]), path))
+    return path
 
 
 def build():
@@ -491,19 +940,20 @@ def build():
     bpy.context.scene.collection.children.link(root)
 
     build_terrain(root)
+    build_vegetation(root)
     build_logistics(root)
     build_source(root)
     for key, t, ckey in STATIONS:
         build_station(root, key, t, ckey)
     build_dock(root)
+    build_focus(root)
     build_anchors(root)
     build_cameras(root)
     set_locked(True)
 
     n = sum(len(c.objects) for c in bpy.data.collections)
-    print("shipyard blockout: %d objects, ladder %d screen units, "
-          "%d bands of %d" % (n, int(BANDS[-1][1] + BAND * 0.5),
-                              len(BANDS), int(BAND)))
+    print("shipyard: %d objects, %d bands of %d, view %dx%d"
+          % (n, len(BANDS), int(BAND), int(VIEW_W), int(VIEW_H)))
     return root
 
 
