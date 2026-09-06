@@ -122,7 +122,7 @@ namespace Game.Gameplay
             // putting one on the player's back anyway would mint stock out of nothing.
             double taken = _market.TakeFromStock(_yardKey, 1d);
             if (taken <= 0d) return;
-            if (!_carry.TryAdd()) _market.Deliver(_yardKey, taken);   // lost the race for the last slot; put it back
+            if (!_carry.TryAdd()) _market.Deliver(_yardKey, MarketService.ProductFor(_yardKey), taken);   // lost the race for the last slot; put it back
         }
     }
 }

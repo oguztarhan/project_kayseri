@@ -866,7 +866,7 @@ namespace Game.Tests
             market = new MarketService(data, wallet, null);
             market.Register("coal", new Terms { BarPriceRaw = 10d, IncomeCapPerMinuteRaw = 1e12d });
             market.SetActiveIsland("coal");
-            market.Row("coal").deliveredPerMin = 600d;
+            market.Product("coal").deliveredPerMin = 600d;
             var foremen = new ForemanService(data, wallet, Foremen.Tuning.Default);
             captains = new CaptainService(data, Captains.Tuning.Default, CaptainCrate.Tuning.Default,
                                           new System.Random(7));
@@ -878,7 +878,7 @@ namespace Game.Tests
         private static void Sail(VoyageService dock, MarketService market)
         {
             if (dock.At(0) == null) dock.TryStart("coal", 0);
-            market.Deliver("coal", dock.At(0).holdSize * 2d);
+            market.Deliver("coal", MarketService.ProductFor("coal"), dock.At(0).holdSize * 2d);
             dock.Tick((float)Voyages.SecondsToFill(0, Voyages.Tuning.Default) + 1f);
         }
 

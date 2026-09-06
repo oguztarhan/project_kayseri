@@ -34,8 +34,9 @@ namespace Game.Tests
         }
 
         private static void Yard(SaveData d, string island, int carry, int serve, int collect)
-            => d.marketYards.Add(new MarketYard
-            { id = island, hireCarry = carry, hireServe = serve, hireCollect = collect });
+            => d.idleMarketYards.Add(new IdleMarketYard
+            { schemaVersion = IdleMarketMigration.SchemaVersion, id = island,
+              hireCarry = carry, hireServe = serve, dispatchLevel = collect });
 
         // ---- ownership ---------------------------------------------------------------------------
 
@@ -134,7 +135,7 @@ namespace Game.Tests
             ChapterService s = Make(d, out _);
             Assert.That(s.Progress(0).YardStaffed, Is.False, "one job short is not a staffed yard");
 
-            d.marketYards[0].hireCollect = MarketFlow.MaxHireLevel;
+            d.idleMarketYards[0].dispatchLevel = MarketFlow.MaxHireLevel;
             Assert.That(s.Progress(0).YardStaffed, Is.True);
         }
 

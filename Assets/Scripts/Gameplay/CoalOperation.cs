@@ -241,6 +241,29 @@ namespace Game.Gameplay
         // handled without it - see _vehicleNoseYaw - so this is 0 on every island we ship and only
         // exists for an asset that does not come out of the generator.
         [SerializeField] private float vehicleYawOffset = 0f;
+
+        // The haul legs are worked by people, not lorries. Off puts the trucks back, which is the only
+        // honest way to compare the two while the routes are still the old tarmac ones.
+        [SerializeField] private bool portersInsteadOfTrucks = true;
+        // How tall a porter stands next to the lorry he replaced. The lorry art is the only thing on an
+        // authored island that reliably knows what "person sized" means here, so he is measured off it.
+        [SerializeField, Range(0.2f, 1.5f)] private float porterHeightOfLorry = 0.62f;
+        [SerializeField, Range(0.1f, 1f)] private float porterLoadScale = 0.42f;   // flatbed load -> shoulder load
+        // Sidewalk. Signed, as a share of lorry height, measured out from the driving line: the haul
+        // road's own width knobs (roadWidth 9, laneOffset 2.4) are tuned for the GENERATED island and are
+        // meaningless here, where a lorry alone is 183 units long. Flip the sign to change kerb.
+        [SerializeField, Range(-1.5f, 1.5f)] private float porterKerbOffset = 0.62f;
+
+        // A porter walks at this share of the lorry's speed. Throughput is NOT allowed to move with it:
+        // the leg's load is divided by exactly the same number, so speed x load — which is what the
+        // island actually delivers per second — comes out identical. That is the contract
+        // IdleTransportRules is written to ("preserve purchased effects"), not a promise about pace.
+        // Set to 1 to walk at haulage speed and compare like for like.
+        [SerializeField, Range(0.1f, 1f)] private float porterPace = 0.45f;
+        // Renamed from porterLoadLift on purpose: that field was already serialised into the scene at
+        // its first default of 0.18, so changing the default in code afterwards did nothing and the cargo
+        // stayed round his ankles. A new name is a new field, and takes the value below cleanly.
+        [SerializeField, Range(0f, 1f)] private float porterLoadRideHeight = 0.85f;      // 1 = clear of his head, 0.85 = on the shoulder
         // A truck used to be assigned the direction of the road segment it was on, which snapped its
         // whole body round in one frame at every junction. It turns at a rate now, and aims at a point
         // further down the road rather than at the next vertex, so it starts leaning into a corner
@@ -574,6 +597,7 @@ namespace Game.Gameplay
         private Transform _dock, _mine4;
         private Transform _dressing;                 // parent for every generated road, rail and rock
         private PileStack _oreYard, _barYard;
+        private int _porterPick;        // rotates the people pack so a route is not four identical men
         private SiteLife _life;
         private StationCrew _crew;
         private StationForemen _bosses;
@@ -842,6 +866,7 @@ namespace Game.Gameplay
         private sealed class TruckAgent
         {
             public Transform body;
+            public PersonAnimator porter;   // null while this agent is still wearing the lorry
             public GameObject load;
             public Vector3[] loop;
             public int wp;
@@ -1205,9 +1230,21 @@ namespace Game.Gameplay
         private float PowerSpeed => Ec.PowerSpeed;
 
         private float MineDwell => Ec.MineDwell;
-        private float EffTrainOre => Ec.TrainOre;
 
-        private float EffTrainSpeed => Ec.TrainSpeed;
+        // The global carry upgrade used to buy the player a bigger stack on his own back. With manual
+        // hauling gone it buys the CREW a bigger load instead, on every island and every leg, which is
+        // the only place that purchase still means anything. Level 0 is 1x, the level-8 cap is 1.8x.
+        private int CarryLevel => _marketService != null
+            ? _marketService.Level(islandKey, YardUpgrade.CarryCapacity) : 0;
+
+        // The three haul legs read their budgets from IdleTransportRules, not off Ec directly, so the
+        // conversion from purchased vehicle levels to crew throughput lives in exactly one place. The
+        // formulas are still IslandEconomy's; this only decides which purchase feeds which leg.
+        // Teams is deliberately unused here for the train: TrainOre already folds in the wagon-phase
+        // factor, and ActiveWagons below is render-only, so consuming Teams would count the rake twice.
+        private float EffTrainOre => (float)IdleTransportRules.MineToDepot(Ec, CarryLevel).LoadPerTeam;
+
+        private float EffTrainSpeed => (float)IdleTransportRules.MineToDepot(Ec, CarryLevel).Speed;
         private int ActiveWagons => Ec.ActiveWagons;
         private int VisibleWagons => Mathf.Min(ActiveWagons, Mathf.Max(1, visibleVehiclesPerRoute));
 
@@ -1218,18 +1255,30 @@ namespace Game.Gameplay
 
         // Truck counts are capped by AxisMaxLv because each truck is a real body parked in
         // the scene; ApplyFleetStates wakes them one at a time as you buy.
-        private int OreTruckCount => Ec.OreTruckCount;
-        private float EffOreSpeed => Ec.OreTruckSpeed;
-        private float EffOreCap => Ec.OreTruckLoad;
+        private int OreTruckCount => IdleTransportRules.DepotToRefinery(Ec, CarryLevel).Teams;
+        private float EffOreSpeed => (float)IdleTransportRules.DepotToRefinery(Ec, CarryLevel).Speed * Pace;
+        private float EffOreCap => (float)IdleTransportRules.DepotToRefinery(Ec, CarryLevel).LoadPerTeam / Pace;
 
         // If EffBarCap fills, smelting STOPS until cargo trucks clear it, so an
         // under-upgraded market throttles the whole chain from the far end.
         private float EffSmelt => Ec.SmeltRate;
         private float EffBarCap => Ec.BarCap;
 
-        private int CargoTruckCount => Ec.CargoTruckCount;
-        private float EffCargoSpeed => Ec.CargoTruckSpeed;
-        private float EffCargoCap => Ec.CargoTruckLoad;
+        private int CargoTruckCount => IdleTransportRules.RefineryToCounter(Ec, CarryLevel).Teams;
+        private float EffCargoSpeed => (float)IdleTransportRules.RefineryToCounter(Ec, CarryLevel).Speed * Pace;
+        private float EffCargoCap => (float)IdleTransportRules.RefineryToCounter(Ec, CarryLevel).LoadPerTeam / Pace;
+
+        /// <summary>
+        /// How much slower a walker is than the lorry he replaced, on the two legs people work.
+        ///
+        /// It appears TWICE on every leg and always as a reciprocal pair — once multiplying speed, once
+        /// dividing load — because a leg delivers speed x load per second and this is a change of pace,
+        /// not a change of trade. Clamped above zero: a pace of nought is a stopped island and a
+        /// division by it is an infinite load.
+        ///
+        /// The train is untouched. It is still a train, and its leg is the mine's, not a porter's.
+        /// </summary>
+        private float Pace => portersInsteadOfTrucks ? Mathf.Max(0.05f, porterPace) : 1f;
 
         private float EffBarPrice => Ec.BarPrice;
         private float MarketDwell => Ec.MarketDwell;
@@ -2332,6 +2381,112 @@ namespace Game.Gameplay
                  * _vehicleBaseRot;
         }
 
+        /// <summary>
+        /// Puts a person on a haul leg in place of the lorry.
+        ///
+        /// The TRANSFORM stays: every route, lay-by, follow-gap and queue rule below is written against
+        /// this object's position, and none of that changes because the thing at that position is now
+        /// walking. Only the costume is swapped, which is why this is a dozen lines rather than a new
+        /// simulation — see the haul loop in TruckTick.
+        ///
+        /// ponytail: the routes are still the authored ROADS and the speed is still the lorry's, so a
+        /// porter currently walks a haul road at haulage pace. Re-routing onto AuthoredFootpath and
+        /// pacing him like a human changes throughput, which is a balance pass with numbers attached —
+        /// it belongs with the route work, not smuggled in behind a mesh swap.
+        /// </summary>
+        /// <summary>Combined world bounds of everything drawn under a transform. False when nothing is.</summary>
+        private static bool WorldBox(Transform t, out Bounds box)
+        {
+            box = new Bounds();
+            Renderer[] rs = t.GetComponentsInChildren<Renderer>(true);
+            if (rs.Length == 0) return false;
+            box = rs[0].bounds;
+            for (int i = 1; i < rs.Length; i++) box.Encapsulate(rs[i].bounds);
+            return true;
+        }
+
+        private PersonAnimator WearPorter(Transform body, GameObject keep)
+        {
+            GameObject[] pack = workerPrefabs != null && workerPrefabs.Length > 0
+                              ? workerPrefabs : new[] { workerPrefab };
+            GameObject src = null;
+            for (int i = 0; i < pack.Length && src == null; i++) src = pack[(_porterPick + i) % pack.Length];
+            if (src == null) return null;                     // nothing wired: keep the lorry rather than an empty road
+            _porterPick++;
+
+            // Measured BEFORE anything is hidden: a disabled renderer reports nothing, and this island's
+            // lorry art is scaled 85x, so a person left at workerScale stands 4 units beside a 104-unit
+            // truck and is simply not there. Sizing off the vehicle he replaces is what makes this work
+            // on every island without a per-island number to keep in step.
+            // Height only. The lorry's world AABB minimum is NOT the road: this rig's art hangs ~62
+            // units above its own pivot and the body sits at an authored pose at build time, so dropping
+            // the porter by the box's half-height buried him about 52 units under the tarmac. The
+            // driving line IS body.position — that is the line the loop points put the lorry on — so
+            // that is where a walker's feet belong.
+            float lorryHeight = WorldBox(body, out Bounds wb) ? wb.size.y : 0f;
+
+            // Hide the lorry, keep the cargo: the block IS the ore, and a porter carrying it is the
+            // whole point of the change.
+            for (int i = body.childCount - 1; i >= 0; i--)
+            {
+                GameObject ch = body.GetChild(i).gameObject;
+                if (ch != keep) ch.SetActive(false);
+            }
+
+            Transform p = Instantiate(src, body).transform;
+            p.name = "_Porter";
+            p.localScale = Vector3.one;
+            // body.rotation is VehicleFacing(dir) — LookRotation(dir) times the authored lorry rig's
+            // constant pose K. A person is modelled forward +Z, up +Y, so undoing K locally leaves him
+            // facing the way he is walking instead of lying on his side. See VehicleFacing.
+            Quaternion k = Quaternion.Euler(0f, _vehicleNoseYaw + vehicleYawOffset, 0f) * _vehicleBaseRot;
+            p.localRotation = Quaternion.Inverse(k);
+
+            // Now he is upright, measure him and scale to a share of the lorry's height.
+            // Measured on the PREFAB, which sits at identity — not on the instance. The instance is
+            // parented to a lorry whose build-time rotation is whatever the scene author left, so its
+            // world bounds are a skewed projection: reading height off it returned 0.44 for a man who
+            // is 1.98 tall, and put his cargo round his ankles.
+            float bodyHeight = 0f;
+            WorldBox(src.transform, out Bounds pb);
+            if (pb.size.y > 0.001f) bodyHeight = pb.size.y;
+            if (lorryHeight > 0.01f && bodyHeight > 0.001f)
+                p.localScale = Vector3.one * (lorryHeight * porterHeightOfLorry / bodyHeight);
+
+            // Feet on the driving line, and out to the side of it onto the kerb.
+            //
+            // Both offsets go through Inverse(k) for the same reason the rotation does: at drive time
+            // body.rotation is LookRotation(dir) * k, so Inverse(k) leaves a vector expressed in the
+            // WALKER's frame — +Y world up, +X his right, whatever way he is heading. The lift stays
+            // vertical and the kerb stays perpendicular to the road through every bend, with no
+            // per-frame work. The lift itself is the prefab's own pivot-to-sole gap, scaled.
+            float sole = -pb.min.y * p.localScale.y;             // pivot sits ~0.12 above the soles
+            p.localPosition = Quaternion.Inverse(k)
+                            * new Vector3(porterKerbOffset * lorryHeight, sole, 0f);
+
+            // The cargo was authored for a flatbed: sized off the lorry and set back down its deck behind
+            // the cab. Both are wrong on a man. Computing a new offset needs the pivot of two meshes
+            // nobody here authored — the first attempt hung it 75 units over his head, the second buried
+            // it in his waist — so MEASURE both and move the block by the difference. No pivot assumed.
+            if (keep != null && bodyHeight > 0.001f)
+            {
+                // PARENT IT TO HIM. Two earlier attempts computed an offset in the lorry's frame and both
+                // landed wrong — once over his head, once through his waist — because the porter is
+                // SKINNED and animated, so its bounds move every frame and nothing measured at build time
+                // stays true. As his child the load needs no measuring at all: his local frame is already
+                // upright (localRotation undoes the lorry pose), so +Y is up and a fixed fraction of his
+                // own height rides on his shoulder for good, through every turn and animation.
+                Transform lt = keep.transform;
+                Vector3 worldScale = lt.lossyScale;
+                lt.SetParent(p, true);
+                float s0 = p.localScale.x > 1e-4f ? p.localScale.x : 1f;
+                lt.localScale = worldScale * (porterLoadScale / s0);
+                lt.localPosition = new Vector3(0f, bodyHeight * porterLoadRideHeight, 0f);
+                lt.localRotation = Quaternion.identity;
+            }
+            return new PersonAnimator(p);
+        }
+
         /// <summary>Whether this line is running at all. Which of its cars are actually drawn is
         /// PlaceCar's call — they hide one by one as they pass under cover.</summary>
         private void SetTrainVisible(TrainAgent a, bool on)
@@ -2602,6 +2757,11 @@ namespace Game.Gameplay
                                       new Vector3(0.56f * bb.size.x,
                                                   (ore ? 0.46f : 0.34f) * bb.size.z,
                                                   0.62f * bb.size.y));
+
+                    // Last, on purpose. BodyBox and MakeLoad above measure the LORRY's own mesh, so
+                    // hiding it before this point sized the cargo off a disabled renderer and left the
+                    // block floating over an empty road with nothing under it.
+                    if (portersInsteadOfTrucks) a.porter = WearPorter(body, a.load);
                     agents.Add(a);
                 }
             }
@@ -3309,6 +3469,10 @@ namespace Game.Gameplay
         {
             bool ore = a.route == Route.Ore;
             double avail = ore ? _storeOre : _bars;   // what this truck's pickup pile currently holds
+            // Walking or standing, straight off the state machine — a porter loading, dwelling at the
+            // drop or parked is idle, and every other state is a leg of the trip.
+            if (a.porter != null)
+                a.porter.SetMoving(a.state == TK.ToLoad || a.state == TK.ToDrop || a.state == TK.ToIdle);
             // A truck that has ARRIVED is not held up, whatever the road was doing on the way in. Left
             // to stand, that count reads as a jam to the queue behind it and invites the whole line to
             // drive through a truck that is about to pull away on its own — see Hopeless.
@@ -3367,7 +3531,7 @@ namespace Game.Gameplay
                         // GOODS instead, because the yard prices every bar the same and a per-truck price
                         // would have to survive being stockpiled for an hour before anyone sold it.
                         double delivered = a.carry * (a.route == Route.Export ? exportPriceBonus : 1f);
-                        _marketService.Deliver(islandKey, delivered);
+                        _marketService.Deliver(islandKey, MarketService.ProductFor(islandKey), delivered);
                         _deliveredFlow.Add(delivered);
                     }
                     // The building receiving the load takes the hit, whichever end of the chain that is:

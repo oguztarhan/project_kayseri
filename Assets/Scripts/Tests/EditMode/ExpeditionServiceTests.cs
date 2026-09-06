@@ -29,7 +29,7 @@ namespace Game.Tests
             market = new MarketService(data, wallet, null);
             market.Register(Coal, new Terms { BarPriceRaw = 10d, IncomeCapPerMinuteRaw = NoCeiling });
             market.SetActiveIsland(Coal);
-            market.Row(Coal).deliveredPerMin = 600d;
+            market.Product(Coal).deliveredPerMin = 600d;
             var foremen = new ForemanService(data, wallet, Foremen.Tuning.Default);
             return new VoyageService(data, market, foremen, wallet, new TimeService(),
                                      Voyages.Tuning.Default);
@@ -38,7 +38,7 @@ namespace Game.Tests
         private static void Sail(VoyageService dock, MarketService market)
         {
             if (dock.At(0) == null) dock.TryStart(Coal, 0);
-            market.Deliver(Coal, dock.At(0).holdSize * 2d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), dock.At(0).holdSize * 2d);
             dock.Tick((float)Voyages.SecondsToFill(0, Voyages.Tuning.Default) + 1f);
         }
 

@@ -299,7 +299,7 @@ namespace Game.UI
             {
                 int dropped = _carry.Count;
                 while (_carry.TryRemove()) { }
-                if (_market != null) _market.Deliver(_yardKey, dropped);
+                if (_market != null) _market.Deliver(_yardKey, MarketService.ProductFor(_yardKey), dropped);
             }
 
             _yardKey = yard.IslandKey;

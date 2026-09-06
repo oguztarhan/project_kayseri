@@ -43,7 +43,7 @@ namespace Game.Tests
             market = new MarketService(data, wallet, null);
             market.Register(Coal, new Terms { BarPriceRaw = 10d, IncomeCapPerMinuteRaw = NoCeiling });
             market.SetActiveIsland(Coal);
-            market.Row(Coal).deliveredPerMin = deliveredPerMin;
+            market.Product(Coal).deliveredPerMin = deliveredPerMin;
             foremen = new ForemanService(data, wallet, Foremen.Tuning.Default);
             return new VoyageService(data, market, foremen, wallet, new TimeService(), T);
         }
@@ -52,7 +52,7 @@ namespace Game.Tests
         private static void Sail(VoyageService service, MarketService market)
         {
             if (service.At(0) == null) service.TryStart(Coal, 0);
-            market.Deliver(Coal, service.At(0).holdSize * 2d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), service.At(0).holdSize * 2d);
             service.Tick((float)Voyages.SecondsToFill(0, T) + 1f);
         }
 
@@ -277,7 +277,7 @@ namespace Game.Tests
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
             service.TryStart(Coal, 0);
-            market.Deliver(Coal, 500d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), 500d);
 
             service.Tick(1f);
             double automatic = service.At(0).held;
@@ -632,7 +632,7 @@ namespace Game.Tests
             Assert.That(service.TryStart(Coal, 0), Is.True);
             double locked = service.At(0).holdSize;
 
-            market.Row(Coal).deliveredPerMin *= 10d;
+            market.Product(Coal).deliveredPerMin *= 10d;
             Assert.That(service.At(0).holdSize, Is.EqualTo(locked).Within(1e-9));
         }
 
@@ -652,7 +652,7 @@ namespace Game.Tests
         {
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
-            market.Deliver(Coal, 500d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), 500d);
             double before = market.Stock(Coal);
 
             service.TryStart(Coal, 0);
@@ -683,7 +683,7 @@ namespace Game.Tests
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
             service.TryStart(Coal, 0);
-            market.Deliver(Coal, service.At(0).holdSize * 2d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), service.At(0).holdSize * 2d);
 
             service.Tick((float)Voyages.SecondsToFill(0, T) + 1f);
 
@@ -701,7 +701,7 @@ namespace Game.Tests
 
             Assert.That(service.TrySail(0), Is.False, "nothing aboard at all");
 
-            market.Deliver(Coal, service.At(0).holdSize);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), service.At(0).holdSize);
             service.Tick((float)(Voyages.SecondsToFill(0, T) * 0.5d));
 
             Assert.That(service.HoldFraction(0), Is.GreaterThan(T.MinLaunchFraction));
@@ -714,7 +714,7 @@ namespace Game.Tests
         {
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
-            market.Deliver(Coal, 500d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), 500d);
             double before = market.Stock(Coal);
 
             service.TryStart(Coal, 0);
@@ -736,13 +736,13 @@ namespace Game.Tests
         {
             SaveData data; MarketService market; ForemanService foremen;
             Build(out data, out market, out foremen);
-            market.Row(Coal).deliveredPerMin = 0d;      // start the meter from nothing
+            market.Product(Coal).deliveredPerMin = 0d;      // start the meter from nothing
 
             market.ReturnToStock(Coal, 600d);
             for (int i = 0; i < 30; i++) market.Tick(1f);
 
             Assert.That(market.Stock(Coal), Is.GreaterThan(0d), "the bars are on the pads");
-            Assert.That(market.Row(Coal).deliveredPerMin, Is.Zero.Within(1e-9),
+            Assert.That(market.Product(Coal).deliveredPerMin, Is.Zero.Within(1e-9),
                         "but the island never delivered them");
         }
 
@@ -752,7 +752,7 @@ namespace Game.Tests
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
             service.TryStart(Coal, 0);
-            market.Deliver(Coal, service.At(0).holdSize * 2d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), service.At(0).holdSize * 2d);
             service.Tick((float)Voyages.SecondsToFill(0, T) + 1f);
             Assert.That(service.IsAtSea(0), Is.True);
 
@@ -776,7 +776,7 @@ namespace Game.Tests
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
             service.TryStart(Coal, 0);
-            market.Deliver(Coal, service.At(0).holdSize * 2d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), service.At(0).holdSize * 2d);
             service.Tick((float)Voyages.SecondsToFill(0, T) + 1f);
             service.At(0).returnsUnix = 0L;
             service.Tick(1f);

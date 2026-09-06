@@ -108,6 +108,14 @@ namespace Game.Systems
 
         // ---- market yards (MarketService) ------------------------------------------------------
         public List<MarketYard> marketYards = new List<MarketYard>();  // one row per island, made on demand
+
+        // The idle-shop rows that replace marketYards. Additive on purpose: the legacy list above stays
+        // on disk as MIGRATION INPUT ONLY and has no runtime consumer any more, so a save written by an
+        // older build still converts, and a save written by this build still opens in one that has not
+        // shipped yet. Deliberately NOT guarded by SaveMigration.CurrentVersion — NeedsReset treats a
+        // version change as a wipe, and this feature is not worth anyone's empire.
+        public List<IdleMarketYard> idleMarketYards = new List<IdleMarketYard>();
+        public int idleShopSchemaVersion;
         public int marketCarryLevel;                 // the stack the player carries on his back. One body,
                                                      // one upgrade — deliberately outside MarketYard, which
                                                      // is per island

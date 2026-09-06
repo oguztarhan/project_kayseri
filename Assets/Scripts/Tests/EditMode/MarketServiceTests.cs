@@ -37,12 +37,79 @@ namespace Game.Tests
 
         /// <summary>Two bars a second arriving, which is what every capacity below is measured against.</summary>
         private static void SetSupply(MarketService market, double barsPerMinute)
-            => market.Row(Coal).deliveredPerMin = barsPerMinute;
+            => market.Product(Coal).deliveredPerMin = barsPerMinute;
 
         private static void Staff(MarketService market, int level)
         {
-            MarketYard row = market.Row(Coal);
-            row.hireCarry = row.hireServe = row.hireCollect = level;
+            IdleMarketYard row = market.Row(Coal);
+            row.hireCarry = row.hireServe = row.dispatchLevel = level;
+        }
+
+        // ---- legacy conversion ---------------------------------------------------------------------
+        // The one path with a save-corruption failure mode: an existing player's scalar MarketYard row
+        // meeting this build for the first time. Convert itself is covered by IdleShopContractTests;
+        // what is pinned here is MarketService actually reaching for it, once, with the right product.
+
+        [Test]
+        public void LegacyYardConvertsOnFirstTouchAndKeepsEveryInvestment()
+        {
+            // Save FIRST, service after — the order GameBootstrap uses. Building the service first
+            // would have it create an empty row that permanently shadows the legacy one.
+            var data = new SaveData();
+            data.marketYards.Add(new MarketYard
+            {
+                id = Coal, depositSlots = 3, queueSlots = 4,
+                hireCarry = 2, hireServe = 5, hireCollect = 4,
+                stock = 12.5d, deliveredPerMin = 60d
+            });
+            var wallet = new WalletService(data.wallet);
+            var market = new MarketService(data, wallet, null);
+            market.Register(Coal, new Terms { BarPriceRaw = Price, IncomeCapPerMinuteRaw = NoCeiling });
+
+            IdleMarketYard row = market.Row(Coal);
+
+            Assert.That(row.schemaVersion, Is.EqualTo(IdleMarketMigration.SchemaVersion));
+            Assert.That(row.depositSlots, Is.EqualTo(3));
+            Assert.That(row.queueSlots, Is.EqualTo(4));
+            Assert.That(row.hireCarry, Is.EqualTo(2));
+            Assert.That(row.hireServe, Is.EqualTo(5));
+            Assert.That(row.dispatchLevel, Is.EqualTo(4), "hireCollect becomes dispatch, not zero");
+            Assert.That(market.Stock(Coal), Is.EqualTo(12.5d).Within(1e-9), "fractional stock survives");
+            Assert.That(market.Product(Coal).deliveredPerMin, Is.EqualTo(60d).Within(1e-9));
+            Assert.That(market.Product(Coal).productId, Is.EqualTo("Coke"), "coal sells Coke");
+            Assert.That(data.marketYards[0].stock, Is.EqualTo(12.5d).Within(1e-9), "legacy row not mutated");
+        }
+
+        [Test]
+        public void ConvertedYardIsNotReCreditedAfterItSellsOut()
+        {
+            var data = new SaveData();
+            data.marketYards.Add(new MarketYard { id = Coal, stock = 40d, deliveredPerMin = 60d });
+            var wallet = new WalletService(data.wallet);
+            var market = new MarketService(data, wallet, null);
+            market.Register(Coal, new Terms { BarPriceRaw = Price, IncomeCapPerMinuteRaw = NoCeiling });
+
+            Assert.That(market.Stock(Coal), Is.EqualTo(40d).Within(1e-9));
+            market.TakeFromStock(Coal, 40d);
+            Assert.That(market.Stock(Coal), Is.Zero.Within(1e-9));
+
+            // A fresh service over the SAME save is the reload: the legacy row still says 40 bars, and
+            // reading it again would hand the player their stock back every launch, forever.
+            var reopened = new MarketService(data, wallet, null);
+            reopened.Register(Coal, new Terms { BarPriceRaw = Price, IncomeCapPerMinuteRaw = NoCeiling });
+            Assert.That(reopened.Stock(Coal), Is.Zero.Within(1e-9), "legacy stock must not be re-credited");
+        }
+
+        [Test]
+        public void EveryIslandOnTheLadderHasItsOwnProduct()
+        {
+            var seen = new System.Collections.Generic.HashSet<string>();
+            for (int i = 0; i < Chapters.Islands.Length; i++)
+            {
+                string id = MarketService.ProductFor(Chapters.Islands[i]);
+                Assert.That(id, Is.Not.Null.And.Not.Empty);
+                Assert.That(seen.Add(id), Is.True, "two islands cannot share a product id: " + id);
+            }
         }
 
         // ---- the money path ---------------------------------------------------------------------
@@ -55,7 +122,7 @@ namespace Game.Tests
             SetSupply(market, 120d);                 // 2 bars a second
             market.SetActiveIsland(Coal);            // its lorries are running, so Deliver is the only supply
 
-            market.Deliver(Coal, 50d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
             market.Tick(1f);
 
             // bare yard: capacity 2/s at the 0.15 trickle = 0.3 bars, at $10 a bar
@@ -72,7 +139,7 @@ namespace Game.Tests
             SetSupply(market, 120d);
             market.SetActiveIsland(Coal);
 
-            market.Deliver(Coal, 50d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
             market.Tick(1f);
 
             Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(6d).Within(1e-6));
@@ -129,7 +196,7 @@ namespace Game.Tests
         {
             SaveData data; WalletService wallet;
             MarketService market = Build(out data, out wallet);
-            market.Deliver(Coal, 10d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), 10d);
 
             double paid = market.SellByHand(Coal, 1d);
 
@@ -145,7 +212,7 @@ namespace Game.Tests
         {
             SaveData data; WalletService wallet;
             MarketService market = Build(out data, out wallet);
-            market.Deliver(Coal, 2.5d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), 2.5d);
 
             Assert.That(market.TakeFromStock(Coal, 1d), Is.EqualTo(1d).Within(1e-9));
             Assert.That(market.TakeFromStock(Coal, 5d), Is.EqualTo(1.5d).Within(1e-9), "only what was left");
@@ -223,12 +290,12 @@ namespace Game.Tests
             market.Tick(1f);
             for (int second = 0; second < 120; second++)
             {
-                market.Deliver(Coal, 2d * simSpeed);  // 2 bars a second, doubled when the clock is
+                market.Deliver(Coal, MarketService.ProductFor(Coal), 2d * simSpeed);  // 2 bars a second, doubled when the clock is
                 market.Tick(1f);
             }
 
             cash = wallet.Cash.ToDouble();
-            savedRate = market.Row(Coal).deliveredPerMin;
+            savedRate = market.Product(Coal).deliveredPerMin;
         }
 
         [Test]
@@ -332,7 +399,7 @@ namespace Game.Tests
             SaveData data; WalletService wallet;
             MarketService market = Build(out data, out wallet);
             SetSupply(market, 120d);
-            market.Deliver(Coal, 20d);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), 20d);
 
             market.SettleOffline(-9999L);
 
@@ -345,7 +412,7 @@ namespace Game.Tests
             SaveData data; WalletService wallet;
             MarketService market = Build(out data, out wallet);
             market.Register("copper", new Terms { BarPriceRaw = Price, IncomeCapPerMinuteRaw = NoCeiling });
-            market.Row("copper").deliveredPerMin = 120d;
+            market.Product("copper").deliveredPerMin = 120d;
 
             for (int second = 0; second < 30; second++) market.Tick(1f);
 

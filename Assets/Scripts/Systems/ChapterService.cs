@@ -151,14 +151,17 @@ namespace Game.Systems
         /// </summary>
         private bool YardStaffed(string key)
         {
-            if (_data.marketYards == null) return false;
-            for (int i = 0; i < _data.marketYards.Count; i++)
+            // Reads the idle-shop rows, NOT the legacy marketYards list. If this kept reading the old
+            // list after MarketService moved off it, this beat would gate on hire levels that stopped
+            // being written and chapter progression would freeze without an error anywhere.
+            if (_data.idleMarketYards == null) return false;
+            for (int i = 0; i < _data.idleMarketYards.Count; i++)
             {
-                MarketYard y = _data.marketYards[i];
+                IdleMarketYard y = _data.idleMarketYards[i];
                 if (y == null || y.id != key) continue;
                 _hires[MarketFlow.Carry] = y.hireCarry;
                 _hires[MarketFlow.Serve] = y.hireServe;
-                _hires[MarketFlow.Collect] = y.hireCollect;
+                _hires[MarketFlow.Collect] = y.dispatchLevel;   // third MIN slot, renamed not removed
                 return MarketFlow.IsMaxed(_hires);
             }
             return false;

@@ -356,7 +356,7 @@ namespace Game.Systems
         public double HoldSizeFor(string islandKey)
         {
             if (_market == null || string.IsNullOrEmpty(islandKey)) return 0d;
-            MarketYard row = _market.Row(islandKey);
+            MarketProductStock row = _market.Product(islandKey);
             double rate = row != null ? row.deliveredPerMin : 0d;
             return Voyages.HoldSize(rate, ShipLevel(Voyages.Hold), _tuning);
         }
@@ -586,7 +586,7 @@ namespace Game.Systems
         {
             if (_market == null || v.holdSize <= 0d) return false;
 
-            MarketYard row = _market.Row(v.island);
+            MarketProductStock row = _market.Product(v.island);
             double rate = row != null ? row.deliveredPerMin : 0d;
             // Every hold filling off THIS island shares one capped budget — see Voyages.DivertShareEach.
             // Without it four berths would take more than the island makes and the counter would sell

@@ -46,7 +46,7 @@ namespace Game.Systems
 
         private sealed class Yard
         {
-            public MarketYard save;
+            public IdleMarketYard save;
             public IIslandSaleTerms terms;
 
             // delivery meter — bars per minute arriving from the island, on an unboosted clock
@@ -173,9 +173,10 @@ namespace Game.Systems
         {
             if (bars <= 0d) return 0d;
             Yard y = Get(islandKey);
-            double taken = y.save.stock < bars ? y.save.stock : bars;
+            MarketProductStock p = ProductRow(y);
+            double taken = p.stock < bars ? p.stock : bars;
             if (taken <= 0d) return 0d;
-            y.save.stock -= taken;
+            p.stock -= taken;
             return taken;
         }
 
@@ -201,11 +202,20 @@ namespace Game.Systems
             if (Sold != null) Sold(islandKey, cash);
         }
 
-        /// <summary>A cargo truck tipping its load onto the pads. The island's only remaining say in income.</summary>
-        public void Deliver(string islandKey, double bars)
+        /// <summary>
+        /// A load tipped onto the pads. The island's only remaining say in income.
+        ///
+        /// Returns how many units the pads ACCEPTED. Today every caller still lets the remainder go, so
+        /// this is informational and the behaviour is byte-for-byte what it was; handing the overflow
+        /// back to its source is step 3's job, once porters carry real batches that can be put down again.
+        /// The delivery METER still counts what was offered, because that is what the island sent, and
+        /// that number is what the next launch's offline grant is paid from.
+        /// </summary>
+        public double Deliver(string islandKey, string productId, double bars)
         {
-            if (bars <= 0d || string.IsNullOrEmpty(islandKey)) return;
+            if (bars <= 0d || string.IsNullOrEmpty(islandKey)) return 0d;
             Yard y = Get(islandKey);
+            MarketProductStock p = ProductRow(y);
             // The pads get the real load; the METER gets it clean, the same way deliveredPerMin is
             // stored clean of wear. A boosted island is running its clock at ×2, so twice the lorries
             // arrive per real second — and none of that is a rate it can sustain once the ad expires.
@@ -220,11 +230,12 @@ namespace Game.Systems
             // Capacity is measured against the DELIVERY RATE, so a yard whose meter has not filled yet
             // has no capacity to speak of. Letting the first deliveries through uncapped is the honest
             // reading: the pads are not full, the game just does not know how big they are yet.
-            if (capacity <= 0d) { y.save.stock += bars; return; }
+            if (capacity <= 0d) { p.stock += bars; return bars; }
 
             double overflow;
-            y.save.stock = MarketFlow.AddStock(y.save.stock, bars, capacity, out overflow);
+            p.stock = MarketFlow.AddStock(p.stock, bars, capacity, out overflow);
             if (overflow > 0d) y.overflowedThisTick = true;
+            return bars - overflow;
         }
 
         /// <summary>
@@ -244,10 +255,11 @@ namespace Game.Systems
         {
             if (bars <= 0d || string.IsNullOrEmpty(islandKey)) return;
             Yard y = Get(islandKey);
+            MarketProductStock p = ProductRow(y);
             double capacity = MarketFlow.StockCapacity(SupplyPerSecond(y), y.save.depositSlots);
-            if (capacity <= 0d) { y.save.stock += bars; return; }
+            if (capacity <= 0d) { p.stock += bars; return; }
             double overflow;
-            y.save.stock = MarketFlow.AddStock(y.save.stock, bars, capacity, out overflow);
+            p.stock = MarketFlow.AddStock(p.stock, bars, capacity, out overflow);
         }
 
         // ------------------------------------------------------------------ reading
@@ -294,7 +306,7 @@ namespace Game.Systems
                    * _permanentSpeed * _foremanMult * _boostMult;
         }
 
-        public double Stock(string islandKey) => Get(islandKey).save.stock;
+        public double Stock(string islandKey) => ProductRow(Get(islandKey)).stock;
 
         /// <summary>
         /// What the pads can hold, in bars. Zero until the delivery meter has something to say — capacity
@@ -310,7 +322,7 @@ namespace Game.Systems
         public double StockFraction(string islandKey)
         {
             double capacity = StockCapacity(islandKey);
-            return capacity > 0d ? Get(islandKey).save.stock / capacity : 0d;
+            return capacity > 0d ? ProductRow(Get(islandKey)).stock / capacity : 0d;
         }
 
         /// <summary>The yard's throughput, 0..1 — the number the whole design turns on.</summary>
@@ -327,20 +339,23 @@ namespace Game.Systems
         public double OverflowSeconds(string islandKey) => Get(islandKey).overflowSeconds;
 
         /// <summary>The save row, for the yard scene and the upgrade pads to read and write.</summary>
-        public MarketYard Row(string islandKey) => Get(islandKey).save;
+        public IdleMarketYard Row(string islandKey) => Get(islandKey).save;
+
+        /// <summary>The row for the one product this yard trades in — where stock and the meter live now.</summary>
+        public MarketProductStock Product(string islandKey) => ProductRow(Get(islandKey));
 
         // ------------------------------------------------------------------ upgrades
         /// <summary>What the player has bought on one track.</summary>
         public int Level(string islandKey, YardUpgrade kind)
         {
-            MarketYard row = Get(islandKey).save;
+            IdleMarketYard row = Get(islandKey).save;
             switch (kind)
             {
                 case YardUpgrade.DepositSlot: return row.depositSlots < 1 ? 1 : row.depositSlots;
                 case YardUpgrade.QueueSlot: return row.queueSlots < 1 ? 1 : row.queueSlots;
                 case YardUpgrade.HireCarry: return row.hireCarry;
                 case YardUpgrade.HireServe: return row.hireServe;
-                case YardUpgrade.HireCollect: return row.hireCollect;
+                case YardUpgrade.HireCollect: return row.dispatchLevel;
                 // One body, one back — the carry upgrade is the player's, not the yard's, so it lives
                 // outside the per-island row and every yard sees the same stack.
                 case YardUpgrade.CarryCapacity: return _data != null ? _data.marketCarryLevel : 0;
@@ -379,14 +394,14 @@ namespace Game.Systems
             if (cost <= 0d) return false;                      // no ceiling measured yet: nothing is for sale
             if (!_wallet.TrySpendCash(new BigDouble(cost))) return false;
 
-            MarketYard row = Get(islandKey).save;
+            IdleMarketYard row = Get(islandKey).save;
             switch (kind)
             {
                 case YardUpgrade.DepositSlot: row.depositSlots = Level(islandKey, kind) + 1; break;
                 case YardUpgrade.QueueSlot: row.queueSlots = Level(islandKey, kind) + 1; break;
                 case YardUpgrade.HireCarry: row.hireCarry++; break;
                 case YardUpgrade.HireServe: row.hireServe++; break;
-                case YardUpgrade.HireCollect: row.hireCollect++; break;
+                case YardUpgrade.HireCollect: row.dispatchLevel++; break;
                 case YardUpgrade.CarryCapacity: _data.marketCarryLevel++; break;
             }
             return true;
@@ -452,7 +467,8 @@ namespace Game.Systems
             {
                 double capacity = MarketFlow.StockCapacity(supply, y.save.depositSlots);
                 double overflow;
-                y.save.stock = MarketFlow.AddStock(y.save.stock, supply * seconds, capacity, out overflow);
+                MarketProductStock bg = ProductRow(y);
+                bg.stock = MarketFlow.AddStock(bg.stock, supply * seconds, capacity, out overflow);
                 y.overflowSeconds = overflow > 0d ? y.overflowSeconds + seconds : 0d;
             }
 
@@ -463,10 +479,11 @@ namespace Game.Systems
             {
                 double rate = MarketFlow.ServiceRate(HireLevels(y));
                 double sellCapacity = MarketFlow.SellCapacityPerSecond(supply, y.save.queueSlots);
-                double sold = MarketFlow.SoldInTick(y.save.stock, sellCapacity, rate, seconds);
+                MarketProductStock p = ProductRow(y);
+                double sold = MarketFlow.SoldInTick(p.stock, sellCapacity, rate, seconds);
                 if (sold > 0d)
                 {
-                    y.save.stock -= sold;
+                    p.stock -= sold;
                     Pay(y, sold);
                 }
             }
@@ -556,10 +573,11 @@ namespace Game.Systems
                 double rate = MarketFlow.ServiceRate(HireLevels(y));
                 double net = (supply - sellCapacity * rate) * elapsedSeconds;
 
-                double stock = y.save.stock + net;
+                MarketProductStock p = ProductRow(y);
+                double stock = p.stock + net;
                 if (stock < 0d) stock = 0d;
                 if (capacity > 0d && stock > capacity) stock = capacity;
-                y.save.stock = stock;
+                p.stock = stock;
             }
         }
 
@@ -584,7 +602,7 @@ namespace Game.Systems
             // a fraction, and the deeper the neglect the worse the double-count.
             float condition = Condition(y.save.id);
             double measured = y.deliverTrailing * (60d / y.deliverFilled);
-            y.save.deliveredPerMin = condition > 0.01f ? measured / condition : measured;
+            ProductRow(y).deliveredPerMin = condition > 0.01f ? measured / condition : measured;
         }
 
         private void AdvanceIncomeMeter(Yard y)
@@ -613,25 +631,91 @@ namespace Game.Systems
             Yard y;
             if (_yards.TryGetValue(key, out y)) return y;
 
-            y = new Yard { save = FindRow(key) ?? NewRow(key) };
+            y = new Yard { save = FindRow(key) ?? MigrateOrNewRow(key) };
             _yards[key] = y;
             _order.Add(y);
             return y;
         }
 
-        private MarketYard FindRow(string id)
+        private IdleMarketYard FindRow(string id)
         {
-            if (_data == null || _data.marketYards == null) return null;
-            var list = _data.marketYards;
-            for (int i = 0; i < list.Count; i++) if (list[i].id == id) return list[i];
+            if (_data == null || _data.idleMarketYards == null) return null;
+            var list = _data.idleMarketYards;
+            for (int i = 0; i < list.Count; i++) if (list[i] != null && list[i].id == id) return list[i];
             return null;
         }
 
-        private MarketYard NewRow(string id)
+        /// <summary>
+        /// The first time this build meets an island, its legacy scalar row is converted into a
+        /// product row. IdleMarketMigration.Convert is idempotent and never mutates the legacy row, so
+        /// a yard that has since sold out is not re-credited: FindRow above wins on every later call.
+        /// </summary>
+        private IdleMarketYard MigrateOrNewRow(string id)
         {
-            var row = new MarketYard { id = id };
-            if (_data != null && _data.marketYards != null) _data.marketYards.Add(row);
+            IdleMarketYard row;
+            MarketYard legacy = FindLegacyRow(id);
+            if (legacy != null)
+            {
+                row = IdleMarketMigration.Convert(legacy, ProductFor(id));
+            }
+            else
+            {
+                row = new IdleMarketYard { schemaVersion = IdleMarketMigration.SchemaVersion, id = id };
+                row.products.Add(new MarketProductStock { productId = ProductFor(id) });
+            }
+            if (_data != null)
+            {
+                if (_data.idleMarketYards == null) _data.idleMarketYards = new List<IdleMarketYard>();
+                _data.idleMarketYards.Add(row);
+                _data.idleShopSchemaVersion = IdleMarketMigration.SchemaVersion;
+            }
             return row;
+        }
+
+        private MarketYard FindLegacyRow(string id)
+        {
+            if (_data == null || _data.marketYards == null) return null;
+            var list = _data.marketYards;
+            for (int i = 0; i < list.Count; i++) if (list[i] != null && list[i].id == id) return list[i];
+            return null;
+        }
+
+        /// <summary>
+        /// Which product an island sells. Pinned against the recipe assets, not guessed from a display
+        /// name: CokeRecipe consumes Coal, CopperBarRecipe consumes Copper, SteelRecipe consumes Iron,
+        /// and so on down Chapters.Islands. These strings are SAVE KEYS — a migrated row is found by
+        /// this id, so changing one silently reads a player's stock as zero.
+        /// </summary>
+        public static string ProductFor(string islandKey)
+        {
+            switch (islandKey)
+            {
+                case "coal": return "Coke";
+                case "copper": return "CopperBar";
+                case "iron": return "SteelBeam";
+                case "silver": return "SilverBar";
+                case "gold": return "GoldBar";
+                case "ruby": return "CutRuby";
+                case "emerald": return "CutEmerald";
+                case "diamond": return "PolishedDiamond";
+                default: return islandKey ?? string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// The one product row a yard trades in today.
+        ///
+        /// ponytail: single-product by construction — stage 1-1 sells one thing and the Product
+        /// catalogue has no runtime consumer yet, so allocating one service budget fairly across
+        /// several stocked products is package C's job, not speculative work here. The SAVE shape is
+        /// already the multi-product one, which is the half that is expensive to change later.
+        /// </summary>
+        private static MarketProductStock ProductRow(Yard y)
+        {
+            var products = y.save.products;
+            if (products.Count == 0)
+                products.Add(new MarketProductStock { productId = ProductFor(y.save.id) });
+            return products[0];
         }
 
         /// <summary>
@@ -644,7 +728,9 @@ namespace Game.Systems
         {
             y.hires[MarketFlow.Carry] = y.save.hireCarry;
             y.hires[MarketFlow.Serve] = y.save.hireServe;
-            y.hires[MarketFlow.Collect] = y.save.hireCollect;
+            // MarketFlow.Collect is the third MIN slot; the save field is dispatchLevel now that
+            // nobody walks the floor picking cash up. Same curve, same index, new name — not a bug.
+            y.hires[MarketFlow.Collect] = y.save.dispatchLevel;
             return y.hires;
         }
 
@@ -668,7 +754,7 @@ namespace Game.Systems
         /// off the pads and is destroyed. The ad would have bought nothing but a fuller-looking yard.
         /// </summary>
         private double SupplyPerSecond(Yard y)
-            => y.save.deliveredPerMin / 60d * Condition(y.save.id) * SpeedFor(y);
+            => ProductRow(y).deliveredPerMin / 60d * Condition(y.save.id) * SpeedFor(y);
 
         /// <summary>
         /// The clock this yard's supply is being produced at. Only the island whose lorries are really

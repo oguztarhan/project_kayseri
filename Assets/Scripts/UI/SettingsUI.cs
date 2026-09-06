@@ -642,10 +642,10 @@ namespace Game.UI
             var market = ServiceLocator.Get<MarketService>();
             if (market != null)
             {
-                MarketYard yard = market.Row(op.IslandKey);
+                IdleMarketYard yard = market.Row(op.IslandKey);
                 yard.depositSlots = MarketPrices.MaxLevel(YardUpgrade.DepositSlot);
                 yard.queueSlots = MarketPrices.MaxLevel(YardUpgrade.QueueSlot);
-                yard.hireCarry = yard.hireServe = yard.hireCollect = MarketFlow.MaxHireLevel;
+                yard.hireCarry = yard.hireServe = yard.dispatchLevel = MarketFlow.MaxHireLevel;
                 var data = ServiceLocator.Get<SaveData>();
                 if (data != null) data.marketCarryLevel = MarketPrices.MaxCarryLevel;
             }
