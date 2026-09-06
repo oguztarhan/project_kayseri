@@ -18,7 +18,10 @@ namespace Game.UI
 
         private void Awake()
         {
-            var save = usePlayerSave ? ServiceLocator.Get<SaveData>() : null;
+            var bootstrapSave = ServiceLocator.Get<SaveData>();
+            var save = usePlayerSave || ShipyardFeatureSwitch.IsEnabled(bootstrapSave)
+                ? bootstrapSave
+                : null;
             // Opening the art preview without Bootstrap must not create or overwrite a player save.
             if (save != null) Progress = save.shipyard ?? (save.shipyard = new ShipyardProgression());
             else Progress = new ShipyardProgression();
@@ -32,7 +35,7 @@ namespace Game.UI
             Manifest = JsonUtility.FromJson<ShipyardMapManifest>(manifestAsset.text);
             for (int i = 0; i < Manifest.zones.Length; i++)
             {
-                bool built = !Manifest.zones[i].needsArt && progress.IsUnlocked(Manifest.zones[i].id);
+                bool built = !Manifest.zones[i].needsArt && progress.IsBuilt(Manifest.zones[i].id);
                 if (buildings[i] != null) buildings[i].SetActive(built);
                 if (lockedPads[i] != null) lockedPads[i].SetActive(!built);
             }
@@ -48,8 +51,14 @@ namespace Game.UI
 
         public void FocusNext()
         {
-            var id = Progress != null ? Progress.NextStation : "Station_Hull";
-            var anchor = FindAnchor(id + "_Work");
+            var id = Progress != null ? Progress.NextMachine : "Station_Hull";
+            FocusMachine(id);
+        }
+
+        public void FocusMachine(string machineId)
+        {
+            if (string.IsNullOrEmpty(machineId)) return;
+            var anchor = FindAnchor(machineId + "_Work");
             if (anchor != null) portraitCamera.Focus(anchor.position);
         }
     }

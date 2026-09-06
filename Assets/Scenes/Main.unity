@@ -11829,11 +11829,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6133922240265336258, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.9955157
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6133922240265336258, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9955157
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6546755171169001220, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -13530,6 +13530,7 @@ GameObject:
   - component: {fileID: 1815842463}
   - component: {fileID: 1815842464}
   - component: {fileID: 1815842465}
+  - component: {fileID: 1815842466}
   m_Layer: 0
   m_Name: UI_Sistemler
   m_TagString: Untagged
@@ -13745,6 +13746,22 @@ MonoBehaviour:
   dayOpen: {r: 0.36, g: 0.82, b: 0.45, a: 1}
   dayPast: {r: 0.3, g: 0.36, b: 0.48, a: 1}
   dayLocked: {r: 0.2, g: 0.23, b: 0.3, a: 1}
+--- !u!114 &1815842466
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1815842457}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53ff140211982944f8635742dba99287, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.CannonProductionUI
+  bridge: {fileID: 0}
+  panelColor: {r: 0.035, g: 0.055, b: 0.09, a: 0.96}
+  buttonColor: {r: 0.11, g: 0.25, b: 0.38, a: 1}
+  accentColor: {r: 0.95, g: 0.74, b: 0.28, a: 1}
 --- !u!1 &1832180452
 GameObject:
   m_ObjectHideFlags: 0
@@ -17138,6 +17155,7 @@ GameObject:
   - component: {fileID: 2135659118}
   - component: {fileID: 2135659119}
   - component: {fileID: 2135659120}
+  - component: {fileID: 2135659121}
   m_Layer: 0
   m_Name: CoalController
   m_TagString: Untagged
@@ -17535,6 +17553,19 @@ MonoBehaviour:
   pulseSeconds: 2.4
   popSeconds: 0.28
   scanSeconds: 0.25
+--- !u!114 &2135659121
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2135659099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36605db8ba292594fa4aa42d3a5f700e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Gameplay::Game.Gameplay.CannonProductionWorldBridge
+  operation: {fileID: 0}
 --- !u!1 &2140190477
 GameObject:
   m_ObjectHideFlags: 0

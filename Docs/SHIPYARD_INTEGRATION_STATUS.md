@@ -1,5 +1,7 @@
 # Portrait shipyard — first integration pass
 
+> **Historical snapshot / superseded.** The current source of truth is [UPDATED_PORTRAIT_SHIPYARD_WORKLIST.md](../UPDATED_PORTRAIT_SHIPYARD_WORKLIST.md). This document records the earlier foundation pass and must not be used as the active implementation plan.
+
 2026-09-05. This is a **layout/runtime foundation**, not a complete production-loop release.
 
 ## Claude handoff verdict
@@ -42,6 +44,26 @@ not a recipe dependency between equipment families.
 - The clean map preview opens on the measured map centre, shows the full coast and all
   three customer islets with a tight water margin at both sides, and has no debug canvas or
   buttons.
+
+## Stage 8 functional pass (2026-09-06)
+
+- The runtime production card now acts as one contextual machine panel rather than a permanent
+  Cannon-only recipe carousel. It creates tabs only for built machine families and shows only
+  discovered recipes for the selected family.
+- Production actions (start, sell, equip, store, salvage, and fulfil) route through the generic
+  machine-aware service methods, so the panel does not fork gameplay rules per station.
+- New machine, recipe, material, status, and action copy is localized in
+  `Assets/Resources/Diller/metinler.txt` for every shipped language column.
+- The runtime panel is constrained to `Screen.safeArea` and reflows when resolution or orientation
+  changes. The panel height was increased to accommodate the contextual row without clipping.
+- The authored HUD now clamps cash, premium currency, income, settings, boost/shield indicators, and
+  the compact rail to safe-area bounds; the Set Sail opener remains the one allowed primary runtime
+  opener in compact mode.
+- Functional verification: `Game.Tests.ShipyardFoundationTests` passes 28/28, ordinary Bootstrap
+  startup reaches Shipyard with zero console errors, and a direct Main-scene smoke exercises the
+  HUD plus runtime production canvas with zero console errors. Normal Play start remains Bootstrap.
+- Art polish, worker/material-transfer effects, output rack modelling, and device-specific visual QA
+  remain intentionally deferred per the current project direction.
 
 ## Open / play
 

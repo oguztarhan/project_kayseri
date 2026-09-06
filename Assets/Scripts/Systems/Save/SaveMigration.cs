@@ -79,6 +79,9 @@ namespace Game.Systems
             var fresh = new SaveData();
             if (old == null) return fresh;
 
+            // Presentation choice is not progression, but it is a player-facing preference. Preserve it
+            // across the existing reset path so a rollback cannot silently turn itself back on.
+            fresh.UsePortraitShipyard = old.UsePortraitShipyard;
             if (old.wallet != null) fresh.wallet.gems = old.wallet.gems;
             fresh.adsRemoved = old.adsRemoved;
             if (old.purchasedOffers != null) fresh.purchasedOffers.AddRange(old.purchasedOffers);

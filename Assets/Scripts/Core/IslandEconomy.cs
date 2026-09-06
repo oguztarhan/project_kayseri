@@ -23,10 +23,18 @@ namespace Game.Core
     /// </summary>
     public sealed class IslandEconomy
     {
-        // Station indices. Array positions - saved games address upgrades by number,
+        // Economy indices. Array positions - saved games address upgrades by number,
         // so these must never be reordered.
         public const int Mine = 0, Train = 1, Storage = 2, OreTrucks = 3,
                          Smelter = 4, CargoTrucks = 5, Market = 6, Power = 7;
+
+        // Stable readable IDs for the five player-facing upgrade hubs. These sit above the
+        // legacy economy indices and must not be used to address saved upgrade arrays.
+        public const string Hub_Mine = "Hub_Mine";
+        public const string Hub_Deposit = "Hub_Deposit";
+        public const string Hub_Refinery = "Hub_Refinery";
+        public const string Hub_Market = "Hub_Market";
+        public const string Hub_Port = "Hub_Port";
 
         /// <summary>
         /// The five stations shown by the portrait focus ladder. Transport levels remain in the
@@ -35,11 +43,22 @@ namespace Game.Core
         /// </summary>
         public static readonly int[] PlayerStations = { Mine, Storage, Smelter, Market, Power };
 
-        public static bool IsPlayerStation(int station)
+        /// <summary>Readable IDs aligned with <see cref="PlayerStations"/>.</summary>
+        public static readonly string[] MajorStationIds =
+        {
+            Hub_Mine, Hub_Deposit, Hub_Refinery, Hub_Market, Hub_Port
+        };
+
+        public static bool IsMajorStation(int station)
         {
             for (int i = 0; i < PlayerStations.Length; i++)
                 if (PlayerStations[i] == station) return true;
             return false;
+        }
+
+        public static bool IsPlayerStation(int station)
+        {
+            return IsMajorStation(station);
         }
 
         public const int UnlockSecondMine = 0, UnlockSecondSmelter = 1, UnlockTradePost = 2,

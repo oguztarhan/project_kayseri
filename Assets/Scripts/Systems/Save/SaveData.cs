@@ -11,6 +11,9 @@ namespace Game.Systems
     [Serializable]
     public class SaveData
     {
+        // Rollout switch. It is intentionally default-on so a save written before this field existed
+        // enters the portrait presentation without changing any legacy progression collection.
+        public bool UsePortraitShipyard = true;
         public ShipyardProgression shipyard = new ShipyardProgression();
         public int version = SaveMigration.CurrentVersion;  // stamped on write; a mismatch on load
                                                             // wipes the run — see SaveMigration

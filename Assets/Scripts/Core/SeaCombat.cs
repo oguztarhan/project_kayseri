@@ -26,7 +26,7 @@ namespace Game.Core
     ///
     /// WHERE POWER COMES FROM, unchanged in spirit: DERIVED, never stored. The ship's stat block is
     /// rebuilt every fight from the crew track, the captain (each ROLE carries its own
-    /// secondary — Gunner crits, Quartermaster dodges, Bosun mends, Purser plunders) and the four
+    /// secondary — Gunner crits, Quartermaster dodges, Bosun mends, Purser plunders) and the five
     /// worn items. The POWER number the panel shows is a formula over that block, not a field.
     ///
     /// THE ENGINE TAKES ITS DICE AS ARGUMENTS. Every roll enters through <see cref="ShotRolls"/>,
@@ -44,12 +44,14 @@ namespace Game.Core
         public const int KindCount = 5;
 
         /// <summary>
-        /// The four gear slots. Two dress the ship, two the captain. Saves address these by index —
-        /// never reorder. TOP is the cannon, ZIRH the plating, DÜRBÜN the spyglass (also the drop
-        /// luck), TILSIM the charm.
+        /// The five gear slots. The first four were shipped in the original sea-combat save contract
+        /// and must never move; Rigging is appended as slot 4. TOP is the cannon, ZIRH the plating,
+        /// DÜRBÜN the spyglass (also the drop luck), TILSIM the charm, and RIGGING the new handling
+        /// slot.
         /// </summary>
-        public const int SlotCannon = 0, SlotPlating = 1, SlotSpyglass = 2, SlotCharm = 3;
-        public const int SlotCount = 4;
+        public const int SlotCannon = 0, SlotPlating = 1, SlotSpyglass = 2, SlotCharm = 3, SlotRigging = 4;
+        public const int LegacySlotCount = 4;
+        public const int SlotCount = 5;
 
         /// <summary>No item in the slot. The save stores grade + 1 — 0 is empty.</summary>
         public const int GearEmpty = 0;
@@ -98,6 +100,7 @@ namespace Game.Core
             new[] { 26d, 44d, 74d, 120d },      // plating
             new[] { 10d, 17d, 28d, 46d },       // spyglass
             new[] { 20d, 34d, 56d, 92d },       // charm
+            new[] { 4d, 7d, 12d, 20d },         // rigging (appended handling slot; deliberately lighter)
         };
         public static readonly double[][] SlotShot =
         {
@@ -105,6 +108,7 @@ namespace Game.Core
             new[] { 0.6d, 1d, 1.7d, 2.8d },
             new[] { 1.8d, 3d, 5d, 8.5d },
             new[] { 1.1d, 1.9d, 3.2d, 5.2d },
+            new[] { 0.4d, 0.7d, 1.2d, 2d },
         };
         public static readonly double[][] SlotDef =
         {
@@ -112,6 +116,7 @@ namespace Game.Core
             new[] { 3d, 5d, 9d, 15d },
             new[] { 1d, 2d, 3d, 5d },
             new[] { 2d, 3d, 5d, 8d },
+            new[] { 0.4d, 0.7d, 1.2d, 2d },
         };
         public static readonly double[][] SlotSpd =
         {
@@ -119,6 +124,7 @@ namespace Game.Core
             new[] { 0.5d, 1d, 2d, 3d },
             new[] { 4d, 7d, 11d, 18d },
             new[] { 2d, 3d, 5d, 8d },
+            new[] { 1.2d, 2d, 3.3d, 5.3d },
         };
 
         /// <summary>
@@ -131,6 +137,7 @@ namespace Game.Core
             new[] { SecDodge, SecStun, SecMend },               // plating: ways to be hit less
             new[] { SecCrit, SecPlunder, SecDodge },            // spyglass: the sharp eye
             new[] { SecSteal, SecMend, SecSalvo, SecStun },     // charm: the uncanny ones
+            new[] { SecDodge, SecCrit, SecSalvo },              // rigging: handling and tempo
         };
 
         /// <summary>A secondary's value at RARE, by Sec index; SecGradeMult scales it up-grade.

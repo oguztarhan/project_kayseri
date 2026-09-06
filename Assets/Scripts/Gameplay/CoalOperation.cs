@@ -914,6 +914,36 @@ namespace Game.Gameplay
         public double Bars => _bars;
         public string IslandKey => islandKey;
         public string IslandDisplayName => displayName;
+
+        /// <summary>
+        /// The live Mine/Deposit/Refinery hand-off used by the first shipyard machine. The Cannon
+        /// recipe deliberately consumes only coal from the deposit and steel beams from the
+        /// refinery's bar buffer; unrecognised IDs never drain the island economy.
+        /// </summary>
+        public double ShipyardMaterialAvailable(string resourceId)
+        {
+            if (resourceId == "coal") return _storeOre;
+            if (resourceId == "steel_beam") return _bars;
+            return 0d;
+        }
+
+        public double TakeShipyardMaterial(string resourceId, double amount)
+        {
+            if (amount <= 0d) return 0d;
+            if (resourceId == "coal")
+            {
+                double taken = System.Math.Min(_storeOre, amount);
+                _storeOre -= taken;
+                return taken;
+            }
+            if (resourceId == "steel_beam")
+            {
+                double taken = System.Math.Min(_bars, amount);
+                _bars -= taken;
+                return taken;
+            }
+            return 0d;
+        }
         /// <summary>This island's phase art, or null on a generated island. The station screen shoots
         /// its districts on a turntable and reads how far a building is from its next rebuild.</summary>
         public Kayseri.Island.IslandPhaseController Phases => _phases;
