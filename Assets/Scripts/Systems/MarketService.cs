@@ -165,6 +165,11 @@ namespace Game.Systems
         /// </summary>
         public void SetSimulatedYard(string islandKey) => _simulatedYard = islandKey;
 
+        // NOTE: nothing calls SetSimulatedYard with a real key any more. It stays because SettleYard
+        // still honours it, and a future live yard view may want to take the selling back — but the
+        // market scene no longer does, so the ledger settles every owned island every tick, whether or
+        // not anyone is standing in it. That is what makes the yard automatic.
+
         /// <summary>
         /// Lifts bars off a yard's pads and into whoever asked for them — the player's back, or a hire's.
         /// Returns how many were actually there to take, which is what the caller may carry.
@@ -180,27 +185,12 @@ namespace Game.Systems
             return taken;
         }
 
-        /// <summary>
-        /// A sale made by hand at the counter: a customer took a bar and paid for it.
-        ///
-        /// Returns the cash rather than banking it, because the money it made is now lying on the yard
-        /// floor and is not the player's until they walk over it. <see cref="Collect"/> is the other
-        /// half. The ceiling, the meter and the boost are all applied here, at the moment the value was
-        /// actually created — a note nobody picks up was still earned.
-        /// </summary>
-        public double SellByHand(string islandKey, double bars)
-        {
-            if (bars <= 0d) return 0d;
-            return Earn(Get(islandKey), bars);
-        }
-
-        /// <summary>Money picked up off the floor. The only thing that puts a hand-made sale in the wallet.</summary>
-        public void Collect(string islandKey, double cash)
-        {
-            if (cash <= 0d || _wallet == null) return;
-            _wallet.AddCash(new BigDouble(cash));
-            if (Sold != null) Sold(islandKey, cash);
-        }
+        // SellByHand and Collect used to live here: a counter sale minted cash, the note landed on the
+        // yard floor, and it was worth nothing until somebody walked over it. Both are gone. Ordinary
+        // payment is immediate now and there is exactly ONE path that pays — Pay, off the tick — so a
+        // scene, an animation callback or a customer visual can never mint a second coin for the same
+        // bar. What the third hire buys is throughput, not a man carrying banknotes; see
+        // IdleCrewRules.ServiceRate and the dispatchLevel that replaced hireCollect.
 
         /// <summary>
         /// A load tipped onto the pads. The island's only remaining say in income.
@@ -216,26 +206,40 @@ namespace Game.Systems
             if (bars <= 0d || string.IsNullOrEmpty(islandKey)) return 0d;
             Yard y = Get(islandKey);
             MarketProductStock p = ProductRow(y);
-            // The pads get the real load; the METER gets it clean, the same way deliveredPerMin is
-            // stored clean of wear. A boosted island is running its clock at ×2, so twice the lorries
-            // arrive per real second — and none of that is a rate it can sustain once the ad expires.
-            // Divided out here rather than at the meter because a boost starts and stops abruptly:
-            // scaling a whole 60-second window by whatever the speed happened to be at the end of it
-            // would leave the saved rate reading up to double for a minute after every boost, and that
-            // rate is what the next launch's offline grant is paid from.
-            y.deliveredThisTick += bars / SpeedFor(y);
 
             double supply = SupplyPerSecond(y);
             double capacity = MarketFlow.StockCapacity(supply, y.save.depositSlots);
             // Capacity is measured against the DELIVERY RATE, so a yard whose meter has not filled yet
             // has no capacity to speak of. Letting the first deliveries through uncapped is the honest
-            // reading: the pads are not full, the game just does not know how big they are yet.
-            if (capacity <= 0d) { p.stock += bars; return bars; }
+            // reading: the pads are not full, the game just does not know how big they are yet. It is
+            // also what stops the meter below from being able to strangle itself: if measured supply
+            // ever fell to nothing, capacity would too, and this branch then takes everything.
+            double accepted;
+            if (capacity <= 0d)
+            {
+                p.stock += bars;
+                accepted = bars;
+            }
+            else
+            {
+                double overflow;
+                p.stock = MarketFlow.AddStock(p.stock, bars, capacity, out overflow);
+                if (overflow > 0d) y.overflowedThisTick = true;
+                accepted = bars - overflow;
+            }
 
-            double overflow;
-            p.stock = MarketFlow.AddStock(p.stock, bars, capacity, out overflow);
-            if (overflow > 0d) y.overflowedThisTick = true;
-            return bars - overflow;
+            // The meter counts what the pads ACCEPTED, not what was offered.
+            //
+            // It used to count the offer, because a refused load was destroyed on the spot and could
+            // never be offered twice. Carriers keep their remainder now and bring it back, so metering
+            // the offer would count the same goods on every attempt: a jammed yard would report its
+            // highest ever delivery rate precisely when it is delivering nothing, and that rate is what
+            // the next launch's offline grant is paid from.
+            //
+            // Still divided by the island's clock, for the original reason: a boosted island runs at x2
+            // and none of that is a rate it can sustain once the ad expires.
+            y.deliveredThisTick += accepted / SpeedFor(y);
+            return accepted;
         }
 
         /// <summary>
@@ -248,18 +252,20 @@ namespace Game.Systems
         /// and leave the saved rate reading high for a minute afterwards. A refund is a correction to
         /// the pads, not a lorry arriving.
         ///
-        /// Overflow is dropped. The pads have a size and the player chose to put these back; a refund
-        /// is not a reason to let a yard hold more than it can.
+        /// A full yard still cannot hold more than it can, so this RETURNS what the pads actually took
+        /// and the caller keeps the rest. It used to drop the overflow, which quietly destroyed a
+        /// player's cargo for the crime of changing their mind about a route while the pads were full.
         /// </summary>
-        public void ReturnToStock(string islandKey, double bars)
+        public double ReturnToStock(string islandKey, double bars)
         {
-            if (bars <= 0d || string.IsNullOrEmpty(islandKey)) return;
+            if (bars <= 0d || string.IsNullOrEmpty(islandKey)) return 0d;
             Yard y = Get(islandKey);
             MarketProductStock p = ProductRow(y);
             double capacity = MarketFlow.StockCapacity(SupplyPerSecond(y), y.save.depositSlots);
-            if (capacity <= 0d) { p.stock += bars; return; }
+            if (capacity <= 0d) { p.stock += bars; return bars; }
             double overflow;
             p.stock = MarketFlow.AddStock(p.stock, bars, capacity, out overflow);
+            return bars - overflow;
         }
 
         // ------------------------------------------------------------------ reading

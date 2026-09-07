@@ -8,12 +8,12 @@ namespace Game.Core
     /// <see cref="MarketFlow"/>, <see cref="Foremen"/> and <see cref="Voyages"/>, and it exists for
     /// the same reason as all four.
     ///
-    /// WHY A SECOND ROSTER. <see cref="Foremen"/> is eight fixed slots bolted to the eight stations:
-    /// you know from the first day exactly who exists, and the whole point of its comment is that "a
-    /// roster you cannot plan for is a roster you cannot save toward". That is the right shape for an
-    /// economy bonus and the wrong shape for a collection, which needs the opposite — someone you did
-    /// not expect, who you did not know you wanted. So the foremen keep the island and the captains
-    /// take the sea, and the two never touch the same number.
+    /// WHY A SECOND ROSTER. <see cref="Foremen"/> is fifteen masters over five stations, and every one
+    /// of them is drawn against a published rarity table — you know from the first day exactly who
+    /// exists and what he will do, so it is a roster you can plan for and save toward. That is the
+    /// right shape for an economy bonus. A collection wants the opposite as well: someone you did not
+    /// expect. So the masters keep the island and the captains take the sea, and the two never touch
+    /// the same number.
     ///
     /// WHY "CAPTAIN" AND NOT "CREW". The plan called these crew. The word was already taken twice
     /// over: <see cref="Voyages.Crew"/> is ship upgrade track 2, and <c>sefer.murettebat</c> is the
@@ -32,19 +32,27 @@ namespace Game.Core
     {
         /// <summary>How many captains exist. Saves address them by index, so this may grow but must
         /// never shrink or be reordered — a new captain is APPENDED.</summary>
-        public const int Count = 10;
+        public const int Count = 5;
 
         /// <summary>Level 0 is a captain you have never pulled. There is no level-0 captain aboard.</summary>
         public const int NotOwned = 0;
 
-        /// <summary>How far a captain can be levelled. The same ceiling <see cref="Foremen.MaxLevel"/>
-        /// uses, deliberately: two rosters with two different ladders is two things to learn.</summary>
-        public const int MaxLevel = 10;
+        /// <summary>
+        /// How far a captain can be taken. Five, drawn as five stars on his card — the same ceiling
+        /// <see cref="Foremen.MaxStars"/> uses, deliberately: two rosters with two different ladders is
+        /// two things to learn.
+        ///
+        /// Still called a LEVEL rather than a star because that is what the save calls it and what
+        /// every effect below multiplies by. The word on the card is the UI's business.
+        /// </summary>
+        public const int MaxLevel = 5;
 
         /// <summary>
-        /// Grades, rarest last. Five of them because that is what the collection needs to feel like a
-        /// ladder; <see cref="Foremen"/>'s three are enough for eight fixed slots and would not be
-        /// here. Saves store a captain's INDEX, not their grade, so this enum is free to gain a sixth.
+        /// Grades, rarest last. Five of them because the crate, the crafting bench and the sea-combat
+        /// gear ladder all read this enum, and five rungs is what those were solved against;
+        /// <see cref="Foremen.Rarity"/> is a separate three because fifteen cards do not span five
+        /// grades without leaving grades nobody finishes. Saves store a captain's INDEX, not their
+        /// grade, so this enum is free to gain a sixth.
         /// </summary>
         public enum Grade { Common = 0, Rare = 1, Epic = 2, Legendary = 3, Mythic = 4 }
         public const int GradeCount = 5;
@@ -66,22 +74,20 @@ namespace Game.Core
         /// <summary>
         /// Everyone who can be found, in save order.
         ///
-        /// Every role appears at two grades or more, so no role is a trap you can only draw badly, and
-        /// every grade has someone in it, so the crate's whole weight table is reachable. The four
-        /// Commons are one of each role on purpose: whatever a new player pulls first, it does
-        /// something they can point at.
+        /// FIVE, ONE PER GRADE. Ten across five grades meant a grade was a bucket you rolled into and
+        /// then rolled again inside; at five, the grade IS the captain, so the crate's rarity readout
+        /// and the card you actually get are the same fact and the odds sheet stops needing a second
+        /// paragraph. Every grade still has someone in it, so the crate's whole weight table is
+        /// reachable, and all four roles are covered — the Bosun twice, because his is the risk-and-
+        /// repair job and the Mythic trophy is worth most in the hands of the officer who decides
+        /// whether a far voyage comes home at all.
         /// </summary>
         public static readonly Card[] Roster =
         {
             new Card { Id = "kemal",  Role = Quartermaster, Rank = Grade.Common    },
-            new Card { Id = "selim",  Role = Gunner,        Rank = Grade.Common    },
-            new Card { Id = "musa",   Role = Bosun,         Rank = Grade.Common    },
-            new Card { Id = "derya",  Role = Purser,        Rank = Grade.Common    },
-            new Card { Id = "zehra",  Role = Quartermaster, Rank = Grade.Rare      },
-            new Card { Id = "baran",  Role = Purser,        Rank = Grade.Rare      },
-            new Card { Id = "orhan",  Role = Bosun,         Rank = Grade.Epic      },
-            new Card { Id = "nihal",  Role = Quartermaster, Rank = Grade.Epic      },
-            new Card { Id = "husrev", Role = Gunner,        Rank = Grade.Legendary },
+            new Card { Id = "selim",  Role = Gunner,        Rank = Grade.Rare      },
+            new Card { Id = "musa",   Role = Bosun,         Rank = Grade.Epic      },
+            new Card { Id = "derya",  Role = Purser,        Rank = Grade.Legendary },
             new Card { Id = "ates",   Role = Bosun,         Rank = Grade.Mythic    },
         };
 
@@ -133,33 +139,37 @@ namespace Game.Core
 
             public static Tuning Default => new Tuning
             {
-                // A level-10 Common is +40%, a level-10 Mythic +180%. The spread is what makes a
-                // Mythic worth chasing; the floor is what keeps a Common worth levelling.
-                CommonPerLevel    = 0.040d,
-                RarePerLevel      = 0.060d,
-                EpicPerLevel      = 0.090d,
-                LegendaryPerLevel = 0.130d,
-                MythicPerLevel    = 0.180d,
+                // A maxed Common is +40%, a maxed Mythic +180% — exactly where the ten-level ladder
+                // landed, doubled per level because there are now five levels instead of ten. The
+                // spread is what makes a Mythic worth chasing; the floor is what keeps a Common worth
+                // levelling.
+                CommonPerLevel    = 0.080d,
+                RarePerLevel      = 0.120d,
+                EpicPerLevel      = 0.180d,
+                LegendaryPerLevel = 0.260d,
+                MythicPerLevel    = 0.360d,
 
-                // At level 10 these are 2, 3, 4, 5 and 6 risk points. A maxed Mythic bosun beside a
-                // maxed foreman takes 26 points off the far reach, which still leaves 4 — deliberately.
-                // Docs/VOYAGES.md §10 refuses to SELL guaranteed success; this refuses to hand it over
-                // for a collection either, because a gamble with no downside is not a decision.
-                BosunRiskCommon    = 0.0020d,
-                BosunRiskRare      = 0.0030d,
-                BosunRiskEpic      = 0.0040d,
-                BosunRiskLegendary = 0.0050d,
-                BosunRiskMythic    = 0.0060d,
+                // Maxed, these are 2, 3, 4, 5 and 6 risk points — the same as the ten-level ladder
+                // paid, doubled per level for the same reason as the block above. A maxed Mythic bosun
+                // beside a maxed master takes 26 points off the far reach, which still leaves 4 —
+                // deliberately. Docs/VOYAGES.md §10 refuses to SELL guaranteed success; this refuses to
+                // hand it over for a collection either, because a gamble with no downside is not a
+                // decision.
+                BosunRiskCommon    = 0.0040d,
+                BosunRiskRare      = 0.0060d,
+                BosunRiskEpic      = 0.0080d,
+                BosunRiskLegendary = 0.0100d,
+                BosunRiskMythic    = 0.0120d,
 
                 MinRepairFraction = 0.25d,
 
-                // 2,4,6,… = 90 duplicates to max one captain, the same shape and the same total as
-                // Foremen.Tuning. "Months of duplicates, not a weekend" is that file's phrase and the
-                // reason is unchanged — this is the tail, not a sprint.
-                // 2,4,6,… = 90 duplicates at Common, the same total Foremen.Tuning uses.
-                DuplicateBase = 2, DuplicateStep = 2,
+                // 8,16,24,32 = 80 duplicates at Common across four star-ups. It was 2,4,6,… = 90 over
+                // nine; the ladder is shorter and each rung costs more, so the road to a maxed captain
+                // is the same length it was measured at. "Months of duplicates, not a weekend" is
+                // Foremen's phrase and the reason is unchanged — this is the tail, not a sprint.
+                DuplicateBase = 8, DuplicateStep = 8,
 
-                // Totals these land on: 90 / 80 / 55 / 35 / 16.
+                // Totals these land on: 80 / 71 / 49 / 31 / 14.
                 DupScaleCommon    = 1.00d,
                 DupScaleRare      = 0.89d,
                 DupScaleEpic      = 0.61d,
@@ -178,7 +188,9 @@ namespace Game.Core
         /// <summary>Loc id, or "" for an index off the roster.</summary>
         public static string IdOf(int captain) => Exists(captain) ? Roster[captain].Id : string.Empty;
 
-        /// <summary>How many captains carry a grade — what the crate divides its weight among.</summary>
+        /// <summary>How many captains carry a grade — what the crate divides its weight among. One
+        /// apiece now, but the crate still asks rather than assuming: appending a sixth captain must
+        /// not silently double somebody's odds.</summary>
         public static int CountOfGrade(Grade grade)
         {
             int n = 0;

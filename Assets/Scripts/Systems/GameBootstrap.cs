@@ -258,7 +258,7 @@ namespace Game.Systems
                 foremanConfig != null ? foremanConfig.ToTuning() : Game.Core.Foremen.Tuning.Default,
                 foremanConfig != null ? foremanConfig.ToChestTuning() : Game.Core.MasterChest.Tuning.Default,
                 _time,
-                foremanConfig != null ? foremanConfig.TierTint : null);
+                foremanConfig != null ? foremanConfig.RarityTint : null);
             ServiceLocator.Register(Foremen);
 
             // The checklist. After the roster because a goal can pay out foreman cards, and before
@@ -422,7 +422,11 @@ namespace Game.Systems
             // The store sells permanent offline upgrades (the "Gece Vardiyasi" offer), so the config is
             // the floor rather than the whole story. Efficiency is clamped: paying past 100% would mean
             // earning more asleep than awake.
-            double efficiency = offlineConfig.Efficiency + Data.offlineEfficiencyBonus;
+            // The posted masters' third skill lands here rather than in the save field beside it: the
+            // store's bonus is bought and permanent, a master's is only worth what he is worth right
+            // now and has to fall away the moment he is taken off the post.
+            double efficiency = offlineConfig.Efficiency + Data.offlineEfficiencyBonus
+                              + (Foremen != null ? Foremen.OfflineBonus : 0d);
             if (efficiency > 1d) efficiency = 1d;
             long cap = offlineConfig.CapSeconds + Data.offlineCapBonusSeconds;
 

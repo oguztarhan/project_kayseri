@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Game.Core;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
@@ -60,6 +61,19 @@ namespace Game.UI
         private static Scene _parkedIslandScene;
         private static readonly List<GameObject> ParkedIslandRoots = new List<GameObject>();
 
+        // The island's LIGHTING is parked with it, because RenderSettings is one global set and not
+        // per-scene state that comes back on its own. SeaSceneBoot writes a linear fog band at
+        // 700–2200 and a flat ambient over it — correct out there, and on an island built at art
+        // scale it swallows the entire map in sky colour. DayNightCycle owns fog on the island, but
+        // only drives it when the island asked for fog: with it off there is nothing to overwrite
+        // what the sea left, and the map came back fogged out.
+        private static bool _hasParkedLighting;
+        private static bool _parkedFog;
+        private static FogMode _parkedFogMode;
+        private static Color _parkedFogColor, _parkedAmbientLight;
+        private static float _parkedFogStart, _parkedFogEnd, _parkedFogDensity, _parkedAmbientIntensity;
+        private static UnityEngine.Rendering.AmbientMode _parkedAmbientMode;
+
         private CanvasGroup _group;
         private RectTransform _fill;
 
@@ -92,6 +106,24 @@ namespace Game.UI
 
         /// <summary>True while a swap is in flight, for anything that has to stop doing its job.</summary>
         public static bool Busy => _live != null;
+
+        /// <summary>
+        /// Where "back to the island" goes. NOT a constant: the presentation scene is Shipyard or Main
+        /// depending on <see cref="ShipyardFeatureSwitch"/>, so the sea and the market may not hardcode
+        /// one — a Shipyard session that asked for "Main" got a fresh single load of the legacy scene
+        /// instead of the island parked underneath it, and arrived with no map and an unwired boot.
+        ///
+        /// The parked scene is the answer whenever there is one, because it IS the scene the player
+        /// left. The switch is only the fallback for a session that somehow reached a small scene
+        /// without parking anything.
+        /// </summary>
+        public static string HomeScene(string legacySceneName)
+        {
+            if (_parkedIslandScene.IsValid() && _parkedIslandScene.isLoaded && ParkedIslandRoots.Count > 0)
+                return _parkedIslandScene.name;
+            return ShipyardFeatureSwitch.PresentationScene(
+                ServiceLocator.Get<SaveData>(), ShipyardFeatureSwitch.PortraitSceneName, legacySceneName);
+        }
 
         private void Begin(string sceneName, Color accent, string caption, bool parkCurrent)
         {
@@ -264,6 +296,10 @@ namespace Game.UI
         private IEnumerator LoadScene(string sceneName, bool parkCurrentIsland)
         {
             Scene source = SceneManager.GetActiveScene();
+            // Before the load, not in ParkIsland: activation runs the destination's Start and makes it
+            // the active scene, so by the time the island is parked these values are already the small
+            // scene's.
+            if (parkCurrentIsland) ParkLighting();
             LoadSceneMode mode = parkCurrentIsland ? LoadSceneMode.Additive : LoadSceneMode.Single;
             AsyncOperation op = SceneManager.LoadSceneAsync(sceneName, mode);
             if (op == null) yield break;
@@ -294,6 +330,35 @@ namespace Game.UI
                     SceneManager.SetActiveScene(destination);
                 ParkIsland(source);
             }
+        }
+
+        private static void ParkLighting()
+        {
+            _parkedFog = RenderSettings.fog;
+            _parkedFogMode = RenderSettings.fogMode;
+            _parkedFogColor = RenderSettings.fogColor;
+            _parkedFogStart = RenderSettings.fogStartDistance;
+            _parkedFogEnd = RenderSettings.fogEndDistance;
+            _parkedFogDensity = RenderSettings.fogDensity;
+            _parkedAmbientMode = RenderSettings.ambientMode;
+            _parkedAmbientLight = RenderSettings.ambientLight;
+            _parkedAmbientIntensity = RenderSettings.ambientIntensity;
+            _hasParkedLighting = true;
+        }
+
+        private static void RestoreLighting()
+        {
+            if (!_hasParkedLighting) return;
+            RenderSettings.fog = _parkedFog;
+            RenderSettings.fogMode = _parkedFogMode;
+            RenderSettings.fogColor = _parkedFogColor;
+            RenderSettings.fogStartDistance = _parkedFogStart;
+            RenderSettings.fogEndDistance = _parkedFogEnd;
+            RenderSettings.fogDensity = _parkedFogDensity;
+            RenderSettings.ambientMode = _parkedAmbientMode;
+            RenderSettings.ambientLight = _parkedAmbientLight;
+            RenderSettings.ambientIntensity = _parkedAmbientIntensity;
+            _hasParkedLighting = false;
         }
 
         private static void ParkIsland(Scene scene)
@@ -336,6 +401,7 @@ namespace Game.UI
             Scene island = _parkedIslandScene;
 
             SceneManager.SetActiveScene(island);
+            RestoreLighting();
             for (int i = 0; i < ParkedIslandRoots.Count; i++)
                 if (ParkedIslandRoots[i] != null) ParkedIslandRoots[i].SetActive(true);
 

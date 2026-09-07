@@ -23,7 +23,21 @@ namespace Game.UI
     public sealed class OddsSheetUI
     {
         /// <summary>Five captain grades is the widest table either caller has.</summary>
-        private const int MaxRows = 5;
+        /// <summary>
+        /// Rows in the pool, derived from the widest table either caller can ask for rather than
+        /// pinned at a number. The master chest states three counts plus one line per rarity, and the
+        /// captain crate one line per grade.
+        ///
+        /// It was a hardcoded 5, which was right until the master chest grew a rarity row: Row() drops
+        /// anything past the pool SILENTLY, so the Legendary line — the one figure players actually
+        /// open this sheet for — simply never drew. A cap that can be outgrown without saying so is
+        /// worse than one that cannot be outgrown at all.
+        /// </summary>
+        private static readonly int MaxRows =
+            Mathf.Max(Captains.GradeCount, MasterChestFixedRows + Foremen.RarityCount);
+
+        /// <summary>Cards per chest, directed, rolled — the three counts above the rarity table.</summary>
+        private const int MasterChestFixedRows = 3;
 
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
@@ -59,12 +73,16 @@ namespace Game.UI
             _title = Label(sheet, "Baslik", 34, TextAnchor.MiddleCenter,
                            new Vector2(0.06f, 0.885f), new Vector2(0.94f, 0.965f));
 
-            // Six rows would not fit and five is the widest table either caller has; the band is split
-            // evenly so a three-row sheet and a five-row sheet still look like the same screen.
+            // The band between the title and the note, split evenly over however many rows the pool
+            // holds, so a three-row sheet and a six-row sheet still look like the same screen. The
+            // pitch is derived rather than typed: it was 0.083 for five rows, and a sixth row at that
+            // pitch would have run into the note.
+            const float bandTop = 0.845f, bandBottom = 0.430f;
+            float pitch = (bandTop - bandBottom) / MaxRows;
             for (int i = 0; i < MaxRows; i++)
             {
-                float top = 0.845f - i * 0.083f;
-                _row[i] = Slot(sheet, "Satir" + i, new Vector2(0.06f, top - 0.072f),
+                float top = bandTop - i * pitch;
+                _row[i] = Slot(sheet, "Satir" + i, new Vector2(0.06f, top - pitch * 0.87f),
                                new Vector2(0.94f, top));
                 _rowLabel[i] = Label(_row[i], "Ad", 24, TextAnchor.MiddleLeft,
                                      new Vector2(0.02f, 0f), new Vector2(0.66f, 1f));
@@ -101,7 +119,11 @@ namespace Game.UI
             Row(Loc.T("oran.usta.kart"), MasterChest.CardsFor(1, tuning).ToString(Culture));
             Row(Loc.T("oran.usta.yonlendirilen"), MasterChest.DirectedIn(tuning).ToString(Culture));
             Row(Loc.T("oran.usta.rastgele"), rolled.ToString(Culture));
-            Row(Loc.T("oran.usta.her_usta"), Percent(Odds.MasterSlotChance()));
+            // One row per rarity rather than one flat "any master" figure: rarity is drawn now, so a
+            // single number would hide the only odds anybody actually wants to know.
+            for (int rank = 0; rank < Foremen.RarityCount; rank++)
+                Row(Loc.T("usta.nadirlik." + rank.ToString(Culture)),
+                    Percent(Odds.MasterCardChance((Foremen.Rarity)rank, tuning)));
 
             _note.text = Loc.T("oran.usta.not") + "\n" + Loc.T("oran.not");
             Finish();

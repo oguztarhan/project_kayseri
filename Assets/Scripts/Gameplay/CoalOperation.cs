@@ -260,6 +260,20 @@ namespace Game.Gameplay
         // IdleTransportRules is written to ("preserve purchased effects"), not a promise about pace.
         // Set to 1 to walk at haulage speed and compare like for like.
         [SerializeField, Range(0.1f, 1f)] private float porterPace = 0.45f;
+
+        // No land vehicles at all: the rake walks too. The mine leg keeps its rail PATH — that is where
+        // the island says the route runs — it just has a person on it instead of a locomotive.
+        [SerializeField] private bool portersInsteadOfTrains = true;
+
+        // The haul road is three stacked slabs. The vehicle surface and its lit ribbon come off; the
+        // ochre foundation underneath stays and reads as a worn footpath, so no new geometry is needed.
+        [SerializeField] private bool footpathInsteadOfRoad = true;
+        [SerializeField] private string[] roadLayersToHide =
+        {
+            "Main_road_luminous_golden_ribbon",
+            "Main_road_bright_center",
+            "Factory_circular_service_road",
+        };
         // Renamed from porterLoadLift on purpose: that field was already serialised into the scene at
         // its first default of 0.18, so changing the default in code afterwards did nothing and the cargo
         // stayed round his ankles. A new name is a new field, and takes the value below cleanly.
@@ -598,6 +612,10 @@ namespace Game.Gameplay
         private Transform _dressing;                 // parent for every generated road, rail and rock
         private PileStack _oreYard, _barYard;
         private int _porterPick;        // rotates the people pack so a route is not four identical men
+        // Every porter on the island is the same size. Measured off the first vehicle replaced and then
+        // reused: sizing each one against the thing it stands in for made the rake's walker half the
+        // height of the road crew, because a locomotive is shorter than a lorry.
+        private float _porterHeightWorld;
         private SiteLife _life;
         private StationCrew _crew;
         private StationForemen _bosses;
@@ -809,6 +827,8 @@ namespace Game.Gameplay
         private sealed class TrainAgent
         {
             public Transform engine;
+            public PersonAnimator porter;   // null while the rake is still a train
+            public Transform porterBody;    // same walker, kept so his pitch can be taken back off
             public Transform[] wagons;      // portrait pool; saved capacity remains economic, not visual
             public GameObject[] wagonOre;
             // The authored hopper carries its ore as its own top submesh, so the rake looked full on the
@@ -1287,7 +1307,8 @@ namespace Game.Gameplay
         // the scene; ApplyFleetStates wakes them one at a time as you buy.
         private int OreTruckCount => IdleTransportRules.DepotToRefinery(Ec, CarryLevel).Teams;
         private float EffOreSpeed => (float)IdleTransportRules.DepotToRefinery(Ec, CarryLevel).Speed * Pace;
-        private float EffOreCap => (float)IdleTransportRules.DepotToRefinery(Ec, CarryLevel).LoadPerTeam / Pace;
+        private float EffOreCap => (float)IdleTransportRules.DepotToRefinery(Ec, CarryLevel).LoadPerTeam
+                                 / Pace * TeamShare(OreTruckCount);
 
         // If EffBarCap fills, smelting STOPS until cargo trucks clear it, so an
         // under-upgraded market throttles the whole chain from the far end.
@@ -1296,7 +1317,31 @@ namespace Game.Gameplay
 
         private int CargoTruckCount => IdleTransportRules.RefineryToCounter(Ec, CarryLevel).Teams;
         private float EffCargoSpeed => (float)IdleTransportRules.RefineryToCounter(Ec, CarryLevel).Speed * Pace;
-        private float EffCargoCap => (float)IdleTransportRules.RefineryToCounter(Ec, CarryLevel).LoadPerTeam / Pace;
+        private float EffCargoCap => (float)IdleTransportRules.RefineryToCounter(Ec, CarryLevel).LoadPerTeam
+                                   / Pace * TeamShare(CargoTruckCount);
+
+        /// <summary>
+        /// What one rendered worker has to carry so a crew the player PAID for still counts.
+        ///
+        /// BuildTruckAgents clamps a route's agent list to visibleVehiclesPerRoute, which is 1 on this
+        /// island. The economic team count is not clamped, so before this the crew-size track on both
+        /// truck stations was dead money: OreTruckCount read 5, exactly one body worked the leg, and
+        /// every level bought on that axis changed nothing at all.
+        ///
+        /// Rendering fewer bodies must not reduce economic teams, so the bodies that ARE drawn carry the
+        /// whole crew's load between them. Exactly 1 when the crew is already all on screen, so it can
+        /// never double-count if the visible cap is raised later.
+        ///
+        /// ponytail: a load multiplier, not more walkers. Spawning the real crew is the honest fix and a
+        /// visibly busier island, but it is more agents, longer queues and a profiling job — a separately
+        /// scoped change, not something to smuggle into a bug fix.
+        /// </summary>
+        private float TeamShare(int teams)
+        {
+            if (teams <= 1) return 1f;
+            int drawn = Mathf.Max(1, Mathf.Min(teams, visibleVehiclesPerRoute));
+            return (float)teams / drawn;
+        }
 
         /// <summary>
         /// How much slower a walker is than the lorry he replaced, on the two legs people work.
@@ -1538,6 +1583,7 @@ namespace Game.Gameplay
             BuildUnlockRegistry();   // and this needs the dressing parent, to hang the build plots off
             BuildTownSquare();
             BuildSiteLife();
+            StripRoadToFootpath();
             ApplyFleetStates();
             for (int u = 0; u < _unlocked.Length; u++) if (_unlocked[u]) ApplyUnlock(u);
             ApplyStationScale();     // show the levels already bought, without the purchase pop
@@ -1594,12 +1640,17 @@ namespace Game.Gameplay
         private void Tick(float dt)
         {
             if (dt <= 0f) return;
-            TrainTick(_train1, dt);
+            // Guarded like the other three, which it never was. An island whose build did not complete —
+            // no services, no rake, no fleet — still ticks from Update, and this line then threw a
+            // NullReferenceException every single frame while the rest of the scene carried on looking
+            // fine. That storm hides whatever actually went wrong upstream, which is the real cost.
+            if (_train1 != null) TrainTick(_train1, dt);
             if (_train2 != null && _train2.active) TrainTick(_train2, dt);
             if (_train3 != null && _train3.active) TrainTick(_train3, dt);
             if (_train4 != null && _train4.active) TrainTick(_train4, dt);
             MeasureTruckArcs();
-            for (int i = 0; i < _agents.Length; i++) if (_agents[i].active) TruckTick(_agents[i], dt);
+            if (_agents != null)
+                for (int i = 0; i < _agents.Length; i++) if (_agents[i].active) TruckTick(_agents[i], dt);
             Smelt(dt);
             TickFlowMeters(dt);
             UpdateHeaps();
@@ -1704,6 +1755,19 @@ namespace Game.Gameplay
 
             _wheels.Add(engine, VehicleModelChild);
             for (int i = 0; i < a.wagons.Length; i++) _wheels.Add(a.wagons[i], VehicleModelChild);
+
+            if (portersInsteadOfTrains)
+            {
+                // The engine keeps the agent: every distance, cover stretch and door position along the
+                // line is measured against it. Only its costume changes, exactly as on the road legs.
+                a.porter = WearPorter(a.engine, null);
+                a.porterBody = a.porter != null ? a.engine.Find("_Porter") : null;
+                if (a.porter != null)
+                    for (int i = 0; i < a.wagons.Length; i++)
+                        if (a.wagons[i] != null)
+                            for (int c = a.wagons[i].childCount - 1; c >= 0; c--)
+                                a.wagons[i].GetChild(c).gameObject.SetActive(false);
+            }
 
             SetTrainVisible(a, false);
             a.state = TR.LoadMountain; a.timer = dwellSeconds;
@@ -2049,6 +2113,21 @@ namespace Game.Gameplay
 
         private void TrainTick(TrainAgent a, float dt)
         {
+            // Hauling and returning are the walk; loading at the face and tipping at the shed are not.
+            if (a.porter != null) a.porter.SetMoving(a.state == TR.Haul || a.state == TR.Return);
+
+            // The rake follows the rail in THREE dimensions and the line has a gradient, so VehicleFacing
+            // hands the cars a heading that points up or down the slope — which is right for a locomotive
+            // and wrong for a man, who came out leaning 21 degrees. His own world forward IS that heading,
+            // so flattening it and looking again keeps his yaw and stands him back up. A walker on a hill
+            // is upright; only his path is inclined.
+            if (a.porterBody != null)
+            {
+                Vector3 walk = Flat(a.porterBody.forward);
+                if (walk.sqrMagnitude > 1e-4f)
+                    a.porterBody.rotation = Quaternion.LookRotation(walk, Vector3.up);
+            }
+
             switch (a.state)
             {
                 // Sitting inside the mountain being filled. Faster with Mine → Load Speed (MineDwell).
@@ -2435,6 +2514,29 @@ namespace Game.Gameplay
             return true;
         }
 
+        /// <summary>
+        /// How tall every porter on this island stands, in world units.
+        ///
+        /// Measured off a LORRY specifically, not off whichever vehicle happens to be costumed first.
+        /// The rake is built before the road fleet, so taking the first caller's word for it sized the
+        /// whole crew against a locomotive — which is a good deal shorter than a lorry — and every
+        /// porter came out about half the height they were. `fallback` is the calling vehicle's own
+        /// height, used only on an island with no road fleet to measure.
+        /// </summary>
+        private float PorterWorldHeight(float fallback)
+        {
+            if (_porterHeightWorld > 0.01f) return _porterHeightWorld;
+            if (_islandRoot != null)
+                foreach (Transform child in _islandRoot)
+                    if (child.name.StartsWith("truck_road") && WorldBox(child, out Bounds lorry))
+                    {
+                        _porterHeightWorld = lorry.size.y * porterHeightOfLorry;
+                        return _porterHeightWorld;
+                    }
+            if (fallback > 0.01f) _porterHeightWorld = fallback * porterHeightOfLorry;
+            return _porterHeightWorld;
+        }
+
         private PersonAnimator WearPorter(Transform body, GameObject keep)
         {
             GameObject[] pack = workerPrefabs != null && workerPrefabs.Length > 0
@@ -2480,8 +2582,13 @@ namespace Game.Gameplay
             float bodyHeight = 0f;
             WorldBox(src.transform, out Bounds pb);
             if (pb.size.y > 0.001f) bodyHeight = pb.size.y;
-            if (lorryHeight > 0.01f && bodyHeight > 0.001f)
-                p.localScale = Vector3.one * (lorryHeight * porterHeightOfLorry / bodyHeight);
+            float target = PorterWorldHeight(lorryHeight);
+            if (bodyHeight > 0.001f && target > 0.01f)
+            {
+                float parentScale = Mathf.Abs(body.lossyScale.y);
+                if (parentScale < 1e-4f) parentScale = 1f;
+                p.localScale = Vector3.one * (target / (bodyHeight * parentScale));
+            }
 
             // Feet on the driving line, and out to the side of it onto the kerb.
             //
@@ -3554,21 +3661,40 @@ namespace Game.Gameplay
                     TurnToDeparture(a, dt);
                     a.timer -= dt;
                     if (a.timer > 0f) break;
-                    if (ore) { _refOre += a.carry; _hauledFlow.Add(a.carry); }
+                    if (ore) { _refOre += a.carry; _hauledFlow.Add(a.carry); a.carry = 0d; }
                     else if (a.carry > 0.001d && _marketService != null)
                     {
                         // The export dock used to pay a price premium. It buys the same premium as extra
                         // GOODS instead, because the yard prices every bar the same and a per-truck price
                         // would have to survive being stockpiled for an hour before anyone sold it.
-                        double delivered = a.carry * (a.route == Route.Export ? exportPriceBonus : 1f);
-                        _marketService.Deliver(islandKey, MarketService.ProductFor(islandKey), delivered);
-                        _deliveredFlow.Add(delivered);
+                        float bonus = a.route == Route.Export ? exportPriceBonus : 1f;
+                        double offered = a.carry * bonus;
+                        double accepted = _marketService.Deliver(
+                            islandKey, MarketService.ProductFor(islandKey), offered);
+
+                        // CONSERVATION. What the pads would not take stays on his back and is offered
+                        // again next dwell, instead of being destroyed on the spot as the lorries used
+                        // to destroy it. Goods have exactly one owner at a time: the yard has what it
+                        // accepted, he still has the rest.
+                        //
+                        // Only the ACCEPTED amount is metered — see MarketService.Deliver. He will offer
+                        // the remainder again in a moment, and counting it on every attempt would make a
+                        // jammed yard read as its most productive, then pay that invented rate out as
+                        // the next launch's offline income.
+                        _deliveredFlow.Add(accepted);
+                        a.carry = bonus > 0f ? (offered - accepted) / bonus : 0d;
+                        if (a.carry < 0.001d) a.carry = 0d;
                     }
                     // The building receiving the load takes the hit, whichever end of the chain that is:
                     // ore into the furnace, bars onto the market's pads, or bars over the export quay.
                     if (_pulse != null)
                         _pulse.Punch(ore ? "Refinery" : a.route == Route.Export ? "Port" : "Market");
-                    a.carry = 0d; Show(a.load, false);
+
+                    // Still holding something the yard refused: wait at the pad and try again rather
+                    // than driving off to fetch more of what there is already nowhere to put.
+                    if (a.carry > 0.001d) { a.timer = MarketDwell; break; }
+
+                    Show(a.load, false);
                     a.state = avail > 0.01d ? TK.ToLoad : TK.ToIdle;
                     break;
                 case TK.ToIdle:
@@ -6396,6 +6522,38 @@ namespace Game.Gameplay
         /// plausibly walk — mine to storage, storage to refinery, refinery to market — which happens to be
         /// alongside the haul road, so the whole chain reads as one worked site rather than four props.
         /// </summary>
+        /// <summary>
+        /// Takes the vehicle surface off the haul road and leaves the path underneath.
+        ///
+        /// The authored road is three stacked slabs — an ochre foundation ~940 wide, a bright centre on
+        /// top of it, and a lit golden ribbon over that. Nothing here builds new geometry: hiding the top
+        /// two leaves the foundation, which already reads as a worn earth path, and hiding the factory's
+        /// service loop takes the last stretch of tarmac with it. Reversible from the Inspector, which is
+        /// the only way to judge it against the old look.
+        /// </summary>
+        private void StripRoadToFootpath()
+        {
+            if (!footpathInsteadOfRoad || roadLayersToHide == null || _islandRoot == null) return;
+            for (int i = 0; i < roadLayersToHide.Length; i++)
+            {
+                string want = roadLayersToHide[i];
+                if (string.IsNullOrEmpty(want)) continue;
+                Transform layer = FindDeep(_islandRoot, want);
+                if (layer != null) layer.gameObject.SetActive(false);
+            }
+        }
+
+        private static Transform FindDeep(Transform root, string name)
+        {
+            if (root.name == name) return root;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform hit = FindDeep(root.GetChild(i), name);
+                if (hit != null) return hit;
+            }
+            return null;
+        }
+
         private void BuildSiteLife()
         {
             // A footpath running alongside the haul road rather than through the buildings: offset to the
@@ -6456,7 +6614,8 @@ namespace Game.Gameplay
             {
                 Hired = ForemanHired,
                 Post = ForemanPost,
-                Stars = ForemanStars,
+                Rank = ForemanRank,
+                Who = ForemanWho,
             };
             // StationCrew refreshes inside its own constructor; this one cannot, because the two
             // delegates above are assigned by the initialiser that runs after it. SettleCrew would get
@@ -6490,8 +6649,6 @@ namespace Game.Gameplay
         /// Re-measures the districts over the first few seconds. Same reason <see cref="IslandAmbience"/>
         /// settles its sound sources: the layout is still moving when this island boots.
         /// </summary>
-        /// <summary>Is this station's foreman hired? The roster is account-wide, so every island asks
-        /// the same service and every island shows the same eight men.</summary>
         /// <summary>
         /// Counts a purchase toward the checklist, unless it was free.
         ///
@@ -6507,12 +6664,39 @@ namespace Game.Gameplay
             _goals.Record(Game.Core.Goals.Upgrades);
         }
 
-        private bool ForemanHired(int station) => _foremen != null && _foremen.IsHired(station);
+        /// <summary>
+        /// Is anybody posted at this station? The island walks the eight legacy economy slots and only
+        /// five of them have a master, so a slot outside the roster reads as an empty post rather than
+        /// as an error — see <see cref="Game.Core.Foremen.RosterStationOf"/>.
+        ///
+        /// The roster is account-wide, so every island asks the same service and every island shows
+        /// the same five men.
+        /// </summary>
+        private bool ForemanHired(int station)
+        {
+            if (_foremen == null) return false;
+            int roster = Game.Core.Foremen.RosterStationOf(station);
+            return roster >= 0 && _foremen.StationStaffed(roster);
+        }
 
-        private int ForemanStars(int station) => _foremen != null ? _foremen.LevelOf(station) : 0;
+        /// <summary>Which rarity is standing at this station — his plinth colour and his size.</summary>
+        private int ForemanRank(int station)
+        {
+            if (_foremen == null) return 0;
+            int roster = Game.Core.Foremen.RosterStationOf(station);
+            return roster < 0 ? 0 : (int)_foremen.StationRarity(roster);
+        }
+
+        /// <summary>WHICH master is posted here, so the body is his rather than the post's.</summary>
+        private int ForemanWho(int station)
+        {
+            if (_foremen == null) return -1;
+            int roster = Game.Core.Foremen.RosterStationOf(station);
+            return roster < 0 ? -1 : _foremen.ActiveAt(roster);
+        }
 
         /// <summary>
-        /// One plinth material per tier, cloned off the island's own art so they batch with it and
+        /// One plinth material per rarity, cloned off the island's own art so they batch with it and
         /// tinted from the roster service's palette — the same colours the roster screen paints its
         /// card frames with. Null when there is no roster to ask, which leaves the masters standing on
         /// bare ground rather than breaking them.
@@ -6520,9 +6704,9 @@ namespace Game.Gameplay
         private Material[] ForemanPlinthMaterials()
         {
             if (_foremen == null) return null;
-            var mats = new Material[Game.Core.Foremen.TierCount];
-            for (int t = 0; t < mats.Length; t++)
-                mats[t] = MakeMat(_srcMat, _foremen.TierTint((Game.Core.Foremen.Tier)t));
+            var mats = new Material[Game.Core.Foremen.RarityCount];
+            for (int r = 0; r < mats.Length; r++)
+                mats[r] = MakeMat(_srcMat, _foremen.RarityTint((Game.Core.Foremen.Rarity)r));
             return mats;
         }
 

@@ -407,10 +407,12 @@ namespace Game.Gameplay
                     // of one. See CashFloor.Free.
                     int room = _cash != null ? _cash.Free : c.wants;
                     double paid = _counter.TakeUpTo(Mathf.Min(c.wants, room), out taken);
-                    if (paid > 0d && _cash != null)
+                    // No notes on the floor any more. The counter does not mint and the ledger has
+                    // already banked this sale on its tick, so dropping cash here would pay twice and
+                    // then make the player walk over it to collect what he had already been paid.
+                    // The serve still LOOKS like a serve — that half was never the problem.
+                    if (taken > 0)
                     {
-                        // One note per bar, so a big order visibly pays more than a small one.
-                        for (int n = 0; n < taken; n++) _cash.Drop(paid / taken, c.body.position);
                         // The library throttles this one itself — it is the sound the game plays most.
                         _audio?.Play(Game.Data.SoundId.Sale);
                         if (_counter.Cashier != null) _counter.Cashier.PlayServe();

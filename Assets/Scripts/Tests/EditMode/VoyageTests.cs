@@ -15,6 +15,13 @@ namespace Game.Tests
     /// </summary>
     public class VoyageTests
     {
+        // Three masters at the mine, named so a test can say which one it means. They are roster
+        // indices 0, 1 and 2 — the positions the economy-station constants used to stand in for, back
+        // when the roster was one master per station.
+        private static readonly int MineCommon = Foremen.IndexOf(Foremen.Mine, Foremen.Rarity.Common);
+        private static readonly int MineRare = Foremen.IndexOf(Foremen.Mine, Foremen.Rarity.Rare);
+        private static readonly int MineLegend = Foremen.IndexOf(Foremen.Mine, Foremen.Rarity.Legendary);
+
         private const string Coal = "coal";
         private const double NoCeiling = 1e12d;
 
@@ -59,7 +66,7 @@ namespace Game.Tests
         private static int TotalCards(SaveData data)
         {
             int n = 0;
-            for (int i = 0; i < data.foremanDuplicates.Length; i++) n += data.foremanDuplicates[i];
+            for (int i = 0; i < data.masterCards.Length; i++) n += data.masterCards[i];
             return n;
         }
 
@@ -166,14 +173,14 @@ namespace Game.Tests
         public void TierZero_IsNeverARisk()
         {
             Assert.That(Voyages.RiskFor(0, 0, T), Is.Zero);
-            Assert.That(Voyages.RiskFor(0, Foremen.MaxLevel, T), Is.Zero);
+            Assert.That(Voyages.RiskFor(0, Foremen.MaxStars, T), Is.Zero);
         }
 
         [Test]
         public void AForemanCutsRisk_ButCannotEraseTheFarReach()
         {
             double bare = Voyages.RiskFor(3, 0, T);
-            double crewed = Voyages.RiskFor(3, Foremen.MaxLevel, T);
+            double crewed = Voyages.RiskFor(3, Foremen.MaxStars, T);
             Assert.That(bare, Is.EqualTo(Voyages.RiskChance[3]).Within(1e-9));
             Assert.That(crewed, Is.LessThan(bare));
             Assert.That(crewed, Is.GreaterThan(0d), "a route a foreman makes free is not a decision");
@@ -182,7 +189,7 @@ namespace Game.Tests
         [Test]
         public void RiskNeverGoesNegative()
         {
-            Assert.That(Voyages.RiskFor(1, Foremen.MaxLevel * 10, T), Is.Zero);
+            Assert.That(Voyages.RiskFor(1, Foremen.MaxStars * 10, T), Is.Zero);
         }
 
         /// <summary>
@@ -522,7 +529,7 @@ namespace Game.Tests
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
 
-            service.TryStart(Coal, 0, IslandEconomy.Mine);       // nobody is hired yet
+            service.TryStart(Coal, 0, MineCommon);       // nobody is hired yet
             Assert.That(service.At(0).foreman, Is.EqualTo(-1));
         }
 
@@ -531,10 +538,10 @@ namespace Game.Tests
         {
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
-            data.foremanLevels[IslandEconomy.Mine] = 5;
+            data.masterStars[MineCommon] = 5;
 
             double bare = service.RiskFor(3, -1);
-            double crewed = service.RiskFor(3, IslandEconomy.Mine);
+            double crewed = service.RiskFor(3, MineCommon);
             Assert.That(crewed, Is.LessThan(bare));
         }
 
@@ -543,12 +550,12 @@ namespace Game.Tests
         {
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
-            data.foremanLevels[IslandEconomy.Mine] = 3;
+            data.masterStars[MineCommon] = 3;
             data.shipLevels[Voyages.Berths] = 1;                 // two berths, so there is a second to try
 
-            Assert.That(service.TryStart(Coal, 0, IslandEconomy.Mine), Is.True);
-            Assert.That(service.ForemanBusy(IslandEconomy.Mine), Is.True);
-            Assert.That(service.TryStart(Coal, 0, IslandEconomy.Mine), Is.True, "the voyage still opens");
+            Assert.That(service.TryStart(Coal, 0, MineCommon), Is.True);
+            Assert.That(service.ForemanBusy(MineCommon), Is.True);
+            Assert.That(service.TryStart(Coal, 0, MineCommon), Is.True, "the voyage still opens");
             Assert.That(service.At(1).foreman, Is.EqualTo(-1), "but he is not on it twice");
         }
 
@@ -557,10 +564,10 @@ namespace Game.Tests
         {
             SaveData data; MarketService market; ForemanService foremen;
             VoyageService service = Build(out data, out market, out foremen);
-            data.foremanLevels[IslandEconomy.Mine] = 3;
+            data.masterStars[MineCommon] = 3;
 
             service.TryStart(Coal, 0);
-            Assert.That(service.TrySetForeman(0, IslandEconomy.Mine), Is.True, "settable at the dock");
+            Assert.That(service.TrySetForeman(0, MineCommon), Is.True, "settable at the dock");
 
             Sail(service, market);
             Assert.That(service.TrySetForeman(0, -1), Is.False, "not once the risk is real");

@@ -110,7 +110,10 @@ namespace Game.Gameplay
                 _spare.Push(bar);
                 taken++;
             }
-            return taken > 0 ? _market.SellByHand(_yardKey, taken) : 0d;
+            // The counter hands over goods and nothing else. The ledger already sold these bars and
+            // banked them on its own tick; paying again here is the double payout the redesign exists
+            // to remove, so this reports what was handed over and never touches the wallet.
+            return 0d;
         }
 
         private void OnTriggerStay(Collider other)

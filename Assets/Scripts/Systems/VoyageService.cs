@@ -493,7 +493,16 @@ namespace Game.Systems
         {
             VoyageState v = At(berth);
             if (v == null || v.sailedUnix > 0L) return false;
-            if (v.held > 0d && _market != null) _market.ReturnToStock(v.island, v.held);
+            if (v.held > 0d && _market != null)
+            {
+                // Only give back what the pads will take. A full yard used to swallow the difference
+                // and the cargo simply ceased to exist; the hold keeps it now, so abandoning stays the
+                // free change of mind it is meant to be. The berth stays until the yard has room.
+                double accepted = _market.ReturnToStock(v.island, v.held);
+                v.held -= accepted;
+                if (v.held > 0.001d) { Changed?.Invoke(); return false; }
+                v.held = 0d;
+            }
             _data.voyages.Remove(v);
             Changed?.Invoke();
             return true;

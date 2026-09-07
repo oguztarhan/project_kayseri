@@ -150,7 +150,10 @@ namespace Game.Gameplay
                     if (_timer > 0f) return;
                     if (_held >= _capacity) { _step = Step.ToDrop; return; }
                     // Nothing on the pad. Take what we already have, or wait for the lorries.
-                    if (_market.TakeFromStock(_yardKey, 1d) <= 0d)
+                    // OBSERVES the ledger, never spends it. The tick sells this yard's stock on its
+                    // own now, so a hire that actually took a bar off the pads would remove goods that
+                    // were then never sold — income quietly lost to an animation. He carries a copy.
+                    if (_market.Stock(_yardKey) <= 0d)
                     {
                         if (_held > 0) _step = Step.ToDrop; else Idle();
                         return;

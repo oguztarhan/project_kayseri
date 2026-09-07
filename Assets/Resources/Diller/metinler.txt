@@ -508,11 +508,6 @@ kaptan.ad.kemal	Terazi Kemal	Kemal the Scales	Kemal die Waage	Kemal la Balance	K
 kaptan.ad.selim	Barut Selim	Selim Powderhorn	Pulver-Selim	Selim Poudrière	Selim Pólvora	Selim Pólvora	Selim Polvere	Selim Prochownik	Селим Пороховой	Selim si Mesiu	Selim Thuốc Súng
 kaptan.ad.musa	Halat Musa	Musa Ropehand	Tau-Musa	Musa Cordage	Musa Cabo	Musa Cabo	Musa Cordame	Musa Linowy	Муса Канат	Musa si Tali	Musa Tay Thừng
 kaptan.ad.derya	Kalem Derya	Derya Quill	Feder-Derya	Derya la Plume	Derya Pluma	Derya Pena	Derya Penna	Derya Pióro	Дерья Перо	Derya si Pena	Derya Ngòi Bút
-kaptan.ad.zehra	Ambar Zehra	Zehra of the Hold	Zehra vom Laderaum	Zehra de la Cale	Zehra de la Bodega	Zehra do Porão	Zehra della Stiva	Zehra z Ładowni	Зехра Трюмная	Zehra si Palka	Zehra Khoang Hàng
-kaptan.ad.baran	Defter Baran	Baran Ledger	Kontor-Baran	Baran le Registre	Baran Libreta	Baran Registro	Baran Registro	Baran Rejestr	Баран Гроссбух	Baran si Buku Besar	Baran Sổ Cái
-kaptan.ad.orhan	Demir Orhan	Iron Orhan	Eisen-Orhan	Orhan de Fer	Orhan de Hierro	Orhan de Ferro	Orhan di Ferro	Żelazny Orhan	Железный Орхан	Orhan si Besi	Orhan Sắt
-kaptan.ad.nihal	Pusula Nihal	Nihal Compass	Kompass-Nihal	Nihal la Boussole	Nihal Brújula	Nihal Bússola	Nihal Bussola	Nihal Kompas	Нихаль Компас	Nihal si Kompas	Nihal La Bàn
-kaptan.ad.husrev	Gülle Hüsrev	Hüsrev Roundshot	Kugel-Hüsrev	Hüsrev Boulet	Hüsrev Bala Rasa	Hüsrev Bala	Hüsrev Palla	Hüsrev Kula	Хюсрев Ядро	Hüsrev si Peluru	Hüsrev Đạn Tròn
 kaptan.ad.ates	Karayel Ateş	Ateş Northwester	Nordwest-Ateş	Ateş le Noroît	Ateş Cierzo	Ateş Noroeste	Ateş Maestrale	Ateş Północny Wiatr	Атеш Северо-Западный	Ateş si Angin Barat Laut	Ateş Gió Tây Bắc
 sefer.kaptan	KAPTAN	CAPTAIN	KAPITÄN	CAPITAINE	CAPITÁN	CAPITÃO	CAPITANO	KAPITAN	КАПИТАН	KAPTEN	THUYỀN TRƯỞNG
 kaptan.teselli	{0}: en geç {1} çekilişte	{0}: within {1} pulls	{0}: in höchstens {1} Ziehungen	{0} : d'ici {1} tirages	{0}: en {1} tiradas como máximo	{0}: em até {1} aberturas	{0}: entro {1} estrazioni	{0}: najdalej za {1} losowań	{0}: не позже чем через {1}	{0}: paling lama {1} tarikan	{0}: trong vòng {1} lượt
@@ -611,11 +606,37 @@ atolye.sok	SÖK  +{0} hurda · +{1} XP	SCRAP  +{0} salvage · +{1} XP	VERSCHROTT
 atolye.nereden	Puan: deniz zaferleri + sefer ödülleri	Points: sea wins + voyage rewards	Punkte: Seesiege + Reiselohn	Points : victoires en mer + voyages	Puntos: victorias en el mar + viajes	Pontos: vitórias no mar + viagens	Punti: vittorie in mare + viaggi	Punkty: bitwy morskie + rejsy	Очки: морские победы + рейсы	Poin: menang di laut + pelayaran	Điểm: thắng trên biển + chuyến đi
 # ustalar -- sandik ve kadro ekrani (ForemanRosterUI); isimler istasyon.* satirlarindan gelir
 usta.baslik	USTALAR	MASTERS	MEISTER	MAÎTRES	MAESTROS	MESTRES	MAESTRI	MISTRZOWIE	МАСТЕРА	MAESTRO	CAO THỦ
-usta.kademe.0	SIRADAN	COMMON	GEWÖHNLICH	COMMUN	COMÚN	COMUM	COMUNE	POSPOLITY	ОБЫЧНЫЙ	BIASA	THƯỜNG
-usta.kademe.1	NADİR	RARE	SELTEN	RARE	RARO	RARO	RARO	RZADKI	РЕДКИЙ	LANGKA	HIẾM
-usta.kademe.2	DESTANSI	EPIC	EPISCH	ÉPIQUE	ÉPICO	ÉPICO	EPICO	EPICKI	ЭПИЧЕСКИЙ	EPIK	SỬ THI
-usta.kademe.3	EFSANEVİ	LEGENDARY	LEGENDÄR	LÉGENDAIRE	LEGENDARIO	LENDÁRIO	LEGGENDARIO	LEGENDARNY	ЛЕГЕНДАРНЫЙ	LEGENDARIS	HUYỀN THOẠI
-usta.kademe.4	MİTİK	MYTHIC	MYTHISCH	MYTHIQUE	MÍTICO	MÍTICO	MITICO	MITYCZNY	МИФИЧЕСКИЙ	MITOS	THẦN THOẠI
+usta.nadirlik.0	SIRADAN	COMMON	GEWÖHNLICH	COMMUN	COMÚN	COMUM	COMUNE	POSPOLITY	ОБЫЧНЫЙ	BIASA	THƯỜNG
+usta.nadirlik.1	NADİR	RARE	SELTEN	RARE	RARO	RARO	RARO	RZADKI	РЕДКИЙ	LANGKA	HIẾM
+usta.nadirlik.2	EFSANEVİ	LEGENDARY	LEGENDÄR	LÉGENDAIRE	LEGENDARIO	LENDÁRIO	LEGGENDARIO	LEGENDARNY	ЛЕГЕНДАРНЫЙ	LEGENDARIS	HUYỀN THOẠI
+usta.beceri.0	İstasyon hızı	Station speed	Stationstempo	Cadence de station	Velocidad de estación	Velocidade da estação	Velocità stazione	Tempo stacji	Скорость станции	Kecepatan stasiun	Tốc độ trạm
+usta.beceri.1	İmparatorluk geliri	Empire income	Imperiumseinkommen	Revenu de l’empire	Ingresos del imperio	Renda do império	Reddito dell’impero	Dochód imperium	Доход империи	Pendapatan kekaisaran	Thu nhập đế chế
+usta.beceri.2	Çevrimdışı kazanç	Offline earnings	Offline-Ertrag	Gains hors ligne	Ganancias sin conexión	Ganhos offline	Guadagni offline	Zarobki offline	Офлайн-доход	Penghasilan offline	Thu nhập ngoại tuyến
+usta.kilitli	KİLİTLİ	LOCKED	GESPERRT	VERROUILLÉ	BLOQUEADO	BLOQUEADO	BLOCCATO	ZABLOKOWANY	ЗАКРЫТ	TERKUNCI	KHÓA
+kaptan.dumende	DÜMENDE	AT THE HELM	AM RUDER	À LA BARRE	AL TIMÓN	AO LEME	AL TIMONE	ZA STEREM	ЗА ШТУРВАЛОМ	DI KEMUDI	CẦM LÁI
+kaptan.kilitli	KİLİTLİ	LOCKED	GESPERRT	VERROUILLÉ	BLOQUEADO	BLOQUEADO	BLOCCATO	ZABLOKOWANY	ЗАКРЫТ	TERKUNCI	KHÓA
+usta.aktif	AKTİF	ACTIVE	AKTIV	ACTIF	ACTIVO	ATIVO	ATTIVO	AKTYWNY	В РАБОТЕ	AKTIF	ĐANG LÀM
+usta.goreveal	GÖREVE AL	ASSIGN	EINSETZEN	AFFECTER	ASIGNAR	DESIGNAR	ASSEGNA	PRZYDZIEL	НАЗНАЧИТЬ	TUGASKAN	BỔ NHIỆM
+usta.istasyon.mine	MADEN	MINE	MINE	MINE	MINA	MINA	MINIERA	KOPALNIA	ШАХТА	TAMBANG	MỎ
+usta.istasyon.deposit	DEPO	DEPOT	LAGER	DÉPÔT	DEPÓSITO	DEPÓSITO	DEPOSITO	MAGAZYN	СКЛАД	GUDANG	KHO
+usta.istasyon.refinery	RAFİNERİ	REFINERY	RAFFINERIE	RAFFINERIE	REFINERÍA	REFINARIA	RAFFINERIA	RAFINERIA	ЗАВОД	KILANG	NHÀ MÁY LỌC
+usta.istasyon.port	LİMAN	PORT	HAFEN	PORT	PUERTO	PORTO	PORTO	PORT	ПОРТ	PELABUHAN	CẢNG
+usta.istasyon.market	PAZAR	MARKET	MARKT	MARCHÉ	MERCADO	MERCADO	MERCATO	RYNEK	РЫНОК	PASAR	CHỢ
+usta.ad.hasan	Çekiç Hasan	Hasan the Hammer	Hammer-Hasan	Hasan le Marteau	Hasan el Martillo	Hasan do Martelo	Hasan il Martello	Hasan Młot	Хасан Молот	Hasan si Palu	Hasan Búa Tạ
+usta.ad.sukru	Ocak Şükrü	Şükrü of the Seam	Schacht-Şükrü	Şükrü du Filon	Şükrü de la Veta	Şükrü da Veia	Şükrü della Vena	Şükrü z Pokładu	Шюкрю Забойный	Şükrü si Lapisan	Şükrü Vỉa Than
+usta.ad.nazmi	Damar Nazmi	Nazmi Lodefinder	Ader-Nazmi	Nazmi le Chercheur	Nazmi Buscavetas	Nazmi Acha-Filões	Nazmi Cercafiloni	Nazmi Żyłoznawca	Назми Рудознатец	Nazmi Pencari Urat	Nazmi Dò Mạch
+usta.ad.bekir	Sayım Bekir	Bekir the Tally	Zähler-Bekir	Bekir le Compteur	Bekir el Recuento	Bekir da Contagem	Bekir il Conteggio	Bekir Rachmistrz	Бекир Счетовод	Bekir si Penghitung	Bekir Kiểm Đếm
+usta.ad.necla	Raf Necla	Necla the Shelver	Regal-Necla	Necla des Rayons	Necla la Estibadora	Necla das Prateleiras	Necla degli Scaffali	Necla Regałowa	Нэджля Стеллажная	Necla si Penata Rak	Necla Xếp Kệ
+usta.ad.rasim	Kilit Rasim	Rasim the Lock	Schloss-Rasim	Rasim la Serrure	Rasim el Cerrojo	Rasim do Cadeado	Rasim il Lucchetto	Rasim Zamek	Расим Замок	Rasim si Gembok	Rasim Ổ Khóa
+usta.ad.fikri	Köz Fikri	Fikri the Ember	Glut-Fikri	Fikri la Braise	Fikri la Brasa	Fikri da Brasa	Fikri la Brace	Fikri Żar	Фикри Уголёк	Fikri si Bara	Fikri Than Hồng
+usta.ad.sema	Pota Sema	Sema the Crucible	Tiegel-Sema	Sema le Creuset	Sema el Crisol	Sema do Cadinho	Sema il Crogiolo	Sema Tygiel	Сема Тигель	Sema si Kowi	Sema Nồi Nấu
+usta.ad.zeki	Fırın Zeki	Zeki the Furnace	Ofen-Zeki	Zeki le Fourneau	Zeki el Horno	Zeki da Fornalha	Zeki la Fornace	Zeki Piec	Зеки Горн	Zeki si Tanur	Zeki Lò Cao
+usta.ad.cemil	Rıhtım Cemil	Cemil of the Quay	Kai-Cemil	Cemil du Quai	Cemil del Muelle	Cemil do Cais	Cemil della Banchina	Cemil z Nabrzeża	Джемиль Причальный	Cemil si Dermaga	Cemil Bến Tàu
+usta.ad.sedef	Vinç Sedef	Sedef the Crane	Kran-Sedef	Sedef la Grue	Sedef la Grúa	Sedef do Guindaste	Sedef la Gru	Sedef Dźwig	Седеф Крановая	Sedef si Derek	Sedef Cần Cẩu
+usta.ad.mahmut	Fener Mahmut	Mahmut the Lantern	Laternen-Mahmut	Mahmut la Lanterne	Mahmut el Farol	Mahmut do Farol	Mahmut la Lanterna	Mahmut Latarnia	Махмут Маяк	Mahmut si Mercusuar	Mahmut Ngọn Hải Đăng
+usta.ad.riza	Kantar Rıza	Rıza the Weighbridge	Waage-Rıza	Rıza la Bascule	Rıza la Báscula	Rıza da Balança	Rıza la Stadera	Rıza Waga Pomostowa	Рыза Весовой	Rıza si Jembatan Timbang	Rıza Cân Bàn
+usta.ad.leyla	Peşin Leyla	Leyla Paid-in-Full	Bar-Leyla	Leyla Comptant	Leyla al Contado	Leyla à Vista	Leyla in Contanti	Leyla Gotówka	Лейла Наличными	Leyla si Tunai	Leyla Trả Đủ
+usta.ad.hikmet	Borsa Hikmet	Hikmet the Broker	Börsen-Hikmet	Hikmet le Courtier	Hikmet el Corredor	Hikmet o Corretor	Hikmet il Mediatore	Hikmet Makler	Хикмет Маклер	Hikmet si Makelar	Hikmet Môi Giới
 usta.yildizatla	YILDIZ EKLE	STAR UP	STERN +	AJOUTER ÉTOILE	SUBIR ESTRELLA	SUBIR ESTRELA	AGGIUNGI STELLA	DODAJ GWIAZDKĘ	ЗВЕЗДА +	TAMBAH BINTANG	THÊM SAO
 usta.bulunmadi	HENÜZ YOK	NOT FOUND	NOCH NICHT DA	PAS ENCORE	AÚN NO	AINDA NÃO	NON ANCORA	JESZCZE NIE	ЕЩЁ НЕТ	BELUM ADA	CHƯA CÓ
 usta.sandiktan	sandıktan çıkar	found in chests	aus Truhen	trouvé en coffre	sale de los cofres	vem dos baús	esce dai forzieri	znajdziesz w skrzyniach	выпадает из сундуков	muncul dari peti	có trong rương
@@ -728,7 +749,6 @@ oran.baslik	ŞANS ORANLARI	DROP RATES	GEWINNCHANCEN	TAUX D'OBTENTION	PROBABILIDA
 oran.usta.kart	Sandık başına kart	Cards per chest	Karten pro Truhe	Cartes par coffre	Cartas por cofre	Cartas por baú	Carte per forziere	Kart na skrzynię	Карт в сундуке	Kartu per peti	Thẻ mỗi rương
 oran.usta.yonlendirilen	En geride kalana	To the one furthest behind	An den Rückständigsten	Au plus en retard	Al más rezagado	Ao mais atrasado	Al più indietro	Dla najbardziej opóźnionego	Самому отстающему	Untuk yang paling tertinggal	Cho người tụt lại nhất
 oran.usta.rastgele	Rastgele çekilen	Rolled at random	Zufällig gezogen	Tirées au hasard	Al azar	Sorteadas	Estratte a caso	Losowane	Случайные	Diundi acak	Rút ngẫu nhiên
-oran.usta.her_usta	Her usta için	Each master	Je Meister	Par maître	Cada maestro	Cada mestre	Ogni maestro	Każdy mistrz	Каждый мастер	Tiap maestro	Mỗi cao thủ
 oran.usta.not	Yönlendirilen kart şansa bağlı değildir: her zaman en az kartı olan ustaya gider. Kalan kartlar ayrı ayrı çekilir.	The directed card is not chance: it always goes to the master with the fewest cards. The rest are rolled one by one.	Die gelenkte Karte ist kein Zufall: Sie geht immer an den Meister mit den wenigsten Karten. Der Rest wird einzeln gezogen.	La carte dirigée n'est pas due au hasard : elle va toujours au maître ayant le moins de cartes. Le reste est tiré une par une.	La carta dirigida no depende del azar: siempre va al maestro con menos cartas. El resto se sortea una a una.	A carta dirigida não é sorte: vai sempre para o mestre com menos cartas. As restantes são sorteadas uma a uma.	La carta guidata non è casuale: va sempre al maestro con meno carte. Le altre sono estratte una per una.	Karta kierowana nie zależy od losu: zawsze trafia do mistrza z najmniejszą liczbą kart. Reszta jest losowana pojedynczo.	Направленная карта — не случайность: она всегда достаётся мастеру с наименьшим числом карт. Остальные разыгрываются по одной.	Kartu terarah bukan keberuntungan: selalu untuk maestro dengan kartu paling sedikit. Sisanya diundi satu per satu.	Thẻ định hướng không phải may rủi: luôn thuộc về cao thủ ít thẻ nhất. Phần còn lại được rút từng thẻ.
 oran.kaptan.garanti	{0}: en geç {1} çekilişte garanti	{0}: guaranteed within {1} pulls	{0}: garantiert nach spätestens {1} Ziehungen	{0} : garanti en {1} tirages maximum	{0}: garantizado en {1} tiradas como máximo	{0}: garantido em até {1} aberturas	{0}: garantito entro {1} estrazioni	{0}: gwarantowane w {1} losowaniach	{0}: гарантированно не позже {1} открытий	{0}: dijamin dalam {1} tarikan	{0}: đảm bảo trong {1} lượt
 oran.kaptan.yumusak	{1}. çekilişten sonra {0} şansı her çekilişte +{2}% artar.	After pull {1}, the {0} chance rises by {2}% each pull.	Ab Ziehung {1} steigt die {0}-Chance je Ziehung um {2}%.	Après le tirage {1}, la chance {0} augmente de {2}% par tirage.	Tras la tirada {1}, la probabilidad {0} sube {2}% por tirada.	Após a abertura {1}, a chance de {0} sobe {2}% a cada abertura.	Dopo l'estrazione {1}, la probabilità {0} cresce del {2}% a estrazione.	Po losowaniu {1} szansa na {0} rośnie o {2}% na losowanie.	После открытия {1} шанс {0} растёт на {2}% за открытие.	Setelah tarikan {1}, peluang {0} naik {2}% tiap tarikan.	Sau lượt {1}, tỷ lệ {0} tăng {2}% mỗi lượt.

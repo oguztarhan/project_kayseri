@@ -11,6 +11,12 @@ namespace Game.Tests
     /// </summary>
     public class CaptainServiceTests
     {
+        // Three masters at the mine, named so a test can say which one it means. They are roster
+        // indices 0, 1 and 2 — the positions the economy-station constants used to stand in for, back
+        // when the roster was one master per station.
+        private static readonly int MineRare = Foremen.IndexOf(Foremen.Mine, Foremen.Rarity.Rare);
+        private static readonly int MineLegend = Foremen.IndexOf(Foremen.Mine, Foremen.Rarity.Legendary);
+
         private const string Coal = "coal";
         private const double NoCeiling = 1e12d;
 
@@ -403,8 +409,8 @@ namespace Game.Tests
             VoyageService dock = Dock(out data, out market, out foremen, out captains);
 
             // Two hired foremen, one clearly further along than the other.
-            data.foremanLevels[IslandEconomy.Train] = 5;
-            data.foremanLevels[IslandEconomy.Storage] = 1;
+            data.masterStars[MineRare] = 5;
+            data.masterStars[MineLegend] = 1;
             data.captainLevels[purser] = Captains.MaxLevel;
 
             dock.TryStart(Coal, 0, -1, purser);
@@ -412,7 +418,7 @@ namespace Game.Tests
             BringHome(dock, data);
             dock.TryClaim(0);
 
-            Assert.That(data.foremanDuplicates[IslandEconomy.Storage], Is.GreaterThan(0),
+            Assert.That(data.masterCards[MineLegend], Is.GreaterThan(0),
                         "the purser did not aim at the foreman furthest behind");
         }
 
@@ -420,17 +426,21 @@ namespace Game.Tests
         public void APurserIsNeverInertOnTheShortRoutes()
         {
             // The floor that exists because this test failed without it. A tier-0 voyage pays one
-            // card and a Common purser's share of it is 0.4, which rounds to nothing — so the role
-            // did exactly nothing on the only route a new player has open.
+            // card and a weak purser's share of it rounds to nothing — so the role did exactly nothing
+            // on the only route a new player has open.
+            //
+            // The weakest purser there is, whatever grade the roster gives him. It used to look for a
+            // Common one specifically; at five captains there is one purser and he is Legendary, and a
+            // test that skipped rather than ran would have hidden the floor it exists to guard.
             int common = -1;
             for (int i = 0; i < Captains.Count; i++)
-                if (Captains.RoleOf(i) == Captains.Purser && Captains.RankOf(i) == Captains.Grade.Common)
-                { common = i; break; }
+                if (Captains.RoleOf(i) == Captains.Purser
+                    && (common < 0 || Captains.RankOf(i) < Captains.RankOf(common))) common = i;
             Assert.That(common, Is.Not.EqualTo(-1));
 
             SaveData data; MarketService market; ForemanService foremen; CaptainService captains;
             VoyageService dock = Dock(out data, out market, out foremen, out captains);
-            data.foremanLevels[IslandEconomy.Storage] = 1;
+            data.masterStars[MineLegend] = 1;
             data.captainLevels[common] = 1;                 // level 1, the weakest purser there is
 
             dock.TryStart(Coal, 0, -1, common);
@@ -439,7 +449,7 @@ namespace Game.Tests
             Assert.That(data.voyages[0].payoutCards, Is.EqualTo(1), "the premise: a tier-0 hold pays one card");
 
             dock.TryClaim(0);
-            Assert.That(data.foremanDuplicates[IslandEconomy.Storage], Is.EqualTo(1),
+            Assert.That(data.masterCards[MineLegend], Is.EqualTo(1),
                         "the one card a short route pays was not placed");
         }
 
@@ -453,7 +463,7 @@ namespace Game.Tests
 
             SaveData a; MarketService ma; ForemanService fa; CaptainService ca;
             VoyageService bare = Dock(out a, out ma, out fa, out ca);
-            a.foremanLevels[IslandEconomy.Train] = 3;
+            a.masterStars[MineRare] = 3;
             bare.TryStart(Coal, 0);
             Sail(bare, ma);
             BringHome(bare, a);
@@ -461,7 +471,7 @@ namespace Game.Tests
 
             SaveData b; MarketService mb; ForemanService fb; CaptainService cb;
             VoyageService crewed = Dock(out b, out mb, out fb, out cb);
-            b.foremanLevels[IslandEconomy.Train] = 3;
+            b.masterStars[MineRare] = 3;
             b.captainLevels[purser] = Captains.MaxLevel;
             crewed.TryStart(Coal, 0, -1, purser);
             Sail(crewed, mb);

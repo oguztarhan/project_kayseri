@@ -27,13 +27,25 @@ namespace Game.Systems
         public double incomeRatePerSec;               // offline earnings (GDD §7)
         public WalletData wallet = new WalletData();
         public List<StationLevel> stationLevels = new List<StationLevel>();
-        // The foreman roster, one entry per station index (Game.Core.Foremen). Levels are 0 for a slot
-        // nobody has hired; duplicates are the spare cards waiting to be spent on a level. Both are
-        // fixed-length arrays rather than keyed lists because the roster is exactly the station list
-        // and cannot grow. A save written before the roster existed simply arrives short and is padded
-        // on load, which is why there is no version bump for this.
-        public int[] foremanLevels = new int[Game.Core.Foremen.Count];
-        public int[] foremanDuplicates = new int[Game.Core.Foremen.Count];
+        // The master roster, one entry per index into Game.Core.Foremen.Roster — fifteen masters,
+        // three at each of the five stations. Stars are 0 for a card nobody has found; cards are the
+        // spares waiting to be spent on a star. Fixed-length arrays rather than keyed lists because
+        // the roster is a published table and cannot grow at runtime; a short or missing array is
+        // padded on load, which is why there is no version bump for this.
+        //
+        // NEW NAMES ON PURPOSE. These replace foremanLevels/foremanDuplicates, which were eight
+        // entries indexed by STATION and carried a star count that also decided rarity. Fifteen
+        // entries indexed by master is a different meaning at every position, so reusing the old field
+        // names would have quietly reinterpreted every existing save — a mine master's stars read as a
+        // Common mine master's, a market master's read as a Rare deposit master's. Renaming makes an
+        // old save arrive empty instead of arriving wrong.
+        public int[] masterStars = new int[Game.Core.Foremen.Count];
+        public int[] masterCards = new int[Game.Core.Foremen.Count];
+
+        // Who is actually working at each of the five stations: an index into Foremen.Roster, or -1
+        // for nobody. You own as many as the chests give you and put ONE of a station's three to work.
+        // Validated on read rather than trusted — see Foremen.ActiveAt.
+        public int[] masterActive = Game.Core.Foremen.NewActive();
         public GoalSaveData goals = new GoalSaveData();
         public List<string> unlockedMountains = new List<string>();  // mountain ids the player has bought (GDD §4/§8)
         public List<string> unlockedIslands = new List<string>();    // island ids the player has bought (archipelago progression)
@@ -242,9 +254,8 @@ namespace Game.Systems
 
         // ---- usta sandigi (ForemanService) ------------------------------------------------------
         // The master chest's two pieces of state. Added WITHOUT a save-version bump, on the same
-        // precedent as every block above. The roster itself needs no new field: stars ARE
-        // foremanLevels, so a save written before the masters rework arrives with its foremen already
-        // at the right stars and its banked cards already counted against the same curve.
+        // precedent as every block above — a chest count and a claim stamp mean the same thing before
+        // and after the roster rework, so unlike masterStars these keep their names.
         //
         // The free chest is stored as WHEN THE LAST ONE WAS TAKEN rather than as a countdown, so it
         // ticks while the app is shut and cannot be farmed by leaving it open — the same shape as

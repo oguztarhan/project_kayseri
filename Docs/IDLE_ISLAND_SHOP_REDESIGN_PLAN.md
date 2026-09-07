@@ -1,6 +1,8 @@
 # Island mining tycoon — worker and customer redesign
 
 Date: 2026-09-06
+
+Current coordination: [2026-09-07 ownership and acceptance](IDLE_SHOP_COORDINATION_2026_09_07.md). Main is the intended presentation; conflicting alternate Shipyard rollout proposals do not govern this redesign. Read the coordination note before package C or shared-file edits.
 Status: revision 3 — package A contracts implemented; live-game integration belongs to Claude.
 
 **Implementation authority:** [Package A handoff](IDLE_SHOP_PACKAGE_A_HANDOFF.md) supersedes the earlier stage architecture, independent-substage businesses, script proposals and migration sequence below. Stages now fold into existing chapter beats; no theme classes or parallel reward ledger are introduced.

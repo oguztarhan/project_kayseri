@@ -110,19 +110,10 @@ namespace Game.Gameplay
                 _heap.Set(stock, capacity > 0d ? capacity : stock);
             }
 
-            if (_carry == null || _market == null) return;
-            if (Time.time - _lastTouch > ContactGrace) { _carry = null; return; }   // they walked off
-
-            _timer -= Time.deltaTime;
-            if (_timer > 0f) return;
-            _timer = pickupSeconds;
-
-            if (_carry.IsFull) return;
-            // Taken from the ledger FIRST. If the take comes back short the bar was never there, and
-            // putting one on the player's back anyway would mint stock out of nothing.
-            double taken = _market.TakeFromStock(_yardKey, 1d);
-            if (taken <= 0d) return;
-            if (!_carry.TryAdd()) _market.Deliver(_yardKey, MarketService.ProductFor(_yardKey), taken);   // lost the race for the last slot; put it back
+            // The player used to stand here and load bars onto his back. That was the manual half of
+            // the yard and it is gone: nobody carries stock by hand, so this pad is now the pile you
+            // look at rather than the pile you work. The hires and the ledger do the whole job.
+            return;
         }
     }
 }

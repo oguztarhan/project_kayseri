@@ -23,6 +23,13 @@ namespace Game.UI
     public sealed class HudUI : MonoBehaviour
     {
         public const string SailButtonName = "BtnDenizSavasi";
+        public const string MasterButtonName = "BtnUstabasi";
+        public const string CaptainButtonName = "BtnKaptan";
+
+        /// <summary>The openers compact mode keeps. Everything else it drops — see
+        /// <see cref="AttachBottomButton"/>.</summary>
+        private static bool IsCompactOpener(string name)
+            => name == SailButtonName || name == MasterButtonName || name == CaptainButtonName;
 
         [Header("Dikey tersane sade HUD")]
         [Tooltip("Yalnızca Inspector'daki dört ana eylemi kenar rayında tutar; eski bölüm bildirimi ve yinelenen kısayolları gizler.")]
@@ -263,9 +270,10 @@ namespace Game.UI
         public Button AttachBottomButton(int order, string name, Sprite icon,
                                          UnityEngine.Events.UnityAction onClick)
         {
-            // Compact mode rejects the old collection of secondary openers, but sea combat is a
-            // primary loop in the new five-station game and keeps its dedicated rail button.
-            if (compactShipyardHud && name != SailButtonName) return null;
+            // Compact mode rejects the old collection of secondary openers. Three survive it: sea
+            // combat is a primary loop in the five-station game, and the two rosters are the whole
+            // of the collection layer — a screen you cannot open is a feature you do not have.
+            if (compactShipyardHud && !IsCompactOpener(name)) return null;
             RectTransform model = FirstAuthored();
             if (model == null) return null;
 

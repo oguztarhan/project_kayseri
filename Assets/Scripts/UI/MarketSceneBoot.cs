@@ -304,7 +304,11 @@ namespace Game.UI
 
             _yardKey = yard.IslandKey;
             // Only the yard on screen is acted out; the ledger keeps selling for all the others.
-            if (_market != null) _market.SetSimulatedYard(_yardKey);
+            // Deliberately NOT SetSimulatedYard(_yardKey). Handing the yard to the scene switched the
+            // ledger's own selling off for this island, because the counter used to do the selling by
+            // hand. Nothing sells by hand now, so the ledger must keep settling while the player stands
+            // here — otherwise walking into your own market stops its income.
+            if (_market != null) _market.SetSimulatedYard(null);
             for (int i = 0; i < _yards.Count; i++)
             {
                 bool live = _yards[i] == yard;
@@ -360,7 +364,8 @@ namespace Game.UI
             //
             // Kept as a guard as well, because it is free and the curtain is not the only way in here.
             string key = _yardKey;
-            if (!SceneCurtain.Cover(islandSceneName, WorldIslands.OreColorFor(key), Loc.Id("ada", key)))
+            if (!SceneCurtain.Cover(SceneCurtain.HomeScene(islandSceneName), WorldIslands.OreColorFor(key),
+                                    Loc.Id("ada", key)))
                 return;
             _leaving = true;
             ServiceLocator.Get<AudioService>()?.SetMarketAmbience(false);

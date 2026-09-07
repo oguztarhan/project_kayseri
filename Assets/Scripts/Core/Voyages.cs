@@ -90,9 +90,12 @@ namespace Game.Core
             public double MinLaunchFraction;
 
             /// <summary>
-            /// What a foreman aboard takes off the route's risk, per level. 0.02 against a level-10
-            /// foreman is 20 points — enough to make the far reach comfortable, not enough to make it
-            /// free. A route whose risk a foreman could erase would not be a decision any more.
+            /// What a master aboard takes off the route's risk, per star. 0.04 against a five-star
+            /// master is 20 points — enough to make the far reach comfortable, not enough to make it
+            /// free. A route whose risk a master could erase would not be a decision any more.
+            ///
+            /// It was 0.02 over ten levels, for the same 20 points. The roster went to five stars, so
+            /// this doubled with it rather than quietly halving what a master aboard is worth.
             /// </summary>
             public double ForemanRiskPerLevel;
 
@@ -161,7 +164,7 @@ namespace Game.Core
                 CrewPerLevel       = 0.05d,
                 CardRate           = 1d,
                 MinLaunchFraction  = 0.25d,
-                ForemanRiskPerLevel= 0.02d,
+                ForemanRiskPerLevel= 0.04d,
                 FailPayout         = 0.40d,
                 RepairFraction     = 0.25d,
                 MaxDivertShare     = 0.50d,

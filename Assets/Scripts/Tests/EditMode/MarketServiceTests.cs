@@ -45,6 +45,65 @@ namespace Game.Tests
             row.hireCarry = row.hireServe = row.dispatchLevel = level;
         }
 
+        // ---- conservation ---------------------------------------------------------------------------
+        // Goods have exactly one owner at a time. A full yard refuses part of a load, and what it
+        // refuses must stay with whoever offered it rather than ceasing to exist.
+
+        [Test]
+        public void DeliverReportsWhatThePadsTookAndNeverSwallowsTheRest()
+        {
+            SaveData data; WalletService wallet;
+            MarketService market = Build(out data, out wallet);
+            SetSupply(market, 120d);                       // 2 bars/sec -> 360 bars of pad space
+
+            double capacity = market.StockCapacity(Coal);
+            Assert.That(capacity, Is.GreaterThan(0d), "the meter has to have a reading for this to mean anything");
+
+            double accepted = market.Deliver(Coal, MarketService.ProductFor(Coal), capacity + 500d);
+
+            Assert.That(accepted, Is.EqualTo(capacity).Within(1e-6), "it takes what it can hold and says so");
+            Assert.That(market.Stock(Coal), Is.EqualTo(capacity).Within(1e-6));
+
+            // Offering the refused remainder again while still full is accepted as nothing, not silently
+            // absorbed — this is the retry a carrier makes when he keeps what would not fit.
+            Assert.That(market.Deliver(Coal, MarketService.ProductFor(Coal), 500d), Is.Zero.Within(1e-6));
+            Assert.That(market.Stock(Coal), Is.EqualTo(capacity).Within(1e-6), "a refused retry adds nothing");
+        }
+
+        [Test]
+        public void RefusedRetriesDoNotInflateTheDeliveryMeter()
+        {
+            // The meter feeds the offline grant. If a refused offer were counted, a jammed yard would
+            // report its best ever delivery rate exactly when it is delivering nothing.
+            SaveData data; WalletService wallet;
+            MarketService market = Build(out data, out wallet);
+            SetSupply(market, 120d);
+            double capacity = market.StockCapacity(Coal);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), capacity);   // now full
+
+            double before = market.Product(Coal).deliveredPerMin;
+            for (int i = 0; i < 20; i++) market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
+
+            Assert.That(market.Product(Coal).deliveredPerMin, Is.EqualTo(before).Within(1e-9),
+                        "twenty refused offers are not twenty deliveries");
+        }
+
+        [Test]
+        public void AbandoningAVoyageIntoAFullYardKeepsTheCargoRatherThanDestroyingIt()
+        {
+            SaveData data; WalletService wallet;
+            MarketService market = Build(out data, out wallet);
+            SetSupply(market, 120d);
+            double capacity = market.StockCapacity(Coal);
+            market.Deliver(Coal, MarketService.ProductFor(Coal), capacity);   // pads full
+
+            double returned = market.ReturnToStock(Coal, 200d);
+
+            Assert.That(returned, Is.Zero.Within(1e-6), "a full yard takes none of it back");
+            Assert.That(market.Stock(Coal), Is.EqualTo(capacity).Within(1e-6),
+                        "and the overflow is not quietly poured into the pads either");
+        }
+
         // ---- legacy conversion ---------------------------------------------------------------------
         // The one path with a save-corruption failure mode: an existing player's scalar MarketYard row
         // meeting this build for the first time. Convert itself is covered by IdleShopContractTests;
@@ -192,19 +251,27 @@ namespace Game.Tests
         // ---- selling by hand --------------------------------------------------------------------
 
         [Test]
-        public void HandSale_MakesMoneyButDoesNotBankIt()
+        public void SalesBankThemselvesAndThereIsNoHandSalePath()
         {
+            // Replaces HandSale_MakesMoneyButDoesNotBankIt. A counter sale used to MINT cash that then
+            // lay on the floor until somebody walked over it, which was the third job and the whole
+            // reason a yard needed visiting. Payment is immediate now, and the API that minted without
+            // banking is gone, so no scene or animation callback can pay for the same bar twice.
             SaveData data; WalletService wallet;
             MarketService market = Build(out data, out wallet);
+            SetSupply(market, 120d);
+            Staff(market, MarketFlow.MaxHireLevel);
             market.Deliver(Coal, MarketService.ProductFor(Coal), 10d);
 
-            double paid = market.SellByHand(Coal, 1d);
+            double before = wallet.Cash.ToDouble();
+            market.Tick(1f);
 
-            Assert.That(paid, Is.EqualTo(Price).Within(1e-6));
-            Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(0d), "it is lying on the yard floor, not in the wallet");
-
-            market.Collect(Coal, paid);
-            Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(Price).Within(1e-6));
+            Assert.That(wallet.Cash.ToDouble(), Is.GreaterThan(before),
+                        "a staffed yard banks its own sales on the tick, with nobody standing in it");
+            Assert.That(typeof(MarketService).GetMethod("SellByHand"), Is.Null,
+                        "the mint-without-banking path must not come back");
+            Assert.That(typeof(MarketService).GetMethod("Collect"), Is.Null,
+                        "floor cash must not come back");
         }
 
         [Test]

@@ -52,25 +52,28 @@ namespace Game.Tests
         }
 
         [Test]
-        public void EveryRoleAppearsAtTwoGradesOrMore()
+        public void EveryRoleIsDrawable()
         {
+            // Four roles across five captains. A role nobody carries is a role the odds sheet, the
+            // dock's officer picker and the loc table all describe and no player can ever field.
             for (int role = 0; role < Captains.RoleCount; role++)
             {
-                var grades = new System.Collections.Generic.HashSet<Captains.Grade>();
-                for (int i = 0; i < Captains.Count; i++)
-                    if (Captains.RoleOf(i) == role) grades.Add(Captains.RankOf(i));
-
-                Assert.That(grades.Count, Is.GreaterThanOrEqualTo(2),
-                            "role " + role + " can only be drawn at one grade — a trap either way");
+                bool found = false;
+                for (int i = 0; i < Captains.Count && !found; i++) found = Captains.RoleOf(i) == role;
+                Assert.That(found, Is.True, "nobody does role " + role);
             }
         }
 
         [Test]
-        public void EveryRoleIsDrawableAtCommon()
+        public void EachGradeIsExactlyOneCaptain()
         {
-            // Whatever a new player pulls first should do something they can point at.
-            for (int role = 0; role < Captains.RoleCount; role++)
-                Assert.That(Find(role, Captains.Grade.Common), Is.Not.EqualTo(-1), "role " + role);
+            // Five captains at five grades is what makes the crate's rarity readout and the card you
+            // actually get the same fact. A grade carrying two would put a second roll inside the
+            // first and quietly halve the odds the sheet prints for each of them.
+            Assert.That(Captains.Count, Is.EqualTo(Captains.GradeCount));
+            for (int g = 0; g < Captains.GradeCount; g++)
+                Assert.That(Captains.CountOfGrade((Captains.Grade)g), Is.EqualTo(1),
+                            "grade " + (Captains.Grade)g);
         }
 
         [Test]
@@ -111,11 +114,14 @@ namespace Game.Tests
         // ---- levels ------------------------------------------------------------------------------
 
         [Test]
-        public void MaxingACommonCostsNinetyDuplicates()
+        public void MaxingACommonCostsEightyDuplicates()
         {
-            // The same total as a foreman, deliberately: "months of duplicates, not a weekend".
+            // Four star-ups at 8, 16, 24 and 32. It was 90 over nine levels; the ladder is shorter and
+            // each rung costs more, so the road is the same length it was measured at — "months of
+            // duplicates, not a weekend" still holds.
             int common = Captains.OfGrade(Captains.Grade.Common, 0);
-            Assert.That(Captains.DuplicatesToMax(common, T), Is.EqualTo(90));
+            Assert.That(Captains.DuplicatesToMax(common, T), Is.EqualTo(80));
+            Assert.That(Captains.DuplicatesToLevel(common, 1, T), Is.EqualTo(8));
         }
 
         [Test]
@@ -290,7 +296,7 @@ namespace Game.Tests
             int mythicBosun = Find(Captains.Bosun, Captains.Grade.Mythic);
             double cut = Captains.RiskReduction(mythicBosun, Captains.MaxLevel, T);
 
-            double risk = Voyages.RiskFor(Voyages.TierCount - 1, Foremen.MaxLevel, cut, vt);
+            double risk = Voyages.RiskFor(Voyages.TierCount - 1, Foremen.MaxStars, cut, vt);
             Assert.That(risk, Is.GreaterThan(0d),
                         "a maxed foreman beside a maxed Mythic bosun erases the far reach's risk");
         }
@@ -300,7 +306,7 @@ namespace Game.Tests
         {
             var vt = Voyages.Tuning.Default;
             for (int tier = 0; tier < Voyages.TierCount; tier++)
-                for (int fl = 0; fl <= Foremen.MaxLevel; fl++)
+                for (int fl = 0; fl <= Foremen.MaxStars; fl++)
                     Assert.That(Voyages.RiskFor(tier, fl, 0d, vt),
                                 Is.EqualTo(Voyages.RiskFor(tier, fl, vt)).Within(1e-12),
                                 "tier " + tier + " foreman " + fl);

@@ -6,7 +6,15 @@ using UnityEngine.UI;
 
 namespace Game.UI
 {
-    /// <summary>A shared, code-built detail sheet for masters and captains.</summary>
+    /// <summary>
+    /// A shared, code-built detail sheet for masters and captains.
+    ///
+    /// It carries two things the small grid cards cannot. A SKILLS BLOCK, because a master has three
+    /// of them and fifteen cards five across have room for one line apiece — the headline goes on the
+    /// card, the full three go here. And a SECOND BUTTON, because posting a master to his station is a
+    /// different decision from spending cards on a star and putting both on one control would make the
+    /// commoner action steal the rarer one. Captains use neither and pass nothing.
+    /// </summary>
     public sealed class RosterInspectPanel
     {
         private readonly RectTransform _overlay;
@@ -16,8 +24,11 @@ namespace Game.UI
         private readonly Text _next;
         private readonly Text _progress;
         private readonly Text _status;
+        private readonly Text _skills;
         private readonly Button _action;
         private readonly Text _actionText;
+        private readonly Button _second;
+        private readonly Text _secondText;
 
         public RosterInspectPanel(RectTransform parent)
         {
@@ -37,16 +48,27 @@ namespace Game.UI
             _identity = Label(sheet, "Kimlik", 25, new Vector2(0.08f, 0.69f), new Vector2(0.92f, 0.82f));
             _current = Label(sheet, "Mevcut", 28, new Vector2(0.08f, 0.53f), new Vector2(0.92f, 0.68f));
             _next = Label(sheet, "Sonraki", 24, new Vector2(0.08f, 0.39f), new Vector2(0.92f, 0.52f));
+
+            // The three skills take the same band the current/next pair does, because only one of the
+            // two ever shows: a master has three numbers to read and a captain has a before and after.
+            _skills = Label(sheet, "Beceriler", 24, new Vector2(0.08f, 0.39f), new Vector2(0.92f, 0.68f));
+            _skills.alignment = TextAnchor.MiddleLeft;
+
             _progress = Label(sheet, "Ilerleme", 23, new Vector2(0.08f, 0.28f), new Vector2(0.92f, 0.38f));
             _status = Label(sheet, "Durum", 23, new Vector2(0.08f, 0.19f), new Vector2(0.92f, 0.28f));
 
             _action = UiBuild.Btn(sheet, "Aksiyon", string.Empty, UiSkin.ButtonGreen,
                                   new Color(0.24f, 0.68f, 0.36f, 1f), 27, null);
-            UiBuild.Anchor((RectTransform)_action.transform,
-                           new Vector2(0.20f, 0.055f), new Vector2(0.80f, 0.165f));
             PillFit.Wrap(_action.GetComponent<Image>());
             _actionText = _action.GetComponentInChildren<Text>();
             Fit(_actionText, 15, 27);
+
+            _second = UiBuild.Btn(sheet, "Ikincil", string.Empty, UiSkin.ButtonGrey,
+                                  new Color(0.28f, 0.40f, 0.62f, 1f), 27, null);
+            PillFit.Wrap(_second.GetComponent<Image>());
+            _secondText = _second.GetComponentInChildren<Text>();
+            Fit(_secondText, 15, 27);
+            _second.gameObject.SetActive(false);
 
             _overlay.gameObject.SetActive(false);
         }
@@ -55,17 +77,51 @@ namespace Game.UI
 
         public void Show(string title, string identity, string current, string next, string progress,
                          string status, string action, bool canAct, UnityAction onAction)
+            => Show(title, identity, current, next, null, progress, status,
+                    action, canAct, onAction, null, false, null);
+
+        /// <summary>
+        /// The full sheet. <paramref name="skills"/> non-empty swaps the current/next pair for a
+        /// three-line block; <paramref name="second"/> non-empty adds the secondary button beside the
+        /// action and narrows both to half the row.
+        /// </summary>
+        public void Show(string title, string identity, string current, string next, string skills,
+                         string progress, string status, string action, bool canAct,
+                         UnityAction onAction, string second, bool canSecond, UnityAction onSecond)
         {
             _title.text = title;
             _identity.text = identity;
-            _current.text = current;
-            _next.text = next;
+
+            bool listing = !string.IsNullOrEmpty(skills);
+            _skills.gameObject.SetActive(listing);
+            _current.gameObject.SetActive(!listing);
+            _next.gameObject.SetActive(!listing);
+            if (listing) _skills.text = skills;
+            else { _current.text = current; _next.text = next; }
+
             _progress.text = progress;
             _status.text = status;
+
             _actionText.text = action;
             _action.interactable = canAct;
             _action.onClick.RemoveAllListeners();
             if (canAct && onAction != null) _action.onClick.AddListener(onAction);
+
+            bool paired = !string.IsNullOrEmpty(second);
+            _second.gameObject.SetActive(paired);
+            UiBuild.Anchor((RectTransform)_action.transform,
+                           new Vector2(paired ? 0.07f : 0.20f, 0.055f),
+                           new Vector2(paired ? 0.49f : 0.80f, 0.165f));
+            if (paired)
+            {
+                UiBuild.Anchor((RectTransform)_second.transform,
+                               new Vector2(0.51f, 0.055f), new Vector2(0.93f, 0.165f));
+                _secondText.text = second;
+                _second.interactable = canSecond;
+                _second.onClick.RemoveAllListeners();
+                if (canSecond && onSecond != null) _second.onClick.AddListener(onSecond);
+            }
+
             _overlay.gameObject.SetActive(true);
             _overlay.SetAsLastSibling();
         }

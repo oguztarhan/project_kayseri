@@ -311,3 +311,300 @@ knowing before anyone assumes buying trucks adds bodies to the live island — i
 
 Suite after 3b: **941 tests, 937 passed** (job `3ff8d4c76c8a42529feb483e7c44106a`), same 4 pre-existing
 prefab failures. Editor returned to edit mode.
+
+
+## No land vehicles at all — train + road (COMPILES, NOT RUNTIME-VERIFIED)
+
+User instruction: the train was the last vehicle left, and there are to be no vehicles in the game; the
+haul road becomes something to walk on.
+
+### Train -> porter
+
+`TrainAgent` gains a `porter`, and `BuildTrain` wears the same costume on the ENGINE that the road legs
+already wear, then blanks every wagon's children. The engine keeps the agent because every distance,
+cover stretch and shed-door position along the line is measured against it — as with the lorries, only
+the costume changes. Walk/idle comes off the rake's own state: `TR.Haul` and `TR.Return` walk,
+`TR.LoadMountain` and `TR.Deposit` stand still. Toggle: `portersInsteadOfTrains`.
+
+The rail PATH is deliberately kept. That is where the island says the mine route runs; only the thing
+moving along it changed.
+
+### Road -> footpath
+
+The authored haul road is **three stacked slabs** under `Art/03_Parts/`, not one object:
+
+| Layer | Size | Fate |
+| --- | --- | --- |
+| `Main_road_ochre_foundation` | 940 x 524 x 2125 | **kept** — reads as a worn earth path |
+| `Main_road_bright_center` | 887 x 524 x 2104 | hidden |
+| `Main_road_luminous_golden_ribbon` | 914 x 524 x 2115 | hidden — this was the "neon" |
+| `Factory_circular_service_road` | 897 x 3 x 503 | hidden |
+
+`StripRoadToFootpath` hides the top layers by name from a serialized `roadLayersToHide` list, leaving the
+foundation. **No new geometry is built and no asset is edited** — the path is the road's own base course.
+Toggle: `footpathInsteadOfRoad`.
+
+### Status: VERIFIED in Play (see below)
+
+Originally logged as unverified because the MCP bridge died. Re-verified once it came back.
+
+Unity recompiled this change with **0 console errors and 0 `error CS`**. Then the MCP bridge died: the
+Python server on 8080 still issues sessions, but the Editor-side plugin detached, so every `execute_code`,
+`manage_editor` and `run_tests` call returns `success:false`. The Editor.log tail is full of exceptions
+inside the MCP package's own socket/WebSocket code (`McpLog.cs`), and Unity itself is idle at 0.7% CPU
+with no game exceptions.
+
+So, explicitly: **the full test suite has not been re-run, and nobody has seen the train porters or the
+stripped road on screen.** Reconnect via Window > MCP For Unity > Connection (toggle the HTTP server off
+and on), and this needs re-verifying before it is called done.
+
+
+## The presentation switch — why none of this was visible
+
+The island work was invisible in Play for a reason that had nothing to do with the code.
+
+`GameBootstrap.Start` loads a presentation scene with `LoadSceneMode.Single`, chosen by
+`ShipyardFeatureSwitch` from a save flag. The live save read `UsePortraitShipyard = True`, so the game
+booted `Shipyard.unity` and **never loaded `Main.unity`** — which is where `CoalController`, the island
+art, the lorries, the rake and the roads all live. Every change in package B targets `Main`.
+
+The user confirmed the island is the intended main view, so the flag was flipped through the supported
+setter, `GameBootstrap.SetUsePortraitShipyard(false)`, which persists it via `SaveService`. Presentation
+is now `Main`. **Anyone confused by "my island change did nothing" should check this flag first.**
+
+### Step 2 migration, proven against the real save
+
+Read out of the live save in Play, not a fixture:
+
+```
+idleMarketYards rows=1  schemaVersion=1  legacy marketYards=8
+  row id=coal ver=1 carry=5 serve=5 dispatch=5 | Coke=0.00
+```
+
+Hires 5/5/5 preserved with `hireCollect` landing in `dispatchLevel`, product id exactly `Coke`, all 8
+legacy rows untouched as migration input.
+
+### Train and road, verified
+
+- Road stripped: `Main_road_bright_center`, `Main_road_luminous_golden_ribbon` and
+  `Factory_circular_service_road` hidden; `Main_road_ochre_foundation` visible as the path.
+- Rake: `wagon` visible renderers **0**, engine's `model` hidden, `_Porter` present with `porterBody`
+  wired. The engine's GameObject reads `activeSelf=False` between runs because `SetTrainVisible` hides
+  the rake inside the mountain — expected, not a fault.
+- All porters `upright = 1.000`, feet within 0.65 units of the driving line.
+
+### Two bugs found and fixed during that verification
+
+1. **The rake's walker leaned 21 degrees.** Train cars use the same `VehicleFacing` as lorries, but the
+   rail has a GRADIENT and the cars' heading follows it in three dimensions, so `LookRotation` tilted the
+   man with the track. Lorries never showed it because their heading is flattened. `TrainTick` now
+   flattens his own world forward and looks again — same yaw, upright body. A walker on a hill is
+   vertical; only his path is inclined.
+2. **Everyone was half height.** The shared porter size was taken from the first vehicle costumed, and
+   **the rake is built before the road fleet**, so the whole crew was sized against a locomotive.
+   `PorterWorldHeight` now measures a `truck_road*` body specifically, whatever the build order.
+   `_porterHeightWorld` went 36.6 -> 64.19, and both road porters measure exactly 64.2.
+
+A measuring note that cost time: probing a porter's height with `GetComponentsInChildren` includes the
+crate riding on his shoulder, which made two identical porters read 47 and 36. Exclude the carried load.
+
+Final suite: **961 tests, 957 passed** (job `df692f08ff934282a3c9b7c528a939cb`), same 4 pre-existing
+prefab failures. Editor returned to edit mode.
+
+
+## Manual play removed — the yard now pays itself
+
+The old market yard had a second, competing economy: the counter MINTED cash by hand, the note landed on
+the floor, and it was worth nothing until somebody walked over it. `SetSimulatedYard` switched the
+ledger's own selling OFF for whichever island the player was standing in, so the scene could be the
+seller. That is the "third job" the redesign exists to delete.
+
+| Was | Now |
+| --- | --- |
+| `MarketService.SellByHand` mints, does not bank | **deleted** |
+| `MarketService.Collect` banks floor cash | **deleted** |
+| `MarketSceneBoot` calls `SetSimulatedYard(_yardKey)` | passes `null` — the ledger never stops selling |
+| `SellCounter.Serve` returns `SellByHand(...)` | returns 0; it hands over goods and never touches the wallet |
+| `CustomerQueue` drops one note per bar | no notes; the serve still looks like a serve |
+| `CashFloor.Bank` credits the wallet | clears a stale note only; credits nothing |
+| `StockPad` loads bars onto the player's back | gone — the pile you look at, not the pile you work |
+| `YardWorker` calls `TakeFromStock` | calls `Stock` — **observes**, never consumes |
+
+That last row matters more than it looks. With the ledger selling on every tick, anything the scene took
+off the pads would be removed from stock and then never sold — income lost silently to an animation. The
+hires now carry a copy of a bar that the ledger is selling independently, which is codex's own rule:
+customer visuals observe committed sales, they never mint.
+
+`SetSimulatedYard` is kept but is only ever passed null. `SettleYard` still honours it, so a future live
+yard view could take the selling back; the market scene no longer does.
+
+### Deliberately NOT done: the joystick and the player body
+
+The player character still exists, and this is a sequencing decision rather than an oversight.
+**`UpgradePad` is the only place in the game a `YardUpgrade` can be bought** — deposit slots, queue slots,
+all three hires, carry capacity — and it detects the player by his `CarryStack`. Deleting the body today
+would strand the entire yard upgrade track, which is exactly what "hire to 5/5/5 and the yard runs itself"
+depends on.
+
+Making the pads tap-driven instead would mean reworking `MarketSceneBoot`, `MarketHudUI`,
+`MarketYardScene`, `MarketCamera` and three pads — in a scene package C deletes wholesale. That is
+throwaway work. The joystick dies with the scene, in one commit, once C's station panel can sell
+`YardUpgrade` on the island.
+
+So today: **no manual carrying, no manual serving, no floor cash, and no way to earn by hand.** The
+remaining walk is a menu, not a job.
+
+### Verification
+
+**981 tests, 977 passed** (job `0350c5ef59c048cab024c978d4cc82fa`), 0 compile errors. Only the 4
+pre-existing missing-prefab `RenderingSafetyTests` remain. New test
+`SalesBankThemselvesAndThereIsNoHandSalePath` pins both halves: a staffed yard banks on the tick with
+nobody in it, and `SellByHand`/`Collect` must not come back — asserted by reflection so the API cannot be
+quietly restored.
+
+
+## BUG FIXED: the crew-size upgrades were dead money
+
+Found while answering Codex's C0/acceptance point about `visibleVehiclesPerRoute`. It was not a
+theoretical risk — it was live, in the user's own save.
+
+`BuildTruckAgents` clamps a route's agent list to `visibleVehiclesPerRoute`, which is **1**. The economic
+team count is not clamped. Measured in Play before the fix:
+
+```
+ECONOMIC teams claimed: OreTruckCount=5  CargoTruckCount=5
+actual agents:          route Ore: 1     route Market: 1
+```
+
+So the player had bought levels on BOTH truck crew-size tracks and received nothing for them: one body
+worked each leg regardless. Every level on those two axes was dead money.
+
+`TeamShare(teams)` now makes the drawn workers carry the whole crew's load — `teams / drawn`, which is
+exactly 1 when the crew is already all on screen, so it cannot double-count if the visible cap is raised
+later. Measured after, on the same save:
+
+| ore crew-size levels | teams | throughput budget |
+| --- | --- | --- |
+| 3 (as purchased) | 5 | 7648.6 |
+| 0 | 2 | 3059.4 |
+
+2.5x, where before the two were identical. This satisfies Codex's requirement that paid team-count
+upgrades keep a benefit even when only one body renders. Spawning the real crew instead is the honest
+fix and a visibly busier island, but it is more agents, longer queues and a profiling job — Codex agrees
+that is a separately scoped C change.
+
+Suite: **987 tests, 983 passed** (job `bbdddab0c8374e2c9cf25c056e8edbbd`), 0 compile errors, same 4
+pre-existing prefab failures.
+
+## Accepted from Codex's review — still open in B
+
+1. **The pacing claim was a BUDGET check, not measured throughput.** Codex is right. With handling time
+   H, throughput is `load / (D/speed + H)`; scaling speed by p and load by 1/p gives
+   `load / (D/speed + pH)`, which differs whenever H is nonzero — and this state machine has real
+   loading/dropping dwell. The speed x load equality stands as a budget identity only. Timed
+   delivery/sale sampling at both paces is still owed.
+2. **Delivery conservation is unfinished.** `Deliver` returns accepted units but every caller still drops
+   the remainder, exactly as the lorries did. Callers must keep/retry or return `offered - accepted`,
+   without letting retries inflate the measured rate. Voyage cancellation returns need the same audit.
+3. **"Inactive now" is not proof for the decorative vehicles.** Re-check after a phase change, expansion,
+   reload and island switch.
+4. **Ten minutes on a FRESH, unmaxed crew**, not only the maxed live save, plus real customer
+   presentation on the island — an existing `Customer_Island_02` prop is not a working queue.
+
+
+## Delivery conservation — DONE (Codex review item 2)
+
+Goods now have exactly one owner at a time. Nothing is destroyed by being refused.
+
+| Path | Was | Now |
+| --- | --- | --- |
+| Porter arriving at a full yard | overflow destroyed, `a.carry = 0` unconditionally | keeps `offered - accepted` and waits at the pad to offer again |
+| `Deliver` meter | counted what was OFFERED | counts what was **accepted** |
+| `ReturnToStock` | `void`; overflow silently dropped | returns accepted units |
+| `TryAbandon` a voyage | cargo vanished if the pads were full | hold keeps the remainder; the berth stays until there is room |
+
+The meter change is the subtle half and it is why the two must land together. A carrier that keeps its
+remainder brings the same goods back next dwell, so metering the OFFER would count them again on every
+attempt: a jammed yard would report its highest ever delivery rate at precisely the moment it is
+delivering nothing — and `deliveredPerMin` is what the next launch's offline grant is paid from.
+
+There is no strangulation risk from metering acceptance. If measured supply ever fell far enough that
+capacity reached zero, `Deliver`'s `capacity <= 0` branch accepts everything uncapped, so the loop fails
+open rather than closed. Sales also drain stock every tick, which is what lets a jam clear itself.
+
+The porter that still holds cargo re-dwells at the drop instead of driving off to fetch more of what
+there is already nowhere to put — the queue behind him is the visible bottleneck the plan asks for.
+
+`MarketSceneBoot`'s inter-yard drop is now a dead path: nothing fills `CarryStack` since `StockPad`
+stopped loading the player, so it cannot run. It dies with the scene.
+
+### Verification
+
+**1009 tests, 1005 passed** (job `c51712ca8d7c41018dc51145581834f7`), 0 compile errors, same 4
+pre-existing prefab failures. Three new tests:
+
+- `DeliverReportsWhatThePadsTookAndNeverSwallowsTheRest`
+- `RefusedRetriesDoNotInflateTheDeliveryMeter` — twenty refused offers leave the meter untouched
+- `AbandoningAVoyageIntoAFullYardKeepsTheCargoRatherThanDestroyingIt`
+
+Operational note for anyone driving Unity over MCP: a test job that reports `status: failed` with
+`0 / None` usually means **the editor is still in Play mode**, not that the suite broke. EditMode tests
+cannot start while playing. Stop play and re-run before investigating anything else.
+
+
+## Pacing measured properly — Codex review item 1
+
+Codex was right, and the algebra does not merely weaken the old claim, it reverses its sign. With
+`speed' = speed*p` and `load' = load/p`:
+
+```
+throughput = (load/p) / (D/(speed*p) + H)  =  load / (D/speed + p*H)
+```
+
+`p < 1` shrinks the denominator, so slowing porters and enlarging their loads **increases** throughput
+whenever dwell H is nonzero — the fixed handling cost is paid on fewer trips.
+
+Measured from live values in Play (loop lengths off the built agents, dwell off the economy):
+
+| Leg | loop | pace 1.00 | pace 0.45 | change |
+| --- | --- | --- | --- | --- |
+| Ore (depot→refinery) | 3574.8 | cycle 58.47s, load 122.9 → **126.1/min** | cycle 128.65s, load 273.0 → **127.3/min** | **+0.95%** |
+| Market (refinery→pads) | 3769.1 | cycle 61.31s, load 81.9 → **80.1/min** | cycle 134.96s, load 182.0 → **80.9/min** | **+1.0%** |
+
+`dwellSeconds` 0.70, `StorageDwell` 0.35, `MarketDwell` 0.35 — so H is about 1.05s against a ~58s cycle,
+1.8% of the trip. That is why the effect is real but small.
+
+**The honest statement is therefore: pacing is not throughput-neutral, it is +1%.** The earlier
+"identical to four decimals" was a budget identity and is retained only as that.
+
+### Still owed: the same measurement against income
+
+Whether that +1% reaches the wallet depends on the chain's bottleneck, and I could not sample it. The
+market leg (80.9/min) is the tightest transport stage against a smelter doing 180/min, but every attempt
+to read `deliveredPerMin` and `RatePerMin` in Play found the island running with **null services**
+(`SaveData`, `MarketService`, `CoalOperation._marketService`, `_agents`, `_train1` all null), so no
+delivery or sale was being recorded at all. See below — that needs settling before the soak test.
+
+## Found and fixed: an unguarded tick that hid the real fault
+
+`Tick` called `TrainTick(_train1, dt)` with no null check, while `_train2`..`_train4` were all guarded,
+and iterated `_agents` unguarded. On an island whose build did not complete, that threw a
+`NullReferenceException` **every frame** — drowning the console in a storm that hides whatever actually
+went wrong upstream. Both are guarded now. Pre-existing: `switch (a.state)` would have thrown on the same
+null before any of my changes.
+
+## Open, not mine, needs an owner
+
+- **The island came up with no services in every Play session I drove.** `GameBootstrap` survives into
+  `DontDestroyOnLoad` with `Data=True` but `Wallet=False` and `Market=False`, and the locator returns
+  null for all three, yet the log shows `GameBootstrap.Awake` reaching line 414 — past both service
+  constructions. I could not reconcile that, and I did not edit `GameBootstrap`: it belongs to the
+  masters workstream. It may be an artifact of repeated MCP play/stop cycles rather than a regression,
+  but if it is real the island has no economy at all and nothing else matters.
+- **`SeaFightUI` throws every frame** in `DriveSheet:1170` / `RefreshSheet:1226`.
+- **Three new failures in `RosterCardPrefabTests`** (`StateBadgesShipHiddenAndWritable`,
+  `TheCaptainCardCarriesEveryPieceTheScreenBinds`, `TheMasterCardCarriesEveryPieceTheScreenBinds`) —
+  masters workstream, appeared during this session.
+
+Suite: **1010 tests, 1003 passed** (job `8ee1ea5bdfad41d78d8f5bf9fa7795b7`) — the 4 pre-existing prefab
+failures plus those 3 roster ones.

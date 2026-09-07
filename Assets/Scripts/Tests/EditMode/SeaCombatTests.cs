@@ -454,23 +454,39 @@ namespace Game.Tests
         }
 
         [Test]
-        public void AGunnerOutfightsEveryOtherRoleAtTheSameWorth()
+        public void AGunnerOutfightsAnyRoleWorthNoMoreThanHim()
         {
-            int gunner = -1, other = -1;
+            // Every officer aboard raises the shot; the gunner's worth is multiplied by
+            // GunnerFightBonus on top and nobody else's is. This used to compare two Commons, which
+            // held it at a fixed worth for free — there is one captain per grade now, so the
+            // comparison is against everybody the gunner is not out-ranked by. A RARER officer
+            // out-shooting him is the ladder working, not the role failing.
+            int gunner = -1;
+            for (int i = 0; i < Captains.Count && gunner < 0; i++)
+                if (Captains.RoleOf(i) == Captains.Gunner) gunner = i;
+            Assert.That(gunner, Is.Not.EqualTo(-1), "nobody carries the gunner's role");
+
+            Assert.That(T.GunnerFightBonus, Is.GreaterThan(1d), "the premise: the role is worth more");
+
+            double gunnerWorth = Captains.PerLevel(gunner, CT);
+            double gunnerShot = SeaCombat.OurStats(gunner, Captains.MaxLevel, 0, null, CT, T).Shot;
+            int compared = 0;
+
             for (int i = 0; i < Captains.Count; i++)
             {
-                if (Captains.RankOf(i) != Captains.Grade.Common) continue;
-                if (Captains.RoleOf(i) == Captains.Gunner) gunner = i;
-                else if (other < 0) other = i;
+                if (i == gunner || Captains.PerLevel(i, CT) > gunnerWorth) continue;
+                compared++;
+                Assert.That(gunnerShot,
+                            Is.GreaterThan(SeaCombat.OurStats(i, Captains.MaxLevel, 0, null, CT, T).Shot),
+                            "captain " + i);
             }
-            Assert.That(SeaCombat.OurStats(gunner, 5, 0, null, CT, T).Shot,
-                        Is.GreaterThan(SeaCombat.OurStats(other, 5, 0, null, CT, T).Shot));
+            Assert.That(compared, Is.GreaterThan(0), "nobody was actually compared against");
         }
 
         [Test]
         public void EveryRoleCarriesItsOwnSecondaryToSea()
         {
-            // The four Commons are one of each role — the roster file promises it.
+            // The first four of the roster are one of each role — the roster file promises it.
             SeaCombat.Stats qm = SeaCombat.OurStats(0, 5, 0, null, CT, T);
             SeaCombat.Stats gunner = SeaCombat.OurStats(1, 5, 0, null, CT, T);
             SeaCombat.Stats bosun = SeaCombat.OurStats(2, 5, 0, null, CT, T);

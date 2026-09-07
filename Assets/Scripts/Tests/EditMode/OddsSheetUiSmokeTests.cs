@@ -63,8 +63,12 @@ namespace Game.Tests
                 Assert.That(captainRows, Is.GreaterThan(0), "every populated grade is a row");
 
                 sheet.ShowMasterChest(MasterChest.Tuning.Default);
-                Assert.That(ActiveRows(host), Is.EqualTo(4),
-                            "the master chest states four lines and must show exactly four");
+                // Three counts (per chest, directed, rolled) plus one line per rarity. The rarity
+                // lines arrived when rarity became something the chest DRAWS rather than something a
+                // master earns, and they must all fit: the row pool used to cap at five and dropped
+                // the Legendary line without a word.
+                Assert.That(ActiveRows(host), Is.EqualTo(3 + Foremen.RarityCount),
+                            "the master chest must show every count and every rarity");
             }
             finally
             {

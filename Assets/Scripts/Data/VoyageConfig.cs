@@ -44,9 +44,11 @@ namespace Game.Data
         [SerializeField] private double minLaunchFraction = 0.25d;
 
         [Header("Risk")]
-        [Tooltip("Gemide bir formen varsa, her seviyesi riskten bu kadar düşer. " +
-                 "0.02 = seviye başına %2. Seviye 10'da 20 puan — uzak rotayı rahatlatır ama bedavaya çevirmez.")]
-        [SerializeField] private double foremanRiskPerLevel = 0.02d;
+        [Tooltip("Gemide bir usta varsa, her YILDIZI riskten bu kadar düşer. " +
+                 "0.04 = yıldız başına %4. Beş yıldızda 20 puan — uzak rotayı rahatlatır ama bedavaya " +
+                 "çevirmez. On seviye üzerinden 0.02'ydi; kadro beş yıldıza inince aynı 20 puanı " +
+                 "korumak için ikiye katlandı.")]
+        [SerializeField] private double foremanRiskPerLevel = 0.04d;
 
         [Tooltip("Aksayan bir seferin yine de getirdiği ödül oranı. Sıfır olmamalı: " +
                  "harcanmış ambar + beklenmiş süre + hiçbir şey, oyuncunun oyunu bıraktığı sonuçtur.")]

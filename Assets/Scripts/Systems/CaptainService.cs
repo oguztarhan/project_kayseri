@@ -27,8 +27,21 @@ namespace Game.Systems
     {
         private readonly SaveData _data;
         private readonly Random _random;
+        private readonly UnityEngine.Color[] _gradeTint;
         private Captains.Tuning _tuning;
         private CaptainCrate.Tuning _crate;
+
+        /// <summary>Used when no config is wired, so an unconfigured project still reads correctly
+        /// rather than drawing every grade white. Matches the master roster's palette where the two
+        /// overlap — Legendary is gold everywhere in the game.</summary>
+        private static readonly UnityEngine.Color[] DefaultGradeTint =
+        {
+            new UnityEngine.Color(0.48f, 0.54f, 0.62f, 1f),   // Common
+            new UnityEngine.Color(0.26f, 0.60f, 0.92f, 1f),   // Rare
+            new UnityEngine.Color(0.62f, 0.38f, 0.92f, 1f),   // Epic
+            new UnityEngine.Color(0.96f, 0.66f, 0.18f, 1f),   // Legendary
+            new UnityEngine.Color(0.94f, 0.28f, 0.42f, 1f),   // Mythic
+        };
 
         /// <summary>Raised when anything the roster or crate screen shows has moved.</summary>
         public event Action Changed;
@@ -37,14 +50,33 @@ namespace Game.Systems
         public event Action<int> Pulled;
 
         public CaptainService(SaveData data, Captains.Tuning tuning, CaptainCrate.Tuning crate,
-                              Random random = null)
+                              Random random = null, UnityEngine.Color[] gradeTint = null)
         {
             _data = data;
             _tuning = tuning;
             _crate = crate;
             _random = random ?? new Random();
+            _gradeTint = gradeTint != null && gradeTint.Length >= Captains.GradeCount
+                ? gradeTint : DefaultGradeTint;
             Normalise();
         }
+
+        /// <summary>
+        /// One grade's colour. Lives here rather than on the roster screen because THREE things read
+        /// it now — the row stripe on the collection screen, and the captain standing at the ship's
+        /// wheel out at sea, which is in another scene entirely and cannot see a screen's Inspector.
+        /// The masters' rarity tint moved here for the same reason; a Legendary that is gold on the
+        /// card and purple at the helm is worse than no colour at all.
+        /// </summary>
+        public UnityEngine.Color GradeTint(Captains.Grade grade)
+        {
+            int i = (int)grade;
+            if (i < 0) i = 0;
+            if (i >= _gradeTint.Length) i = _gradeTint.Length - 1;
+            return _gradeTint[i];
+        }
+
+        public UnityEngine.Color GradeTintOf(int captain) => GradeTint(Captains.RankOf(captain));
 
         public Captains.Tuning Tuning => _tuning;
         public CaptainCrate.Tuning CrateTuning => _crate;

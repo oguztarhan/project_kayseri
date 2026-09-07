@@ -15,7 +15,8 @@ namespace Game.Gameplay
     /// Market, Port, Power, Haul, Fleet, Civic — and the roster is by STATION. The two nearly line up
     /// and then do not: TRAIN owns no district at all, and CARGO TRUCKS owns two. So a master hangs off
     /// <see cref="CoalOperation.StationAnchor"/> instead, which answers for all eight stations
-    /// including the two that are a midpoint between buildings rather than a building.
+    /// including the two that are a midpoint between buildings rather than a building. Only five of
+    /// those eight have a master to post; the other three stay empty, which the Hired delegate says.
     ///
     /// WHAT MAKES HIM READ AS A MASTER, in three parts, because there is still no bespoke master ART:
     ///   - He does not walk. Everyone else drifts between posts; he stands where he was put and
@@ -23,9 +24,10 @@ namespace Game.Gameplay
     ///   - He is a DIFFERENT BODY at every station, picked deterministically out of the same people
     ///     pack — eight silhouettes rather than one strongman cloned eight times, so the mine master
     ///     and the market master are recognisably different men.
-    ///   - He stands on a plinth tinted by his TIER, and grows with it. That is what makes a Legendary
-    ///     legible from across the island without a single new texture, and it is the same colour the
-    ///     roster screen paints his card with — see <see cref="Game.Systems.ForemanService.TierTint"/>.
+    ///   - He stands on a plinth tinted by his RARITY, and grows with it. That is what makes a
+    ///     Legendary legible from across the island without a single new texture, and it is the same
+    ///     colour the roster screen paints his card with — see
+    ///     <see cref="Game.Systems.ForemanService.RarityTint"/>.
     /// Proper hard hats and hi-vis would still be better and remain a job for the art pipeline.
     ///
     /// Instantiated once and thereafter only shown, hidden, re-posted or re-tinted, so a running island
@@ -45,9 +47,27 @@ namespace Game.Gameplay
         /// <summary>Where to stand. Same contract, same reason.</summary>
         public PostFunc Post;
 
-        /// <summary>How many stars this station's master carries. Drives his tier, and with it his
-        /// plinth colour and his size. Same delegate contract as the two above.</summary>
-        public System.Func<int, int> Stars;
+        /// <summary>Which rarity the master posted at this station is, as an int in
+        /// [0, <see cref="Foremen.RarityCount"/>). Drives his plinth colour and his size. Same
+        /// delegate contract as the two above.
+        ///
+        /// RARITY RATHER THAN STARS. It used to be a star count, because stars were what decided a
+        /// master's tier; rarity is now a fact about the card and stars only make him stronger. Sizing
+        /// him by stars would put a maxed Common shoulder to shoulder with a fresh Legendary, which is
+        /// exactly the thing the plinth exists to tell apart from across the island.</summary>
+        public System.Func<int, int> Rank;
+
+        /// <summary>
+        /// WHICH MAN is posted here, as an index the body pack is picked from. -1 keeps whatever body
+        /// the station started with.
+        ///
+        /// The station used to choose the body, back when a station HAD one master and the only thing
+        /// that could change about him was how far you had taken him. Three masters share a station
+        /// now, so a body fixed to the post means swapping your Common for a Legendary changes the
+        /// plinth colour under a man who is visibly the same man. The body follows the master instead,
+        /// and the pack has eighteen variants against fifteen masters, so no two share one.
+        /// </summary>
+        public System.Func<int, int> Who;
 
         private sealed class Boss
         {
@@ -59,49 +79,104 @@ namespace Game.Gameplay
             public bool gesturing;
             public bool placed;
             public bool active;
-            public int tier = -1;     // -1 = never dressed, so the first Refresh always paints
+            public int rank = -1;     // -1 = never dressed, so the first Refresh always paints
+            public int who = -1;      // which master's body this is, so a swap re-picks it
         }
 
         private readonly Boss[] _bosses;
-        private readonly Material[] _tierPlinth;
+        private readonly Material[] _rankPlinth;
         private readonly float _baseScale;
-        private readonly float _tierScaleStep;
+        private readonly float _rankScaleStep;
         private float _timeScale = 1f;
 
-        /// <summary>How much bigger each tier stands. Five tiers at 5% apiece is a fifth again from
-        /// Common to Mythic — enough to notice beside the crew, small enough that he still fits the
-        /// doorway he is standing next to.</summary>
-        private const float DefaultTierScaleStep = 0.05f;
+        // Kept so a body can be re-picked when the posted master changes — see Who.
+        private readonly Transform _parent;
+        private readonly GameObject[] _pack;
+        private readonly Mesh _disc;
+
+        /// <summary>How much bigger each rarity stands. Three rarities at 10% apiece is a fifth again
+        /// from Common to Legendary — enough to notice beside the crew, small enough that he still fits
+        /// the doorway he is standing next to. It was 5% over five tiers, for the same total.</summary>
+        private const float DefaultRankScaleStep = 0.10f;
 
         public StationForemen(Transform parent, GameObject[] prefabs, int stationCount, float scale,
-                              Material[] tierPlinth = null, float plinthRadius = 1.5f,
-                              float tierScaleStep = DefaultTierScaleStep)
+                              Material[] rankPlinth = null, float plinthRadius = 1.5f,
+                              float rankScaleStep = DefaultRankScaleStep)
         {
             _baseScale = scale;
-            _tierScaleStep = tierScaleStep;
-            _tierPlinth = tierPlinth;
+            _rankScaleStep = rankScaleStep;
+            _rankPlinth = rankPlinth;
 
-            GameObject[] pack = Compact(prefabs);
+            _parent = parent;
+            _pack = Compact(prefabs);
 
             // No bodies wired: no masters, and every method below is a no-op rather than a null deref.
-            _bosses = new Boss[pack.Length > 0 ? Mathf.Max(0, stationCount) : 0];
-            Mesh disc = _bosses.Length > 0 && tierPlinth != null ? Disc(plinthRadius / Mathf.Max(scale, 0.01f)) : null;
+            _bosses = new Boss[_pack.Length > 0 ? Mathf.Max(0, stationCount) : 0];
+            _disc = _bosses.Length > 0 && rankPlinth != null
+                ? Disc(plinthRadius / Mathf.Max(scale, 0.01f)) : null;
 
-            for (int i = 0; i < _bosses.Length; i++)
+            // The bodies are NOT made here. Which body a station gets depends on which master is
+            // posted there, and nobody has told us yet — the delegates are assigned by the caller's
+            // object initialiser, which runs after this constructor. Building eight arbitrary men now
+            // would mean destroying and rebuilding five of them on the first Refresh.
+        }
+
+        /// <summary>One body out of the pack, posed and switched off. Also the swap path — see Who.</summary>
+        private Boss MakeBoss(int station, int variant)
+        {
+            if (_pack.Length == 0) return null;
+            if (variant < 0) variant = 0;
+
+            var go = Object.Instantiate(_pack[Stride(variant, _pack.Length)], _parent);
+            go.name = "OpForeman_" + station;
+            go.transform.localScale = Vector3.one * _baseScale;
+            var boss = new Boss
             {
-                var go = Object.Instantiate(pack[Stride(i, pack.Length)], parent);
-                go.name = "OpForeman_" + i;
-                go.transform.localScale = Vector3.one * scale;
-                _bosses[i] = new Boss
-                {
-                    t = go.transform,
-                    anim = new PersonAnimator(go.transform),
-                    // Golden-angle stagger, the same trick StationCrew uses and for the same reason.
-                    seed = (i * 2.39996f) % 1f,
-                    plinth = disc != null ? Plinth(go.transform, disc, scale) : null,
-                };
-                go.SetActive(false);
+                t = go.transform,
+                anim = new PersonAnimator(go.transform),
+                // Golden-angle stagger, the same trick StationCrew uses and for the same reason.
+                seed = (station * 2.39996f) % 1f,
+                plinth = _disc != null ? Plinth(go.transform, _disc, _baseScale) : null,
+            };
+            go.SetActive(false);
+            return boss;
+        }
+
+        /// <summary>
+        /// Makes sure the body at a station belongs to the master posted there, building it the first
+        /// time and swapping it when the posting changes. Only ever runs on a roster change — a tap,
+        /// not a frame — so the destroy-and-instantiate costs nothing that matters, and it keeps one
+        /// body per station rather than fifteen with ten of them hidden.
+        /// </summary>
+        private Boss Ensure(int station, int who)
+        {
+            Boss old = _bosses[station];
+            if (old != null && old.t != null && old.who == who) return old;
+
+            Boss fresh = MakeBoss(station, who);
+            if (fresh == null) return old;      // no pack: keep whoever is already standing there
+
+            if (old != null && old.t != null)
+            {
+                // Switched off before it goes: Destroy is deferred to the end of the frame, so an
+                // active body would stand inside its replacement until then.
+                old.t.gameObject.SetActive(false);
+                Kill(old.t.gameObject);
             }
+
+            fresh.who = who;
+            _bosses[station] = fresh;
+            return fresh;
+        }
+
+        /// <summary>
+        /// Destroy, by whichever route this run allows. Edit mode refuses <see cref="Object.Destroy"/>
+        /// outright, and the roster's EditMode tests drive this class directly.
+        /// </summary>
+        private static void Kill(GameObject go)
+        {
+            if (Application.isPlaying) Object.Destroy(go);
+            else Object.DestroyImmediate(go);
         }
 
         /// <summary>The wired pack with its holes removed, so the spread below indexes real bodies.</summary>
@@ -117,13 +192,16 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// Which body a station gets. Walking the pack in fives rather than in ones because the pack is
+        /// Which body a MASTER gets. Walking the pack in fives rather than in ones because the pack is
         /// ordered by build — three normals, then three stouts, then three strongs, each in two sexes —
-        /// so consecutive entries are near-identical and the neighbouring stations would end up with
-        /// near-identical men. A stride coprime with the pack size visits every entry before repeating.
+        /// so consecutive entries are near-identical. That mattered when it keyed off the station and
+        /// matters more now that it keys off the master: a station's Common, Rare and Legendary are
+        /// three consecutive roster indices, and in a row they would be three near-identical men, which
+        /// is the one comparison the player actually makes. A stride coprime with the pack size visits
+        /// every entry before repeating.
         /// </summary>
-        private static int Stride(int station, int packSize)
-            => packSize <= 0 ? 0 : (station * 5) % packSize;
+        private static int Stride(int who, int packSize)
+            => packSize <= 0 ? 0 : (Mathf.Max(0, who) * 5) % packSize;
 
         /// <summary>
         /// The disc the master stands on: one shared mesh, drawn flat on the ground and tinted per
@@ -165,10 +243,19 @@ namespace Game.Gameplay
         {
             for (int s = 0; s < _bosses.Length; s++)
             {
+                bool want = Hired != null && Hired(s);
+
+                // The body is made on demand and re-picked when the posting moves — both BEFORE it is
+                // posed, or the new man spends a frame standing where the old one was. A station
+                // nobody staffs never builds a body at all.
                 Boss b = _bosses[s];
+                if (want)
+                {
+                    int who = Who != null ? Who(s) : -1;
+                    b = Ensure(s, who);
+                }
                 if (b == null || b.t == null) continue;
 
-                bool want = Hired != null && Hired(s);
                 if (want && Post != null && Post(s, out Vector3 ground, out Vector3 lookAt))
                 {
                     b.t.position = ground;
@@ -189,22 +276,22 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// Sizes and tints one master for the tier he is currently at.
+        /// Sizes and tints one master for the rarity of whoever is posted there.
         ///
-        /// In Refresh rather than in the constructor, which is where the scale used to be set once: a
-        /// master's tier moves every second star while the island is running, and a promotion the
-        /// player just paid for that only shows up after a scene reload is not feedback.
+        /// In Refresh rather than in the constructor, which is where the scale used to be set once: the
+        /// player can swap a station's master for a rarer one while the island is running, and a
+        /// Legendary that only shows up after a scene reload is not feedback.
         /// </summary>
         private void Dress(Boss b, int station)
         {
-            int stars = Stars != null ? Stars(station) : 1;
-            int tier = (int)Foremen.TierOf(stars);
-            if (b.tier == tier) return;
-            b.tier = tier;
+            int rank = Rank != null ? Rank(station) : 0;
+            if (rank < 0) rank = 0;
+            if (b.rank == rank) return;
+            b.rank = rank;
 
-            b.t.localScale = Vector3.one * (_baseScale * (1f + _tierScaleStep * tier));
-            if (b.plinth != null && _tierPlinth != null && _tierPlinth.Length > 0)
-                b.plinth.sharedMaterial = _tierPlinth[Mathf.Clamp(tier, 0, _tierPlinth.Length - 1)];
+            b.t.localScale = Vector3.one * (_baseScale * (1f + _rankScaleStep * rank));
+            if (b.plinth != null && _rankPlinth != null && _rankPlinth.Length > 0)
+                b.plinth.sharedMaterial = _rankPlinth[Mathf.Clamp(rank, 0, _rankPlinth.Length - 1)];
         }
 
         /// <summary>Matches the island's own clock so a boosted island's foremen do not stand still.</summary>

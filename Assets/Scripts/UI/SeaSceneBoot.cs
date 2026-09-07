@@ -50,6 +50,9 @@ namespace Game.UI
 
         private ExpeditionService _sea;
         private PlayerShip _ship;
+        private Transform _helm;          // the captain at the wheel; hidden when nobody is aboard
+        private Renderer _helmCoat;       // his coat, tinted with his grade
+        private CaptainService _roster;
         private SeaLane _lane;
         private SeaHudUI _hud;
         private bool _leaving;
@@ -98,6 +101,12 @@ namespace Game.UI
             var fightUi = new GameObject("CarpismaHud").AddComponent<SeaFightUI>();
             fightUi.transform.SetParent(transform, false);
             fightUi.Build(fights);
+
+            // Who is at the wheel. Re-read on roster changes rather than per frame: the only thing
+            // that can move it is a crate opened or a level bought, and both raise Changed.
+            _roster = ServiceLocator.Get<CaptainService>();
+            if (_roster != null) _roster.Changed += RefreshHelm;
+            RefreshHelm();
         }
 
         private void Update()
@@ -151,7 +160,92 @@ namespace Game.UI
             mast.transform.localPosition = new Vector3(0f, 9f, 3.4f);
             Paint(mast, new Color(0.42f, 0.30f, 0.19f, 1f));
 
+            BuildHelm(hull.transform);
             return root;
+        }
+
+        /// <summary>
+        /// The wheel on the cabin roof, and the captain standing at it.
+        ///
+        /// SHE USED TO SAIL HERSELF. The roster let you level five named officers and the only place
+        /// any of them appeared was a card on a menu — the masters at least stand on the island beside
+        /// the station they run. A captain you levelled should be visible doing the job you levelled
+        /// him for, and the helm is that job.
+        ///
+        /// BUILT FROM PRIMITIVES, like the rest of this scene. The island uses rigged bodies out of a
+        /// people pack, but the sea scene has no pack wired and every other thing out here is a cube
+        /// or a cylinder — a skinned character at the wheel of a box would read as a bug rather than
+        /// as detail. He is a body, a head and a cap, and his COAT carries his grade colour, which is
+        /// the same colour his card is drawn in (CaptainService.GradeTint).
+        ///
+        /// Built once and only ever shown, hidden or re-tinted, so a voyage with nobody aboard costs a
+        /// SetActive and nothing else.
+        /// </summary>
+        private void BuildHelm(Transform hull)
+        {
+            // Cabin roof: Kamara sits at y 4.4 with a height of 3.6, so its top is 6.2.
+            const float roof = 6.2f;
+
+            var wheel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            wheel.name = "Dumen";
+            wheel.transform.SetParent(hull, false);
+            // A cylinder stands on Y; rolled a quarter turn about X it becomes a disc facing forward,
+            // which is a ship's wheel seen from behind.
+            wheel.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            wheel.transform.localScale = new Vector3(2.2f, 0.16f, 2.2f);
+            wheel.transform.localPosition = new Vector3(0f, roof + 1.5f, 0.9f);
+            Paint(wheel, new Color(0.45f, 0.31f, 0.18f, 1f));
+
+            _helm = new GameObject("Kaptan").transform;
+            _helm.SetParent(hull, false);
+            _helm.localPosition = new Vector3(0f, roof, -0.5f);
+            // Deliberately over-scale. Built at true proportion he is about a tenth of a 19-unit hull
+            // and disappears at the distance the sea camera actually sits; this is the size at which
+            // you can tell somebody is up there without him looking like a giant.
+            _helm.localScale = Vector3.one * 0.7f;
+
+            var coat = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            coat.name = "Govde";
+            coat.transform.SetParent(_helm, false);
+            coat.transform.localScale = new Vector3(1.5f, 1.7f, 1.5f);
+            coat.transform.localPosition = new Vector3(0f, 1.7f, 0f);
+            _helmCoat = coat.GetComponent<Renderer>();
+            Paint(coat, Color.white);          // re-tinted per captain by RefreshHelm
+
+            var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            head.name = "Bas";
+            head.transform.SetParent(_helm, false);
+            head.transform.localScale = new Vector3(0.95f, 0.95f, 0.95f);
+            head.transform.localPosition = new Vector3(0f, 3.5f, 0f);
+            Paint(head, new Color(0.85f, 0.70f, 0.58f, 1f));
+
+            var cap = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            cap.name = "Kasket";
+            cap.transform.SetParent(_helm, false);
+            cap.transform.localScale = new Vector3(1.05f, 0.18f, 1.05f);
+            cap.transform.localPosition = new Vector3(0f, 4.0f, 0f);
+            Paint(cap, new Color(0.16f, 0.18f, 0.24f, 1f));
+
+            _helm.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Puts whoever is aboard at the wheel, or empties it. <see cref="ExpeditionService"/> already
+        /// decides who that is — the best-levelled captain the player owns — so this only has to draw
+        /// the answer. Called on Start and whenever the roster moves; nothing here runs per frame.
+        /// </summary>
+        private void RefreshHelm()
+        {
+            if (_helm == null) return;
+
+            int captain = _sea != null ? _sea.CaptainAboard : -1;
+            bool aboard = Captains.Exists(captain);
+            if (_helm.gameObject.activeSelf != aboard) _helm.gameObject.SetActive(aboard);
+            if (!aboard) return;
+
+            Color coat = _roster != null ? _roster.GradeTintOf(captain)
+                                         : new Color(0.48f, 0.54f, 0.62f, 1f);
+            if (_helmCoat != null) _helmCoat.sharedMaterial = MarketYardBuild.Mat(coat);
         }
 
         private static void Paint(GameObject go, Color c)
@@ -205,7 +299,7 @@ namespace Game.UI
             // scene resident behind a screen the player has left.
             string key = _sea != null ? _sea.IslandKey : null;
             string caption = string.IsNullOrEmpty(key) ? Loc.T("deniz.rihtim") : Loc.Id("ada", key);
-            if (!SceneCurtain.Cover(homeSceneName, HomeTint(), caption, false)) return;
+            if (!SceneCurtain.Cover(SceneCurtain.HomeScene(homeSceneName), HomeTint(), caption, false)) return;
             _leaving = true;
             _sea?.Ashore();
         }
@@ -213,6 +307,7 @@ namespace Game.UI
         /// <summary>Any other way out — a hot reload, or a path that swaps the scene without the button.</summary>
         private void OnDestroy()
         {
+            if (_roster != null) _roster.Changed -= RefreshHelm;
             if (_leaving) return;
             _sea?.Ashore();
         }

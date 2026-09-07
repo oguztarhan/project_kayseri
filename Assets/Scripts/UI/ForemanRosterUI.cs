@@ -8,19 +8,21 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The masters screen: the chest down the left, eight cards on the right — one per station, each
-    /// showing how many stars its master carries, what tier that puts him in, and how many cards are
-    /// left to the next one.
+    /// The masters screen: the chest down the left, fifteen cards on the right — three at each of the
+    /// five stations, each showing his rarity, how many of his five stars he carries, what he is worth
+    /// and how many cards are left to the next star.
     ///
-    /// BUILT IN CODE rather than authored as a prefab, the same way <see cref="UiBuild"/>'s other
-    /// screens are. That is a deliberate trade: an authored sheet would look better, but the roster
-    /// is exactly eight identical cards driven off <see cref="Foremen"/>'s own tables, and a prefab
-    /// would mean eight hand-wired copies that fall out of step the moment the tuning changes. The
-    /// card layout here reads the tables, so it cannot disagree with the maths.
+    /// ONE CARD PREFAB, INSTANCED FIFTEEN TIMES, when <see cref="cardPrefab"/> is wired; a code-built
+    /// card when it is not. That fallback is the point rather than a leftover: the screen has to keep
+    /// working while the art is still being drawn, and a roster that shows nothing until somebody
+    /// authors a sheet is a feature nobody can play against. Either way the CONTENT comes from
+    /// <see cref="Foremen"/>'s own tables through <see cref="RefreshCard"/>, so an authored card can
+    /// restyle the roster but cannot disagree with the maths — which is what fifteen hand-wired copies
+    /// would eventually do. <see cref="BindPrefabCard"/> lists the child names it binds.
     ///
-    /// THE TIER COLOUR IS NOT WIRED HERE. It comes from <see cref="ForemanService.TierTint"/>, which
-    /// the plinth under the master's feet on the island reads too — a Legendary that is gold on the
-    /// card and purple on the ground is worse than no colour at all.
+    /// THE RARITY COLOUR IS NOT WIRED HERE. It comes from <see cref="ForemanService.RarityTint"/>,
+    /// which the plinth under the master's feet on the island reads too — a Legendary that is gold on
+    /// the card and purple on the ground is worse than no colour at all.
     ///
     /// Refreshed on open and on <see cref="ForemanService.RosterChanged"/>. The only per-frame work is
     /// the free chest's countdown and the reveal's flips, and both stop the moment the screen closes.
@@ -28,8 +30,8 @@ namespace Game.UI
     public sealed class ForemanRosterUI : MonoBehaviour
     {
         [Header("Yerleşim")]
-        [Tooltip("Kart ızgarası: yatayda kaç sütun. Sekiz slot 4x2 olarak oturur.")]
-        [SerializeField] private int columns = 4;
+        [Tooltip("Kart ızgarası: yatayda kaç sütun. On beş kart PORTREDE 3x5 olarak oturur.")]
+        [SerializeField] private int columns = 3;
         [SerializeField] private int sortingOrder = 105;
 
         [Header("Görseller")]
@@ -50,10 +52,20 @@ namespace Game.UI
         [SerializeField] private Sprite gemIcon;
         [Tooltip("Kesenin solundaki elmas — HUD'un kullandığı diamond_128x128, artı rozetiyle birlikte.")]
         [SerializeField] private Sprite purseGem;
-        [Tooltip("Sekiz portre, istasyon sırasıyla: maden, tren, depo, cevher kamyonu, fabrika, yük kamyonu, pazar, enerji santrali.")]
+        [Tooltip("On beş portre, KADRO SIRASIYLA: her istasyonun Sıradan / Nadir / Efsanevi ustası " +
+                 "arka arkaya — maden(3), depo(3), rafineri(3), liman(3), pazar(3). Game.Core.Foremen." +
+                 "Roster ile aynı sıra; kaydırmak kartların altındaki adamı değiştirir.")]
         [SerializeField] private Sprite[] portraits;
         [Tooltip("Sandık görseli — Ikonlar/ikon_sandik.")]
         [SerializeField] private Sprite chestIcon;
+
+        [Header("Kart prefabı")]
+        [Tooltip("Bir usta kartının hazır hâli; boş bırakılırsa kart koddan çizilir. On beş kopya " +
+                 "alınır ve İSİMLE bağlanır — beklenen çocuk isimleri BindPrefabCard'da yazılı: " +
+                 "Portre, Ad, Nadirlik, Beceri, Kartlar, Dugme, Aktif, Cubuk/Dolgu, Yildiz0..Yildiz4.\n\n" +
+                 "Eksik isim sorun değil: bağlanamayan parça atlanır, kalan kart yine çalışır. " +
+                 "Yildiz0..4 varsa yıldızlar görsel, yoksa yazıyla (★) çizilir.")]
+        [SerializeField] private GameObject cardPrefab;
 
         [Header("Renkler")]
         [SerializeField] private Color scrim = new Color(0.04f, 0.05f, 0.08f, 0.86f);
@@ -64,6 +76,11 @@ namespace Game.UI
         /// <summary>The progress bar's own blue, used only when no bar art is wired. Not a tier
         /// colour — the bar means "cards toward the next star" at every tier.</summary>
         private static readonly Color BarBlue = new Color(0.33f, 0.62f, 0.92f, 1f);
+
+        /// <summary>The two state badges. Green means he is working; slate means you have not met him.
+        /// Neither is a rarity colour — a Legendary you have not found is still slate.</summary>
+        private static readonly Color Green = new Color(0.13f, 0.62f, 0.35f, 1f);
+        private static readonly Color Locked = new Color(0.34f, 0.38f, 0.45f, 1f);
 
         /// <summary>The rail button's icon, loaded at runtime — this screen has no Inspector to wire.</summary>
         private const string OpenerIconResource = "UI/Buttons/ustabasi";
@@ -83,6 +100,26 @@ namespace Game.UI
         /// bottom, because the tails hang below it. A label centred in the rect lands on the tails.
         /// </summary>
         private const float RibbonBand = 0.677f;
+
+        // ------------------------------------------------------------------ portrait bands
+        /// <summary>
+        /// The screen is one column of horizontal bands, because the game is PORTRAIT — Player
+        /// Settings allows portrait and nothing else.
+        ///
+        /// It used to be side by side: the chest shelf a tall panel down the left at x 0.035-0.288 and
+        /// the cards in the remaining two thirds. That is a landscape composition, and on a 1080x1920
+        /// sheet it made the shelf a 273px-wide sliver 1555px tall with five card columns crammed into
+        /// what was left. Stacked, the shelf gets the full width and a sane height, and the cards get
+        /// three columns of five rather than five of three.
+        ///
+        /// Every band is named here rather than written into each builder so the screen can be
+        /// re-proportioned in one place, and so two bands cannot silently overlap.
+        /// </summary>
+        private const float PageLeft = 0.030f, PageRight = 0.970f;
+        private const float HeaderBottom = 0.930f;
+        private const float ShelfTop = 0.915f, ShelfBottom = 0.735f;
+        private const float BrowseTop = 0.715f, BrowseBottom = 0.665f;
+        private const float GridTop = 0.650f, GridBottom = 0.030f;
 
         /// <summary>
         /// The decimal separator is the game's, not the handset's. Left to the current culture, a
@@ -115,6 +152,11 @@ namespace Game.UI
         private readonly Image[] _portrait = new Image[Foremen.Count];
         private readonly Image[] _fill = new Image[Foremen.Count];
         private readonly Image[] _rule = new Image[Foremen.Count];
+        private readonly GameObject[] _activeMark = new GameObject[Foremen.Count];
+        private readonly GameObject[] _lockMark = new GameObject[Foremen.Count];
+        /// <summary>Star pips, flat: master m's i'th pip is at m * Foremen.MaxStars + i. Null
+        /// throughout unless the wired prefab carries Yildiz0..4 — see BindPrefabCard.</summary>
+        private readonly Image[] _star = new Image[Foremen.Count * Foremen.MaxStars];
         private readonly RectTransform[] _cardRoot = new RectTransform[Foremen.Count];
         private readonly RosterCardState[] _cardState = new RosterCardState[Foremen.Count];
         private readonly int[] _visibleOrder = new int[Foremen.Count];
@@ -131,8 +173,8 @@ namespace Game.UI
         private float _clockTick;
 
         // ---- the reveal ----
-        // Eight tiles is the most a batch can ever show: cards are aggregated per master, and there
-        // are eight masters. Built once, hidden, and reused for every open.
+        // Fifteen tiles is the most a batch can ever show: cards are aggregated per master, and there
+        // are fifteen masters. Built once, hidden, and reused for every open.
         private RectTransform _reveal;
         private readonly Image[] _tile = new Image[Foremen.Count];
         private readonly Image[] _tileArt = new Image[Foremen.Count];
@@ -199,7 +241,8 @@ namespace Game.UI
             HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Include);
             if (hud == null) return;
 
-            Button open = hud.AttachBottomButton(1, "BtnUstabasi", Resources.Load<Sprite>(OpenerIconResource), Show);
+            Button open = hud.AttachBottomButton(1, HudUI.MasterButtonName,
+                                                 Resources.Load<Sprite>(OpenerIconResource), Show);
             if (open == null) return;
 
             _openerChip = hud.AttachCounterChip(open);
@@ -246,11 +289,11 @@ namespace Game.UI
             BuildBrowseBar();
 
             int rows = (Foremen.Count + columns - 1) / columns;
-            // The grid starts where the chest shelf ends. The shelf is the reason to come back to this
-            // screen once the roster is complete, so it gets the reading position rather than a corner.
-            const float left = 0.305f, right = 0.965f, top = 0.795f, bottom = 0.035f;
+            // The grid is the bottom band, under the shelf and the browse bar — see the band
+            // constants for why the screen is stacked rather than side by side.
+            const float left = PageLeft, right = PageRight, top = GridTop, bottom = GridBottom;
             float cellW = (right - left) / columns, cellH = (top - bottom) / rows;
-            const float padX = 0.006f, padY = 0.014f;
+            const float padX = 0.008f, padY = 0.008f;
 
             for (int s = 0; s < Foremen.Count; s++)
             {
@@ -271,7 +314,7 @@ namespace Game.UI
                                       actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                       new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleSort);
             UiBuild.Anchor((RectTransform)sort.transform,
-                           new Vector2(0.315f, 0.805f), new Vector2(0.545f, 0.845f));
+                           new Vector2(PageLeft, BrowseBottom), new Vector2(0.310f, BrowseTop));
             PillFit.Wrap(sort.GetComponent<Image>());
             _sortText = sort.GetComponentInChildren<Text>();
             Fit(_sortText, 12, 22);
@@ -280,12 +323,12 @@ namespace Game.UI
                                         actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                         new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleFilter);
             UiBuild.Anchor((RectTransform)filter.transform,
-                           new Vector2(0.555f, 0.805f), new Vector2(0.785f, 0.845f));
+                           new Vector2(0.330f, BrowseBottom), new Vector2(0.610f, BrowseTop));
             PillFit.Wrap(filter.GetComponent<Image>());
             _filterText = filter.GetComponentInChildren<Text>();
             Fit(_filterText, 12, 22);
 
-            _emptyText = UiBuild.Label(Slot(_root, "FiltreBos", new Vector2(0.35f, 0.35f), new Vector2(0.92f, 0.58f)),
+            _emptyText = UiBuild.Label(Slot(_root, "FiltreBos", new Vector2(PageLeft, 0.28f), new Vector2(PageRight, 0.46f)),
                                        "Text", Loc.T("kadro.bos"), 28, TextAnchor.MiddleCenter);
             _emptyText.color = Paper;
             Fit(_emptyText, 16, 28);
@@ -313,11 +356,14 @@ namespace Game.UI
         private void BuildChestShelf()
         {
             RectTransform shelf = Art(_root, "Sandik", cardPanel,
-                                      new Vector2(0.035f, 0.035f), new Vector2(0.288f, 0.845f));
+                                      new Vector2(PageLeft, ShelfBottom), new Vector2(PageRight, ShelfTop));
             if (cardPanel == null) shelf.GetComponent<Image>().color = cardHired;
 
-            _chestTitle = UiBuild.Label(Slot(shelf, "Baslik", new Vector2(0.06f, 0.885f), new Vector2(0.79f, 0.975f)),
-                                        "Text", Loc.T("usta.sandik"), 30, TextAnchor.MiddleCenter);
+            // Chest art left, its name and blurb in the middle, the three pills stacked right. All
+            // three used to be full-width rows down a narrow column; across a wide band they read as
+            // one shelf instead of a list.
+            _chestTitle = UiBuild.Label(Slot(shelf, "Baslik", new Vector2(0.195f, 0.660f), new Vector2(0.470f, 0.945f)),
+                                        "Text", Loc.T("usta.sandik"), 30, TextAnchor.MiddleLeft);
             _chestTitle.color = Ink;
             Fit(_chestTitle, 18, 30);
 
@@ -331,21 +377,21 @@ namespace Game.UI
                                       () => { if (_odds != null && _foremen != null)
                                                   _odds.ShowMasterChest(_foremen.ChestTuning); });
             UiBuild.Anchor((RectTransform)odds.transform,
-                           new Vector2(0.815f, 0.885f), new Vector2(0.955f, 0.975f));
+                           new Vector2(0.482f, 0.690f), new Vector2(0.556f, 0.920f));
 
             Icon(shelf, "Gorsel", chestIcon != null ? chestIcon : cardPanel,
-                 new Vector2(0.13f, 0.520f), new Vector2(0.87f, 0.875f));
+                 new Vector2(0.020f, 0.140f), new Vector2(0.180f, 0.870f));
 
-            _chestBlurb = UiBuild.Label(Slot(shelf, "Aciklama", new Vector2(0.07f, 0.425f), new Vector2(0.93f, 0.510f)),
-                                        "Text", string.Empty, 19, TextAnchor.UpperCenter);
+            _chestBlurb = UiBuild.Label(Slot(shelf, "Aciklama", new Vector2(0.195f, 0.090f), new Vector2(0.560f, 0.630f)),
+                                        "Text", string.Empty, 19, TextAnchor.UpperLeft);
             _chestBlurb.color = InkFaint;
 
-            _singleButton = ShelfButton(shelf, "Tek", new Vector2(0.075f, 0.285f), new Vector2(0.925f, 0.400f),
+            _singleButton = ShelfButton(shelf, "Tek", new Vector2(0.580f, 0.690f), new Vector2(0.985f, 0.955f),
                                         () => Open(1), out _chestSingle);
-            _bulkButton = ShelfButton(shelf, "Toplu", new Vector2(0.075f, 0.155f), new Vector2(0.925f, 0.270f),
+            _bulkButton = ShelfButton(shelf, "Toplu", new Vector2(0.580f, 0.375f), new Vector2(0.985f, 0.640f),
                                       () => Open(_foremen != null ? _foremen.ChestTuning.BulkCount : 10),
                                       out _chestBulk);
-            _freeButton = ShelfButton(shelf, "Bedava", new Vector2(0.075f, 0.025f), new Vector2(0.925f, 0.140f),
+            _freeButton = ShelfButton(shelf, "Bedava", new Vector2(0.580f, 0.060f), new Vector2(0.985f, 0.325f),
                                       () => Open(0), out _freeLabel);
         }
 
@@ -366,7 +412,8 @@ namespace Game.UI
         /// <summary>The blue ribbon across the top, the income multiplier left of it, the purse right.</summary>
         private void BuildHeader()
         {
-            RectTransform band = Art(_root, "Serit", ribbon, new Vector2(0.355f, 0.855f), new Vector2(0.645f, 0.995f));
+            RectTransform band = Art(_root, "Serit", ribbon,
+                                     new Vector2(0.230f, HeaderBottom), new Vector2(0.610f, 0.998f));
             _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
                                         new Vector2(0.87f, RibbonBand + 0.13f)),
                                    "Text", Loc.T("usta.baslik"), 38, TextAnchor.MiddleCenter);
@@ -374,12 +421,14 @@ namespace Game.UI
             // Both chips are the HUD's own graphite pill. They sit on the same line as the HUD's
             // money and gem counters and used to be white, so the top of the screen read as two
             // different games stacked on each other.
-            RectTransform sol = Chip(_root, "Carpan", new Vector2(0.035f, 0.885f), new Vector2(0.175f, 0.968f));
+            RectTransform sol = Chip(_root, "Carpan",
+                                     new Vector2(PageLeft, 0.943f), new Vector2(0.205f, 0.996f));
             _multiplier = UiBuild.Label(Slot(sol, "Yazi", new Vector2(0.08f, 0f), new Vector2(0.92f, 1f)),
                                         "Text", string.Empty, 32, TextAnchor.MiddleCenter);
             _multiplier.color = Paper;
 
-            RectTransform sag = Chip(_root, "Kese", new Vector2(0.672f, 0.885f), new Vector2(0.845f, 0.968f));
+            RectTransform sag = Chip(_root, "Kese",
+                                     new Vector2(0.625f, 0.943f), new Vector2(0.830f, 0.996f));
             // The gem overhangs the pill's left cap, the way it does on the HUD — inside the capsule
             // it would be a diamond in a dark box, and the plus badge would lose its edge.
             Icon(sag, "Elmas", purseGem != null ? purseGem : gemIcon,
@@ -393,13 +442,16 @@ namespace Game.UI
             var closeImage = close.GetComponent<Image>();
             closeImage.type = Image.Type.Simple;
             closeImage.preserveAspect = true;
-            // Sağ kenarda değil: HUD'un ayarlar dişlisi 120 sıralı kanvasta, bu ekranın üstünde
+            // Tam köşede değil: HUD'un ayarlar dişlisi 120 sıralı kanvasta, bu ekranın üstünde
             // çiziliyor ve tam köşeye konan kapat düğmesinin üstüne biniyor.
-            UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.878f, 0.878f), new Vector2(0.938f, 0.975f));
+            UiBuild.Anchor((RectTransform)close.transform,
+                           new Vector2(0.855f, 0.940f), new Vector2(0.955f, 0.998f));
         }
 
         private void BuildCard(int station, Vector2 aMin, Vector2 aMax)
         {
+            if (cardPrefab != null) { BuildPrefabCard(station, aMin, aMax); return; }
+
             RectTransform card = Art(_root, "Kart_" + station, cardPanel, aMin, aMax);
             _cardRoot[station] = card;
             _card[station] = card.GetComponent<Image>();
@@ -414,49 +466,169 @@ namespace Game.UI
             // second star, so it is kept and repainted. It is a rule under the name rather than a tab
             // on the card's edge: the white panel's rim carries its own soft glow, and anything laid
             // across it reads as a stray rectangle.
+            // The cell is WIDE, not tall: fifteen cards three across a portrait sheet is roughly
+            // 338x238, so the card reads left-to-right — face on the left, everything about him
+            // stacked on the right — rather than as the tall eight-row column it was when there were
+            // eight cards four across a landscape one.
             _rule[station] = UiBuild.Flat(card, "Sirad", InkFaint,
-                                          new Vector2(0.575f, 0.752f), new Vector2(0.820f, 0.768f))
+                                          new Vector2(0.300f, 0.505f), new Vector2(0.560f, 0.522f))
                                     .GetComponent<Image>();
 
+            // "AKTİF": which of a station's three is actually posted there. A FILLED PILL rather than
+            // bare green text — three cards to a row and fifteen to a screen, the one fact the player
+            // is scanning for is which of the three is working, and a word the same size as every
+            // other word on the card does not answer that from arm's length.
+            _activeMark[station] = Badge(card, "Aktif", Loc.T("usta.aktif"), Green,
+                                         new Vector2(0.015f, 0.855f), new Vector2(0.285f, 0.995f));
+
+            // And its opposite. A card you have not found is dimmed all over, but dimming is a
+            // comparison — it only reads next to a bright card, and a new player's screen has none.
+            // The word does not need one.
+            _lockMark[station] = Badge(card, "Kilit", Loc.T("usta.kilitli"), Locked,
+                                       new Vector2(0.015f, 0.855f), new Vector2(0.285f, 0.995f));
+
             _portrait[station] = Icon(card, "Portre", Portrait(station),
-                                      new Vector2(0.01f, 0.245f), new Vector2(0.44f, 0.900f));
+                                      new Vector2(0.020f, 0.080f), new Vector2(0.280f, 0.840f));
 
             _name[station] = UiBuild.Label(
-                Slot(card, "Ad", new Vector2(0.44f, 0.775f), new Vector2(0.930f, 0.905f)),
-                "Text", string.Empty, 28, TextAnchor.MiddleCenter);
-            // "CEVHER KAMYONLARI" tek satirda karta sigmiyor; en uzun ad ne kadar kuculmesi
+                Slot(card, "Ad", new Vector2(0.300f, 0.730f), new Vector2(0.975f, 0.960f)),
+                "Text", string.Empty, 28, TextAnchor.MiddleLeft);
+            // "Rıza the Weighbridge" tek satirda karta sigmiyor; en uzun ad ne kadar kuculmesi
             // gerekiyorsa o kadar kuculuyor, tasip komsu karta girmiyor.
-            Fit(_name[station], 15, 28);
+            Fit(_name[station], 13, 26);
 
             _level[station] = UiBuild.Label(
-                Slot(card, "Seviye", new Vector2(0.44f, 0.635f), new Vector2(0.955f, 0.740f)),
-                "Text", string.Empty, 26, TextAnchor.MiddleCenter);
+                Slot(card, "Seviye", new Vector2(0.300f, 0.540f), new Vector2(0.975f, 0.720f)),
+                "Text", string.Empty, 24, TextAnchor.MiddleLeft);
 
             _effect[station] = UiBuild.Label(
-                Slot(card, "Etki", new Vector2(0.44f, 0.520f), new Vector2(0.955f, 0.628f)),
-                "Text", string.Empty, 32, TextAnchor.MiddleCenter);
+                Slot(card, "Etki", new Vector2(0.300f, 0.300f), new Vector2(0.975f, 0.495f)),
+                "Text", string.Empty, 30, TextAnchor.MiddleLeft);
+            Fit(_effect[station], 14, 30);
 
             // Cards-toward-next-level. The bar is the collection made visible: gems can be bought,
             // duplicates cannot, so this is the line that actually paces the roster.
-            _fill[station] = Bar(card, new Vector2(0.455f, 0.435f), new Vector2(0.955f, 0.510f));
+            _fill[station] = Bar(card, new Vector2(0.300f, 0.200f), new Vector2(0.625f, 0.270f));
 
             // Cards toward the next star. No price line any more: gems are spent at the chest, and a
             // star costs the cards on this bar and nothing else.
             _cards[station] = UiBuild.Label(
-                Slot(card, "Kartlar", new Vector2(0.44f, 0.245f), new Vector2(0.955f, 0.395f)),
-                "Text", string.Empty, 24, TextAnchor.MiddleCenter);
+                Slot(card, "Kartlar", new Vector2(0.300f, 0.030f), new Vector2(0.625f, 0.180f)),
+                "Text", string.Empty, 24, TextAnchor.MiddleLeft);
+            Fit(_cards[station], 12, 22);
 
             int captured = station;
             _action[station] = UiBuild.Btn(card, "Dugme", string.Empty,
                                            actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                            new Color(0.24f, 0.68f, 0.36f, 1f), 26, () => OnPressed(captured));
-            // Dar ve alcak: hap sanatinin kendi orani 4:1 ve uclari yatayda dilimleniyor. Kartin
-            // tam genisligine yayilinca sekli bozulmadan da olsa cok iri duruyordu; kenarlardan
-            // biraz iceri cekildi.
+            // Sag alt kose: hap sanatinin kendi orani 4:1 ve uclari yatayda dilimleniyor, o yuzden
+            // genis ve alcak duruyor. Kartin tam genisligine yayilamaz — solunda cubuk ve kart sayisi
+            // var.
             UiBuild.Anchor((RectTransform)_action[station].transform,
-                           new Vector2(0.105f, 0.040f), new Vector2(0.895f, 0.170f));
+                           new Vector2(0.650f, 0.045f), new Vector2(0.975f, 0.275f));
             PillFit.Wrap(_action[station].GetComponent<Image>());
             _actionText[station] = _action[station].GetComponentInChildren<Text>();
+        }
+
+        /// <summary>
+        /// One instance of the authored card, dropped into the grid cell and bound by child name.
+        /// Everything it fails to find is simply left null, and <see cref="RefreshCard"/> skips nulls,
+        /// so a half-finished prefab shows a half-finished card rather than throwing on open.
+        /// </summary>
+        private void BuildPrefabCard(int station, Vector2 aMin, Vector2 aMax)
+        {
+            var go = Instantiate(cardPrefab, _root);
+            go.name = "Kart_" + station;
+            go.SetActive(true);
+            var card = go.GetComponent<RectTransform>();
+            if (card == null) card = go.AddComponent<RectTransform>();
+            UiBuild.Anchor(card, aMin, aMax);
+
+            _cardRoot[station] = card;
+            _card[station] = go.GetComponent<Image>();
+
+            // A prefab that ships without a body sprite borrows the screen's, so the authored card
+            // looks like the code-built one from the first frame and the art can be dropped in later
+            // rather than being a precondition for the prefab being worth wiring at all.
+            if (_card[station] != null && _card[station].sprite == null && cardPanel != null)
+            {
+                _card[station].sprite = cardPanel;
+                _card[station].type = cardPanel.border.sqrMagnitude > 0f
+                    ? Image.Type.Sliced : Image.Type.Simple;
+            }
+
+            BindPrefabCard(station, card);
+
+            // The whole card opens the detail sheet, exactly as the code-built one does. On the card's
+            // own Image when it has one, on a raycast target added here when it does not — a prefab
+            // whose root is a bare RectTransform would otherwise be untappable.
+            if (_card[station] == null)
+            {
+                var pad = go.AddComponent<Image>();
+                pad.color = Color.clear;
+                _card[station] = pad;
+            }
+            _card[station].raycastTarget = true;
+            var inspect = go.GetComponent<Button>();
+            if (inspect == null) inspect = go.AddComponent<Button>();
+            inspect.transition = Selectable.Transition.None;
+            int selected = station;
+            inspect.onClick.RemoveAllListeners();
+            inspect.onClick.AddListener(() => ShowDetails(selected));
+        }
+
+        /// <summary>
+        /// The contract between this screen and an authored card, by child name:
+        ///   Portre    Image   the master's face
+        ///   Ad        Text    his name
+        ///   Nadirlik  Text    Sıradan / Nadir / Efsanevi, tinted to match
+        ///   Beceri    Text    the headline skill, "+250%"
+        ///   Kartlar   Text    "12 / 20 kart"
+        ///   Dugme     Button  star him up; its first Text is the label
+        ///   Aktif     any     shown only on the master posted at that station
+        ///   Kilit     any     shown only on a master you have not found yet
+        ///   Dolgu     Image   the progress bar's fill, driven by its right anchor
+        ///   Sirad     Image   a rule tinted by rarity
+        ///   Yildiz0-4 Image   five star pips; absent means the stars are drawn as ★ in Nadirlik
+        /// Names are matched anywhere in the card's hierarchy, so they can be nested however the
+        /// layout wants.
+        /// </summary>
+        private void BindPrefabCard(int station, RectTransform card)
+        {
+            _portrait[station] = FindIn<Image>(card, "Portre");
+            _name[station] = FindIn<Text>(card, "Ad");
+            _level[station] = FindIn<Text>(card, "Nadirlik");
+            _effect[station] = FindIn<Text>(card, "Beceri");
+            _cards[station] = FindIn<Text>(card, "Kartlar");
+            _fill[station] = FindIn<Image>(card, "Dolgu");
+            _rule[station] = FindIn<Image>(card, "Sirad");
+
+            Transform mark = FindIn<Transform>(card, "Aktif");
+            _activeMark[station] = mark != null ? mark.gameObject : null;
+            Transform locked = FindIn<Transform>(card, "Kilit");
+            _lockMark[station] = locked != null ? locked.gameObject : null;
+
+            for (int i = 0; i < Foremen.MaxStars; i++)
+                _star[station * Foremen.MaxStars + i] = FindIn<Image>(card, "Yildiz" + i);
+
+            _action[station] = FindIn<Button>(card, "Dugme");
+            if (_action[station] != null)
+            {
+                _actionText[station] = _action[station].GetComponentInChildren<Text>(true);
+                int captured = station;
+                _action[station].onClick.RemoveAllListeners();
+                _action[station].onClick.AddListener(() => OnPressed(captured));
+            }
+        }
+
+        /// <summary>The first descendant with this exact name carrying a T, or null. Inactive children
+        /// included: a prefab may ship its "Aktif" mark switched off.</summary>
+        private static T FindIn<T>(Transform root, string name) where T : Component
+        {
+            var all = root.GetComponentsInChildren<T>(true);
+            for (int i = 0; i < all.Length; i++)
+                if (all[i].name == name) return all[i];
+            return null;
         }
 
         /// <summary>
@@ -489,9 +661,14 @@ namespace Game.UI
                                         "Text", string.Empty, 24, TextAnchor.MiddleCenter);
             _revealHint.color = InkFaint;
 
-            const int cols = 4;
-            const float left = 0.09f, right = 0.91f, top = 0.800f, bottom = 0.170f;
-            float cellW = (right - left) / cols, cellH = (top - bottom) / 2f;
+            // Five across and as many rows as the roster needs. It was a hardcoded 4x2 for eight
+            // masters; at fifteen that put seven tiles below the sheet's own bottom edge, off-screen
+            // and overlapping — a batch can name every master at once, so the grid has to hold all of
+            // them.
+            const int cols = 3;
+            int rows = (_tile.Length + cols - 1) / cols;
+            const float left = 0.06f, right = 0.94f, top = 0.840f, bottom = 0.130f;
+            float cellW = (right - left) / cols, cellH = (top - bottom) / rows;
 
             for (int t = 0; t < _tile.Length; t++)
             {
@@ -624,8 +801,34 @@ namespace Game.UI
             label.verticalOverflow = VerticalWrapMode.Truncate;
         }
 
-        private Sprite Portrait(int station)
-            => portraits != null && station >= 0 && station < portraits.Length ? portraits[station] : null;
+        private Sprite Portrait(int master)
+            => portraits != null && master >= 0 && master < portraits.Length ? portraits[master] : null;
+
+        /// <summary>
+        /// A filled state pill with a word in it, returned switched off. Both badges are the same
+        /// shape on purpose: they occupy one corner and are mutually exclusive, so the player learns
+        /// one place to look rather than two.
+        /// </summary>
+        private RectTransform BadgeRect(RectTransform parent, string name, string text, Color fill,
+                                        Vector2 aMin, Vector2 aMax)
+        {
+            RectTransform pill = Art(parent, name, actionButton, aMin, aMax);
+            var img = pill.GetComponent<Image>();
+            img.color = fill;
+            img.raycastTarget = false;
+            if (actionButton != null) { img.type = Image.Type.Sliced; PillFit.Wrap(img); }
+
+            Text label = UiBuild.Label(Slot(pill, "Text", new Vector2(0.06f, 0.02f), new Vector2(0.94f, 0.98f)),
+                                       "Text", text, 20, TextAnchor.MiddleCenter);
+            label.color = Paper;
+            Fit(label, 10, 20);
+            pill.gameObject.SetActive(false);
+            return pill;
+        }
+
+        private GameObject Badge(RectTransform parent, string name, string text, Color fill,
+                                 Vector2 aMin, Vector2 aMax)
+            => BadgeRect(parent, name, text, fill, aMin, aMax).gameObject;
 
         /// <summary>A child rect anchored inside the card — the shape UiBuild's helpers want.</summary>
         private static RectTransform Slot(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
@@ -635,12 +838,37 @@ namespace Game.UI
             return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
         }
 
-        /// <summary>A tier tint deep enough to read as text on white, alpha untouched.</summary>
+        /// <summary>A rarity tint deep enough to read as text on white, alpha untouched.</summary>
         private static Color Darken(Color c) => new Color(c.r * 0.68f, c.g * 0.68f, c.b * 0.68f, 1f);
 
-        /// <summary>The tier's colour, from the one place both this screen and the island read.</summary>
-        private Color TintFor(int station)
-            => _foremen != null ? _foremen.TierTintOf(station) : InkFaint;
+        /// <summary>The rarity's colour, from the one place both this screen and the island read.</summary>
+        private Color TintFor(int master)
+            => _foremen != null ? _foremen.RarityTintOf(master) : InkFaint;
+
+        /// <summary>The master's own name, or his station's when the loc table has no row for him
+        /// yet — a blank card is worse than a card labelled by where the man works.</summary>
+        private static string NameOf(int master)
+        {
+            string key = "usta.ad." + Foremen.IdOf(master);
+            string name = Loc.T(key);
+            return string.IsNullOrEmpty(name) || name == key
+                ? Loc.Id("usta.istasyon", Foremen.StationIds[Foremen.StationOf(master)])
+                : name;
+        }
+
+        /// <summary>The three skill lines, one per line, as the detail sheet prints them.</summary>
+        private string SkillLines(int master, int stars)
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int k = 0; k < Foremen.SkillCount; k++)
+            {
+                var skill = (Foremen.Skill)k;
+                double now = _foremen.SkillValueAtStar(master, stars, skill);
+                if (k > 0) sb.Append('\n');
+                sb.AppendFormat(Culture, "{0}   +{1:0.#}%", Loc.T("usta.beceri." + k), now * 100d);
+            }
+            return sb.ToString();
+        }
 
         /// <summary>h:mm:ss while the wait is long, mm:ss once it is short — eight hours of "480:00"
         /// is a number nobody can read as a time.</summary>
@@ -653,16 +881,16 @@ namespace Game.UI
         }
 
         // ------------------------------------------------------------------ press
-        private void OnPressed(int station)
+        private void OnPressed(int master)
         {
             if (_foremen == null) return;
 
-            Foremen.Tier was = _foremen.TierOf(station);
-            if (!_foremen.TryLevelUp(station)) { Refresh(); return; }
+            if (!_foremen.TryLevelUp(master)) { Refresh(); return; }
 
-            // A promotion is the moment the card, the plinth and his size on the island all change at
-            // once — worth more than the tap feedback a plain star gets.
-            if (_foremen.TierOf(station) != was)
+            // The fifth star is the moment a master is finished — worth more than the tap feedback the
+            // four before it get. It used to be the tier promotion, which no longer happens: rarity is
+            // drawn now, so the only thing a star can still change is how far along he is.
+            if (_foremen.IsMaxed(master))
             {
                 ServiceLocator.Get<HapticService>()?.Medium();
                 ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
@@ -744,9 +972,7 @@ namespace Game.UI
             _tileArt[t].enabled = _tileArt[t].sprite != null;
             _tileArt[t].color = Color.white;
             _tile[t].color = TintFor(s);
-            _tileName[t].text = _tileFresh[t]
-                ? Loc.T("usta.yeni")
-                : Loc.Id("istasyon", IslandEconomy.Stations[s]);
+            _tileName[t].text = _tileFresh[t] ? Loc.T("usta.yeni") : NameOf(s);
             _tileCount[t].text = "x" + _batch[s];
 
             if (_tileFresh[t])
@@ -844,9 +1070,12 @@ namespace Game.UI
             for (int s = 0; s < Foremen.Count; s++) _cardRoot[s].gameObject.SetActive(false);
 
             int safeColumns = Mathf.Max(1, columns);
-            int rows = Mathf.Max(1, (count + safeColumns - 1) / safeColumns);
-            const float left = 0.305f, right = 0.965f, top = 0.795f, bottom = 0.035f;
-            const float padX = 0.006f, padY = 0.014f;
+            // Rows come off the FULL roster, not off how many the filter left showing: a filter that
+            // shows one card would otherwise stretch it over the whole band, and the grid would jump
+            // size every time the filter changed.
+            int rows = Mathf.Max(1, (Foremen.Count + safeColumns - 1) / safeColumns);
+            const float left = PageLeft, right = PageRight, top = GridTop, bottom = GridBottom;
+            const float padX = 0.008f, padY = 0.008f;
             float cellW = (right - left) / safeColumns;
             float cellH = (top - bottom) / rows;
 
@@ -886,92 +1115,155 @@ namespace Game.UI
             Dress(_freeButton, _freeLabel, free);
         }
 
-        private void RefreshCard(int s)
+        /// <summary>
+        /// Repaints one card. Every field is null-checked rather than assumed, because an authored
+        /// prefab is allowed to leave pieces out — see <see cref="BindPrefabCard"/>.
+        /// </summary>
+        private void RefreshCard(int m)
         {
-            RosterCardState state = _cardState[s];
+            RosterCardState state = _cardState[m];
             bool owned = state.Owned;
             bool maxed = state.IsMaxed;
             int stars = state.Level;
-            Color tint = TintFor(s);
+            Color tint = TintFor(m);
 
-            if (cardPanel == null) _card[s].color = owned ? cardHired : cardLocked;
-            // A master you do not have yet keeps his own portrait, greyed — the card is white, so
-            // blanking him leaves a hole where the only thing worth looking at should be.
-            _portrait[s].color = owned ? Color.white : new Color(0.62f, 0.66f, 0.73f, 0.85f);
-            _rule[s].color = owned ? tint : InkFaint;
+            if (_card[m] != null && cardPanel == null) _card[m].color = owned ? cardHired : cardLocked;
 
-            _name[s].text = Loc.Id("istasyon", IslandEconomy.Stations[s]);
-            _name[s].color = owned ? Ink : InkSoft;
+            // A master you do not have yet keeps his own portrait, but as a near-silhouette — the
+            // card is white, so blanking him leaves a hole where the only thing worth looking at
+            // should be, and a merely-greyed one is indistinguishable from a dark portrait.
+            if (_portrait[m] != null)
+            {
+                _portrait[m].sprite = Portrait(m);
+                _portrait[m].enabled = _portrait[m].sprite != null;
+                _portrait[m].color = owned ? Color.white : new Color(0.30f, 0.33f, 0.39f, 0.90f);
+            }
+            if (_rule[m] != null) _rule[m].color = owned ? tint : InkFaint;
 
-            // Stars and the word they add up to. The tier is what the player talks about; the stars
-            // are how far into it he is.
-            _level[s].text = owned
-                ? new string('★', stars) + "  " + Loc.T("usta.kademe." + (int)_foremen.TierOf(s))
-                : Loc.T("usta.bulunmadi");
-            _level[s].color = owned ? Darken(tint) : InkSoft;
-            Fit(_level[s], 12, 26);
+            // One badge or the other, never both and never neither-when-it-matters: posted, or not
+            // found. A card you own but have not posted carries no badge, which is the quiet state.
+            if (_activeMark[m] != null) _activeMark[m].SetActive(state.Busy);
+            if (_lockMark[m] != null) _lockMark[m].SetActive(!owned);
 
-            // What this master is worth to his own station right now. The empire gets a share of the
-            // same number rather than a second one — see Game.Core.Foremen.
-            _effect[s].text = string.Format(Culture, "+{0:0.#}%", state.Effect * 100d);
-            _effect[s].color = owned ? Darken(tint) : InkFaint;
+            if (_name[m] != null)
+            {
+                _name[m].text = NameOf(m);
+                _name[m].color = owned ? Ink : InkSoft;
+            }
+
+            // Rarity is the word, stars are how far into him you are. Rarity is a fact about the card
+            // and never moves; only the star count does.
+            string rarity = Loc.T("usta.nadirlik." + (int)Foremen.RankOf(m));
+            if (_level[m] != null)
+            {
+                _level[m].text = !owned ? Loc.T("usta.bulunmadi")
+                    : HasStarPips(m) ? rarity
+                    : new string('★', stars) + new string('☆', Foremen.MaxStars - stars) + "  " + rarity;
+                _level[m].color = owned ? Darken(tint) : InkSoft;
+                Fit(_level[m], 12, 26);
+            }
+            PaintStars(m, owned ? stars : 0, tint);
+
+            // The headline skill: what this master is worth to his own station right now. The other two
+            // are on the detail sheet — fifteen cards five across have room for one number.
+            if (_effect[m] != null)
+            {
+                _effect[m].text = string.Format(Culture, "+{0:0.#}%", state.Effect * 100d);
+                _effect[m].color = owned ? Darken(tint) : InkFaint;
+            }
 
             int have = state.Duplicates;
             int need = state.DuplicatesRequired;
-            Progress(_fill[s], state.Progress);
-            _cards[s].color = InkFaint;
+            if (_fill[m] != null) Progress(_fill[m], state.Progress);
+            if (_cards[m] != null) _cards[m].color = InkFaint;
 
+            string cardsLine, actionLine;
+            bool live;
             if (maxed)
             {
-                _cards[s].text = string.Format("{0} / {0} {1}", need > 0 ? need : have, Loc.T("ustabasi.kart"));
-                _actionText[s].text = Loc.T("ustabasi.azami");
-                _action[s].interactable = false;
+                cardsLine = string.Format("{0} / {0} {1}", need > 0 ? need : have, Loc.T("ustabasi.kart"));
+                actionLine = Loc.T("ustabasi.azami");
+                live = false;
             }
             else if (owned)
             {
-                _cards[s].text = string.Format("{0} / {1} {2}", have, need, Loc.T("ustabasi.kart"));
-                _actionText[s].text = Loc.T("usta.yildizatla");
-                _action[s].interactable = state.CanUpgrade;
+                cardsLine = string.Format("{0} / {1} {2}", have, need, Loc.T("ustabasi.kart"));
+                actionLine = Loc.T("usta.yildizatla");
+                live = state.CanUpgrade;
             }
             else
             {
                 // Nothing to press and no price to quote: a master arrives in a chest, not at a till.
-                _cards[s].text = Loc.T("usta.sandiktan");
-                _actionText[s].text = Loc.T("usta.bulunmadi");
-                _action[s].interactable = false;
+                cardsLine = Loc.T("usta.sandiktan");
+                actionLine = Loc.T("usta.bulunmadi");
+                live = false;
             }
 
-            Dress(_action[s], _actionText[s], _action[s].interactable);
+            if (_cards[m] != null) _cards[m].text = cardsLine;
+            if (_actionText[m] != null) _actionText[m].text = actionLine;
+            if (_action[m] != null) Dress(_action[m], _actionText[m], live);
         }
 
-        private void ShowDetails(int station)
+        /// <summary>True when the wired prefab gave this card real star pips, so the rarity label does
+        /// not have to spell them out in ★ as well.</summary>
+        private bool HasStarPips(int m) => _star[m * Foremen.MaxStars] != null;
+
+        /// <summary>Lights the first <paramref name="stars"/> pips and dims the rest. A no-op on a card
+        /// with no pips wired.</summary>
+        private void PaintStars(int m, int stars, Color tint)
         {
-            if (_foremen == null || _inspect == null || station < 0 || station >= Foremen.Count) return;
-            _selected = station;
-            RosterCardState state = _foremen.CardState(station);
-            string name = Loc.Id("istasyon", IslandEconomy.Stations[station]);
-            string rarity = Loc.T("usta.kademe." + (int)state.Tier);
+            for (int i = 0; i < Foremen.MaxStars; i++)
+            {
+                Image pip = _star[m * Foremen.MaxStars + i];
+                if (pip == null) continue;
+                pip.color = i < stars ? tint : new Color(0.78f, 0.80f, 0.84f, 1f);
+            }
+        }
+
+        /// <summary>
+        /// The detail sheet: all three skills, and the two things you can do about them — spend cards
+        /// on a star, or post him to his station in place of whoever is there.
+        /// </summary>
+        private void ShowDetails(int master)
+        {
+            if (_foremen == null || _inspect == null || !Foremen.Exists(master)) return;
+            _selected = master;
+
+            RosterCardState state = _foremen.CardState(master);
+            int station = Foremen.StationOf(master);
+            string name = NameOf(master);
+            string rarity = Loc.T("usta.nadirlik." + (int)Foremen.RankOf(master));
+            string where = Loc.Id("usta.istasyon", Foremen.StationIds[station]);
             string identity = state.Owned
-                ? rarity + " · " + string.Format(Loc.T("atolye.seviye"), state.Level)
-                : rarity + " · " + Loc.T("usta.bulunmadi");
-            string current = string.Format(Culture, "+{0:0.#}%", state.Effect * 100d);
-            string next = state.IsMaxed
-                ? Loc.T("sefer.azami")
-                : string.Format(Culture, "+{0:0.#}%",
-                    (Foremen.Boost(Mathf.Max(1, state.Level + 1), _foremen.Tuning) - state.Effect) * 100d);
+                ? rarity + " · " + where + " · " + string.Format(Loc.T("atolye.seviye"), state.Level)
+                : rarity + " · " + where + " · " + Loc.T("usta.bulunmadi");
+
+            string skills = SkillLines(master, Mathf.Max(1, state.Level));
             string progress = state.Owned && !state.IsMaxed
                 ? string.Format(Loc.T("kadro.ilerleme"), state.Duplicates, state.DuplicatesRequired)
                 : state.IsMaxed ? Loc.T("sefer.azami") : Loc.T("usta.sandiktan");
             string status = !state.Owned ? Loc.T("usta.bulunmadi")
+                : state.Busy ? Loc.T("usta.aktif")
                 : state.IsMaxed ? Loc.T("sefer.azami")
                 : state.CanUpgrade ? Loc.T("usta.yildizatla") : string.Empty;
 
-            int selected = station;
-            _inspect.Show(name, identity,
-                          string.Format(Loc.T("kadro.simdi"), current),
-                          string.Format(Loc.T("kadro.sonraki"), next),
-                          progress, status, Loc.T("usta.yildizatla"), state.CanUpgrade,
-                          () => { _foremen.TryLevelUp(selected); ShowDetails(selected); });
+            // Posting is offered only when it would change something: an unowned card has nobody to
+            // post, and the man already at the station is already there.
+            //
+            // HIDDEN rather than greyed when there is nothing to do. A station you own one card at
+            // has that card posted already (ForemanService fills empty posts as cards arrive), so a
+            // disabled button was the ONLY state most players ever saw — and a control that is always
+            // dead reads as broken rather than as inapplicable. The status line above already says
+            // AKTİF for the man who holds the post.
+            bool canPost = state.Owned && !state.Busy;
+            string post = canPost ? Loc.T("usta.goreveal") : null;
+
+            int selected = master;
+            _inspect.Show(name, identity, null, null, skills, progress, status,
+                          Loc.T("usta.yildizatla"), state.CanUpgrade,
+                          () => { _foremen.TryLevelUp(selected); ShowDetails(selected); },
+                          post, canPost,
+                          () => { _foremen.TrySetActive(selected); ShowDetails(selected); });
         }
 
         /// <summary>

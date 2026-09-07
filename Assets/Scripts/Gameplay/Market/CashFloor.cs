@@ -211,7 +211,10 @@ namespace Game.Gameplay
 
         private void Bank(Note note, int index)
         {
-            _market.Collect(_yardKey, note.cash);
+            // No wallet call. Floor cash is gone: the ledger banks every sale the moment it makes it,
+            // so a note reaching this method has ALREADY been paid for and crediting it here would pay
+            // twice. Nothing drops notes any more either — see CustomerQueue — so this only runs if a
+            // stale note is still lying about, and all it does now is clear it away.
             note.body.gameObject.SetActive(false);
             _notes.RemoveAt(index);
             _spare.Push(note);

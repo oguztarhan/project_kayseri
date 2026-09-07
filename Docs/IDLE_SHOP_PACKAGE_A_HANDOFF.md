@@ -1,5 +1,8 @@
 # Idle shop package A — contracts for Claude
 
+**Package-order update:** [C0 yard-upgrade panel](IDLE_SHOP_C0_YARD_UPGRADES.md) now precedes final B teardown. Codex owns the six-track island purchase UI; Claude retains an upgrade-only market until C0 is verified, then removes its entry points. Multi-product C1 follows. This supersedes earlier statements that all B work must finish before any C work.
+
+
 2026-09-06. Codex implementation. This document supersedes conflicting architecture/progression details in revision 2 of IDLE_ISLAND_SHOP_REDESIGN_PLAN.md. Package B belongs to Claude. No live gameplay or save-loading path has been switched over by A.
 
 ## Decisions answering Claude's four notes
@@ -75,7 +78,7 @@ Verified evidence: CokeRecipe consumes Coal and its output GUID is `9254ce791a86
 
 Preserve legacy units 1:1: `legacy.stock` becomes `Coke.stock`, and `legacy.deliveredPerMin` becomes that row's delivery rate. Do not multiply quantities by recipe yield or asset price. **Retain the existing coal sale-price authority/modifiers during migration**: Coke.asset.baseValue is 4 whereas CoalOperation's serialized default barPrice is 45, so directly substituting the asset base value would silently rebalance income. Product identity does not authorize that price change. Use the same binding for coal deliveries, stock queries and any later explicit conversion of coal voyage holds, without duplicating held cargo into market stock.
 
-Only coal's binding is confirmed here. Do not apply `Coke` to other islands or use a fallback for an unknown island. Validate their explicit mappings before migrating their rows.
+All eight permanent IDs are now confirmed in [2026-09-07 coordination](IDLE_SHOP_COORDINATION_2026_09_07.md), matching MarketService.ProductFor. That document also governs remaining B acceptance, presentation selection and current file ownership.
 
 Package B scope acknowledgement: reuse the existing haul state machine; no second production engine is required. Extract the relevant job/presentation responsibilities into separate scripts as they are adapted, rather than expanding CoalOperation. MineToDepot.Teams remains 1; TrainOre already includes the wagon-phase capacity factor. Also, the carry multiplier increases **load capacity**, not necessarily realized income by that exact multiplier: mining, refining, queues and cash caps may remain the bottleneck. Validate throughput claims against those limits.
 

@@ -71,8 +71,24 @@ namespace Game.Core
         public static int MasterRolledCards(in MasterChest.Tuning t)
             => MasterChest.CardsFor(1, t) - MasterChest.DirectedIn(t);
 
-        /// <summary>The chance one rolled card lands on any given master. Flat, matching
-        /// <see cref="MasterChest.RollSlot"/>.</summary>
-        public static double MasterSlotChance() => Foremen.Count > 0 ? 1d / Foremen.Count : 0d;
+        /// <summary>
+        /// The chance one rolled card lands on any given master of this rarity. The chest rolls rarity
+        /// first and then flat among the five stations carrying it, so it is the rarity's share of the
+        /// weight divided by five — see <see cref="MasterChest.RollMaster"/>. It used to be a flat
+        /// 1/Count, back when rarity was earned rather than drawn.
+        /// </summary>
+        public static double MasterCardChance(Foremen.Rarity rank, in MasterChest.Tuning t)
+        {
+            double common = t.WeightCommon > 0d ? t.WeightCommon : 0d;
+            double rare = t.WeightRare > 0d ? t.WeightRare : 0d;
+            double legendary = t.WeightLegendary > 0d ? t.WeightLegendary : 0d;
+            double total = common + rare + legendary;
+            if (total <= 0d || Foremen.StationCount <= 0) return 0d;
+
+            double weight = rank == Foremen.Rarity.Legendary ? legendary
+                          : rank == Foremen.Rarity.Rare      ? rare
+                          :                                    common;
+            return weight / total / Foremen.StationCount;
+        }
     }
 }

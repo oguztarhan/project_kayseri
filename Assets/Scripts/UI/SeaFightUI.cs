@@ -402,7 +402,23 @@ namespace Game.UI
                 _statValue[i].fontStyle = FontStyles.Bold;
             }
 
-            Sprite[] icons = { S("ikon_top"), S("ikon_zirh"), S("ikon_durbun"), S("ikon_tilsim") };
+            // One icon per slot, in SeaCombat's own order — cannon, plating, spyglass, charm,
+            // rigging. It was four entries against a five-slot loop, which threw IndexOutOfRange out
+            // of BuildPanel and left the panel half-built, so every Update() after it raised a
+            // NullReference. Rigging has no art of its own yet and falls back to the flat skin below;
+            // the kit's rope hook is the nearest thing the pack ships.
+            Sprite[] icons = new Sprite[SeaCombat.SlotCount];
+            icons[SeaCombat.SlotCannon] = S("ikon_top");
+            icons[SeaCombat.SlotPlating] = S("ikon_zirh");
+            icons[SeaCombat.SlotSpyglass] = S("ikon_durbun");
+            icons[SeaCombat.SlotCharm] = S("ikon_tilsim");
+            icons[SeaCombat.SlotRigging] = S("kanca");
+
+            // The row is laid out from the slot count rather than from a pitch measured against four,
+            // or the fifth frame starts at 0.985 and hangs off the panel's right edge.
+            const float rowLeft = 0.035f, rowRight = 0.965f, gap = 0.018f;
+            float slotPitch = (rowRight - rowLeft) / SeaCombat.SlotCount;
+
             Sprite star = S("yildiz");
             for (int slot = 0; slot < SeaCombat.SlotCount; slot++)
             {
@@ -412,8 +428,9 @@ namespace Game.UI
                 var frame = go.GetComponent<Image>();
                 frame.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
                 frame.type = Image.Type.Sliced;
-                float x0 = 0.035f + slot * 0.2375f;
-                UiBuild.Anchor((RectTransform)go.transform, new Vector2(x0, 0.348f), new Vector2(x0 + 0.22f, 0.505f));
+                float x0 = rowLeft + slot * slotPitch;
+                UiBuild.Anchor((RectTransform)go.transform,
+                               new Vector2(x0, 0.348f), new Vector2(x0 + slotPitch - gap, 0.505f));
                 _gearFrame[slot] = frame;
 
                 var icon = new GameObject("Ikon", typeof(RectTransform), typeof(Image));

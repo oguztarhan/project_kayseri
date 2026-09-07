@@ -4,16 +4,18 @@ using Game.Core;
 namespace Game.Systems
 {
     /// <summary>
-    /// Owns the master roster: who you have, how many stars they carry, and the spare cards waiting to
-    /// be spent. The maths is all in <see cref="Foremen"/> and <see cref="MasterChest"/>; this holds
-    /// the state, takes the money, and tells everyone who cares that something moved.
+    /// Owns the master roster: who you have, how many stars they carry, the spare cards waiting to be
+    /// spent, and which one of each station's three is actually posted there. The maths is all in
+    /// <see cref="Foremen"/> and <see cref="MasterChest"/>; this holds the state, takes the money, and
+    /// tells everyone who cares that something moved.
     ///
     /// WHAT IT IS FOR, in the order the problems were found:
     ///   - Gems had no gameplay sink. TrySpendGems was called in exactly two places, both inside the
     ///     premium store, so every gem a contract or a rewarded ad paid out could only ever be turned
     ///     back into cash. Chests are now the thing gems are actually for.
     ///   - There was no late game. Eight islands cap out and prestige has been retired, so the roster
-    ///     is the long tail: ninety cards per master, eight masters, earned rather than bought.
+    ///     is the long tail: fifteen masters at fifty to a hundred cards each, earned rather than
+    ///     bought.
     ///   - There was nothing to collect. Every other number in the game is a level on a bar.
     ///
     /// HIRING IS GONE. A master used to be bought outright for gems and then levelled with cards, which
@@ -22,7 +24,12 @@ namespace Game.Systems
     /// one star, gems buy chests rather than people, and a star-up costs cards alone. One currency at
     /// the door, one at the counter, and nothing a chest hands over is ever worthless.
     ///
-    /// The levels array is handed to <see cref="Foremen"/> directly rather than copied, and the income
+    /// POSTING IS AUTOMATIC UNTIL IT IS NOT. A station with nobody posted takes the best card you own
+    /// there the moment one arrives (<see cref="Foremen.BestOwnedAt"/>), so the roster works without
+    /// the player ever opening the screen; the screen is where you override that. A card that would be
+    /// a downgrade never steals the post, and a post is never left empty while an owned card exists.
+    ///
+    /// The state arrays are handed to <see cref="Foremen"/> directly rather than copied, and the income
     /// multiplier is cached, because <see cref="MarketService"/> reads it once a second and the island
     /// simulation reads the per-station multiplier far more often than that.
     /// </summary>
@@ -33,32 +40,35 @@ namespace Game.Systems
         private readonly Foremen.Tuning _tuning;
         private readonly MasterChest.Tuning _chest;
         private readonly TimeService _time;
-        private readonly UnityEngine.Color[] _tierTint;
+        private readonly UnityEngine.Color[] _rarityTint;
         private readonly Random _random = new Random();
 
         /// <summary>Used when no config is wired, so an unconfigured project still reads correctly
-        /// rather than drawing every tier white.</summary>
-        private static readonly UnityEngine.Color[] DefaultTierTint =
+        /// rather than drawing every rarity white.</summary>
+        private static readonly UnityEngine.Color[] DefaultRarityTint =
         {
             new UnityEngine.Color(0.48f, 0.54f, 0.62f, 1f),   // Common
             new UnityEngine.Color(0.26f, 0.60f, 0.92f, 1f),   // Rare
-            new UnityEngine.Color(0.62f, 0.38f, 0.92f, 1f),   // Epic
             new UnityEngine.Color(0.96f, 0.66f, 0.18f, 1f),   // Legendary
-            new UnityEngine.Color(0.94f, 0.28f, 0.42f, 1f),   // Mythic
         };
 
         private double _incomeMultiplier = 1d;
+        private double _offlineBonus;
 
         /// <summary>
         /// The per-station speeds, handed to IslandEconomy as a LIVE array and rewritten in place
         /// whenever the roster moves. Same contract as MaintenanceService's condition array, and the
         /// same reason: the island reads it every frame, so handing over a fresh array per change
         /// would allocate on a path that must not, and copying it per read would be worse.
+        ///
+        /// Indexed by SAVED ECONOMY SLOT, not by roster station — IslandEconomy.ForemanSpeed is called
+        /// with the legacy eight-wide numbering and the roster only covers five of those. The three it
+        /// does not cover stay at 1 forever. <see cref="Foremen.EconomyStation"/> is the mapping.
         /// </summary>
-        private readonly float[] _stationSpeeds = new float[Foremen.Count];
+        private readonly float[] _stationSpeeds = new float[IslandEconomy.Stations.Length];
 
-        /// <summary>Which slot changed, so a roster screen can refresh one card rather than all eight.
-        /// -1 means "several, or none in particular".</summary>
+        /// <summary>Which master changed, so a roster screen can refresh one card rather than all
+        /// fifteen. -1 means "several, or none in particular".</summary>
         public event Action<int> RosterChanged;
 
         /// <summary>
@@ -80,9 +90,10 @@ namespace Game.Systems
         /// </summary>
         public ForemanService(SaveData data, WalletService wallet, Foremen.Tuning tuning,
                               MasterChest.Tuning chest = default, TimeService time = null,
-                              UnityEngine.Color[] tierTint = null)
+                              UnityEngine.Color[] rarityTint = null)
         {
-            _tierTint = tierTint != null && tierTint.Length >= Foremen.TierCount ? tierTint : DefaultTierTint;
+            _rarityTint = rarityTint != null && rarityTint.Length >= Foremen.RarityCount
+                ? rarityTint : DefaultRarityTint;
             _data = data;
             _wallet = wallet;
             _tuning = tuning;
@@ -106,118 +117,222 @@ namespace Game.Systems
         private void Normalise()
         {
             if (_data == null) return;
-            _data.foremanLevels = Fit(_data.foremanLevels);
-            _data.foremanDuplicates = Fit(_data.foremanDuplicates);
+            _data.masterStars = Fit(_data.masterStars, Foremen.Count);
+            _data.masterCards = Fit(_data.masterCards, Foremen.Count);
+            _data.masterActive = FitActive(_data.masterActive);
 
-            // A save from before hiring was deleted can hold cards for a master nobody ever paid to
-            // hire — goals, contracts, chapters and voyages all paid cards from the first hour, while
-            // the first hire cost 150 gems. Standing him up is what the till used to do, and there is
-            // no longer a till: unowned slots are skipped by the aimed card, so without this his cards
-            // would sit invisible and unspendable until a flat one-in-eight roll happened to land on
-            // him. The cards stay banked, exactly as Bank() leaves them.
-            for (int s = 0; s < Foremen.Count; s++)
-                if (_data.foremanLevels[s] <= Foremen.NotHired && _data.foremanDuplicates[s] > 0)
-                    _data.foremanLevels[s] = 1;
+            // Cards for a master nobody has met yet: goals, contracts, chapters and voyages all pay
+            // cards, and a card arriving is what stands a master up. Without this his cards would sit
+            // invisible and unspendable until a roll happened to land on him again. The cards stay
+            // banked, exactly as Bank() leaves them.
+            for (int m = 0; m < Foremen.Count; m++)
+                if (_data.masterStars[m] <= Foremen.NotHired && _data.masterCards[m] > 0)
+                    _data.masterStars[m] = 1;
+
+            FillEmptyPosts();
 
             if (_data.masterFreeChestClaimUnix < 0L) _data.masterFreeChestClaimUnix = 0L;
             if (_data.masterChestsOpened < 0) _data.masterChestsOpened = 0;
         }
 
-        private static int[] Fit(int[] src)
+        private static int[] Fit(int[] src, int length)
         {
-            if (src != null && src.Length == Foremen.Count) return src;
-            var fitted = new int[Foremen.Count];
+            if (src != null && src.Length == length) return src;
+            var fitted = new int[length];
             if (src != null)
             {
-                int n = src.Length < Foremen.Count ? src.Length : Foremen.Count;
+                int n = src.Length < length ? src.Length : length;
                 for (int i = 0; i < n; i++) fitted[i] = src[i];
             }
             return fitted;
         }
 
+        /// <summary>Like <see cref="Fit"/>, but an unwritten posting is -1 rather than 0 — slot 0 is a
+        /// real master, so a zeroed array would post the Common mine master at every station.</summary>
+        private static int[] FitActive(int[] src)
+        {
+            var fitted = Foremen.NewActive();
+            if (src != null)
+            {
+                int n = src.Length < fitted.Length ? src.Length : fitted.Length;
+                for (int i = 0; i < n; i++) fitted[i] = src[i];
+            }
+            return fitted;
+        }
+
+        /// <summary>
+        /// Posts the best owned card at any station standing empty. Called on load and after every card
+        /// arrives, so a player who never opens the roster screen still gets everything the chests gave
+        /// them. It only ever FILLS: a station you deliberately posted a Common at keeps him when his
+        /// Legendary turns up, because silently overriding a choice is worse than a bonus arriving one
+        /// tap late — and the card that arrived is announced anyway.
+        /// </summary>
+        private void FillEmptyPosts()
+        {
+            for (int s = 0; s < Foremen.StationCount; s++)
+            {
+                if (Foremen.ActiveAt(_data.masterActive, _data.masterStars, s) >= 0) continue;
+                _data.masterActive[s] = Foremen.BestOwnedAt(_data.masterStars, s);
+            }
+        }
+
         private void Recompute()
         {
-            _incomeMultiplier = Foremen.IncomeMultiplier(Levels, _tuning);
-            for (int s = 0; s < Foremen.Count; s++)
-                _stationSpeeds[s] = (float)Foremen.StationMultiplier(Levels, s, _tuning);
+            int[] active = _data != null ? _data.masterActive : null;
+            _incomeMultiplier = Foremen.IncomeMultiplier(active, Stars, _tuning);
+            _offlineBonus = Foremen.OfflineBonus(active, Stars, _tuning);
+
+            for (int i = 0; i < _stationSpeeds.Length; i++) _stationSpeeds[i] = 1f;
+            for (int s = 0; s < Foremen.StationCount; s++)
+            {
+                int slot = Foremen.EconomyStation[s];
+                if (slot < 0 || slot >= _stationSpeeds.Length) continue;
+                _stationSpeeds[slot] = (float)Foremen.StationMultiplier(active, Stars, s, _tuning);
+            }
         }
 
         // ------------------------------------------------------------------ read
-        public int[] Levels => _data != null ? _data.foremanLevels : null;
+        /// <summary>Stars per master, indexed by <see cref="Foremen.Roster"/> position.</summary>
+        public int[] Stars => _data != null ? _data.masterStars : null;
+
+        /// <summary>Who is posted at each of the five stations, or -1. Read through
+        /// <see cref="ActiveAt"/> rather than indexed directly — the raw array is not validated.</summary>
+        public int[] Active => _data != null ? _data.masterActive : null;
+
         public Foremen.Tuning Tuning => _tuning;
 
         /// <summary>What the whole roster is worth to income. Cached — read once a second by the yards.</summary>
         public double IncomeMultiplier => _incomeMultiplier;
 
+        /// <summary>Percentage points the posted masters add to offline efficiency. Cached for the same
+        /// reason; read once per resume by <see cref="GameBootstrap"/>.</summary>
+        public double OfflineBonus => _offlineBonus;
+
         /// <summary>The live per-station speeds. Hand straight to IslandEconomy.SetForemen; do not copy.</summary>
         public float[] StationSpeeds => _stationSpeeds;
 
-        /// <summary>What one station's foreman is worth to that station's throughput.</summary>
-        public double StationMultiplier(int station) => Foremen.StationMultiplier(Levels, station, _tuning);
+        /// <summary>Who is working at this station, or -1 for nobody.</summary>
+        public int ActiveAt(int station) => Foremen.ActiveAt(Active, Stars, station);
 
-        public int LevelOf(int station) => Foremen.LevelOf(Levels, station);
-        public bool IsHired(int station) => Foremen.IsHired(Levels, station);
-        public bool IsMaxed(int station) => Foremen.IsMaxed(Levels, station);
-        public int HiredCount => Foremen.HiredCount(Levels);
+        /// <summary>What the master posted at this station is worth to its throughput.</summary>
+        public double StationMultiplier(int station)
+            => Foremen.StationMultiplier(Active, Stars, station, _tuning);
 
-        public int DuplicatesOf(int station)
-            => _data != null && _data.foremanDuplicates != null
-               && station >= 0 && station < _data.foremanDuplicates.Length
-                ? _data.foremanDuplicates[station] : 0;
+        /// <summary>Is anybody working at this station? What the island asks before it stands a body
+        /// on a plinth.</summary>
+        public bool StationStaffed(int station) => ActiveAt(station) >= 0;
 
-        public int DuplicatesToLevel(int station) => Foremen.DuplicatesToLevel(LevelOf(station), _tuning);
+        /// <summary>Stars of the master posted at this station — his plinth size. 0 for an empty post.</summary>
+        public int StationStars(int station)
+        {
+            int master = ActiveAt(station);
+            return master < 0 ? 0 : LevelOf(master);
+        }
 
-        /// <summary>Which tier a master is at — the colour of his card, his plinth and his size.</summary>
-        public Foremen.Tier TierOf(int station) => Foremen.TierOfStation(Levels, station);
+        /// <summary>Rarity of the master posted at this station — his plinth colour. Common for an
+        /// empty post, which is the colour an unmanned station is drawn in and not a claim that a
+        /// Common is standing there; ask <see cref="StationStaffed"/> for that.</summary>
+        public Foremen.Rarity StationRarity(int station)
+        {
+            int master = ActiveAt(station);
+            return master < 0 ? Foremen.Rarity.Common : Foremen.RankOf(master);
+        }
+
+        public int LevelOf(int master) => Foremen.StarsOf(Stars, master);
+        public bool IsHired(int master) => Foremen.IsHired(Stars, master);
+        public bool IsMaxed(int master) => Foremen.IsMaxed(Stars, master);
+        public int HiredCount => Foremen.HiredCount(Stars);
+
+        public int DuplicatesOf(int master)
+            => _data != null && _data.masterCards != null
+               && master >= 0 && master < _data.masterCards.Length
+                ? _data.masterCards[master] : 0;
+
+        public int DuplicatesToLevel(int master)
+            => Foremen.CardsToStar(master, LevelOf(master), _tuning);
+
+        /// <summary>What a master is worth at one of his three skills, at the stars he carries now.</summary>
+        public double SkillValue(int master, Foremen.Skill skill)
+            => Foremen.SkillValue(master, LevelOf(master), skill, _tuning);
+
+        /// <summary>The same skill one star further on, for the "what the next star buys" line.</summary>
+        public double SkillValueAtStar(int master, int stars, Foremen.Skill skill)
+            => Foremen.SkillValue(master, stars, skill, _tuning);
+
+        /// <summary>Which rarity a master is — the colour of his card and of his plinth.</summary>
+        public Foremen.Rarity RankOf(int master) => Foremen.RankOf(master);
 
         /// <summary>
         /// Shared roster-card state. The UI should not have to reconstruct ownership, upgrade
         /// readiness or progress from separate arrays; captains expose the same contract.
         /// </summary>
-        public RosterCardState CardState(int station)
+        public RosterCardState CardState(int master)
         {
-            int level = LevelOf(station);
+            int stars = LevelOf(master);
             return new RosterCardState(
-                station,
-                (RosterCardState.Rarity)(int)TierOf(station),
-                station,
-                level,
-                Foremen.MaxLevel,
-                DuplicatesOf(station),
-                DuplicatesToLevel(station),
-                Foremen.Boost(level, _tuning),
-                false);
+                master,
+                Foremen.CardRarity(Foremen.RankOf(master)),
+                Foremen.StationOf(master),
+                stars,
+                Foremen.MaxStars,
+                DuplicatesOf(master),
+                DuplicatesToLevel(master),
+                Foremen.SkillValue(master, stars, Foremen.Skill.Throughput, _tuning),
+                ActiveAt(Foremen.StationOf(master)) == master);
         }
 
         /// <summary>
-        /// One tier's colour. Lives here rather than on either screen because BOTH read it — the card
+        /// One rarity's colour. Lives here rather than on either screen because BOTH read it — the card
         /// frame in Game.UI and the plinth under his feet in Game.Gameplay — and the two must never
         /// disagree about what Legendary looks like.
         /// </summary>
-        public UnityEngine.Color TierTint(Foremen.Tier tier)
+        public UnityEngine.Color RarityTint(Foremen.Rarity rank)
         {
-            int i = (int)tier;
+            int i = (int)rank;
             if (i < 0) i = 0;
-            if (i >= _tierTint.Length) i = _tierTint.Length - 1;
-            return _tierTint[i];
+            if (i >= _rarityTint.Length) i = _rarityTint.Length - 1;
+            return _rarityTint[i];
         }
 
-        public UnityEngine.Color TierTintOf(int station) => TierTint(TierOf(station));
+        public UnityEngine.Color RarityTintOf(int master) => RarityTint(Foremen.RankOf(master));
+
+        /// <summary>The colour of the plinth at a station: whoever is posted there.</summary>
+        public UnityEngine.Color StationTint(int station) => RarityTint(StationRarity(station));
 
         /// <summary>True when the player could add a star right now. Cards alone — gems buy chests.</summary>
-        public bool CanLevel(int station)
+        public bool CanLevel(int master)
         {
-            if (!IsHired(station) || IsMaxed(station)) return false;
-            return DuplicatesOf(station) >= DuplicatesToLevel(station);
+            if (!IsHired(master) || IsMaxed(master)) return false;
+            return DuplicatesOf(master) >= DuplicatesToLevel(master);
         }
 
         /// <summary>Cards currently ready to star up; used by the roster opener badge.</summary>
         public int PendingCount()
         {
             int count = 0;
-            for (int station = 0; station < Foremen.Count; station++)
-                if (CardState(station).NeedsAttention) count++;
+            for (int master = 0; master < Foremen.Count; master++)
+                if (CardState(master).NeedsAttention) count++;
             return count;
+        }
+
+        // ----------------------------------------------------------------- posting
+        /// <summary>
+        /// Put a master to work at his own station, taking the post off whoever held it. Refused for a
+        /// card nobody owns and for a master who does not belong to that station — the screen only ever
+        /// offers the three that do, but a save is not a screen.
+        /// </summary>
+        public bool TrySetActive(int master)
+        {
+            if (_data == null || !Foremen.Exists(master)) return false;
+            if (!IsHired(master)) return false;
+
+            int station = Foremen.StationOf(master);
+            if (_data.masterActive[station] == master) return false;
+
+            _data.masterActive[station] = master;
+            Recompute();
+            RosterChanged?.Invoke(master);
+            return true;
         }
 
         // ------------------------------------------------------------------ chest
@@ -240,8 +355,8 @@ namespace Game.Systems
 
         /// <summary>
         /// Open <paramref name="chests"/> at once. Gems come out first and the whole batch is rolled
-        /// after, so a half-paid open cannot exist; the returned slots are in reveal order and are what
-        /// the ceremony flips. Null when it could not be paid for.
+        /// after, so a half-paid open cannot exist; the returned masters are in reveal order and are
+        /// what the ceremony flips. Null when it could not be paid for.
         /// </summary>
         public int[] TryOpenChest(int chests)
         {
@@ -265,66 +380,70 @@ namespace Game.Systems
 
         /// <summary>
         /// Hands over one batch of cards. Each chest aims <see cref="MasterChest.DirectedIn"/> of its
-        /// cards at whoever is furthest behind and rolls the rest flat, then the whole batch lands in
-        /// one go: eight separate RosterChanged events for a ten-chest open would rebuild the roster
-        /// screen thirty times while the reveal was still playing.
+        /// cards at whoever is furthest behind and rolls the rest, then the whole batch lands in one
+        /// go: fifteen separate RosterChanged events for a ten-chest open would rebuild the roster
+        /// screen forty times while the reveal was still playing.
         /// </summary>
         private int[] Deal(int chests, int cardsPerChest)
         {
             if (cardsPerChest <= 0) { RosterChanged?.Invoke(-1); return new int[0]; }
 
             int aimed = MasterChest.DirectedIn(_chest);
-            var slots = new int[chests * cardsPerChest];
+            var picks = new int[chests * cardsPerChest];
             int at = 0;
 
             for (int c = 0; c < chests; c++)
                 for (int i = 0; i < cardsPerChest; i++)
                 {
-                    int slot = i < aimed ? AimedSlot() : MasterChest.RollSlot(_random.NextDouble());
-                    Bank(slot, 1);
-                    slots[at++] = slot;
+                    int master = i < aimed ? AimedMaster() : Roll();
+                    Bank(master, 1);
+                    picks[at++] = master;
                 }
 
+            FillEmptyPosts();
             Recompute();
             RosterChanged?.Invoke(-1);
-            return slots;
+            return picks;
         }
+
+        private int Roll() => MasterChest.RollMaster(_random.NextDouble(), _random.NextDouble(), _chest);
 
         // ----------------------------------------------------------------- write
         /// <summary>
         /// Take a master up one star. Costs cards alone — the gems were spent at the chest, and
         /// charging twice for the same card is what made the old roster feel like a price list.
         /// </summary>
-        public bool TryLevelUp(int station)
+        public bool TryLevelUp(int master)
         {
             if (_data == null) return false;
-            if (station < 0 || station >= Foremen.Count) return false;
-            if (!IsHired(station) || IsMaxed(station)) return false;
+            if (!Foremen.Exists(master)) return false;
+            if (!IsHired(master) || IsMaxed(master)) return false;
 
-            int level = LevelOf(station);
-            int needCards = Foremen.DuplicatesToLevel(level, _tuning);
-            if (DuplicatesOf(station) < needCards) return false;
+            int stars = LevelOf(master);
+            int needCards = Foremen.CardsToStar(master, stars, _tuning);
+            if (DuplicatesOf(master) < needCards) return false;
 
-            _data.foremanDuplicates[station] -= needCards;
-            _data.foremanLevels[station] = level + 1;
+            _data.masterCards[master] -= needCards;
+            _data.masterStars[master] = stars + 1;
             Recompute();
-            Levelled?.Invoke(station);
-            RosterChanged?.Invoke(station);
+            Levelled?.Invoke(master);
+            RosterChanged?.Invoke(master);
             return true;
         }
 
-        /// <summary>Award cards for a named slot — a contract reward, a daily, an achievement.</summary>
-        public void GrantDuplicates(int station, int count)
+        /// <summary>Award cards for a named master — a contract reward, a daily, an achievement.</summary>
+        public void GrantDuplicates(int master, int count)
         {
             if (_data == null || count <= 0) return;
-            if (station < 0 || station >= Foremen.Count) return;
-            if (Bank(station, count)) Recompute();
-            RosterChanged?.Invoke(station);
+            if (!Foremen.Exists(master)) return;
+            if (Bank(master, count)) FillEmptyPosts();
+            Recompute();
+            RosterChanged?.Invoke(master);
         }
 
         /// <summary>
-        /// Puts cards in a slot, standing a master up in an empty one. Returns true when a master
-        /// actually appeared, which is the caller's cue to recompute the multipliers.
+        /// Puts cards on a master, standing him up if this is the first. Returns true when a master
+        /// actually appeared, which is the caller's cue to fill an empty post.
         ///
         /// THE UNLOCK IS FREE — every card handed over is banked, including the one that stood him up.
         /// Charging a card for the unlock is the tidier fiction, but it makes every reward in the game
@@ -335,78 +454,81 @@ namespace Game.Systems
         /// The unlock does NOT raise <see cref="Levelled"/>: a card arriving is not a star bought, and
         /// the goal system counts the latter — see that event's own note.
         /// </summary>
-        private bool Bank(int station, int count)
+        private bool Bank(int master, int count)
         {
-            _data.foremanDuplicates[station] += count;
-            if (_data.foremanLevels[station] > Foremen.NotHired) return false;
-            _data.foremanLevels[station] = 1;
+            _data.masterCards[master] += count;
+            if (_data.masterStars[master] > Foremen.NotHired) return false;
+            _data.masterStars[master] = 1;
             return true;
         }
 
         /// <summary>
-        /// The owned master who is furthest behind: fewest stars, then fewest cards, then lowest slot.
+        /// The owned master who is furthest behind: fewest stars, then fewest cards, then lowest index.
         /// -1 when the roster is empty.
         ///
         /// OWNED ONLY, deliberately. An unowned master is trivially the furthest behind, so counting
         /// them would send every aimed card in the game at unlocking the next empty slot until there
         /// were none left — and finding a new master would stop being something a chest DOES and
         /// become a schedule. Meeting somebody new stays a roll; helping the laggard is the aim.
+        ///
+        /// It does NOT prefer the posted master over a benched one. The bench is the collection and the
+        /// collection is the point; a rule that fed only the five in work would leave the other ten at
+        /// one star forever and make the whole roster five cards wide.
         /// </summary>
         private int FurthestBehind()
         {
             int pick = -1;
-            for (int s = 0; s < Foremen.Count; s++)
+            for (int m = 0; m < Foremen.Count; m++)
             {
-                if (_data.foremanLevels[s] <= Foremen.NotHired) continue;
-                if (pick < 0) { pick = s; continue; }
+                if (_data.masterStars[m] <= Foremen.NotHired) continue;
+                if (pick < 0) { pick = m; continue; }
 
-                if (_data.foremanLevels[s] < _data.foremanLevels[pick]
-                    || (_data.foremanLevels[s] == _data.foremanLevels[pick]
-                        && _data.foremanDuplicates[s] < _data.foremanDuplicates[pick]))
-                    pick = s;
+                if (_data.masterStars[m] < _data.masterStars[pick]
+                    || (_data.masterStars[m] == _data.masterStars[pick]
+                        && _data.masterCards[m] < _data.masterCards[pick]))
+                    pick = m;
             }
             return pick;
         }
 
         /// <summary>Where an aimed card goes: the laggard, or a roll when nobody is owned yet.</summary>
-        private int AimedSlot()
+        private int AimedMaster()
         {
             int pick = FurthestBehind();
-            return pick >= 0 ? pick : MasterChest.RollSlot(_random.NextDouble());
+            return pick >= 0 ? pick : Roll();
         }
 
         /// <summary>
-        /// Award cards for a slot picked at random, which is what a generic reward pays out. Flat over
-        /// the whole roster: it used to be weighted toward masters you already had, because a card for
-        /// somebody unhired was dead weight until you found the gems to hire them — the first card now
-        /// unlocks its master outright, so the unweighted roll is the better one and a reward landing
-        /// on an empty slot is the best outcome rather than the worst.
+        /// Award cards for a master picked at random, which is what a generic reward pays out. Rolled
+        /// on the chest's own rarity weights rather than flat over the fifteen, so a contract reward
+        /// and a chest card mean the same thing — a flat roll would make a free contract the best
+        /// source of Legendaries in the game.
         ///
-        /// Returns the slot it landed on; contracts keep that to say who the card was for.
+        /// Returns the master it landed on; contracts keep that to say who the card was for.
         /// </summary>
         public int GrantRandomDuplicates(int count)
         {
             if (_data == null || count <= 0) return -1;
-            int pick = MasterChest.RollSlot(_random.NextDouble());
+            int pick = Roll();
             GrantDuplicates(pick, count);
             return pick;
         }
 
         /// <summary>
         /// Award cards to whoever is FURTHEST BEHIND — fewest stars, then fewest cards, then lowest
-        /// slot. This is what a purser aboard a voyage buys (<see cref="Game.Core.Captains.Purser"/>),
+        /// index. This is what a purser aboard a voyage buys (<see cref="Game.Core.Captains.Purser"/>),
         /// and what one card in every chest does: the same cards, aimed instead of scattered.
         ///
         /// Aimed at the one furthest behind rather than at one the player nominates, because a
         /// nomination is a screen, a saved choice and a thing to forget to change, and the answer it
-        /// would nearly always be set to is this one. Ninety cards per master is a long enough road
-        /// that a card landing where it is shortest is worth as much as an extra card, and it costs the
-        /// balance nothing at all — the count is unchanged.
+        /// would nearly always be set to is this one. Fifty to a hundred cards per master is a long
+        /// enough road that a card landing where it is shortest is worth as much as an extra card, and
+        /// it costs the balance nothing at all — the count is unchanged.
         /// </summary>
         public int GrantDirectedDuplicates(int count)
         {
             if (_data == null || count <= 0) return -1;
-            int pick = AimedSlot();
+            int pick = AimedMaster();
             GrantDuplicates(pick, count);
             return pick;
         }

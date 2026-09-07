@@ -60,37 +60,96 @@ namespace Game.Tests
             Assert.That(MasterChest.DirectedIn(negative), Is.Zero);
         }
 
-        // ---- the slot roll -----------------------------------------------------------------------
+        // ---- the card roll -----------------------------------------------------------------------
 
         [Test]
-        public void EverySlotIsAlwaysReachable()
+        public void EveryMasterIsAlwaysReachable()
         {
-            for (int i = 0; i <= 1000; i++)
-                Assert.That(MasterChest.RollSlot(i / 1000d), Is.InRange(0, Foremen.Count - 1));
+            for (int i = 0; i <= 200; i++)
+                for (int j = 0; j <= 200; j++)
+                    Assert.That(MasterChest.RollMaster(i / 200d, j / 200d, T),
+                                Is.InRange(0, Foremen.Count - 1));
+        }
+
+        [Test]
+        public void EveryMasterIsActuallyDrawn()
+        {
+            // A rarity nobody can roll and a station nobody can roll are the same bug, and either one
+            // makes a card in the collection unreachable.
+            var seen = new bool[Foremen.Count];
+            const int n = 400;
+            for (int i = 0; i < n; i++)
+                for (int j = 0; j < n; j++)
+                    seen[MasterChest.RollMaster((i + 0.5d) / n, (j + 0.5d) / n, T)] = true;
+
+            for (int m = 0; m < Foremen.Count; m++) Assert.That(seen[m], Is.True, "master " + m);
         }
 
         [Test]
         public void RollsOutsideZeroToOneAreClampedRatherThanThrowing()
         {
-            Assert.DoesNotThrow(() => MasterChest.RollSlot(double.NaN));
-            Assert.That(MasterChest.RollSlot(-5d), Is.Zero);
-            Assert.That(MasterChest.RollSlot(1d), Is.EqualTo(Foremen.Count - 1));
-            Assert.That(MasterChest.RollSlot(double.NaN), Is.InRange(0, Foremen.Count - 1));
+            Assert.DoesNotThrow(() => MasterChest.RollMaster(double.NaN, double.NaN, T));
+            Assert.That(MasterChest.RollMaster(-5d, -5d, T), Is.Zero);
+            Assert.That(MasterChest.RollMaster(1d, 1d, T), Is.EqualTo(Foremen.Count - 1));
+            Assert.That(MasterChest.RollMaster(double.NaN, double.NaN, T),
+                        Is.InRange(0, Foremen.Count - 1));
         }
 
         [Test]
-        public void TheSlotDistributionIsFlat()
+        public void TheRarityDistributionMatchesTheWeights()
         {
-            // Sweep the unit interval rather than sampling: the share of the interval landing on a slot
-            // IS its probability. Every master must be equally reachable — rarity in this system is how
-            // far you have taken a master, never which card dropped.
+            // Sweep the unit interval rather than sampling: the share of the interval landing on a
+            // rarity IS its probability. Rarity is DRAWN now — it used to be earned, and the roll used
+            // to be flat over eight slots.
             const int n = 80000;
-            var count = new int[Foremen.Count];
-            for (int i = 0; i < n; i++) count[MasterChest.RollSlot((i + 0.5d) / n)]++;
+            var count = new int[Foremen.RarityCount];
+            for (int i = 0; i < n; i++) count[(int)MasterChest.RollRarity((i + 0.5d) / n, T)]++;
 
-            double expected = n / (double)Foremen.Count;
-            for (int s = 0; s < Foremen.Count; s++)
-                Assert.That(count[s], Is.EqualTo(expected).Within(expected * 0.02d), "slot " + s);
+            double total = T.WeightCommon + T.WeightRare + T.WeightLegendary;
+            var weight = new[] { T.WeightCommon, T.WeightRare, T.WeightLegendary };
+            for (int r = 0; r < Foremen.RarityCount; r++)
+            {
+                double expected = n * weight[r] / total;
+                Assert.That(count[r], Is.EqualTo(expected).Within(expected * 0.02d), "rarity " + r);
+            }
+        }
+
+        [Test]
+        public void ACommonIsCommonerThanALegendary()
+        {
+            // The one property the whole rarity table exists for. A tuning change that inverts it
+            // makes the Legendary the card you cannot avoid.
+            Assert.That(MasterChest.RollRarity(0.0d, T), Is.EqualTo(Foremen.Rarity.Common));
+            Assert.That(MasterChest.RollRarity(0.99d, T), Is.EqualTo(Foremen.Rarity.Legendary));
+            Assert.That(T.WeightCommon, Is.GreaterThan(T.WeightRare));
+            Assert.That(T.WeightRare, Is.GreaterThan(T.WeightLegendary));
+        }
+
+        [Test]
+        public void TheStationDistributionIsFlatWithinARarity()
+        {
+            // Rarity decides how good the card is; which of the five stations it belongs to is a
+            // straight roll, or one station's ladder is quietly longer than the rest.
+            const int n = 60000;
+            var count = new int[Foremen.StationCount];
+            for (int i = 0; i < n; i++)
+            {
+                int master = MasterChest.RollMaster(0d, (i + 0.5d) / n, T);   // 0 = always Common
+                count[Foremen.StationOf(master)]++;
+            }
+
+            double expected = n / (double)Foremen.StationCount;
+            for (int s = 0; s < Foremen.StationCount; s++)
+                Assert.That(count[s], Is.EqualTo(expected).Within(expected * 0.02d), "station " + s);
+        }
+
+        [Test]
+        public void AllZeroWeightsFallBackToCommonRatherThanDividingByNothing()
+        {
+            var broken = T;
+            broken.WeightCommon = broken.WeightRare = broken.WeightLegendary = 0d;
+            Assert.That(MasterChest.RollRarity(0.5d, broken), Is.EqualTo(Foremen.Rarity.Common));
+            Assert.That(MasterChest.RollMaster(0.5d, 0.5d, broken), Is.InRange(0, Foremen.Count - 1));
         }
 
         // ---- the free chest ----------------------------------------------------------------------

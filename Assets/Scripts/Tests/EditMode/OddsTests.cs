@@ -9,7 +9,7 @@ namespace Game.Tests
     /// prints equal the number the game actually rolls", measured against the real roll.
     ///
     /// The sampling is STRATIFIED, not random: <see cref="CaptainCrate.RollGrade"/> and
-    /// <see cref="MasterChest.RollSlot"/> are pure lookups over [0,1), so walking that interval in
+    /// <see cref="MasterChest.RollMaster"/> are pure lookups over [0,1), so walking that interval in
     /// even steps measures the true frequency to within one step. A seeded RNG would only add noise
     /// and force a looser bound.
     /// </summary>
@@ -94,13 +94,34 @@ namespace Game.Tests
         [Test]
         public void EveryMasterIsAsLikelyAsTheSheetSays()
         {
+            // The sheet prints one figure per rarity, so this walks both rolls: rarity across the unit
+            // interval and station across it again, and every one of the fifteen cards has to come out
+            // at the rate its rarity's row claims.
+            MasterChest.Tuning t = MasterChest.Tuning.Default;
             var hits = new int[Foremen.Count];
-            for (int i = 0; i < Samples; i++) hits[MasterChest.RollSlot(Sample(i))]++;
+            for (int i = 0; i < Samples; i++)
+                for (int j = 0; j < Foremen.StationCount; j++)
+                    hits[MasterChest.RollMaster(Sample(i), (j + 0.5d) / Foremen.StationCount, t)]++;
 
-            double stated = Odds.MasterSlotChance();
-            for (int slot = 0; slot < Foremen.Count; slot++)
-                Assert.That((double)hits[slot] / Samples, Is.EqualTo(stated).Within(Tolerance),
-                            "master " + slot);
+            double drawn = Samples * Foremen.StationCount;
+            for (int master = 0; master < Foremen.Count; master++)
+            {
+                double stated = Odds.MasterCardChance(Foremen.RankOf(master), t);
+                Assert.That(hits[master] / drawn, Is.EqualTo(stated).Within(Tolerance),
+                            "master " + master);
+            }
+        }
+
+        [Test]
+        public void TheStatedChancesAddUpToOne()
+        {
+            // Five stations at each of three rarities. If these ever fail to total 1, the sheet is
+            // hiding a rate rather than reporting one.
+            MasterChest.Tuning t = MasterChest.Tuning.Default;
+            double sum = 0d;
+            for (int master = 0; master < Foremen.Count; master++)
+                sum += Odds.MasterCardChance(Foremen.RankOf(master), t);
+            Assert.That(sum, Is.EqualTo(1d).Within(1e-9));
         }
 
         /// <summary>
