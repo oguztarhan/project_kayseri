@@ -386,7 +386,9 @@ namespace Game.Systems
             ServiceLocator.Register(IndustryPass);
 
             ServiceLocator.Register(new DailyRewardService(Data, _time));
-            ServiceLocator.Register(new FreeRewardService(Data, _time));
+            var freeRewards = new FreeRewardService(Data, _time);
+            ServiceLocator.Register(freeRewards);
+            ServiceLocator.Register(new BalloonRewardService(freeRewards, Wallet, Save, Data));
             // Save so a claim reaches the disk before the screen says it paid; boost so the offers are
             // priced off what the empire earns rather than off a x2 minute the player arranged.
             var contract = new ContractService(Wallet, contractConfig, Data, _time, Foremen, Goals,

@@ -121,14 +121,26 @@ namespace Game.Gameplay
             _poolAX = size.x * 0.46f;
             _poolAZ = size.z * 0.46f;
 
-            var go = new GameObject(name);
+            // Script recompiles in Play Mode preserve the generated heap object but cannot preserve this
+            // plain C# wrapper. Reattach to that object when it exists instead of creating a duplicate;
+            // CoalOperation can then rebuild the wrapper and keep the yard display alive after hot reload.
+            Transform existing = pad.Find(name);
+            var go = existing != null ? existing.gameObject : new GameObject(name);
             go.transform.SetParent(pad, true);
             go.transform.SetPositionAndRotation(new Vector3(pad.position.x, _baseY, pad.position.z), Quaternion.identity);
             go.transform.localScale = Vector3.one;
 
-            _mesh = new Mesh { name = name };
-            go.AddComponent<MeshFilter>().sharedMesh = _mesh;
-            _renderer = go.AddComponent<MeshRenderer>();
+            var filter = go.GetComponent<MeshFilter>();
+            if (filter == null) filter = go.AddComponent<MeshFilter>();
+            _mesh = filter.sharedMesh;
+            if (_mesh == null)
+            {
+                _mesh = new Mesh { name = name };
+                filter.sharedMesh = _mesh;
+            }
+
+            _renderer = go.GetComponent<MeshRenderer>();
+            if (_renderer == null) _renderer = go.AddComponent<MeshRenderer>();
             _renderer.sharedMaterial = mat;
             _renderer.enabled = false;
 

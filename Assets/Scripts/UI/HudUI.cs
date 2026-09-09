@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Data;
 using Game.Gameplay;
 using Game.Systems;
 using System.Collections.Generic;
@@ -25,13 +26,14 @@ namespace Game.UI
         public const string SailButtonName = "BtnDenizSavasi";
         public const string MasterButtonName = "BtnUstabasi";
         public const string CaptainButtonName = "BtnKaptan";
+        public const string BalloonButtonName = "BtnBalon";
         public const string MoreButtonName = "BtnDahaFazla";
 
         /// <summary>The openers compact mode keeps on the rail itself. Everything else it moves into
         /// the More sheet — see <see cref="AttachBottomButton"/>.</summary>
         private static bool IsCompactOpener(string name)
             => name == SailButtonName || name == MasterButtonName || name == CaptainButtonName
-               || name == MoreButtonName;
+               || name == BalloonButtonName || name == MoreButtonName;
 
         [Header("Dikey tersane sade HUD")]
         [Tooltip("Yalnızca Inspector'daki dört ana eylemi kenar rayında tutar; eski bölüm bildirimi ve yinelenen kısayolları gizler.")]
@@ -64,6 +66,16 @@ namespace Game.UI
         [Tooltip("Kontrat butonunun altındaki canlı sayaç.")]
         [SerializeField] private TMP_Text contractTimerValue;
         [SerializeField] private Button adButton;
+
+        [Header("Balon reklamı")]
+        [Tooltip("Ayrı HUD balon simgesi. Boşsa mevcut reklam simgesi kullanılır.")]
+        [SerializeField] private Sprite balloonIcon;
+        [Tooltip("Nakit ödülünün oyuncunun mevcut gelirinden hesaplanan dakika karşılığı.")]
+        [SerializeField, Min(0f)] private float balloonCashMinutes = 5f;
+        [Tooltip("Yeni hesaplarda balon ödülünün boş kalmaması için en düşük nakit ödülü.")]
+        [SerializeField, Min(0f)] private double balloonCashFloor = 100d;
+        [SerializeField, Range(0f, 1f)] private float balloonDiamondChance = 0.10f;
+        [SerializeField, Min(1)] private long balloonDiamondAmount = 10L;
 
         [Header("Hızlandırıcı göstergesi")]
         [Tooltip("Sadece bir hızlandırıcı çalışırken açılır.")]
@@ -147,6 +159,9 @@ namespace Game.UI
         private ProductionSprintService _productionSprint;
         private BoostService _boost;
         private MaintenanceService _maintenance;
+        private FreeRewardService _freeRewards;
+        private BalloonRewardService _balloon;
+        private IAdService _ad;
         private WorldIslands _world;
         private CoalOperation _op;
         private float _timer;
@@ -164,6 +179,9 @@ namespace Game.UI
         private readonly List<int> _bottomOrder = new List<int>();
         private readonly List<RectTransform> _bottomRects = new List<RectTransform>();
         private float _railWidth;         // what the side rail takes off the sheet, for the top strip
+        private Button _balloonButton;
+        private GameObject _balloonTimerChip;
+        private TMP_Text _balloonTimerValue;
 
         // The objective strip under the currency bar. Its position is solved from the authored rects
         // above it rather than authored itself, so it is re-solved whenever the sheet changes size.
@@ -184,6 +202,9 @@ namespace Game.UI
             _productionSprint = ServiceLocator.Get<ProductionSprintService>();
             _boost = ServiceLocator.Get<BoostService>();
             _maintenance = ServiceLocator.Get<MaintenanceService>();
+            _freeRewards = ServiceLocator.Get<FreeRewardService>();
+            _balloon = ServiceLocator.Get<BalloonRewardService>();
+            _ad = ServiceLocator.Get<IAdService>();
             _world = FindAnyObjectByType<WorldIslands>();
             if (shieldIndicator != null)
                 _shieldSlot = ((RectTransform)shieldIndicator.transform).anchoredPosition;
@@ -209,6 +230,7 @@ namespace Game.UI
             // giriyor ve sira bir kez ortalaniyor.
             if (bottomRow != null)
                 for (int i = 0; i < bottomRow.Length; i++) InsertBottom(AuthoredOrder + i, bottomRow[i]);
+            BuildBalloonButton();
             // Ad and offer were pinned down the top-left edge, which is where the rail now runs. Left
             // out of it they would sit on top of it; folded in they are just the two lowest-priority
             // openers, which is what they are. Their counter chips are their own children, so both
@@ -1005,6 +1027,7 @@ namespace Game.UI
                         + "  " + LongClock(_boost.SecondsLeft);
             }
             RefreshBoostButton(boosted);
+            RefreshBalloonButton();
 
             bool shielded = _maintenance != null && _maintenance.ShieldActive;
             if (shieldIndicator != null)
@@ -1213,6 +1236,53 @@ namespace Game.UI
         private void OnBoost()
         {
             if (adScreen != null) adScreen.WatchBoost();
+        }
+
+        private void BuildBalloonButton()
+        {
+            Sprite icon = balloonIcon;
+            if (icon == null && adButton != null && adButton.image != null) icon = adButton.image.sprite;
+            _balloonButton = AttachBottomButton(3, BalloonButtonName,
+                                                icon != null ? icon : UiSkin.ButtonBlue, OnBalloon);
+            if (_balloonButton == null) return;
+            _balloonTimerChip = AttachCounterChip(_balloonButton);
+            if (_balloonTimerChip != null)
+                _balloonTimerValue = _balloonTimerChip.GetComponentInChildren<TMP_Text>(true);
+        }
+
+        private bool BalloonAdReady => (_freeRewards != null && _freeRewards.AdsRemoved)
+                                       || (_ad != null && _ad.Available);
+
+        private void OnBalloon()
+        {
+            if (_balloon == null || !_balloon.Ready || !BalloonAdReady) return;
+            if (_freeRewards != null && _freeRewards.AdsRemoved) { ClaimBalloon(); return; }
+            _ad?.ShowRewarded(ClaimBalloon);
+        }
+
+        private void ClaimBalloon()
+        {
+            if (_balloon == null) return;
+            BalloonRewardService.Receipt receipt = _balloon.TryClaim(IncomePerMinute(), balloonCashMinutes,
+                                                                       balloonCashFloor, balloonDiamondChance,
+                                                                       balloonDiamondAmount, UnityEngine.Random.value);
+            if (!receipt.Paid) return;
+            ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
+            ServiceLocator.Get<HapticService>()?.Medium();
+        }
+
+        private void RefreshBalloonButton()
+        {
+            if (_balloonButton == null || _balloon == null) return;
+            bool ready = _balloon.Ready && BalloonAdReady;
+            _balloonButton.interactable = ready;
+            if (_balloonTimerChip != null)
+            {
+                bool waiting = !ready && _balloon.CooldownLeft > 0f;
+                if (_balloonTimerChip.activeSelf != waiting) _balloonTimerChip.SetActive(waiting);
+                if (waiting && _balloonTimerValue != null)
+                    _balloonTimerValue.text = LongClock(_balloon.CooldownLeft);
+            }
         }
     }
 }

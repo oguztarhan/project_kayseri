@@ -225,6 +225,9 @@ namespace Game.Systems
         public double craftPendingDef;
         public double craftPendingSpd;
         public double craftPendingSecAmt;
+        // Rewarded auto-craft is a wall-clock window, just like the income boost. Points arriving
+        // while this is in the future are spent and resolved immediately by CraftingService.
+        public long autoCraftEndUnix;
 
         // ---- depo (ExpeditionService, Game.Core.GearStash) --------------------------------------
         // The workshop's shelf: gear that has been crafted or taken off and is being kept rather

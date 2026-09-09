@@ -1553,10 +1553,7 @@ namespace Game.Gameplay
             // Before either yard is built, get its spot out from under whatever is standing on it.
             ClearHeapSpot(_orePile, 6f);
             ClearHeapSpot(_refinedPile, 6f);
-            _oreYard = new PileStack(_orePile, _oreMat, storageCapacity / 10f, "OpOreHeap",
-                                     MeshOf(oreChunkPrefab), pileScale);
-            _barYard = new PileStack(_refinedPile, _barMat, barCapacity / 10f, "OpBarHeap",
-                                     MeshOf(barChunkPrefab), pileScale);
+            EnsureHeapVisuals();
 
             // Lanes were assigned above, between the two placement passes, and the mines have been pinned
             // ever since — so the paths built here land exactly on the corridors that were kept clear.
@@ -4329,10 +4326,24 @@ namespace Game.Gameplay
         }
 
         // ---------------- pile visuals ----------------
+        private void EnsureHeapVisuals()
+        {
+            // Unity hot reload preserves the generated scene objects and most UnityEngine.Object fields,
+            // but not the plain C# PileStack wrappers. Recreate those wrappers lazily so a compile while
+            // playing cannot leave the operation throwing every frame or its yard displays frozen.
+            if (_oreYard == null && _orePile != null)
+                _oreYard = new PileStack(_orePile, _oreMat, storageCapacity / 10f, "OpOreHeap",
+                                         MeshOf(oreChunkPrefab), pileScale);
+            if (_barYard == null && _refinedPile != null)
+                _barYard = new PileStack(_refinedPile, _barMat, barCapacity / 10f, "OpBarHeap",
+                                         MeshOf(barChunkPrefab), pileScale);
+        }
+
         private void UpdateHeaps()
         {
-            _oreYard.Set(_storeOre, EffStorageFull);
-            _barYard.Set(_bars, EffBarCap);
+            EnsureHeapVisuals();
+            if (_oreYard != null) _oreYard.Set(_storeOre, EffStorageFull);
+            if (_barYard != null) _barYard.Set(_bars, EffBarCap);
         }
 
         /// <summary>

@@ -28,6 +28,8 @@ namespace Game.Systems
     /// </summary>
     public sealed class CraftingService
     {
+        public const double RewardedAdAutoCraftSeconds = 900d;
+
         private readonly SaveData _data;
         private readonly SaveService _save;
         private readonly TimeService _time;
@@ -116,6 +118,20 @@ namespace Game.Systems
         /// <summary>Whether an undecided craft is sitting on the bench.</summary>
         public bool HasPending => _data != null && _data.craftPendingGrade > 0;
 
+        /// <summary>Whether a rewarded auto-craft window is still live.</summary>
+        public bool AutoCraftActive => _data != null && NowUnix() < _data.autoCraftEndUnix;
+
+        /// <summary>Seconds remaining in the rewarded auto-craft window.</summary>
+        public float AutoCraftSecondsLeft
+        {
+            get
+            {
+                if (_data == null) return 0f;
+                long left = _data.autoCraftEndUnix - NowUnix();
+                return left > 0L ? left : 0f;
+            }
+        }
+
         /// <summary>The undecided item, rebuilt from its save cell. Grade is -1 with none.</summary>
         public SeaCombat.Item PendingItem()
         {
@@ -174,7 +190,25 @@ namespace Game.Systems
         /// <summary>The panel's once-a-second pulse: opens a stop whose deadline has passed.</summary>
         public void Poll()
         {
-            if (Tick(NowUnix())) Changed?.Invoke();
+            bool moved = Tick(NowUnix());
+            ProcessAutoCraft();
+            if (moved) Changed?.Invoke();
+        }
+
+        /// <summary>
+        /// Starts (or extends) the rewarded auto-craft window. It deliberately resolves the pending
+        /// item before attempting the next one, preserving the bench's one-decision-per-craft rule
+        /// while making that decision by the same score comparison the sea UI shows the player.
+        /// </summary>
+        public void StartRewardedAutoCraft(double seconds = RewardedAdAutoCraftSeconds)
+        {
+            if (_data == null || seconds <= 0d) return;
+            long now = NowUnix();
+            long baseTime = _data.autoCraftEndUnix > now ? _data.autoCraftEndUnix : now;
+            _data.autoCraftEndUnix = baseTime + (long)Math.Ceiling(seconds);
+            _save?.Save(_data);
+            ProcessAutoCraft();
+            Changed?.Invoke();
         }
 
         // ------------------------------------------------------------------ craft
@@ -204,6 +238,34 @@ namespace Game.Systems
             _save?.Save(_data);
             Changed?.Invoke();
             return true;
+        }
+
+        /// <summary>
+        /// Resolves every craft affordable at this instant. A lower or tied score is salvaged; an
+        /// empty slot counts as score zero and is therefore filled by any valid crafted item.
+        /// This is called when the ad starts and whenever a new craft point lands during its window.
+        /// </summary>
+        private void ProcessAutoCraft()
+        {
+            if (!AutoCraftActive || _data == null || Expeditions == null) return;
+
+            long cost = _tuning.CraftCost;
+            if (cost <= 0L) return; // A zero-cost dev tuning must never turn a timed reward into an endless loop.
+
+            while (AutoCraftActive)
+            {
+                if (HasPending)
+                {
+                    SeaCombat.Item pending = PendingItem();
+                    if (SeaCombat.ItemScore(pending, _combat) > Expeditions.GearScore(pending.Slot))
+                        EquipPending();
+                    else
+                        SalvagePending(out _);
+                    continue;
+                }
+
+                if (_data.craftPoints < cost || !TryCraft(out _)) break;
+            }
         }
 
         /// <summary>
@@ -320,6 +382,7 @@ namespace Game.Systems
             if (_data == null || _tuning.PointsPerWin <= 0) return false;
             if (roll >= _tuning.PointDropChance) return false;
             _data.craftPoints += _tuning.PointsPerWin;
+            ProcessAutoCraft();
             Changed?.Invoke();
             return true;
         }
@@ -329,6 +392,7 @@ namespace Game.Systems
         {
             if (_data == null || amount <= 0L) return;
             _data.craftPoints += amount;
+            ProcessAutoCraft();
             Changed?.Invoke();
         }
     }

@@ -456,5 +456,61 @@ namespace Game.Tests
             Assert.That(data.craftXp, Is.EqualTo(Crafting.SalvageXpFor(3) + Crafting.SalvageXpFor(1)),
                         "emptying the shelf teaches once per item");
         }
+
+        [Test]
+        public void RewardedAutoCraftSpendsAvailablePointsAndClearsEveryDecision()
+        {
+            var data = new SaveData { craftPoints = 3L };
+            var bench = Bench(data, seed: 7);
+            var sea = new ExpeditionService(new TimeService(), data, null, SeaCombat.Tuning.Default);
+            bench.Expeditions = sea;
+            sea.Crafting = bench;
+
+            bench.StartRewardedAutoCraft();
+
+            Assert.That(bench.AutoCraftActive, Is.True);
+            Assert.That(data.craftPoints, Is.Zero, "the window spends every available point immediately");
+            Assert.That(bench.HasPending, Is.False, "every generated item receives an automatic decision");
+            Assert.That(data.seaGearGrade, Has.Some.GreaterThan(SeaCombat.GearEmpty),
+                        "an empty slot is beaten by a crafted item and is equipped");
+        }
+
+        [Test]
+        public void RewardedAutoCraftSalvagesItemsThatDoNotBeatTheWornScore()
+        {
+            var data = new SaveData { craftPoints = 1L };
+            var bench = Bench(data, seed: 7);
+            var sea = new ExpeditionService(new TimeService(), data, null, SeaCombat.Tuning.Default);
+            bench.Expeditions = sea;
+            sea.Crafting = bench;
+            for (int slot = 0; slot < SeaCombat.SlotCount; slot++)
+                sea.Equip(SeaCombat.ItemFor(slot, 0, Captains.GradeCount - 1, 0.5d, SeaCombat.Tuning.Default));
+
+            long salvageBefore = data.salvage;
+            long xpBefore = data.craftXp;
+            bench.StartRewardedAutoCraft();
+
+            Assert.That(data.craftPoints, Is.Zero);
+            Assert.That(bench.HasPending, Is.False);
+            Assert.That(data.salvage, Is.GreaterThan(salvageBefore));
+            Assert.That(data.craftXp, Is.GreaterThan(xpBefore));
+            for (int slot = 0; slot < SeaCombat.SlotCount; slot++)
+                Assert.That(sea.GearGrade(slot), Is.EqualTo(Captains.GradeCount - 1));
+        }
+
+        [Test]
+        public void ExpiredRewardedAutoCraftDoesNotSpendNewPoints()
+        {
+            var data = new SaveData { autoCraftEndUnix = 1L };
+            var bench = Bench(data);
+            var sea = new ExpeditionService(new TimeService(), data, null, SeaCombat.Tuning.Default);
+            bench.Expeditions = sea;
+
+            bench.AddPoints(1L);
+
+            Assert.That(bench.AutoCraftActive, Is.False);
+            Assert.That(bench.Points, Is.EqualTo(1L));
+            Assert.That(bench.HasPending, Is.False);
+        }
     }
 }

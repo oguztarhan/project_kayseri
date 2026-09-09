@@ -45,6 +45,10 @@ namespace Game.UI
         [SerializeField] private Color scrim = new Color(0f, 0f, 0f, 0.62f);
         [SerializeField] private Color backdrop = new Color(0.92f, 0.94f, 0.99f, 0.98f);
 
+        [Header("Ödüllü otomatik üretim")]
+        [Tooltip("Reklam tamamlanınca otomatik üretimin açık kalacağı süre (saniye).")]
+        [SerializeField, Min(1f)] private float rewardedAutoCraftSeconds = 900f;
+
         private const string OpenerIconResource = "UI/Buttons/atolye";
 
         /// <summary>The grade ladder's ink — the same five the captain screen and the sea wear.</summary>
@@ -67,6 +71,8 @@ namespace Game.UI
 
         private CraftingService _crafting;
         private ExpeditionService _sea;
+        private FreeRewardService _freeRewards;
+        private IAdService _ad;
         private LocalizationService _loc;
         private InventoryUI _depo;
         private RectTransform _root;
@@ -75,6 +81,8 @@ namespace Game.UI
                      _gateLabel, _gateClockLabel, _bankLabel, _sourceLabel, _oddsTitleLabel;
         private RectTransform _xpFill;
         private Button _craftBtn;
+        private Button _autoCraftAdBtn;
+        private Text _autoCraftAdLabel;
         private RectTransform _gateCard;
 
         private readonly Image[] _oddsStripe = new Image[Captains.GradeCount];
@@ -96,6 +104,8 @@ namespace Game.UI
         {
             _crafting = ServiceLocator.Get<CraftingService>();
             _sea = ServiceLocator.Get<ExpeditionService>();
+            _freeRewards = ServiceLocator.Get<FreeRewardService>();
+            _ad = ServiceLocator.Get<IAdService>();
             BuildDepo();
             Build();
             BuildOpener();
@@ -137,6 +147,7 @@ namespace Game.UI
             _pollTimer = 1f;
             _crafting?.Poll();   // opens a stop whose deadline has passed; raises Changed if it did
             RefreshGateClock();
+            Refresh();           // also advances the rewarded auto-craft countdown
         }
 
         // ------------------------------------------------------------------ build
@@ -225,6 +236,14 @@ namespace Game.UI
             UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0.10f, 0.560f), new Vector2(0.90f, 0.690f));
             PillFit.Wrap(_craftBtn.GetComponent<Image>());
             _craftLabel = _craftBtn.GetComponentInChildren<Text>();
+
+            _autoCraftAdBtn = UiBuild.Btn(c, "OtoUretReklam", string.Empty,
+                                          actionButton != null ? actionButton : UiSkin.ButtonBlue,
+                                          new Color(0.26f, 0.60f, 0.92f, 1f), 20, OnAutoCraftAd);
+            UiBuild.Anchor((RectTransform)_autoCraftAdBtn.transform,
+                           new Vector2(0.10f, 0.445f), new Vector2(0.90f, 0.515f));
+            PillFit.Wrap(_autoCraftAdBtn.GetComponent<Image>());
+            _autoCraftAdLabel = _autoCraftAdBtn.GetComponentInChildren<Text>();
 
             // The stop's own strip. It does NOT replace the button — crafting carries on while the
             // bench retools; only the level waits, which is exactly what the strip says.
@@ -377,6 +396,21 @@ namespace Game.UI
             _crafting.TryCraft(out _);   // refresh rides the Changed event; refusal changes nothing
         }
 
+        private void OnAutoCraftAd()
+        {
+            if (_crafting == null || _crafting.AutoCraftActive || !AutoCraftAdReady) return;
+            if (_freeRewards != null && _freeRewards.AdsRemoved) { StartAutoCraft(); return; }
+            _ad?.ShowRewarded(StartAutoCraft);
+        }
+
+        private bool AutoCraftAdReady => (_freeRewards != null && _freeRewards.AdsRemoved)
+                                          || (_ad != null && _ad.Available);
+
+        private void StartAutoCraft()
+        {
+            _crafting?.StartRewardedAutoCraft(rewardedAutoCraftSeconds);
+        }
+
         private void OnEquip()
         {
             if (_crafting == null) return;
@@ -425,6 +459,16 @@ namespace Game.UI
                              + string.Format(Loc.T("atolye.puan"), _crafting.Tuning.CraftCost);
             bool canCraft = !_crafting.HasPending && _crafting.Points >= _crafting.Tuning.CraftCost;
             _craftBtn.interactable = canCraft;
+
+            if (_autoCraftAdBtn != null)
+            {
+                bool active = _crafting.AutoCraftActive;
+                _autoCraftAdBtn.interactable = !active && AutoCraftAdReady;
+                _autoCraftAdLabel.text = active
+                    ? "OTO ÜRETİM  " + UiBuild.Clock(_crafting.AutoCraftSecondsLeft)
+                    : "REKLAM İZLE · " + Mathf.CeilToInt(rewardedAutoCraftSeconds / 60f)
+                      + " DK OTO ÜRETİM";
+            }
 
             for (int g = 0; g < Captains.GradeCount; g++)
             {
