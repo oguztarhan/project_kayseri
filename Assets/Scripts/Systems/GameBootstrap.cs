@@ -20,7 +20,6 @@ namespace Game.Systems
                  "bağlayıp Enabled'ı kapat.")]
         [SerializeField] private MaintenanceConfig maintenanceConfig;
         [SerializeField] private ForemanConfig foremanConfig;
-        [SerializeField] private VoyageConfig voyageConfig;
         [Tooltip("Bölüm eşikleri ve ödülleri. Boş bırakılırsa varsayılanlarla ÇALIŞIR — " +
                  "asset, sayıları yeniden derlemeden ayarlamak için, özelliği açmak için değil.")]
         [SerializeField] private ChapterConfig chapterConfig;
@@ -30,6 +29,8 @@ namespace Game.Systems
         [SerializeField] private SeaCombatConfig seaCombatConfig;
         [Tooltip("Atölye (zanaat) ayarları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
         [SerializeField] private CraftingConfig craftingConfig;
+        [Tooltip("Kaptanın madencilik teçhizatı ayarları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
+        [SerializeField] private MiningGearConfig miningGearConfig;
         [Tooltip("İlk gemi tezgâhının Cannon tarifi. Boş bırakılırsa Stage 3 başlangıç tarifi kullanılır.")]
         [SerializeField] private ShipyardRecipeDefinition cannonRecipe;
         [SerializeField] private LiveEventConfig liveEventConfig;
@@ -89,11 +90,11 @@ namespace Game.Systems
         public MaintenanceService Maintenance { get; private set; }
         public ForemanService Foremen { get; private set; }
         public GoalService Goals { get; private set; }
-        public VoyageService Voyages { get; private set; }
         public ChapterService Chapters { get; private set; }
         public CaptainService Captains { get; private set; }
         public ExpeditionService Expeditions { get; private set; }
         public CraftingService Crafting { get; private set; }
+        public MiningGearService MiningGear { get; private set; }
         public CannonProductionService CannonProduction { get; private set; }
         public ShipyardUnlockService ShipyardUnlocks { get; private set; }
         public LadderService Ladder { get; private set; }
@@ -274,25 +275,24 @@ namespace Game.Systems
             ServiceLocator.Register(Chapters);
             Maintenance.Goals = Goals;   // built before this, and evaluated before this on purpose
 
-            Market = new MarketService(Data, Wallet, boost, Maintenance, Foremen, Goals);
+            // The captain's mining loadout. Before the market because its income multiplier is
+            // read straight into MarketService's tick, the same way Foremen's is — it needs only
+            // the save and the clock, so nothing above it has to exist first.
+            MiningGear = new MiningGearService(Data, Save, _time,
+                miningGearConfig != null ? miningGearConfig.ToTuning() : Game.Core.MiningGear.Tuning.Default);
+            ServiceLocator.Register(MiningGear);
+
+            Market = new MarketService(Data, Wallet, boost, Maintenance, Foremen, Goals, MiningGear);
             ServiceLocator.Register(Market);
 
-            // The sea roster, BEFORE the dock: a voyage settles a captain's charts and asks a bosun
-            // what the risk is, so the dock is handed one rather than looking for it later. Needs
-            // nothing but the save — charts are earned at sea and spent on crates, and neither end of
-            // that loop touches the wallet.
+            // The sea roster: a won fight settles a captain's charts and asks a bosun what the risk
+            // is, so the sea service is handed one rather than looking for it later. Needs nothing
+            // but the save — charts are earned at sea and spent on crates, and neither end of that
+            // loop touches the wallet.
             Captains = new CaptainService(Data,
                 captainConfig != null ? captainConfig.ToTuning() : Game.Core.Captains.Tuning.Default,
                 captainConfig != null ? captainConfig.ToCrateTuning() : Game.Core.CaptainCrate.Tuning.Default);
             ServiceLocator.Register(Captains);
-
-            // The dock. After the yards because it pulls bars off their pads, and after the roster
-            // because that is who the cards it brings home belong to. It is the game's second
-            // destination for a bar — the first being the counter, which was the only one.
-            Voyages = new VoyageService(Data, Market, Foremen, Wallet, _time,
-                voyageConfig != null ? voyageConfig.ToTuning() : Game.Core.Voyages.Tuning.Default,
-                Captains);
-            ServiceLocator.Register(Voyages);
 
             // The workshop bench. Before the sea service because both ends of its loop attach to
             // one: scraps teach it and wins drop its points. Needs only the save and the clock —
@@ -301,15 +301,13 @@ namespace Game.Systems
                 craftingConfig != null ? craftingConfig.ToTuning() : Game.Core.Crafting.Tuning.Default,
                 seaCombatConfig != null ? seaCombatConfig.ToTuning() : Game.Core.SeaCombat.Tuning.Default);
             ServiceLocator.Register(Crafting);
-            Voyages.Crafting = Crafting;   // a claimed voyage pays its flat points
 
-            // Going out WITH a ship rather than watching a bar fill. Holds no save state of its own —
-            // standing on a deck is not progress, the voyage is, and the dock already persists all of
-            // it on the wall clock. Registered after the dock because it only ever reads from it.
+            // Going out to fight. Holds no save state of its own beyond the sea block — standing on
+            // a deck is not progress, the win is, and that is banked on the wall clock.
             // The depo rides along with it (Game.Core.GearStash): the shelf's items are gear, so the
             // service that owns the worn slots owns the shelved ones too. It takes the save service
             // because a depo move has to reach the disk before the screen says it happened.
-            Expeditions = new ExpeditionService(Voyages, _time, Data, Captains,
+            Expeditions = new ExpeditionService(_time, Data, Captains,
                 seaCombatConfig != null ? seaCombatConfig.ToTuning()
                                         : Game.Core.SeaCombat.Tuning.Default,
                 Save, ServiceLocator.Get<IAnalytics>());
@@ -473,9 +471,6 @@ namespace Game.Systems
             // Here rather than on any scene object: the yards have to keep settling while the player is
             // on an island, in the market, or watching a loading screen between the two.
             Market?.Tick(dt);
-            // Strictly after the yards: a hold pulls off the pads, and the pads have to have taken
-            // this tick's deliveries first or the dock is always one frame behind the lorries.
-            Voyages?.Tick(dt);
             CannonProduction?.Poll();
             ShipyardUnlocks?.Poll();
             CannonProduction?.RefreshOrders();

@@ -324,14 +324,6 @@ namespace Game.Systems
             return true;
         }
 
-        /// <summary>A claimed voyage's flat points.</summary>
-        public void OnVoyageClaimed()
-        {
-            if (_data == null || _tuning.PointsPerVoyage <= 0) return;
-            _data.craftPoints += _tuning.PointsPerVoyage;
-            Changed?.Invoke();
-        }
-
         /// <summary>Points from anywhere else — a store pack, the dev TEST grant.</summary>
         public void AddPoints(long amount)
         {

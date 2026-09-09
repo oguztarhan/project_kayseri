@@ -76,7 +76,7 @@ namespace Game.UI
         /// afterwards would sit outside the inset again.
         ///
         /// IT PUTS A LEVEL BETWEEN THE SCRIM AND ITS CONTENT. Anything that reached the scrim as
-        /// <c>someChild.parent</c> now lands on the wrapper instead — <see cref="VoyageUI"/> hid its
+        /// <c>someChild.parent</c> now lands on the wrapper instead — the voyage dock hid its
         /// backdrop that way and, once moved, was toggling the wrapper while the dim stayed up over
         /// the whole game. Hold the scrim in a field rather than walking up to it.
         /// </summary>

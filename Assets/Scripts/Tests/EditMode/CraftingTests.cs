@@ -271,7 +271,7 @@ namespace Game.Tests
         {
             var data = new SaveData { craftPoints = 1L };
             var bench = Bench(data);
-            var sea = new ExpeditionService(null, new TimeService(), data);
+            var sea = new ExpeditionService(new TimeService(), data);
             sea.Crafting = bench;
             bench.Expeditions = sea;
 
@@ -297,7 +297,7 @@ namespace Game.Tests
         {
             var data = new SaveData();
             var bench = Bench(data);
-            var sea = new ExpeditionService(null, new TimeService(), data);
+            var sea = new ExpeditionService(new TimeService(), data);
             sea.Crafting = bench;
 
             sea.Scrap(2);
@@ -351,9 +351,6 @@ namespace Game.Tests
             Assert.That(data.craftPoints, Is.EqualTo(1L));
             Assert.That(bench.TryDropPoint(0.200d), Is.False, "the chance is exclusive at the edge");
             Assert.That(data.craftPoints, Is.EqualTo(1L));
-
-            bench.OnVoyageClaimed();
-            Assert.That(data.craftPoints, Is.EqualTo(1L + T.PointsPerVoyage));
         }
 
         [Test]
@@ -378,7 +375,7 @@ namespace Game.Tests
         {
             var data = new SaveData { craftPoints = 2L };
             var bench = Bench(data);
-            var sea = new ExpeditionService(null, new TimeService(), data, null,
+            var sea = new ExpeditionService(new TimeService(), data, null,
                                             SeaCombat.Tuning.Default);
             bench.Expeditions = sea;
             sea.Crafting = bench;
@@ -401,7 +398,7 @@ namespace Game.Tests
         {
             var data = new SaveData { craftPoints = 1L };
             var bench = Bench(data);
-            var sea = new ExpeditionService(null, new TimeService(), data, null,
+            var sea = new ExpeditionService(new TimeService(), data, null,
                                             SeaCombat.Tuning.Default);
             bench.Expeditions = sea;
 
@@ -426,7 +423,7 @@ namespace Game.Tests
 
             SeaCombat.Tuning tuning = SeaCombat.Tuning.Default;
             tuning.StashCapacity = 1;
-            var sea = new ExpeditionService(null, new TimeService(), data, null, tuning);
+            var sea = new ExpeditionService(new TimeService(), data, null, tuning);
             bench.Expeditions = sea;
             Assert.That(sea.Stow(SeaCombat.ItemFor(0, 0, 0, 0.5d, tuning)), Is.True, "premise: full");
 
@@ -443,7 +440,7 @@ namespace Game.Tests
         {
             var data = new SaveData();
             var bench = Bench(data);
-            var sea = new ExpeditionService(null, new TimeService(), data, null,
+            var sea = new ExpeditionService(new TimeService(), data, null,
                                             SeaCombat.Tuning.Default);
             sea.Crafting = bench;
 

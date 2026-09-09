@@ -22,32 +22,13 @@ namespace Game.Tests
             public double UpgradeTreeCostRaw { get; set; }
         }
 
-        private static VoyageService Dock(out SaveData data, out MarketService market)
-        {
-            data = new SaveData();
-            var wallet = new WalletService(data.wallet);
-            market = new MarketService(data, wallet, null);
-            market.Register(Coal, new Terms { BarPriceRaw = 10d, IncomeCapPerMinuteRaw = NoCeiling });
-            market.SetActiveIsland(Coal);
-            market.Product(Coal).deliveredPerMin = 600d;
-            var foremen = new ForemanService(data, wallet, Foremen.Tuning.Default);
-            return new VoyageService(data, market, foremen, wallet, new TimeService(),
-                                     Voyages.Tuning.Default);
-        }
-
-        private static void Sail(VoyageService dock, MarketService market)
-        {
-            if (dock.At(0) == null) dock.TryStart(Coal, 0);
-            market.Deliver(Coal, MarketService.ProductFor(Coal), dock.At(0).holdSize * 2d);
-            dock.Tick((float)Voyages.SecondsToFill(0, Voyages.Tuning.Default) + 1f);
-        }
 
         // ---- the session ---------------------------------------------------------------------
 
         [Test]
         public void AshoreUntilSheSails()
         {
-            var sea = new ExpeditionService(null, new TimeService());
+            var sea = new ExpeditionService(new TimeService());
             Assert.That(sea.Active, Is.False);
             Assert.That(sea.Progress, Is.Zero);
             Assert.That(sea.SecondsLeft, Is.Zero);
@@ -58,7 +39,7 @@ namespace Game.Tests
         [Test]
         public void SettingSailOpensTheTripFromThatPort()
         {
-            var sea = new ExpeditionService(null, new TimeService());
+            var sea = new ExpeditionService(new TimeService());
             Assert.That(sea.SetSail(Coal), Is.True);
             Assert.That(sea.Active, Is.True);
             Assert.That(sea.IslandKey, Is.EqualTo(Coal));
@@ -75,7 +56,7 @@ namespace Game.Tests
         {
             // A double tap, or a second entry point racing the first: the answer is yes, and the
             // trip already underway — its seed, its port, its finds — is the one that continues.
-            var sea = new ExpeditionService(null, new TimeService());
+            var sea = new ExpeditionService(new TimeService());
             sea.SetSail(Coal);
             long stamp = sea.SailedUnix;
             sea.CountFind();
@@ -89,14 +70,14 @@ namespace Game.Tests
         [Test]
         public void ComingAshoreTwiceIsHarmless()
         {
-            var sea = new ExpeditionService(null, new TimeService());
+            var sea = new ExpeditionService(new TimeService());
             Assert.DoesNotThrow(() => { sea.Ashore(); sea.Ashore(); });
         }
 
         [Test]
         public void EveryTripDealsItsOwnDeck()
         {
-            var sea = new ExpeditionService(null, new TimeService());
+            var sea = new ExpeditionService(new TimeService());
             sea.CountFind();
             Assert.That(sea.Finds, Is.Zero, "no finds ashore — there is no trip to count them into");
 
@@ -115,7 +96,7 @@ namespace Game.Tests
         {
             // Combat is a port activity now: with no dock wired at all she still sails, and the
             // fights are simply priced for the first route.
-            var sea = new ExpeditionService(null, null);
+            var sea = new ExpeditionService(null);
             Assert.That(sea.Tier, Is.Zero);
             Assert.That(sea.SetSail(Coal), Is.True);
             Assert.That(sea.Active, Is.True);
@@ -128,7 +109,7 @@ namespace Game.Tests
         [Test]
         public void ANewlySailedShipIsAtTheHomePortAndOutbound()
         {
-            var sea = new ExpeditionService(null, new TimeService());
+            var sea = new ExpeditionService(new TimeService());
             sea.SetSail(Coal);
 
             Assert.That(sea.Progress, Is.LessThan(0.05d));
@@ -140,7 +121,7 @@ namespace Game.Tests
         [Test]
         public void ThePatrolStaysOnTheLane()
         {
-            var sea = new ExpeditionService(null, new TimeService());
+            var sea = new ExpeditionService(new TimeService());
             sea.SetSail(Coal);
             for (int i = 0; i < 200; i++)
             {
@@ -149,104 +130,54 @@ namespace Game.Tests
             }
         }
 
-        // ---- the dock, at arm's length -------------------------------------------------------
-
-        [Test]
-        public void TheFightsArePricedForTheFurthestOpenRoute()
-        {
-            SaveData data; MarketService market;
-            VoyageService dock = Dock(out data, out market);
-            var sea = new ExpeditionService(dock, new TimeService());
-
-            Assert.That(sea.Tier, Is.Zero, "a fresh account fights in the first waters");
-
-            data.voyagesCompleted = 999;   // every route long since opened
-            Assert.That(dock.MaxTier(), Is.GreaterThan(0), "the premise: the ladder actually opened");
-            Assert.That(sea.Tier, Is.EqualTo(dock.MaxTier()),
-                        "combat climbs the same ladder the voyages climb");
-        }
-
-        [Test]
-        public void SailingNeverTouchesTheDock()
-        {
-            // The point of moving the entry to the port, asserted rather than trusted: a whole
-            // trip — out, read everything, ashore — leaves a running voyage exactly as it was.
-            SaveData data; MarketService market;
-            VoyageService dock = Dock(out data, out market);
-            var sea = new ExpeditionService(dock, new TimeService());
-            Sail(dock, market);
-
-            VoyageState v = dock.At(0);
-            long sailed = v.sailedUnix, returns = v.returnsUnix;
-            double held = v.held, hold = v.holdSize;
-            int tier = v.tier, foreman = v.foreman, captain = v.captain;
-            bool settled = v.settled;
-
-            sea.SetSail(Coal);
-            for (int i = 0; i < 200; i++)
-            {
-                double _ = sea.Progress + sea.LanePosition + sea.SecondsLeft + sea.Tier;
-                bool __ = sea.Outbound;
-            }
-            sea.Ashore();
-
-            Assert.That(v.sailedUnix, Is.EqualTo(sailed));
-            Assert.That(v.returnsUnix, Is.EqualTo(returns), "sailing must not shorten the crossing");
-            Assert.That(v.held, Is.EqualTo(held));
-            Assert.That(v.holdSize, Is.EqualTo(hold));
-            Assert.That(v.tier, Is.EqualTo(tier));
-            Assert.That(v.foreman, Is.EqualTo(foreman));
-            Assert.That(v.captain, Is.EqualTo(captain));
-            Assert.That(v.settled, Is.EqualTo(settled));
-        }
-
-        // ---- the route strip: the fleet opens the ladder, the player picks a rung ---------------
+        // ---- the route strip: won fights open the ladder, the player picks a rung ---------------
+        //
+        // The ladder used to be the dock's, climbed by completing voyages. The dock is gone and the
+        // same thresholds are earned by winning fights instead, so these drive seaFightsWon where
+        // they used to drive voyagesCompleted. The strip's own rules — follow, pick, refuse, clamp —
+        // are unchanged, which is the point of testing them the same way.
 
         private static SeaCombat.Tuning T => SeaCombat.Tuning.Default;
 
         [Test]
-        public void AnUnpickedRouteKeepsFollowingTheFleet()
+        public void AnUnpickedRouteKeepsFollowingTheLadder()
         {
-            SaveData data; MarketService market;
-            VoyageService dock = Dock(out data, out market);
-            var sea = new ExpeditionService(dock, new TimeService(), data, null, T);
+            var data = new SaveData();
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
 
             Assert.That(data.seaTier, Is.EqualTo(-1), "the premise: nothing has been picked");
             Assert.That(sea.Tier, Is.Zero);
 
-            data.voyagesCompleted = 999;
-            Assert.That(sea.Tier, Is.EqualTo(dock.MaxTier()),
-                        "an untouched strip climbs with the dock, exactly as it did before it existed");
+            data.seaFightsWon = 999;
+            Assert.That(sea.Tier, Is.EqualTo(Voyages.TierCount - 1),
+                        "an untouched strip climbs with the ladder, exactly as it did before it existed");
         }
 
         [Test]
-        public void APickedRouteStandsEvenWhenTheFleetOutgrowsIt()
+        public void APickedRouteStandsEvenWhenTheLadderOutgrowsIt()
         {
-            SaveData data; MarketService market;
-            VoyageService dock = Dock(out data, out market);
-            data.voyagesCompleted = 999;
-            var sea = new ExpeditionService(dock, new TimeService(), data, null, T);
+            var data = new SaveData { seaFightsWon = 999 };
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             Assert.That(sea.MaxTier, Is.GreaterThan(0), "the premise: the ladder actually opened");
 
             Assert.That(sea.TrySetTier(0), Is.True);
             Assert.That(sea.Tier, Is.Zero,
-                        "hunting shallower than the fleet can sail is the whole point of the choice");
-            Assert.That(sea.MaxTier, Is.EqualTo(dock.MaxTier()), "and the ceiling did not move");
+                        "hunting shallower than the ladder allows is the whole point of the choice");
+            Assert.That(sea.MaxTier, Is.EqualTo(Voyages.TierCount - 1), "and the ceiling did not move");
             Assert.That(data.seaTier, Is.Zero, "the pick is persisted, not session-shaped");
         }
 
         [Test]
         public void ALockedRouteCannotBeEnteredFromThePanel()
         {
-            SaveData data; MarketService market;
-            VoyageService dock = Dock(out data, out market);
-            var sea = new ExpeditionService(dock, new TimeService(), data, null, T);
+            var data = new SaveData();
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
 
             for (int tier = 1; tier < Voyages.TierCount; tier++)
             {
                 Assert.That(sea.TierUnlocked(tier), Is.False, "the premise: tier " + tier + " is shut");
                 Assert.That(sea.TrySetTier(tier), Is.False, "tier " + tier);
-                Assert.That(sea.VoyagesToUnlock(tier), Is.GreaterThan(0),
+                Assert.That(sea.FightsToUnlock(tier), Is.GreaterThan(0),
                             "a locked pill has to be able to say what still opens it");
             }
             Assert.That(sea.TrySetTier(-1), Is.False);
@@ -255,30 +186,56 @@ namespace Game.Tests
         }
 
         [Test]
+        public void ThePillCountsTheFightsStillOwed()
+        {
+            var data = new SaveData { seaFightsWon = Voyages.TierFightsRequired[1] - 1 };
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
+
+            Assert.That(sea.TierUnlocked(1), Is.False, "the premise: one short");
+            Assert.That(sea.FightsToUnlock(1), Is.EqualTo(1));
+
+            data.seaFightsWon++;
+            Assert.That(sea.TierUnlocked(1), Is.True, "and the win that opens it opens it");
+            Assert.That(sea.FightsToUnlock(1), Is.Zero);
+        }
+
+        [Test]
+        public void OnlyAWinAtSeaClimbsTheLadder()
+        {
+            var data = new SaveData();
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
+
+            sea.RegisterWin();
+            Assert.That(data.seaFightsWon, Is.Zero, "ashore there is nothing to win");
+
+            sea.SetSail(Coal);
+            for (int i = 0; i < Voyages.TierFightsRequired[1]; i++) sea.RegisterWin();
+
+            Assert.That(data.seaFightsWon, Is.EqualTo(Voyages.TierFightsRequired[1]));
+            Assert.That(sea.TierUnlocked(1), Is.True, "the ladder moves on wins now, not on voyages");
+        }
+
+        [Test]
         public void APickAboveTheLadderFallsBackToTheFurthestOpenRoute()
         {
-            // A fleet reset out from under a pick that outlived the voyages which earned it. The
+            // A ladder reset out from under a pick that outlived the wins which earned it. The
             // fights must never be priced for water nobody has opened.
-            SaveData data; MarketService market;
-            VoyageService dock = Dock(out data, out market);
-            data.voyagesCompleted = 999;
-            var sea = new ExpeditionService(dock, new TimeService(), data, null, T);
+            var data = new SaveData { seaFightsWon = 999 };
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             Assert.That(sea.TrySetTier(Voyages.TierCount - 1), Is.True);
 
-            data.voyagesCompleted = 0;
+            data.seaFightsWon = 0;
             Assert.That(sea.Tier, Is.Zero);
         }
 
         [Test]
         public void ASaveFromALongerLadderIsBroughtBackIntoRange()
         {
-            SaveData data; MarketService market;
-            VoyageService dock = Dock(out data, out market);
-            data.seaTier = 99;
-            var sea = new ExpeditionService(dock, new TimeService(), data, null, T);
+            var data = new SaveData { seaTier = 99 };
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
 
             Assert.That(data.seaTier, Is.EqualTo(Voyages.TierCount - 1), "never an index past the table");
-            Assert.That(sea.Tier, Is.Zero, "and still gated by what the fleet opened");
+            Assert.That(sea.Tier, Is.Zero, "and still gated by what has been won");
         }
 
         // ---- energy: the governor, and the two ways it moves ------------------------------------
@@ -298,7 +255,7 @@ namespace Game.Tests
             // stamp. A spend that writes the value without settling the stamp hands those periods
             // straight back: the pool never goes down and one energy buys unlimited searches.
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             data.seaEnergy = 5;
             Elapse(data, T.EnergyRegenSeconds + 5d);   // one point owed, and five seconds into the next
             Assert.That(sea.Energy, Is.EqualTo(6), "the premise: a point is owed but not yet written");
@@ -313,7 +270,7 @@ namespace Game.Tests
         public void ASpendKeepsThePointAlreadyInProgress()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             data.seaEnergy = 5;
             Elapse(data, T.EnergyRegenSeconds * 0.5d);
             double before = sea.SecondsToNextEnergy;
@@ -327,7 +284,7 @@ namespace Game.Tests
         public void AClockWoundBackwardsIsNeverPaidTwice()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             data.seaEnergy = 5;
             Elapse(data, -3600d);   // a stamp an hour in the FUTURE: the device clock was wound back
             long stamp = data.seaEnergyStampUnix;
@@ -343,7 +300,7 @@ namespace Game.Tests
         public void AGrantFillsThePoolAndNeverOverflowsIt()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             for (int i = 0; i < 4; i++) sea.TrySpendEnergy();
             Assert.That(sea.Energy, Is.EqualTo(T.EnergyMax - 4), "the premise: four searches paid for");
 
@@ -358,7 +315,7 @@ namespace Game.Tests
         public void AGrantIntoAFullPoolLandsNothingSoNoChargeIsBurned()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             Assert.That(sea.Energy, Is.EqualTo(T.EnergyMax), "the premise: full");
 
             Assert.That(sea.GrantEnergy(10), Is.Zero,
@@ -372,7 +329,7 @@ namespace Game.Tests
         public void AGrantIsSettledSoTheRefillUnderItIsNotCountedTwice()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             data.seaEnergy = 2;
             Elapse(data, T.EnergyRegenSeconds * 2d + 5d);   // two points owed
             Assert.That(sea.Energy, Is.EqualTo(4), "the premise");
@@ -384,7 +341,7 @@ namespace Game.Tests
         [Test]
         public void AnUnwiredServiceGrantsNothingAndPicksNoRoute()
         {
-            var sea = new ExpeditionService(null, null);
+            var sea = new ExpeditionService(null);
             Assert.That(sea.GrantEnergy(10), Is.Zero);
             Assert.That(sea.TrySetTier(0), Is.False, "with no save there is nowhere to write a pick");
             Assert.That(sea.Tier, Is.Zero);
@@ -403,7 +360,7 @@ namespace Game.Tests
             data = new SaveData();
             SeaCombat.Tuning tuning = T;
             if (capacity > 0) tuning.StashCapacity = capacity;
-            var sea = new ExpeditionService(null, new TimeService(), data, null, tuning);
+            var sea = new ExpeditionService(new TimeService(), data, null, tuning);
             for (int i = 0; i < items; i++)
                 Assert.That(sea.Stow(Gear(SeaCombat.SlotCannon, 1)), Is.True, "premise: stow " + i);
             return sea;
@@ -413,7 +370,7 @@ namespace Game.Tests
         public void AFreshSaveHasAnEmptyShelfAndTheTunedCapacity()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
 
             Assert.That(sea.StashCount, Is.Zero);
             Assert.That(sea.StashCapacity, Is.EqualTo(T.StashCapacity));
@@ -428,7 +385,7 @@ namespace Game.Tests
         public void StowingKeepsTheWholeStatBlockAndGivesItAnId()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             SeaCombat.Item item = Gear(SeaCombat.SlotSpyglass, 3);
 
             Assert.That(sea.Stow(item), Is.True);
@@ -469,7 +426,7 @@ namespace Game.Tests
             var data = new SaveData();
             SeaCombat.Tuning tuning = T;
             tuning.StashCapacity = 0;
-            var sea = new ExpeditionService(null, new TimeService(), data, null, tuning);
+            var sea = new ExpeditionService(new TimeService(), data, null, tuning);
 
             Assert.That(sea.StashCapacity, Is.Zero);
             Assert.That(sea.StashHasRoom, Is.False);
@@ -480,7 +437,7 @@ namespace Game.Tests
         public void AnItemForNoSlotOrNoGradeIsNeverShelved()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
 
             Assert.That(sea.Stow(new SeaCombat.Item { Slot = 0, Grade = -1 }), Is.False, "no item");
             Assert.That(sea.Stow(new SeaCombat.Item { Slot = -1, Grade = 0 }), Is.False, "no slot");
@@ -494,7 +451,7 @@ namespace Game.Tests
         public void TakingAWornItemOffPaysNothingAndDestroysNothing()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             sea.Equip(Gear(SeaCombat.SlotCannon, 3));
             long salvage = data.salvage;
 
@@ -511,7 +468,7 @@ namespace Game.Tests
         public void StowingAnEmptySlotIsRefused()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             Assert.That(sea.StowWorn(SeaCombat.SlotCharm), Is.False);
             Assert.That(sea.StowWorn(-1), Is.False);
             Assert.That(sea.StowWorn(SeaCombat.SlotCount), Is.False);
@@ -522,7 +479,7 @@ namespace Game.Tests
         public void EquippingFromTheShelfIsASwapAndNotAPurchase()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             sea.Equip(Gear(SeaCombat.SlotCannon, 1));
             long salvage = data.salvage;
             Assert.That(sea.Stow(Gear(SeaCombat.SlotCannon, 3)), Is.True);
@@ -540,7 +497,7 @@ namespace Game.Tests
         public void EquippingIntoAnEmptySlotClearsTheShelfCell()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             sea.Stow(Gear(SeaCombat.SlotPlating, 2));
 
             Assert.That(sea.EquipFromStash(sea.StashIdAt(0)), Is.True);
@@ -552,7 +509,7 @@ namespace Game.Tests
         public void TheDisplacedItemTakesANewIdSoADoubleTapCannotSwapItBack()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             sea.Equip(Gear(SeaCombat.SlotCannon, 1));
             sea.Stow(Gear(SeaCombat.SlotCannon, 3));
             long id = sea.StashIdAt(0);
@@ -588,7 +545,7 @@ namespace Game.Tests
             // Idempotency by id: the second press of a card that has gone must pay 0, not pay for
             // whatever slid into the row behind it.
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             sea.Stow(Gear(SeaCombat.SlotCannon, 4));
             sea.Stow(Gear(SeaCombat.SlotCharm, 0));
             long id = sea.StashIdAt(0);
@@ -610,7 +567,7 @@ namespace Game.Tests
         public void EmptyingTheShelfPaysExactlyWhatTheButtonPrinted()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             sea.Stow(Gear(SeaCombat.SlotCannon, 0));
             sea.Stow(Gear(SeaCombat.SlotCharm, 4));
             sea.Stow(Gear(SeaCombat.SlotPlating, 2));
@@ -634,7 +591,7 @@ namespace Game.Tests
         public void EmptyingTheShelfNeverTouchesWhatIsWorn()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             sea.Equip(Gear(SeaCombat.SlotCannon, 4));
             sea.Stow(Gear(SeaCombat.SlotCannon, 0));
 
@@ -650,7 +607,7 @@ namespace Game.Tests
             // A file with the item gone and the hurda unpaid, or paid twice, is what this rules out.
             var save = new SaveService("depo-test.dat");
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T, save);
+            var sea = new ExpeditionService(new TimeService(), data, null, T, save);
 
             Assert.That(sea.Stow(Gear(SeaCombat.SlotCannon, 3)), Is.True);
             Assert.That(save.TryLoad(out SaveData onDisk), Is.True);
@@ -676,7 +633,7 @@ namespace Game.Tests
                                                    grade = Captains.GradeCount + 1 });      // off the ladder
             data.gearStash.Add(null);                                                       // no row at all
 
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             Assert.That(sea.StashCount, Is.EqualTo(1));
             Assert.That(sea.StashIdAt(0), Is.EqualTo(1L));
             Assert.That(sea.StashItemAt(0).Grade, Is.EqualTo(1));
@@ -693,7 +650,7 @@ namespace Game.Tests
             data.gearStash.Add(new GearStashItem { id = 7L, slot = 2, grade = 1 });
             data.gearStash.Add(new GearStashItem { id = -4L, slot = 3, grade = 1 });
 
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             Assert.That(sea.StashCount, Is.EqualTo(4));
 
             for (int i = 0; i < 4; i++)
@@ -722,7 +679,7 @@ namespace Game.Tests
 
             SeaCombat.Tuning tuning = T;
             tuning.StashCapacity = 2;
-            var sea = new ExpeditionService(null, new TimeService(), data, null, tuning);
+            var sea = new ExpeditionService(new TimeService(), data, null, tuning);
 
             Assert.That(sea.StashCount, Is.EqualTo(5), "nothing was thrown away");
             Assert.That(sea.StashHasRoom, Is.False, "but nothing new gets in either");
@@ -734,7 +691,7 @@ namespace Game.Tests
         [Test]
         public void AnUnwiredServiceHasNoShelfAtAll()
         {
-            var sea = new ExpeditionService(null, null);
+            var sea = new ExpeditionService(null);
             Assert.That(sea.StashCount, Is.Zero);
             Assert.That(sea.StashHasRoom, Is.False, "with no save there is nowhere to keep anything");
             Assert.That(sea.Stow(Gear(SeaCombat.SlotCannon, 0)), Is.False);

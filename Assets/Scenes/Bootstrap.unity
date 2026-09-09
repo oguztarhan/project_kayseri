@@ -446,11 +446,12 @@ MonoBehaviour:
   offlineConfig: {fileID: 11400000, guid: dc74bd4795524e34ea87d583cc982a4b, type: 2}
   maintenanceConfig: {fileID: 11400000, guid: e792a67b1d9cc4b4e99317c7bae3d097, type: 2}
   foremanConfig: {fileID: 11400000, guid: 964ec14f0f8fc4d1c9369292300b4503, type: 2}
-  voyageConfig: {fileID: 11400000, guid: c0742c772ab5843d7857b93153aaa136, type: 2}
   chapterConfig: {fileID: 11400000, guid: e84e6e35f276e402fa4647b9345bac86, type: 2}
   captainConfig: {fileID: 11400000, guid: 3483481a6f7ce4e42b9ee229b0869ea5, type: 2}
   seaCombatConfig: {fileID: 11400000, guid: 2774fb97a737f429f92d33b5c0f869be, type: 2}
   craftingConfig: {fileID: 11400000, guid: f5b81b1ad9000d44384a9d8dbb2f2335, type: 2}
+  miningGearConfig: {fileID: 11400000, guid: db5e72a50ea51054d8bc6f119f89138e, type: 2}
+  cannonRecipe: {fileID: 0}
   liveEventConfig: {fileID: 11400000, guid: 208f6dffb28a74346907edcbe75a4eed, type: 2}
   foundryFestivalConfig: {fileID: 11400000, guid: 8c7a982c500b32b43ad7da2f598b5141, type: 2}
   harborFestivalConfig: {fileID: 0}
@@ -463,6 +464,7 @@ MonoBehaviour:
   accessibilityConfig: {fileID: 11400000, guid: d216e85676929b54a82e43a77ed8aa82, type: 2}
   adsConfig: {fileID: 11400000, guid: 50a22a07e7c8b4bf5a06fc25ae3f2915, type: 2}
   mainSceneName: Main
+  portraitSceneName: Shipyard
   loadMainOnStart: 1
   loadingScreen: {fileID: 310829363}
   notificationTestSpacingSeconds: 0

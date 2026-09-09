@@ -50,7 +50,6 @@ namespace Game.Systems
         /// </summary>
         private const double PatrolSeconds = 600d;
 
-        private readonly VoyageService _voyages;
         private readonly TimeService _time;
         private readonly SaveData _data;
         private readonly CaptainService _captains;
@@ -87,12 +86,11 @@ namespace Game.Systems
         /// sea works exactly as before when it is not.</summary>
         public CraftingService Crafting { get; set; }
 
-        public ExpeditionService(VoyageService voyages, TimeService time,
+        public ExpeditionService(TimeService time,
                                  SaveData data = null, CaptainService captains = null,
                                  SeaCombat.Tuning? combat = null, SaveService save = null,
                                  IAnalytics analytics = null)
         {
-            _voyages = voyages;
             _time = time;
             _data = data;
             _captains = captains;
@@ -326,20 +324,41 @@ namespace Game.Systems
             }
         }
 
-        /// <summary>The furthest route the fleet has opened — the ceiling on <see cref="Tier"/>.</summary>
-        public int MaxTier => _voyages != null ? _voyages.MaxTier() : 0;
+        /// <summary>Won fights banked so far — what opens the further routes.</summary>
+        public int FightsWon => _data != null ? _data.seaFightsWon : 0;
 
-        /// <summary>True when the dock has sailed enough voyages to open this route.</summary>
+        /// <summary>
+        /// The furthest route won fights have opened — the ceiling on <see cref="Tier"/>.
+        ///
+        /// The ladder used to be the dock's: routes opened on voyages completed, and the count only
+        /// ever moved when a ship came home. With the dock gone that counter could never move again,
+        /// which would have shut three of the four routes for good, so the same thresholds are now
+        /// earned by winning fights instead. Same curve, a door the player can still reach.
+        /// </summary>
+        public int MaxTier
+        {
+            get
+            {
+                int best = 0;
+                for (int t = 0; t < Voyages.TierCount; t++)
+                    if (Voyages.TierUnlocked(t, FightsWon)) best = t;
+                return best;
+            }
+        }
+
+        /// <summary>True when enough fights have been won to open this route.</summary>
         public bool TierUnlocked(int tier)
-            => tier >= 0 && tier < Voyages.TierCount
-               && (_voyages != null ? _voyages.TierUnlocked(tier) : tier == 0);
+            => tier >= 0 && tier < Voyages.TierCount && Voyages.TierUnlocked(tier, FightsWon);
 
-        /// <summary>Voyages still to sail before <paramref name="tier"/> opens — what a locked
+        /// <summary>Fights still to win before <paramref name="tier"/> opens — what a locked
         /// route pill says instead of a name. 0 once it has opened.</summary>
-        public int VoyagesToUnlock(int tier)
-            => _voyages != null ? _voyages.VoyagesToUnlock(tier)
-                                : (TierUnlocked(tier) ? 0 : Voyages.TierVoyagesRequired[
-                                       tier < 0 ? 0 : (tier >= Voyages.TierCount ? Voyages.TierCount - 1 : tier)]);
+        public int FightsToUnlock(int tier)
+        {
+            if (TierUnlocked(tier)) return 0;
+            int row = tier < 0 ? 0 : (tier >= Voyages.TierCount ? Voyages.TierCount - 1 : tier);
+            int need = Voyages.TierFightsRequired[row] - FightsWon;
+            return need < 0 ? 0 : need;
+        }
 
         /// <summary>
         /// Pick the waters. Refused for a route the fleet has not opened — the strip may SHOW a
@@ -813,6 +832,11 @@ namespace Game.Systems
         /// Bank a win's trickle: charts to the captain roster, salvage to the shipyard — the two
         /// closed loops the sea pays into. Refused ashore; bounded upstream by the energy a search
         /// cost. YAĞMA procs ride through here too, as salvage.
+        ///
+        /// It is also where the route ladder moves. This is the one place a win is banked, so it is
+        /// the only honest place to count one — see <see cref="MaxTier"/> for why the count moved off
+        /// the dock. YAĞMA procs reach this with charts and salvage at zero and must NOT count: a
+        /// mid-fight grab is not a won fight.
         /// </summary>
         public bool RegisterKill(int charts, int salvage)
         {
@@ -823,6 +847,18 @@ namespace Game.Systems
             Crafting?.TryDropPoint(_random.NextDouble());
             Changed?.Invoke();
             return true;
+        }
+
+        /// <summary>
+        /// One won fight, counted for the route ladder. Separate from <see cref="RegisterKill"/>
+        /// because that one also carries YAĞMA's mid-fight grabs, which are not wins.
+        /// </summary>
+        public void RegisterWin()
+        {
+            if (!_atSea || _data == null) return;
+            _data.seaFightsWon++;
+            _save?.Save(_data);
+            Changed?.Invoke();
         }
     }
 }

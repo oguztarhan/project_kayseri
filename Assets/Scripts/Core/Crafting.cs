@@ -79,9 +79,6 @@ namespace Game.Core
             public double PointDropChance;
             public int PointsPerWin;
 
-            /// <summary>Points a claimed voyage pays, flat — a drop, never a rate.</summary>
-            public int PointsPerVoyage;
-
             public static Tuning Default => new Tuning
             {
                 CraftCost = 1L,
@@ -92,11 +89,10 @@ namespace Game.Core
                 Gate2Hours = 12d,
                 Gate3Hours = 24d,
 
-                // ~6 points per full energy pool, +2 per voyage claimed: a heavy day is 10–15
+                // ~6 points per full energy pool: a heavy day is 10–15
                 // points, which prices the 280-craft ladder in weeks rather than sittings.
                 PointDropChance = 0.20d,
                 PointsPerWin = 1,
-                PointsPerVoyage = 2,
             };
         }
 

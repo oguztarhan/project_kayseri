@@ -135,21 +135,18 @@ namespace Game.Systems
                                                      // one upgrade — deliberately outside MarketYard, which
                                                      // is per island
 
-        // ---- voyages (VoyageService) -----------------------------------------------------------
-        // Added WITHOUT a save-version bump, on the precedent ForemanService.Normalise set: a bump
-        // wipes every player's progress (see SaveMigration), and this feature only adds fields. A save
-        // written before it arrives here with a null list and a null array, which VoyageService pads.
-        public List<VoyageState> voyages = new List<VoyageState>();
+        // ---- ship tracks -------------------------------------------------------------------------
+        // What is left of the dock after the voyage feature was removed. The tracks are KEPT rather
+        // than dropped because Crew still feeds sea-combat power and the levels are progress players
+        // paid for; dropping them would quietly rebalance every existing save downward. They have no
+        // shop of their own at the moment — the yard tab that sold them went with the dock — so they
+        // sit at whatever level they reached until an upgrade screen is rehomed.
+        //
+        // Fields REMOVED here (voyages, voyagesCompleted, hullReadyUnix) are simply absent from new
+        // saves and ignored in old ones. No save-version bump: a bump wipes every player's progress
+        // (see SaveMigration), and JSON tolerates keys it no longer has a field for.
         public int[] shipLevels = new int[Game.Core.Voyages.ShipTrackCount];  // Hold, Speed, Crew, Berths
-        public long salvage;                         // ship-upgrade currency. Unused until V3 — voyages
-                                                     // do not pay it yet — but carried so V3 needs no bump
-        public int voyagesCompleted;                 // every voyage that came home, won or lost. This is
-                                                     // what opens the further routes — see
-                                                     // Voyages.TierVoyagesRequired
-        public long[] hullReadyUnix = new long[Game.Core.Voyages.MaxBerths];  // 0 = seaworthy. A failed
-                                                     // voyage puts its berth out of use until this
-                                                     // passes; wall-clock, so the yard mends itself
-                                                     // while the game is shut, like every other repair
+        public long salvage;                         // ship-upgrade currency, paid by won fights
 
         // ---- captains (CaptainService) ---------------------------------------------------------
         // The sea roster, and the crate that fills it. Added WITHOUT a save-version bump, like the two
@@ -178,6 +175,11 @@ namespace Game.Systems
         // shows a returning player should not be a wait.
         public int seaEnergy = -1;
         public long seaEnergyStampUnix;
+        // Won fights, lifetime. This is what opens the further routes — see
+        // Voyages.TierFightsRequired and ExpeditionService.MaxTier. It replaces voyagesCompleted,
+        // which only the dock could ever move; a save from before this field starts at zero, so a
+        // returning player re-earns the ladder by fighting rather than by sailing.
+        public int seaFightsWon;
         // Which waters the fights are priced for. -1 means "follow the fleet": a player who never
         // touches the route strip always fights in the furthest water the dock has opened, which is
         // what every save before this field did and what a new one should do. Once they PICK, the
@@ -242,6 +244,21 @@ namespace Game.Systems
         // board that learned this first.
         public List<GearStashItem> gearStash = new List<GearStashItem>();
         public long gearStashLastId;
+
+        // ---- madencilik teçhizatı (MiningGearService) -------------------------------------------
+        // The captain's mining loadout: four worn slots (pickaxe, helmet, bag, lantern) that feed
+        // the island's income multiplier, and the Mining Points that pay for a craft. Added WITHOUT
+        // a save-version bump, on the same precedent as every block above — a save from before this
+        // feature arrives all-zero, which is an empty loadout and an empty purse, exactly right for
+        // a player who has never been assigned a captain to duty.
+        //
+        // Points accrue off the wall clock like seaEnergy — (value, stamp), refilled on read — so
+        // the pool keeps filling while the app is shut. miningGearGrade follows the seaGear
+        // convention: Grade+1 per slot, 0 = empty.
+        public long miningPoints;
+        public long miningPointsStampUnix;
+        public int[] miningGearGrade = new int[Game.Core.MiningGear.SlotCount];
+        public long miningScrap;   // this loadout's own small refund currency, paid when a craft loses the compare
 
         // ---- chapters (ChapterService) ---------------------------------------------------------
         // Added WITHOUT a save-version bump, on the same precedent as the voyages block above. One
@@ -364,45 +381,6 @@ namespace Game.Systems
         public string id;                 // island key: "coal", "copper", …
         public bool[] claimed = new bool[Game.Core.Chapters.BeatCount];
         public bool introSeen;            // the chapter's opening card has been shown once
-    }
-
-    /// <summary>
-    /// One ship, from the moment a berth is claimed to the moment its cards are taken off the dock.
-    ///
-    /// <see cref="holdSize"/> is LOCKED IN when loading starts rather than read live. The island's
-    /// delivery rate moves whenever an upgrade lands, and a hold that silently grew mid-load would
-    /// mean the progress bar the player is watching goes backwards after they buy something — the
-    /// same trap PileStack fell into when it keyed the ore heap off fill fraction (REMAKE_PLAN §P9).
-    /// </summary>
-    [Serializable]
-    public class VoyageState
-    {
-        public string island;             // island key whose yard is feeding the hold
-        public int berth;                 // which berth this occupies, 0..Voyages.MaxBerths-1
-        public int tier;                  // route tier, 0..Voyages.TierCount-1
-        public double held;               // bars in the hold so far
-        public double holdSize;           // what a full hold is, fixed when loading started
-        public long sailedUnix;           // 0 = still loading at the dock
-        public long returnsUnix;          // wall clock, so a voyage lands while the app is shut
-        public int foreman;               // -1 = nobody aboard. A station index into Foremen; whoever is
-                                          // aboard takes ForemanRiskPerLevel off the roll per level.
-                                          // They keep their station bonus while at sea — the cost of
-                                          // sending one is opportunity, not a visible cut to income
-                                          // (Docs/VOYAGES.md §6)
-        public bool settled;              // home and rolled, waiting for the player to take it
-        public bool succeeded;            // rolled once, on arrival. Always true on tier 0, which has no risk
-        public int captain = -1;          // -1 = nobody. An index into Game.Core.Captains.Roster.
-                                          // INITIALISED to -1 rather than left at 0, because
-                                          // JsonUtility runs field initialisers and only then writes
-                                          // the fields the JSON actually carries — so a voyage saved
-                                          // before captains existed comes back with nobody aboard
-                                          // instead of with captain 0 press-ganged into the job.
-                                          // Sits alongside the foreman rather than replacing them:
-                                          // the foreman cuts risk, the captain does their own job,
-                                          // and the two never move the same number.
-        public int payoutCards;
-        public int payoutSalvage;         // V3
-        public int payoutCharts;          // what the crate is bought with
     }
 
     [Serializable]

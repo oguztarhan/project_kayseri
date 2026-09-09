@@ -596,7 +596,7 @@ namespace Game.Tests
         public void SpendingFromAFullPoolStartsTheClockThen()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             Assert.That(sea.Energy, Is.EqualTo(T.EnergyMax), "a pre-feature save starts full");
             Assert.That(sea.TrySpendEnergy(), Is.True);
             Assert.That(sea.Energy, Is.EqualTo(T.EnergyMax - 1));
@@ -659,7 +659,7 @@ namespace Game.Tests
         public void AnEmptyPoolRefusesTheSearch()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             for (int i = 0; i < T.EnergyMax; i++) Assert.That(sea.TrySpendEnergy(), Is.True, "spend " + i);
             Assert.That(sea.TrySpendEnergy(), Is.False, "energy is the governor — no overdraft");
         }
@@ -773,7 +773,7 @@ namespace Game.Tests
         public void WearingOverAnOldItemScrapsItIntoSalvage()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
 
             Assert.That(sea.GearGrade(SeaCombat.SlotCannon), Is.EqualTo(-1), "starts empty");
             SeaCombat.Item first = SeaCombat.ItemFor(SeaCombat.SlotCannon, 1, 2, 0.5d, T);
@@ -792,7 +792,7 @@ namespace Game.Tests
         public void StrippingAWornItemPaysItsSalvageAndEmptiesTheSlot()
         {
             var data = new SaveData();
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             sea.Equip(SeaCombat.ItemFor(SeaCombat.SlotCharm, 1, 3, 0.5d, T));
             long scrap = sea.ScrapWorn(SeaCombat.SlotCharm);
             Assert.That(scrap, Is.EqualTo(SeaCombat.ScrapFor(3)));
@@ -811,7 +811,7 @@ namespace Game.Tests
             data.seaGearPower = new[] { 26, 0, 0, 0 };   // ...whose whole body was "26"
             data.seaGearHull = null;
             data.seaGearShot = null;
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             SeaCombat.Item cannon = sea.GearItem(SeaCombat.SlotCannon);
             Assert.That(cannon.Grade, Is.EqualTo(2), "the grade survives");
             Assert.That(cannon.Shot, Is.EqualTo(26d), "a cannon's old power was its shot");
@@ -831,7 +831,7 @@ namespace Game.Tests
             data.seaGearShot = new[] { 0d, 3d, 0d, 0d };
             data.seaGearDef = null;
             data.seaGearSpd = null;
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
 
             SeaCombat.Item plating = sea.GearItem(SeaCombat.SlotPlating);
             Assert.That(plating.Grade, Is.EqualTo(3), "the grade survives");
@@ -856,7 +856,7 @@ namespace Game.Tests
             data.seaGearDef = null;
             data.seaGearSpd = null;
             data.seaEnergy = -1;
-            var sea = new ExpeditionService(null, new TimeService(), data, null, T);
+            var sea = new ExpeditionService(new TimeService(), data, null, T);
             Assert.That(data.seaGearGrade.Length, Is.EqualTo(SeaCombat.SlotCount));
             Assert.That(data.seaGearSecAmt.Length, Is.EqualTo(SeaCombat.SlotCount));
             Assert.That(data.seaGearDef.Length, Is.EqualTo(SeaCombat.SlotCount));
@@ -874,58 +874,35 @@ namespace Game.Tests
             public double UpgradeTreeCostRaw { get; set; }
         }
 
-        private static ExpeditionService Rig(out SaveData data, out MarketService market,
-                                             out VoyageService dock, out CaptainService captains)
+        private static ExpeditionService Rig(out SaveData data, out CaptainService captains)
         {
             data = new SaveData();
-            var wallet = new WalletService(data.wallet);
-            market = new MarketService(data, wallet, null);
-            market.Register("coal", new Terms { BarPriceRaw = 10d, IncomeCapPerMinuteRaw = 1e12d });
-            market.SetActiveIsland("coal");
-            market.Product("coal").deliveredPerMin = 600d;
-            var foremen = new ForemanService(data, wallet, Foremen.Tuning.Default);
             captains = new CaptainService(data, Captains.Tuning.Default, CaptainCrate.Tuning.Default,
                                           new System.Random(7));
-            dock = new VoyageService(data, market, foremen, wallet, new TimeService(),
-                                     Voyages.Tuning.Default, captains);
-            return new ExpeditionService(dock, new TimeService(), data, captains, T);
-        }
-
-        private static void Sail(VoyageService dock, MarketService market)
-        {
-            if (dock.At(0) == null) dock.TryStart("coal", 0);
-            market.Deliver("coal", MarketService.ProductFor("coal"), dock.At(0).holdSize * 2d);
-            dock.Tick((float)Voyages.SecondsToFill(0, Voyages.Tuning.Default) + 1f);
+            return new ExpeditionService(new TimeService(), data, captains, T);
         }
 
         [Test]
-        public void AKillBanksItsTrickleAndTouchesNothingOnTheVoyage()
+        public void AKillBanksItsTrickleIntoBothClosedLoops()
         {
-            SaveData data; MarketService market; VoyageService dock; CaptainService captains;
-            ExpeditionService sea = Rig(out data, out market, out dock, out captains);
-            Sail(dock, market);
+            SaveData data; CaptainService captains;
+            ExpeditionService sea = Rig(out data, out captains);
             sea.SetSail("coal");
-
-            VoyageState v = dock.At(0);
-            long returns = v.returnsUnix; double held = v.held; int cards = v.payoutCards;
 
             long chartsBefore = captains.Charts;
             Assert.That(sea.RegisterKill(3, 2), Is.True);
             Assert.That(captains.Charts, Is.EqualTo(chartsBefore + 3));
             Assert.That(data.salvage, Is.EqualTo(2L));
-
-            Assert.That(v.returnsUnix, Is.EqualTo(returns), "a kill must not shorten the crossing");
-            Assert.That(v.held, Is.EqualTo(held));
-            Assert.That(v.payoutCards, Is.EqualTo(cards));
         }
 
         [Test]
         public void NothingBanksAshore()
         {
-            SaveData data; MarketService market; VoyageService dock; CaptainService captains;
-            ExpeditionService sea = Rig(out data, out market, out dock, out captains);
+            SaveData data; CaptainService captains;
+            ExpeditionService sea = Rig(out data, out captains);
             Assert.That(sea.RegisterKill(5, 5), Is.False);
             Assert.That(captains.Charts, Is.Zero);
+            Assert.That(data.seaFightsWon, Is.Zero, "and the ladder does not move ashore either");
         }
 
         [Test]
@@ -941,7 +918,7 @@ namespace Game.Tests
         [Test]
         public void AServiceWithNothingWiredIsInert()
         {
-            var sea = new ExpeditionService(null, null);
+            var sea = new ExpeditionService(null);
             Assert.That(sea.Energy, Is.Zero);
             Assert.That(sea.TrySpendEnergy(), Is.False);
             Assert.That(sea.RegisterKill(1, 1), Is.False);

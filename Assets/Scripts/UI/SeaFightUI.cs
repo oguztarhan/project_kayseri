@@ -708,7 +708,7 @@ namespace Game.UI
             {
                 _toast = 2.2f;
                 _banner.color = Faded;
-                _banner.text = string.Format(Loc.T("deniz.rotaKapali"), _sea.VoyagesToUnlock(tier));
+                _banner.text = string.Format(Loc.T("deniz.rotaKapali"), _sea.FightsToUnlock(tier));
                 ServiceLocator.Get<HapticService>()?.Light();
                 return;
             }
@@ -1281,7 +1281,7 @@ namespace Game.UI
                 _routeMark[t].color = picked ? Chrome : (open ? Paper : Faded);
                 _routeSub[t].text = open
                     ? string.Empty
-                    : string.Format(Loc.T("deniz.rotaKilit"), _sea.VoyagesToUnlock(t));
+                    : string.Format(Loc.T("deniz.rotaKilit"), _sea.FightsToUnlock(t));
                 _routeSub[t].color = picked ? Chrome : Faded;
             }
 

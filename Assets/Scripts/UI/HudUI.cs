@@ -590,10 +590,13 @@ namespace Game.UI
             slotRect.anchorMax = new Vector2(1f, 1f);
             slotRect.offsetMin = new Vector2(MoreRowHeight, 0f);
             slotRect.offsetMax = new Vector2(-MoreRowHeight, 0f);
-            Text label = UiBuild.Label(slotRect, "Text", MoreRowTitle(name), 34, TextAnchor.MiddleLeft);
+            Text label = UiBuild.Label(slotRect, "Text", Loc.T(MoreRowKey(name)), 34, TextAnchor.MiddleLeft);
             label.color = MoreInk;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
+            // Baked once at build time otherwise: a later language switch left this sheet stuck in
+            // whatever language the HUD happened to build under, while every other screen kept up.
+            label.gameObject.AddComponent<LocalizedText>().SetKey(MoreRowKey(name));
 
             var button = go.GetComponent<Button>();
             button.targetGraphic = plate;
@@ -607,17 +610,18 @@ namespace Game.UI
             return button;
         }
 
-        /// <summary>The row's own screen title, so the sheet says "EVENTS" rather than "BtnEtkinlik".
+        /// <summary>The row's own screen title key, so the sheet says "EVENTS" rather than "BtnEtkinlik".
         /// Reuses each screen's existing heading key — no row here needs its own translation.</summary>
-        private static string MoreRowTitle(string name)
+        private static string MoreRowKey(string name)
         {
             switch (name)
             {
-                case "BtnGorev": return Loc.T("gorev.baslik");
-                case "BtnBolum": return Loc.T("bolum.baslik");
-                case "BtnAtolye": return Loc.T("atolye.baslik");
-                case "BtnEtkinlik": return Loc.T("etkinlik.baslik");
-                case "BtnLig": return Loc.T("lig.baslik");
+                case "BtnGorev": return "gorev.baslik";
+                case "BtnBolum": return "bolum.baslik";
+                case "BtnAtolye": return "atolye.baslik";
+                case "BtnEtkinlik": return "etkinlik.baslik";
+                case "BtnLig": return "lig.baslik";
+                case "BtnMaden": return "madenci.baslik";
                 default: return name;
             }
         }
@@ -703,6 +707,7 @@ namespace Game.UI
             Text title = UiBuild.Label(titleRect, "Text", Loc.T("hud.dahafazla"), 40,
                                        TextAnchor.MiddleCenter);
             title.color = MoreInk;
+            title.gameObject.AddComponent<LocalizedText>().SetKey("hud.dahafazla");
 
             // Content into the safe area; the scrim above it keeps covering the notch. Safe here even
             // though the rows arrive later: they parent to _moreSheet, which this moves inside.

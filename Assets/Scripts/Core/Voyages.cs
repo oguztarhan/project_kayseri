@@ -216,7 +216,7 @@ namespace Game.Core
         /// what teaches the system and what opens it, which is the same thing the player was going to
         /// be doing anyway.
         /// </summary>
-        public static readonly int[] TierVoyagesRequired = { 0, 3, 10, 25 };
+        public static readonly int[] TierFightsRequired = { 0, 3, 10, 25 };
 
         // -------------------------------------------------------------------- hold
         /// <summary>
@@ -401,11 +401,11 @@ namespace Game.Core
             return berths > MaxBerths ? MaxBerths : berths;
         }
 
-        /// <summary>True when enough voyages have been sailed to open this tier.</summary>
-        public static bool TierUnlocked(int tier, int voyagesCompleted)
+        /// <summary>True when enough fights have been won to open this tier.</summary>
+        public static bool TierUnlocked(int tier, int fightsWon)
         {
             int row = Clamp(tier, 0, TierCount - 1);
-            return voyagesCompleted >= TierVoyagesRequired[row];
+            return fightsWon >= TierFightsRequired[row];
         }
 
         // -------------------------------------------------------------------- risk

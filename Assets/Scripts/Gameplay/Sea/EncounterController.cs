@@ -55,7 +55,6 @@ namespace Game.Gameplay
         [SerializeField, Min(0.5f)] private float autoLootSeconds = 1.6f;
 
         private ExpeditionService _sea;
-        private VoyageService _voyages;
 
         private Phase _phase = Phase.Idle;
         private Step _step = Step.OurAim;
@@ -118,7 +117,6 @@ namespace Game.Gameplay
         public void Init()
         {
             _sea = ServiceLocator.Get<ExpeditionService>();
-            _voyages = ServiceLocator.Get<VoyageService>();
         }
 
         // ------------------------------------------------------------------ orders
@@ -382,9 +380,14 @@ namespace Game.Gameplay
 
             if (_sea != null)
             {
-                if (_fight.Won && _voyages != null)
+                if (_fight.Won)
                 {
-                    Voyages.Tuning vt = _voyages.Tuning;
+                    // The tuning used to come off the dock service. That service is gone, and the
+                    // VoyageConfig asset was never wired into the bootstrap anyway, so this is the
+                    // same table it has always resolved to at runtime — the drop maths is unchanged.
+                    // The null-check that used to sit beside _fight.Won went with the service: it
+                    // would now be permanently false and silently stop paying out every win.
+                    Voyages.Tuning vt = Voyages.Tuning.Default;
                     int charts = SeaCombat.ChartsFor(_fight.Tier, _fight.Kind, vt, _sea.Combat);
                     int salvage = SeaCombat.SalvageFor(_fight.Tier, _fight.Kind, vt, _sea.Combat);
                     if (_sea.RegisterKill(charts, salvage + (int)_plunder))
@@ -392,6 +395,7 @@ namespace Game.Gameplay
                         LastCharts = charts;
                         LastSalvage = salvage;
                     }
+                    _sea.RegisterWin();          // opens the further routes — see ExpeditionService.MaxTier
                     _drop = _sea.RollDrop(_fight.Tier);
                     _hasDrop = true;
                 }

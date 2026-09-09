@@ -163,7 +163,10 @@ namespace Game.Systems
                 Duplicates(captain),
                 DuplicatesNeeded(captain),
                 effect,
-                Busy(captain));
+                // Never busy. A captain used to be occupied by the voyage they were sent on; with
+                // the dock gone nothing takes one away — sea combat picks the best owned captain
+                // itself (see ExpeditionService.CaptainAboard) rather than assigning one.
+                false);
         }
 
         /// <summary>How many captains are waiting to be levelled — the number on the opener's badge.</summary>
@@ -256,23 +259,8 @@ namespace Game.Systems
         }
 
         // ---------------------------------------------------------------- aboard
-        // What the dock asks. Each takes the captain assigned to a voyage (-1 = nobody) and answers
-        // for the level they are actually at, so VoyageService never has to look one up.
-
-        /// <summary>Whether this captain can be put aboard at all — that is, whether they exist.</summary>
-        public bool CanSail(int captain) => Owned(captain);
-
-        /// <summary>True when this captain is already at sea on another voyage.</summary>
-        public bool Busy(int captain)
-        {
-            if (_data == null || _data.voyages == null || !Captains.Exists(captain)) return false;
-            for (int i = 0; i < _data.voyages.Count; i++)
-            {
-                VoyageState v = _data.voyages[i];
-                if (v != null && v.captain == captain && !v.settled) return true;
-            }
-            return false;
-        }
+        // What the sea asks: the captain on the bridge (-1 = nobody), answered for the level they
+        // are actually at, so the caller never has to look one up.
 
         public double ChartMultiplier(int captain) => Captains.ChartMultiplier(captain, Level(captain), _tuning);
         public double SalvageMultiplier(int captain) => Captains.SalvageMultiplier(captain, Level(captain), _tuning);

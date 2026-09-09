@@ -72,6 +72,7 @@ namespace Game.Systems
         private readonly MaintenanceService _maintenance;   // null in tests: everything reads as new
         private readonly ForemanService _foremen;           // null in tests: an empty roster is x1
         private readonly GoalService _goals;                // null in tests: nothing is counted
+        private readonly MiningGearService _miningGear;      // null in tests: an empty loadout is x1
 
         private readonly Dictionary<string, Yard> _yards = new Dictionary<string, Yard>();
         private readonly List<Yard> _order = new List<Yard>();   // stable iteration without allocating
@@ -81,6 +82,7 @@ namespace Game.Systems
         private float _accum;
         private double _legacyIncomeMult = 1d, _boostMult = 1d, _permanentSpeed = 1d, _simSpeed = 1d;
         private double _foremanMult = 1d;
+        private double _miningGearMult = 1d;
 
         // A yard sells a fraction of a bar per tick, so casting per call would floor to zero forever
         // and the bar counter would never move. The remainder carries between ticks instead.
@@ -100,7 +102,7 @@ namespace Game.Systems
 
         public MarketService(SaveData data, WalletService wallet, BoostService boost,
                              MaintenanceService maintenance = null, ForemanService foremen = null,
-                             GoalService goals = null)
+                             GoalService goals = null, MiningGearService miningGear = null)
         {
             _data = data;
             _wallet = wallet;
@@ -108,6 +110,7 @@ namespace Game.Systems
             _maintenance = maintenance;
             _foremen = foremen;
             _goals = goals;
+            _miningGear = miningGear;
         }
 
         // ------------------------------------------------------------------ wiring
@@ -435,6 +438,9 @@ namespace Game.Systems
             // bonus that moved throughput alone would do nothing at all for the player who has been
             // playing long enough to own foremen — see Game.Core.Foremen.
             _foremanMult = _foremen != null ? _foremen.IncomeMultiplier : 1d;
+            // The captain's mining loadout — pickaxe, helmet, bag, lantern — lifts the same payout
+            // the roster above does, on the same grade ladder. See Game.Core.MiningGear.
+            _miningGearMult = _miningGear != null ? _miningGear.IncomeMultiplier : 1d;
             // Spent on the live island's clock when there is one running, and on price otherwise. The
             // guard is what stops a boost going nowhere while the player stands in a market hall: no
             // island is simulating there, so there is nothing to speed up and the price keeps it.
@@ -523,10 +529,12 @@ namespace Game.Systems
             // the same place either way, and the income meter (which feeds SaveData.incomeRatePerSec, and
             // through it the NEXT session's offline grant) never banks a rate that only existed while an
             // ad was running.
-            double sale = bars * y.terms.BarPriceRaw * _legacyIncomeMult / speed * _permanentSpeed * _foremanMult;
+            double sale = bars * y.terms.BarPriceRaw * _legacyIncomeMult / speed * _permanentSpeed
+                        * _foremanMult * _miningGearMult;
             if (sale <= 0d) return 0d;
 
-            double cap = y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed * _foremanMult;
+            double cap = y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed
+                       * _foremanMult * _miningGearMult;
             double headroom = cap - (y.earnTrailing + y.earnedThisTick);
             if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
             if (sale <= 0d) return 0d;
@@ -620,7 +628,8 @@ namespace Game.Systems
             if (y.earnFilled < y.earnBuckets.Length) y.earnFilled++;
 
             double cap = y.terms != null
-                ? y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed * _foremanMult
+                ? y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed
+                    * _foremanMult * _miningGearMult
                 : double.MaxValue;
             // Clamp the extrapolation rather than the buckets: while the window is still filling, one
             // good second scaled up by 60/filled reads far above anything the yard can sustain.

@@ -32,8 +32,6 @@ namespace Game.Data
         [SerializeField] private double pointDropChance = 0.20d;
         [SerializeField, Min(0)] private int pointsPerWin = 1;
 
-        [Tooltip("Rıhtımdan alınan her seferin ödediği puan. Düz bir damla, asla bir oran.")]
-        [SerializeField, Min(0)] private int pointsPerVoyage = 2;
 
         public Game.Core.Crafting.Tuning ToTuning() => new Game.Core.Crafting.Tuning
         {
@@ -43,7 +41,6 @@ namespace Game.Data
             Gate3Hours      = gate3Hours,
             PointDropChance = pointDropChance,
             PointsPerWin    = pointsPerWin,
-            PointsPerVoyage = pointsPerVoyage,
         };
     }
 }

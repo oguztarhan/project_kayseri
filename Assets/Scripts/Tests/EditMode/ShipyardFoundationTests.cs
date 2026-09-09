@@ -419,7 +419,7 @@ namespace Game.Tests
                 seaGearDef = new[] { 1d, 2d, 3d, 4d },
                 seaGearSpd = new[] { 1d, 2d, 3d, 4d }
             };
-            var sea = new ExpeditionService(null, null, save);
+            var sea = new ExpeditionService(null, save);
 
             Assert.That(SeaCombat.LegacySlotCount, Is.EqualTo(4));
             Assert.That(SeaCombat.SlotRigging, Is.EqualTo(4));
