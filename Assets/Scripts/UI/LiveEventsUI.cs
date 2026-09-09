@@ -174,7 +174,7 @@ namespace Game.UI
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "EtkinlikKanvas", sortingOrder);
-            _root = UiBuild.Flat(canvas, "Karartma", scrim, Vector2.zero, Vector2.one);
+            _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
             var dismiss = _root.gameObject.AddComponent<Button>();
             dismiss.transition = Selectable.Transition.None;
             dismiss.onClick.AddListener(Hide);
@@ -194,6 +194,8 @@ namespace Game.UI
             _emptyLabel = UiBuild.Label(Slot(_root, "Bos", new Vector2(0.10f, 0.380f), new Vector2(0.90f, 0.480f)),
                                         "Text", Loc.T("etkinlik.yok"), 34, TextAnchor.MiddleCenter);
             _emptyLabel.color = InkSoft;
+            // Content into the safe area; the scrim above it keeps covering the notch.
+            UiBuild.InsetContent(_root);
         }
 
         /// <summary>The sheet everything else sits on — see ChapterUI.BuildBackdrop for why it exists.

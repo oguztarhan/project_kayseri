@@ -7,12 +7,13 @@ namespace Game.UI
 {
     /// <summary>
     /// The whole of the sea scene, assembled on load: the water, the lane, the ship, a camera and a
-    /// four-line HUD. The scene asset holds one object carrying this and nothing else — the same
-    /// shape as <see cref="MarketSceneBoot"/>, and Docs/VOYAGES.md §20 records why that shape is
-    /// worth keeping: a scene built in code needs no Unity bridge to change.
+    /// four-line HUD. The scene asset holds one object carrying this and nothing else, and
+    /// Docs/VOYAGES.md §20 records why that shape is worth keeping: a scene built in code needs no
+    /// Unity bridge to change.
     ///
-    /// It lives in <c>Game.UI</c> for the reason MarketSceneBoot gives — it is the only assembly that
-    /// can see all three of the things it has to put together.
+    /// It lives in <c>Game.UI</c> because that is the only assembly that can see all three of the
+    /// things it has to put together — the water and the ship are <c>Game.Gameplay</c>, the HUD is here,
+    /// and the services are <c>Game.Systems</c>.
     ///
     /// IT OWNS THE FRAME AND THE BOAT DOES NOT. <see cref="PlayerShip"/> is placed from here every
     /// frame rather than reading the service itself. One owner per scene, and the boat is not it —
@@ -245,13 +246,13 @@ namespace Game.UI
 
             Color coat = _roster != null ? _roster.GradeTintOf(captain)
                                          : new Color(0.48f, 0.54f, 0.62f, 1f);
-            if (_helmCoat != null) _helmCoat.sharedMaterial = MarketYardBuild.Mat(coat);
+            if (_helmCoat != null) _helmCoat.sharedMaterial = MarketSurfaces.Get(coat, MarketSurfaces.Finish.Plain);
         }
 
         private static void Paint(GameObject go, Color c)
         {
             var r = go.GetComponent<Renderer>();
-            if (r != null) r.sharedMaterial = MarketYardBuild.Mat(c);
+            if (r != null) r.sharedMaterial = MarketSurfaces.Get(c, MarketSurfaces.Finish.Plain);
             Object.Destroy(go.GetComponent<Collider>());
         }
 
@@ -288,8 +289,8 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// Back to the island. Guarded like MarketSceneBoot's Leave is, and for the same reason: the
-        /// curtain answers on the first frame but the button is still a button.
+        /// Back to the island. Guarded, because the curtain answers on the first frame but the button
+        /// is still a button.
         /// </summary>
         public void Ashore()
         {

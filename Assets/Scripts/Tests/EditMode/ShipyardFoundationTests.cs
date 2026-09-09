@@ -570,16 +570,40 @@ namespace Game.Tests
             }
         }
 
-        [Test] public void CompactHudRejectsLegacyExtraOpeners()
+        /// <summary>
+        /// Compact mode keeps a secondary opener off the rail, but it must still hand back a working
+        /// button: this used to return null, which silently stranded Goals, Chapter, Crafting, Events
+        /// and the League — all five built, ticking and unreachable.
+        /// </summary>
+        [Test] public void CompactHudMovesLegacyExtraOpenersIntoMoreSheet()
         {
             var go = new GameObject("compact hud");
+            bool hadEventSystem = Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() != null;
+            GameObject sheet = null;
             try
             {
                 var hud = go.AddComponent<HudUI>();
-                Assert.That(hud.AttachBottomButton(0, "unused", null, null), Is.Null);
+                UnityEngine.UI.Button row = hud.AttachBottomButton(0, "unused", null, null);
+
+                Assert.That(row, Is.Not.Null, "a secondary opener must still be reachable");
+                sheet = row.transform.root.gameObject;
+
+                // Not on the rail, and not under the HUD at all: the sheet builds its own overlay
+                // canvas, which a Canvas nested inside the HUD's canvas could not do.
                 Assert.That(go.transform.childCount, Is.Zero);
+                Assert.That(row.transform.IsChildOf(go.transform), Is.False);
+                Assert.That(row.GetComponentInParent<Canvas>(), Is.Not.Null);
             }
-            finally { Object.DestroyImmediate(go); }
+            finally
+            {
+                if (sheet != null) Object.DestroyImmediate(sheet);
+                Object.DestroyImmediate(go);
+                if (!hadEventSystem)
+                {
+                    var es = Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>();
+                    if (es != null) Object.DestroyImmediate(es.gameObject);
+                }
+            }
         }
 
         [Test] public void HudSafeAreaNormalizesNotchAndGestureInsets()

@@ -17168,7 +17168,6 @@ GameObject:
   - component: {fileID: 2135659116}
   - component: {fileID: 2135659117}
   - component: {fileID: 2135659118}
-  - component: {fileID: 2135659119}
   - component: {fileID: 2135659120}
   - component: {fileID: 2135659121}
   m_Layer: 0
@@ -17531,28 +17530,6 @@ MonoBehaviour:
   bobSeconds: 2.2
   pulseAmount: 0.05
   popSeconds: 0.32
---- !u!114 &2135659119
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2135659099}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e56bbe06cbfc24c1cb907bbbf2e9f1f9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Game.UI::Game.UI.MarketDoorMarker
-  marketSceneName: Market
-  buttonSize: {x: 250, y: 84}
-  labelSize: 30
-  buildingLift: 10
-  buildingOffset: {x: 0, y: -56}
-  sortingOrder: 92
-  hudTopFraction: 0.1
-  hudBottomFraction: 0.2
-  hudSideFraction: 0.09
-  tint: {r: 0.16, g: 0.18, b: 0.24, a: 0.94}
 --- !u!114 &2135659120
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -19,11 +19,12 @@ namespace Game.UI
     /// Only stations with a body get one — TRAIN, ORE TRUCKS and CARGO TRUCKS are fleets that own no
     /// structure, so a badge for them would hang over open grass. Their upgrades live in the panel.
     ///
-    /// MARKET is skipped too, and for the opposite reason: it has a body and something else is already
-    /// standing on it. <see cref="MarketDoorMarker"/> hangs the ENTER MARKET button over that roof, and
-    /// two badges stacked on one building covered the building. The way IN to a mode beats a reminder
-    /// that a price upgrade is affordable, so the door keeps the spot; MARKET's upgrades are still one
-    /// tap away through the HUD's upgrade panel, which is where the fleets' have always lived.
+    /// MARKET is skipped too, and that skip is now a LEFTOVER rather than a reason. It was given up to
+    /// the ENTER MARKET button, which hung over that roof and could not share it with a badge; with the
+    /// market yard gone the roof is free again. The skip is kept because putting a badge back is a
+    /// visible change to the island nobody has asked for yet — MARKET's upgrades remain one tap away in
+    /// the yard-upgrades panel, which is where the fleets' have always lived. Delete the guard in
+    /// <see cref="Build"/> to give it its badge back.
     ///
     /// One screen-space canvas holds every badge rather than a world-space canvas each. That keeps the
     /// badges one batch, and it keeps them a constant size on screen: pinned to the world they would
@@ -137,7 +138,7 @@ namespace Game.UI
 
             for (int s = 0; s < total; s++)
             {
-                if (s == MarketStation) continue;      // the door button owns that roof; see the summary
+                if (s == MarketStation) continue;      // a leftover of the removed door; see the summary
                 if (!_op.StationHasBody(s)) continue;
                 _stations[_count] = s;
                 _roots[_count] = BuildBadge(s, out _rects[_count]);

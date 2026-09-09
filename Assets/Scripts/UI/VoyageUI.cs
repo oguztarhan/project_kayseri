@@ -3,6 +3,7 @@ using Game.Data;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Game.UI
@@ -10,11 +11,14 @@ namespace Game.UI
     /// <summary>
     /// The dock: where the player sends bars to sea and takes the cards off a ship that came home.
     ///
-    /// Built at runtime on its own canvas rather than folded into <see cref="MarketHudUI"/>, and that is
-    /// deliberate for V1 — the yard HUD is a dense anchored layout that is right, and threading a fifth
-    /// card through it to add a feature nobody has played yet risks the screen that already works. One
-    /// chip in the corner opens this; nothing else on the HUD moves. Docs/VOYAGES.md §13 V4 is where the
-    /// dock stops being a panel and becomes a pad on the yard floor.
+    /// It LIVES ON THE ISLAND. It used to be built by the market yard's bootstrapper and opened from a
+    /// chip on the yard HUD, which meant the whole of Voyages — ships, captains, the sea — sat behind a
+    /// walk into a second scene. With that yard gone this is the only door left, so it installs itself
+    /// into Main the way <see cref="IslandYardUpgradeUI"/> does, on its own canvas, and follows whichever
+    /// island the ledger says is live.
+    ///
+    /// Loading by hand went with the yard, and nothing was lost: <see cref="VoyageService.DepositByHand"/>
+    /// was always a bonus on top of what a hold fills by itself, never the way a hold fills.
     ///
     /// It reads <see cref="VoyageService"/> and never computes anything: what a hold holds, how long a
     /// route takes and what it pays are all <see cref="Voyages"/>'s business. A screen that does its own
@@ -22,11 +26,13 @@ namespace Game.UI
     /// </summary>
     public sealed class VoyageUI : MonoBehaviour
     {
-        [SerializeField] private int sortingOrder = 120;   // above MarketHudUI's 100
+        [SerializeField] private int sortingOrder = 120;   // above the island HUD's 100
+        [Tooltip("Sefer açıcısının kendi katmanı. Panel 120'de kalır; açıcı HUD hizasına iner.")]
+        [SerializeField] private int openerSortingOrder = 103;
         [SerializeField] private float refreshInterval = 0.25f;
 
         private static readonly Color Chrome  = new Color(0.13f, 0.16f, 0.23f, 0.96f);
-        private static readonly Color Backing = new Color(0.05f, 0.06f, 0.09f, 0.82f);
+        private static readonly Color Backing = new Color(0.05f, 0.06f, 0.09f, 1f);
         private static readonly Color Fill    = new Color(0.36f, 0.74f, 0.99f, 0.95f);
 
         private VoyageService _voyages;
@@ -36,6 +42,10 @@ namespace Game.UI
         private string _yardKey;
 
         private RectTransform _panel;
+        /// <summary>The full-bleed backdrop, held directly rather than reached for as
+        /// <c>_panel.parent</c>: the panel now sits inside the safe-area wrapper
+        /// <see cref="UiBuild.InsetContent"/> adds, so its parent is no longer the dim.</summary>
+        private RectTransform _dim;
         private RectTransform _holdFill;
         private TMP_Text _state, _detail, _chipLabel;
         private Button _primary, _secondary;
@@ -77,7 +87,27 @@ namespace Game.UI
         private readonly bool[] _tierSelected = new bool[Voyages.TierCount];
         private readonly bool[] _tierOpen = new bool[Voyages.TierCount];
 
-        public void Build(VoyageService voyages, MarketService market, string yardKey)
+        // Installed into the island scene rather than authored into it, for the reason
+        // IslandYardUpgradeUI gives: it keeps the change out of a scene file owned by someone else.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void Install()
+        {
+            SceneManager.sceneLoaded -= SceneLoaded;
+            SceneManager.sceneLoaded += SceneLoaded;
+            SceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+        }
+
+        private static void SceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != "Main") return;
+            foreach (var root in scene.GetRootGameObjects())
+                if (root.GetComponentInChildren<VoyageUI>(true) != null) return;
+            var host = new GameObject("SeferPaneli");
+            SceneManager.MoveGameObjectToScene(host, scene);
+            host.AddComponent<VoyageUI>();
+        }
+
+        private void Build(VoyageService voyages, MarketService market, string yardKey)
         {
             _voyages = voyages;
             _market = market;
@@ -90,7 +120,12 @@ namespace Game.UI
 
             // The opener: a chip low on the right, clear of the HUD's exit button on the left and of
             // the thumb stick, which owns the bottom band.
-            RectTransform chip = UiBuild.Flat(canvas, "SeferDugmesi", Chrome,
+            //
+            // It gets its own canvas at HUD level rather than riding the panel's. The chip is on
+            // screen permanently, and at 120 it drew over every screen in the 105-115 band — it sat
+            // on top of the Goals claim button and of the More sheet, catching taps meant for them.
+            RectTransform openerCanvas = UiBuild.Canvas(transform, "SeferAcici", openerSortingOrder);
+            RectTransform chip = UiBuild.Flat(openerCanvas, "SeferDugmesi", Chrome,
                                               new Vector2(0.80f, 0.60f), new Vector2(0.985f, 0.70f));
             var chipImage = chip.GetComponent<Image>();
             chipImage.sprite = UiSkin.ButtonBlue != null ? UiSkin.ButtonBlue : UiSkin.Flat;
@@ -101,6 +136,8 @@ namespace Game.UI
             chipButton.onClick.AddListener(Toggle);
             _chipLabel = Line(chip, "Yazi", 30f, 0f, 1f);
             _chip = chip;
+            // The chip's right edge sits at 0.985, which is inside a cutout on a curved screen.
+            UiBuild.InsetContent(openerCanvas);
 
             // The event has existed since V1 with nothing listening. This is what it was for: a ship
             // landing while the player is anywhere in the yard should be noticed without a panel open.
@@ -114,6 +151,7 @@ namespace Game.UI
         private void BuildPanel(RectTransform canvas)
         {
             RectTransform dim = UiBuild.Flat(canvas, "Perde", Backing, Vector2.zero, Vector2.one);
+            _dim = dim;
             var close = dim.gameObject.AddComponent<Button>();
             close.targetGraphic = dim.GetComponent<Image>();
             close.onClick.AddListener(Close);          // tapping the dimmed backdrop closes, as everywhere else
@@ -174,6 +212,8 @@ namespace Game.UI
             backRect.anchorMin = new Vector2(0.855f, 0.865f);
             backRect.anchorMax = new Vector2(0.965f, 0.972f);
             closeLabel.text = "×";
+            // Content into the safe area; the dim above it keeps covering the notch.
+            UiBuild.InsetContent(dim);
         }
 
         private static Button Tab(Transform parent, string name, float left, float right,
@@ -367,8 +407,8 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// TMP rather than <see cref="UiBuild.Label"/>, for the reason MarketHudUI gives: TMP's project
-        /// default font asset is the game's own type and UiBuild.Label can only ever be Arial.
+        /// TMP rather than <see cref="UiBuild.Label"/>: TMP's project default font asset is the game's
+        /// own type and UiBuild.Label can only ever be Arial.
         /// </summary>
         private static TMP_Text Line(Transform parent, string name, float size, float bottom, float top)
         {
@@ -394,8 +434,8 @@ namespace Game.UI
             return text;
         }
 
-        /// <summary>Points the dock at a different yard — the hall is one scene and doorways change yards.</summary>
-        public void SetYard(string yardKey)
+        /// <summary>Points the dock at a different yard — travelling changes which island is live.</summary>
+        private void SetYard(string yardKey)
         {
             _yardKey = yardKey;
             _clock = refreshInterval;      // refresh on the next frame rather than up to a quarter second later
@@ -417,8 +457,7 @@ namespace Game.UI
                 // last open, and a chip naming somebody who cannot go is a button that does nothing.
                 if (_captain >= 0 && !_voyages.CaptainAvailable(_captain)) _captain = -1;
             }
-            if (_panel != null && _panel.parent != null)
-                _panel.parent.gameObject.SetActive(open);
+            if (_dim != null) _dim.gameObject.SetActive(open);
             Refresh();
         }
 
@@ -548,6 +587,25 @@ namespace Game.UI
             _clock += Time.unscaledDeltaTime;
             if (_clock < refreshInterval) return;
             _clock = 0f;
+
+            // Built on the first tick the services exist rather than in Awake — this installs itself as
+            // the island scene loads, and Bootstrap may not have registered them yet. Behind the refresh
+            // clock so a project with no voyage service is not doing four lookups a frame forever.
+            if (_voyages == null)
+            {
+                var voyages = ServiceLocator.Get<VoyageService>();
+                var market = ServiceLocator.Get<MarketService>();
+                // Never build against a half-registered locator; try again on the next tick.
+                if (voyages == null || market == null) return;
+                Build(voyages, market, market.ActiveIsland);
+            }
+
+            // Sailing to another island changes whose hold is filling. The yard used to be rebuilt on
+            // every visit and could read this once; a permanent fixture has to keep up with it.
+            if (_market != null && !string.IsNullOrEmpty(_market.ActiveIsland)
+                && _market.ActiveIsland != _yardKey)
+                SetYard(_market.ActiveIsland);
+
             Refresh();
         }
 

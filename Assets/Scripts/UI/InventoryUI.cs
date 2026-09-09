@@ -194,7 +194,7 @@ namespace Game.UI
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "DepoKanvas", sortingOrder);
-            _root = UiBuild.Flat(canvas, "Karartma", scrim, Vector2.zero, Vector2.one);
+            _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
             var dismiss = _root.gameObject.AddComponent<Button>();
             dismiss.transition = Selectable.Transition.None;
             dismiss.onClick.AddListener(Hide);
@@ -207,6 +207,8 @@ namespace Game.UI
             _cataloguePage = Zone(_root, "Katalog", new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.740f));
             BuildGearPage();
             BuildCataloguePage();
+            // Content into the safe area; the scrim above it keeps covering the notch.
+            UiBuild.InsetContent(_root);
         }
 
         /// <summary>One opaque sheet behind everything — see CraftingUI.BuildBackdrop for why.</summary>

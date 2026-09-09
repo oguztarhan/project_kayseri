@@ -48,6 +48,58 @@ namespace Game.UI
             return (RectTransform)go.transform;
         }
 
+        /// <summary>
+        /// The tint with the alpha thrown away — a modal backdrop that hides what is behind it
+        /// instead of tinting it.
+        ///
+        /// It is applied in code rather than by fixing the numbers because most of these scrims are
+        /// <c>[SerializeField]</c> and already serialized in Main.unity at 0.86-0.93; the C# default
+        /// is not what ships, the scene value is. Forcing it here is the only way to change every
+        /// screen at once without hand-editing the scene. The RGB stays Inspector-tunable — only the
+        /// alpha is ignored.
+        /// </summary>
+        public static Color Opaque(Color tint) => new Color(tint.r, tint.g, tint.b, 1f);
+
+        /// <summary>
+        /// Moves everything already built under <paramref name="fullBleed"/> into a safe-area child.
+        /// The dim backdrop keeps covering the notch and the gesture bar; the content that has to be
+        /// read and tapped moves inside them.
+        ///
+        /// Every code-built screen here is laid out against normalized anchors, so this needs no
+        /// per-screen numbers: the children keep their fractions, and those fractions now resolve
+        /// against the safe rect instead of the whole canvas. That is also why the wrapper cannot
+        /// simply be the canvas — a scrim inset to the safe area leaves the world showing in an
+        /// undimmed strip along the top of a notched phone.
+        ///
+        /// Call it at the END of a screen's build, once the content exists: it moves the children
+        /// that are there when it runs, so anything parented to <paramref name="fullBleed"/>
+        /// afterwards would sit outside the inset again.
+        ///
+        /// IT PUTS A LEVEL BETWEEN THE SCRIM AND ITS CONTENT. Anything that reached the scrim as
+        /// <c>someChild.parent</c> now lands on the wrapper instead — <see cref="VoyageUI"/> hid its
+        /// backdrop that way and, once moved, was toggling the wrapper while the dim stayed up over
+        /// the whole game. Hold the scrim in a field rather than walking up to it.
+        /// </summary>
+        public static RectTransform InsetContent(RectTransform fullBleed)
+        {
+            if (fullBleed == null) return null;
+
+            // Snapshot before the wrapper joins the list: reparenting while walking a live child
+            // collection re-indexes it under you and skips every other child.
+            var moving = new Transform[fullBleed.childCount];
+            for (int i = 0; i < moving.Length; i++) moving[i] = fullBleed.GetChild(i);
+
+            var go = new GameObject("Guvenli", typeof(RectTransform));
+            go.transform.SetParent(fullBleed, false);
+            RectTransform safe = Anchor((RectTransform)go.transform, Vector2.zero, Vector2.one);
+            for (int i = 0; i < moving.Length; i++) moving[i].SetParent(safe, false);
+
+            // Added last: SafeArea.Apply runs from its Awake and rewrites the anchors Anchor just set,
+            // so a component added before the stretch would be undone by it.
+            go.AddComponent<SafeArea>();
+            return safe;
+        }
+
         /// <summary>Adds an EventSystem if the scene has none, so a runtime screen is clickable on its own.</summary>
         public static void EnsureEventSystem(Transform parent)
         {

@@ -31,41 +31,45 @@ namespace Game.Tests
 
                 Transform scrim = canvases[0].transform.Find("Karartma");
                 Assert.That(scrim, Is.Not.Null);
-                Assert.That(scrim.Find("Zemin"), Is.Not.Null);
-                Assert.That(scrim.Find("Serit"), Is.Not.Null);
+                // Content sits in the safe-area wrapper UiBuild.InsetContent adds; the scrim
+                // above it stays full-bleed so the dim still covers the notch and gesture bar.
+                Transform content = scrim.Find("Guvenli");
+                Assert.That(content, Is.Not.Null);
+                Assert.That(content.Find("Zemin"), Is.Not.Null);
+                Assert.That(content.Find("Serit"), Is.Not.Null);
 
                 // The podium is three cards with first in the middle, then six rows, then the pinned
                 // "you" row and the strip a closed season's reward waits on.
-                Assert.That(scrim.Find("Podyum0"), Is.Not.Null, "first place");
-                Assert.That(scrim.Find("Podyum1"), Is.Not.Null, "second place");
-                Assert.That(scrim.Find("Podyum2"), Is.Not.Null, "third place");
-                Assert.That(scrim.Find("Satir3"), Is.Not.Null, "rank four");
-                Assert.That(scrim.Find("Satir8"), Is.Not.Null, "rank nine");
-                Assert.That(scrim.Find("SenSatiri"), Is.Not.Null);
-                Assert.That(scrim.Find("OdulSeridi/Al"), Is.Not.Null);
+                Assert.That(content.Find("Podyum0"), Is.Not.Null, "first place");
+                Assert.That(content.Find("Podyum1"), Is.Not.Null, "second place");
+                Assert.That(content.Find("Podyum2"), Is.Not.Null, "third place");
+                Assert.That(content.Find("Satir3"), Is.Not.Null, "rank four");
+                Assert.That(content.Find("Satir8"), Is.Not.Null, "rank nine");
+                Assert.That(content.Find("SenSatiri"), Is.Not.Null);
+                Assert.That(content.Find("OdulSeridi/Al"), Is.Not.Null);
 
                 // A chest on EVERY position, podium and row alike, and each one a real button — it is
                 // the only place the payout table is readable before a season ends.
-                Assert.That(scrim.Find("Podyum0/Sandik"), Is.Not.Null);
-                Assert.That(scrim.Find("Satir8/Sandik"), Is.Not.Null);
-                Assert.That(scrim.Find("Satir8/Sandik").GetComponent<UnityEngine.UI.Button>(), Is.Not.Null);
+                Assert.That(content.Find("Podyum0/Sandik"), Is.Not.Null);
+                Assert.That(content.Find("Satir8/Sandik"), Is.Not.Null);
+                Assert.That(content.Find("Satir8/Sandik").GetComponent<UnityEngine.UI.Button>(), Is.Not.Null);
 
                 // The chest opens this, and it must start closed.
-                Transform reward = scrim.Find("OdulKarti");
+                Transform reward = content.Find("OdulKarti");
                 Assert.That(reward, Is.Not.Null);
                 Assert.That(reward.gameObject.activeSelf, Is.False);
                 Assert.That(reward.Find("Kart/Sandik"), Is.Not.Null);
 
                 // Decision D4's label has to exist before any board is drawn, because the refresh
                 // only ever hides it — it is never the thing that creates it.
-                Assert.That(scrim.Find("Temsili"), Is.Not.Null);
+                Assert.That(content.Find("Temsili"), Is.Not.Null);
 
                 // THE REGRESSION THAT MADE THE BOARD UNREADABLE. Every sprite slot is empty on a
                 // runtime-built screen, so the panels come from UiSkin — and the slice has to be
                 // decided from the sprite actually used. Typed Simple with preserveAspect on, a row
                 // renders as an aspect-locked square instead of filling its rect, which is what put
                 // the whole board in a pile.
-                var row = scrim.Find("Satir3").GetComponent<UnityEngine.UI.Image>();
+                var row = content.Find("Satir3").GetComponent<UnityEngine.UI.Image>();
                 Assert.That(row.sprite, Is.Not.Null, "a row must fall back to the kit panel");
                 Assert.That(row.preserveAspect, Is.False,
                             "a row must stretch to its rect, not lock to the sprite's aspect");

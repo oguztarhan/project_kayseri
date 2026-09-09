@@ -23,7 +23,7 @@ namespace Game.Tests
 
                 Canvas[] canvases = host.GetComponentsInChildren<Canvas>(true);
                 Assert.That(canvases, Has.Length.EqualTo(1));
-                Transform sheet = canvases[0].transform.Find("Karartma/Zemin");
+                Transform sheet = canvases[0].transform.Find("Karartma/Guvenli/Zemin");
                 Assert.That(sheet, Is.Not.Null);
                 Assert.That(sheet.Find("PremiumAl"), Is.Not.Null);
                 Assert.That(sheet.Find("GeriYukle"), Is.Not.Null);

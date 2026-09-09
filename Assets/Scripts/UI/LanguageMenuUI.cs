@@ -86,7 +86,7 @@ namespace Game.UI
         // 0.72 dünyayı karartmaya yetiyordu ama arkadaki ayarlar penceresi kocaman ve beyaz: %28'i bile
         // panelin altından ikinci bir pencere gibi görünüyordu. Bu ekran bir üst sayfanın yerine geçiyor,
         // arkasında bir şey durmamalı.
-        private static readonly Color Dim = new Color(0f, 0f, 0f, 0.88f);
+        private static readonly Color Dim = new Color(0f, 0f, 0f, 1f);
 
         private LocalizationService _loc;
         private Skin _skin;

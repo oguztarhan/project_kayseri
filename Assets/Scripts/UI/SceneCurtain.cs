@@ -11,13 +11,13 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The loading screen for a swap between two scenes that are already in the game: island to market,
-    /// market back to island.
+    /// The loading screen for a swap between two scenes that are already in the game: island out to
+    /// sea, sea back to island.
     ///
     /// Both used to be a bare <c>LoadSceneAsync</c> with nothing over it. That is not a small omission on
     /// a phone: Main is the heavy scene — every island, all three phase roots — and for the second or two
     /// it takes to read, the player is looking at the yard they just asked to leave with a button that
-    /// apparently did nothing. Half of them tap it again. The way out of the market has been reported as
+    /// apparently did nothing. Half of them tap it again. The way back from sea has been reported as
     /// broken on slower devices for exactly this reason, and there was nothing wrong with the button.
     ///
     /// It is deliberately NOT <see cref="LoadingScreen"/>. That one is the boot splash: it is authored in
@@ -42,7 +42,7 @@ namespace Game.UI
         [Tooltip("Yeni sahne kurulduktan sonraki açılma süresi.")]
         [SerializeField, Min(0f)] private float fadeOutSeconds = 0.35f;
 
-        [Tooltip("Marketten hazır bekleyen adaya dönüşte yükleme görselinin ekranda kalacağı en az süre.")]
+        [Tooltip("Denizden hazır bekleyen adaya dönüşte yükleme görselinin ekranda kalacağı en az süre.")]
         [SerializeField, Min(0f)] private float returnScreenSeconds = 2f;
 
         [Tooltip("HUD 100, dünya haritası 150. Perde hepsinin üstünde olmalı.")]
@@ -50,12 +50,11 @@ namespace Game.UI
 
         private static SceneCurtain _live;
 
-        private const string MarketScene = "Market";
         private const string SeaScene = "Sea";
         private const string MarketBackdropResource = "UI/Transitions/market_transition";
 
         // Main is expensive because the live operation builds its vehicles, tracks and dressing in
-        // Start. Keep that already-built scene parked while the tiny market or sea scene is open.
+        // Start. Keep that already-built scene parked while the tiny sea scene is open.
         // Returning to the island then wakes the existing objects instead of constructing the whole
         // operation again.
         private static Scene _parkedIslandScene;
@@ -87,13 +86,12 @@ namespace Game.UI
         /// </summary>
         /// <param name="parkCurrent">
         /// Whether the scene being left may be PARKED rather than unloaded. True is the shipped
-        /// behaviour and only ever applies on the way into the market or out to sea — the two swaps
-        /// where what is being left (Main) is expensive to rebuild.
+        /// behaviour and only ever applies on the way out to sea — the one swap where what is being
+        /// left (Main) is expensive to rebuild.
         ///
-        /// The sea passes false on its way back. The market is small and built in code, so rebuilding
-        /// it costs almost nothing — and parking the sea under it would leave a whole scene resident
-        /// behind a screen the player has walked away from, which is the opposite of what parking is
-        /// for.
+        /// The sea passes false on its way back: parking the sea under the island would leave a whole
+        /// scene resident behind a screen the player has walked away from, which is the opposite of
+        /// what parking is for.
         /// </param>
         public static bool Cover(string sceneName, Color accent, string caption, bool parkCurrent = true)
         {
@@ -109,7 +107,7 @@ namespace Game.UI
 
         /// <summary>
         /// Where "back to the island" goes. NOT a constant: the presentation scene is Shipyard or Main
-        /// depending on <see cref="ShipyardFeatureSwitch"/>, so the sea and the market may not hardcode
+        /// depending on <see cref="ShipyardFeatureSwitch"/>, so the sea may not hardcode
         /// one — a Shipyard session that asked for "Main" got a fresh single load of the legacy scene
         /// instead of the island parked underneath it, and arrived with no map and an unwired boot.
         ///
@@ -143,10 +141,11 @@ namespace Game.UI
 
             // Full bleed, and outside any safe area on purpose: a backdrop that stops at the notch is a
             // backdrop with a bright stripe of gameplay down one edge of it.
-            // SceneCurtain is shared by both directions of the market trip. Using the same painting in
-            // both directions makes the journey feel continuous instead of changing visual language at
-            // the market door. If the resource is ever missing, the original colour curtain remains a
-            // safe fallback.
+            // SceneCurtain is shared by both directions of the trip. Using the same painting in both
+            // directions makes the journey feel continuous instead of changing visual language halfway.
+            // The sprite is named for the market it was drawn for; it outlived that yard as the game's
+            // one loading painting. If the resource is ever missing, the colour curtain remains a safe
+            // fallback.
             bool hasMarketBackdrop = AddMarketBackdrop(canvas);
             if (!hasMarketBackdrop)
             {
@@ -232,7 +231,7 @@ namespace Game.UI
         /// <summary>
         /// Fade in, read the scene behind the fade, hold long enough to be seen, swap, fade out, go away.
         ///
-        /// Unscaled time throughout: a swap has to work from a paused game, and the market pauses nothing
+        /// Unscaled time throughout: a swap has to work from a paused game, and the sea pauses nothing
         /// but the island's popups do.
         /// </summary>
         private IEnumerator Run(string sceneName, bool parkCurrent)
@@ -260,8 +259,7 @@ namespace Game.UI
             if (restoringParkedIsland)
                 yield return RestoreParkedIsland();
             else
-                yield return LoadScene(sceneName,
-                    parkCurrent && (sceneName == MarketScene || sceneName == SeaScene));
+                yield return LoadScene(sceneName, parkCurrent && sceneName == SeaScene);
 
             Application.backgroundLoadingPriority = previousPriority;
 
@@ -369,9 +367,9 @@ namespace Game.UI
             GameObject[] roots = scene.GetRootGameObjects();
             for (int i = 0; i < roots.Length; i++)
             {
-                // The market scene builds its UI while Main's EventSystem still exists, so it correctly
+                // The sea scene builds its UI while Main's EventSystem still exists, so it correctly
                 // decides that a second one is unnecessary. Parking this standalone root afterwards
-                // would then leave the market with no touch, button or movement input at all.
+                // would then leave the sea with no touch, button or movement input at all.
                 if (roots[i].GetComponent<EventSystem>() != null) continue;
 
                 // Remember only roots that were live. The seven inactive island roots must stay
@@ -397,7 +395,7 @@ namespace Game.UI
 
         private IEnumerator RestoreParkedIsland()
         {
-            Scene market = SceneManager.GetActiveScene();
+            Scene visited = SceneManager.GetActiveScene();
             Scene island = _parkedIslandScene;
 
             SceneManager.SetActiveScene(island);
@@ -410,11 +408,11 @@ namespace Game.UI
             Progress(0.72f);
             yield return null;
 
-            // Market is intentionally lightweight. Unloading it releases its generated yard without
-            // touching the already-built island operation underneath the curtain.
-            if (market.IsValid() && market.isLoaded && market != island)
+            // The visited scene is intentionally lightweight. Unloading it releases what it generated
+            // without touching the already-built island operation underneath the curtain.
+            if (visited.IsValid() && visited.isLoaded && visited != island)
             {
-                AsyncOperation unload = SceneManager.UnloadSceneAsync(market);
+                AsyncOperation unload = SceneManager.UnloadSceneAsync(visited);
                 if (unload != null)
                 {
                     while (!unload.isDone)

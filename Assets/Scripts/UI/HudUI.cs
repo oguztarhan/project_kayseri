@@ -25,11 +25,13 @@ namespace Game.UI
         public const string SailButtonName = "BtnDenizSavasi";
         public const string MasterButtonName = "BtnUstabasi";
         public const string CaptainButtonName = "BtnKaptan";
+        public const string MoreButtonName = "BtnDahaFazla";
 
-        /// <summary>The openers compact mode keeps. Everything else it drops — see
-        /// <see cref="AttachBottomButton"/>.</summary>
+        /// <summary>The openers compact mode keeps on the rail itself. Everything else it moves into
+        /// the More sheet — see <see cref="AttachBottomButton"/>.</summary>
         private static bool IsCompactOpener(string name)
-            => name == SailButtonName || name == MasterButtonName || name == CaptainButtonName;
+            => name == SailButtonName || name == MasterButtonName || name == CaptainButtonName
+               || name == MoreButtonName;
 
         [Header("Dikey tersane sade HUD")]
         [Tooltip("Yalnızca Inspector'daki dört ana eylemi kenar rayında tutar; eski bölüm bildirimi ve yinelenen kısayolları gizler.")]
@@ -224,10 +226,13 @@ namespace Game.UI
             ApplySafeArea();
             LayoutBottomRow();
             if (!compactShipyardHud)
-            {
                 BuildObjectiveStrip();
-                BuildLadder();
-            }
+            // The league screen is built in either mode. It used to sit inside the branch above, which
+            // meant compact mode never created it at all — LadderService.Available was true, the
+            // season was running, and the screen that shows it did not exist. Its own opener decides
+            // whether there is anything to open (LadderUI.BuildOpener), and in compact mode that
+            // opener now lands in the More sheet.
+            BuildLadder();
 
             if (_wallet != null) _wallet.GemsChanged += RefreshGems;
             RefreshGems();
@@ -270,10 +275,13 @@ namespace Game.UI
         public Button AttachBottomButton(int order, string name, Sprite icon,
                                          UnityEngine.Events.UnityAction onClick)
         {
-            // Compact mode rejects the old collection of secondary openers. Three survive it: sea
-            // combat is a primary loop in the five-station game, and the two rosters are the whole
-            // of the collection layer — a screen you cannot open is a feature you do not have.
-            if (compactShipyardHud && !IsCompactOpener(name)) return null;
+            // Compact mode keeps the rail down to primaries: sea combat is a primary loop in the
+            // five-station game, and the two rosters are the whole of the collection layer. The rest
+            // go into the More sheet rather than being dropped — a screen you cannot open is a
+            // feature you do not have, and Goals, Chapter, Crafting, Events and the League were all
+            // being built, ticked and left unreachable.
+            if (compactShipyardHud && !IsCompactOpener(name))
+                return AttachMoreRow(order, name, icon, onClick);
             RectTransform model = FirstAuthored();
             if (model == null) return null;
 
@@ -490,7 +498,246 @@ namespace Game.UI
             GameObject chip = Instantiate(offerTimerChip, owner.transform, false);
             chip.name = offerTimerChip.name;
             chip.SetActive(true);
+            // A rail button is a 150-unit square and the authored chip's own offsets land on it
+            // correctly. A More row is a wide strip, so the same offsets would drop the chip somewhere
+            // in the middle of the label; pin it to the row's trailing edge instead.
+            if (_moreRows.Contains(owner.transform as RectTransform))
+            {
+                var chipRect = (RectTransform)chip.transform;
+                chipRect.anchorMin = new Vector2(1f, 0.5f);
+                chipRect.anchorMax = new Vector2(1f, 0.5f);
+                chipRect.pivot = new Vector2(1f, 0.5f);
+                chipRect.anchoredPosition = new Vector2(-MoreRowPadding, 0f);
+            }
             return chip;
+        }
+
+        // ---------------------------------------------------------------- more sheet
+
+        /// <summary>Above the HUD (100) and below every screen a row opens (Goals 106 … League 111),
+        /// so a screen launched from a row draws over the sheet that launched it.</summary>
+        private const int MoreSortingOrder = 104;
+
+        private const float MoreRowHeight = 150f;    // one rail button tall, so rows read as openers
+        private const float MoreRowGap = 18f;
+        private const float MoreRowPadding = 28f;
+        private const float MoreHeaderHeight = 140f;
+        private const float MoreSheetWidth = 880f;   // of the 1080-wide reference canvas
+        private const string MoreIconResource = "UI/Buttons/dahafazla";
+
+        [Header("Daha fazla sayfası")]
+        [Tooltip("Sayfanın arkasındaki karartma. Dokunulunca sayfa kapanır.")]
+        [SerializeField] private Color moreScrimColor = new Color(0.04f, 0.05f, 0.08f, 0.92f);
+        [Tooltip("Sayfanın kendi zemini.")]
+        [SerializeField] private Color moreSheetColor = new Color(0.15f, 0.18f, 0.26f, 1f);
+        [Tooltip("Satır plakası — rayın kendi butonlarından biraz açık.")]
+        [SerializeField] private Color moreRowColor = new Color(0.22f, 0.26f, 0.36f, 1f);
+
+        private static readonly Color MoreInk = new Color(0.96f, 0.97f, 1f, 1f);
+
+        private RectTransform _moreScrim;   // full-bleed dim, tap to dismiss
+        private RectTransform _moreSheet;   // the panel the rows sit in
+        private readonly List<int> _moreOrder = new List<int>();
+        private readonly List<RectTransform> _moreRows = new List<RectTransform>();
+
+        /// <summary>
+        /// A secondary opener, hung as a row in the More sheet instead of on the rail.
+        ///
+        /// The five screens that land here — Goals, Chapter, Crafting, Events, League — do not know
+        /// they moved: they still call <see cref="AttachBottomButton"/> and still get a real
+        /// <see cref="Button"/> plus a working <see cref="AttachCounterChip"/> back. That is the whole
+        /// point of routing here rather than making each screen build its own entry point.
+        /// </summary>
+        private Button AttachMoreRow(int order, string name, Sprite icon,
+                                     UnityEngine.Events.UnityAction onClick)
+        {
+            EnsureMoreSheet();
+            if (_moreSheet == null) return null;
+
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(_moreSheet, false);
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+
+            var plate = go.GetComponent<Image>();
+            plate.sprite = UiSkin.Panel;
+            plate.type = Image.Type.Sliced;
+            plate.color = moreRowColor;
+
+            var iconGo = new GameObject("Simge", typeof(RectTransform), typeof(Image));
+            var iconRect = (RectTransform)iconGo.transform;
+            iconRect.SetParent(rect, false);
+            iconRect.anchorMin = new Vector2(0f, 0.5f);
+            iconRect.anchorMax = new Vector2(0f, 0.5f);
+            iconRect.pivot = new Vector2(0f, 0.5f);
+            iconRect.sizeDelta = new Vector2(MoreRowHeight - 2f * MoreRowPadding,
+                                             MoreRowHeight - 2f * MoreRowPadding);
+            iconRect.anchoredPosition = new Vector2(MoreRowPadding, 0f);
+            var iconImage = iconGo.GetComponent<Image>();
+            iconImage.sprite = icon;
+            iconImage.preserveAspect = true;
+            iconImage.raycastTarget = false;
+            iconImage.enabled = icon != null;
+
+            // The label starts clear of the icon and stops clear of the counter chip's corner, so a
+            // long translation truncates instead of running under the badge.
+            var slot = new GameObject("Ad", typeof(RectTransform));
+            var slotRect = (RectTransform)slot.transform;
+            slotRect.SetParent(rect, false);
+            slotRect.anchorMin = new Vector2(0f, 0f);
+            slotRect.anchorMax = new Vector2(1f, 1f);
+            slotRect.offsetMin = new Vector2(MoreRowHeight, 0f);
+            slotRect.offsetMax = new Vector2(-MoreRowHeight, 0f);
+            Text label = UiBuild.Label(slotRect, "Text", MoreRowTitle(name), 34, TextAnchor.MiddleLeft);
+            label.color = MoreInk;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+
+            var button = go.GetComponent<Button>();
+            button.targetGraphic = plate;
+            // Close first, then open: the sheet sorts below every screen it launches, but leaving it
+            // up behind a screen means the player closes one thing and finds another still open.
+            button.onClick.AddListener(HideMore);
+            if (onClick != null) button.onClick.AddListener(onClick);
+
+            InsertMoreRow(order, rect);
+            LayoutMoreRows();
+            return button;
+        }
+
+        /// <summary>The row's own screen title, so the sheet says "EVENTS" rather than "BtnEtkinlik".
+        /// Reuses each screen's existing heading key — no row here needs its own translation.</summary>
+        private static string MoreRowTitle(string name)
+        {
+            switch (name)
+            {
+                case "BtnGorev": return Loc.T("gorev.baslik");
+                case "BtnBolum": return Loc.T("bolum.baslik");
+                case "BtnAtolye": return Loc.T("atolye.baslik");
+                case "BtnEtkinlik": return Loc.T("etkinlik.baslik");
+                case "BtnLig": return Loc.T("lig.baslik");
+                default: return name;
+            }
+        }
+
+        private void InsertMoreRow(int order, RectTransform rect)
+        {
+            if (rect == null || _moreRows.Contains(rect)) return;
+            int i = 0;
+            while (i < _moreOrder.Count && _moreOrder[i] <= order) i++;
+            _moreOrder.Insert(i, order);
+            _moreRows.Insert(i, rect);
+        }
+
+        /// <summary>
+        /// Stacks the rows top-down and grows the sheet to fit them, so a build with three secondary
+        /// screens gets a three-row sheet rather than a fixed panel with holes in it. Re-run on every
+        /// attach, for the same reason <see cref="LayoutBottomRow"/> is: the openers register from
+        /// several different Awakes and only one piece of code can own the final positions.
+        /// </summary>
+        private void LayoutMoreRows()
+        {
+            if (_moreSheet == null) return;
+            int count = _moreRows.Count;
+            float body = count > 0 ? count * MoreRowHeight + (count - 1) * MoreRowGap : 0f;
+            _moreSheet.sizeDelta = new Vector2(MoreSheetWidth,
+                                               MoreHeaderHeight + body + MoreRowPadding);
+
+            for (int i = 0; i < count; i++)
+            {
+                RectTransform rect = _moreRows[i];
+                if (rect == null) continue;
+                rect.sizeDelta = new Vector2(-2f * MoreRowPadding, MoreRowHeight);
+                rect.anchoredPosition = new Vector2(0f,
+                    -(MoreHeaderHeight + i * (MoreRowHeight + MoreRowGap)));
+            }
+        }
+
+        /// <summary>
+        /// Builds the sheet on the first secondary opener, so a build with none grows no button.
+        ///
+        /// IT MUST NOT BE PARENTED TO THE HUD — see <see cref="BuildLadder"/> for the same rule and
+        /// the same reason: this builds its own ScreenSpaceOverlay canvas, and a Canvas nested inside
+        /// another Canvas has its render mode ignored and collapses into the parent's rect.
+        /// </summary>
+        private void EnsureMoreSheet()
+        {
+            if (_moreScrim != null) return;
+
+            GameObject systems = GameObject.Find(UiSystemsObject);
+            Transform host = systems != null ? systems.transform : null;
+            RectTransform canvas = UiBuild.Canvas(host, "DahaFazlaKanvas", MoreSortingOrder);
+
+            _moreScrim = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(moreScrimColor), Vector2.zero, Vector2.one);
+            var dismiss = _moreScrim.gameObject.AddComponent<Button>();
+            dismiss.transition = Selectable.Transition.None;
+            dismiss.onClick.AddListener(HideMore);
+
+            // Centred on the canvas and sized in reference units, so the sheet stays centred on every
+            // aspect ratio instead of drifting the way a fraction-of-screen anchor does.
+            var sheetGo = new GameObject("Zemin", typeof(RectTransform), typeof(Image));
+            _moreSheet = (RectTransform)sheetGo.transform;
+            _moreSheet.SetParent(_moreScrim, false);
+            _moreSheet.anchorMin = new Vector2(0.5f, 0.5f);
+            _moreSheet.anchorMax = new Vector2(0.5f, 0.5f);
+            _moreSheet.pivot = new Vector2(0.5f, 0.5f);
+            _moreSheet.anchoredPosition = Vector2.zero;
+            var sheetImage = sheetGo.GetComponent<Image>();
+            sheetImage.sprite = UiSkin.Panel;
+            sheetImage.type = Image.Type.Sliced;
+            sheetImage.color = moreSheetColor;
+            sheetImage.raycastTarget = true;              // eats its own taps so the scrim cannot fire through
+            var eat = sheetGo.AddComponent<Button>();
+            eat.transition = Selectable.Transition.None;
+
+            var titleSlot = new GameObject("Baslik", typeof(RectTransform));
+            var titleRect = (RectTransform)titleSlot.transform;
+            titleRect.SetParent(_moreSheet, false);
+            titleRect.anchorMin = new Vector2(0f, 1f);
+            titleRect.anchorMax = new Vector2(1f, 1f);
+            titleRect.pivot = new Vector2(0.5f, 1f);
+            titleRect.sizeDelta = new Vector2(-2f * MoreRowPadding, MoreHeaderHeight);
+            titleRect.anchoredPosition = Vector2.zero;
+            Text title = UiBuild.Label(titleRect, "Text", Loc.T("hud.dahafazla"), 40,
+                                       TextAnchor.MiddleCenter);
+            title.color = MoreInk;
+
+            // Content into the safe area; the scrim above it keeps covering the notch. Safe here even
+            // though the rows arrive later: they parent to _moreSheet, which this moves inside.
+            UiBuild.InsetContent(_moreScrim);
+
+            _moreScrim.gameObject.SetActive(false);
+            EnsureMoreOpener();
+        }
+
+        /// <summary>The rail button that opens the sheet. Order 9 puts it after the two rosters and
+        /// before the authored row, which starts at <see cref="AuthoredOrder"/>.
+        ///
+        /// Every other opener has its own glyph under Resources/UI/Buttons; this one has no art yet,
+        /// so it wears the plain button plate with an ellipsis over it rather than a blank pill. Drop
+        /// a <c>dahafazla.png</c> in beside the others and the glyph can go.</summary>
+        private void EnsureMoreOpener()
+        {
+            Sprite icon = Resources.Load<Sprite>(MoreIconResource);
+            Button open = AttachBottomButton(9, MoreButtonName,
+                                             icon != null ? icon : UiSkin.ButtonGrey, ToggleMore);
+            if (open == null || icon != null) return;
+            Text glyph = UiBuild.Label(open.transform, "Text", "•••", 46, TextAnchor.MiddleCenter);
+            glyph.color = MoreInk;
+        }
+
+        public void ToggleMore()
+        {
+            if (_moreScrim == null) return;
+            bool show = !_moreScrim.gameObject.activeSelf;
+            _moreScrim.gameObject.SetActive(show);
+        }
+
+        public void HideMore()
+        {
+            if (_moreScrim != null) _moreScrim.gameObject.SetActive(false);
         }
 
         /// <summary>

@@ -67,7 +67,7 @@ namespace Game.UI
         private const float CopiedSeconds = 2.4f;
 
         private static readonly Color Ink = new Color32(0x2A, 0x3A, 0x5C, 0xFF);
-        private static readonly Color Dim = new Color(0f, 0f, 0f, 0.88f);
+        private static readonly Color Dim = new Color(0f, 0f, 0f, 1f);
         private static readonly Color Faint = new Color32(0x6B, 0x76, 0x8C, 0xFF);
 
         private LanguageMenuUI.Skin _skin;

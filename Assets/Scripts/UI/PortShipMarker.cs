@@ -16,7 +16,7 @@ namespace Game.UI
     /// parented under the island root, which is what makes travel and scene-parking free: the hull
     /// sleeps and wakes with the island it belongs to.
     ///
-    /// SELF-HOSTING, unlike the authored markers beside it. MarketDoorMarker and PortContractMarker
+    /// SELF-HOSTING, unlike the authored markers beside it. PortContractMarker and the upgrade badges
     /// are objects in Main.unity; this one spawns its own persistent host at boot instead, because
     /// it has to exist at whichever island's port is live and adding it to the scene would mean
     /// editing Main for a component with nothing to wire. Same construction as those markers
@@ -80,8 +80,8 @@ namespace Game.UI
             go.transform.SetParent(transform, false);
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            // Above the HUD in the raycast stack, for the reason MarketDoorMarker gives: a HUD
-            // button's transparent edge can lie over this one and quietly eat the tap.
+            // Above the HUD in the raycast stack: a HUD button's transparent edge can lie over this
+            // one and quietly eat the tap.
             canvas.sortingOrder = Mathf.Max(sortingOrder, 102);
             var sc = go.GetComponent<CanvasScaler>();
             sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -269,7 +269,7 @@ namespace Game.UI
         private static void Paint(GameObject go, Color c)
         {
             var r = go.GetComponent<Renderer>();
-            if (r != null) r.sharedMaterial = MarketYardBuild.Mat(c);
+            if (r != null) r.sharedMaterial = MarketSurfaces.Get(c, MarketSurfaces.Finish.Plain);
             Destroy(go.GetComponent<Collider>());
         }
 

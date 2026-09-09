@@ -4,24 +4,25 @@ using UnityEngine;
 namespace Game.Gameplay
 {
     /// <summary>
-    /// What the market yard's surfaces are made of: the six tileable maps under
+    /// A shared, cached material per colour and finish: the six tileable maps under
     /// <c>Resources/Market/Textures</c>, and the materials that put them on a box.
     ///
-    /// The maps are LUMINANCE — near-white with the detail in the normal — and that is the whole
-    /// reason this can exist alongside <see cref="MarketTheme"/> rather than instead of it. A yard's
-    /// colour comes from its island and only from there; a texture with its own colour in it would
-    /// fight that, and the coal yard, whose palette is nearly black already, would go to mud. Here
-    /// the map is a multiplier hovering around one, so a copper wall is still copper — it just has
-    /// ribs and bolts and a panel seam in it now.
+    /// IT OUTLIVED THE YARD IT WAS WRITTEN FOR. This was the market yard's surface library; the yard
+    /// is gone and this is not, because the sea scene paints its hulls and its harbour furniture
+    /// through <see cref="Get"/> with <see cref="Finish.Plain"/>. The name and the texture folder are
+    /// the yard's; the job is now "the game's flat-colour material cache".
     ///
-    /// TILING IS NOT ON THE MATERIAL. A yard is built out of boxes ranging from a 46-unit wall to a
-    /// 0.7-unit door post, and one <c>_BaseMap_ST</c> across all of them smears the texture on
-    /// everything it does not happen to fit. The repeat is baked into the mesh instead — see
-    /// <see cref="MarketBoxMesh"/> — so the material stays shared and every face gets the same
-    /// texel density no matter how big the box it is on. That is what <see cref="Tiles"/> is for.
+    /// The maps are LUMINANCE — near-white with the detail in the normal — so colour comes from the
+    /// caller and only from there. A texture with its own colour in it would fight that, and a nearly
+    /// black palette would go to mud. Here the map is a multiplier hovering around one, so a copper
+    /// wall is still copper; it just has ribs and bolts and a panel seam in it now.
     ///
-    /// Materials are cached by colour and finish. Eight yards out of five palette colours is around
-    /// forty of them for the whole hall, all on one shader, which the SRP batcher keeps in one pass.
+    /// TILING IS NOT ON THE MATERIAL. One <c>_BaseMap_ST</c> shared across boxes of wildly different
+    /// sizes smears the texture on everything it does not happen to fit, so the repeat is baked into
+    /// the mesh instead and the material stays shared. That is what <see cref="Tiles"/> is for.
+    ///
+    /// Materials are cached by colour and finish, all on one shader, which the SRP batcher keeps in
+    /// one pass.
     /// </summary>
     public static class MarketSurfaces
     {
@@ -105,9 +106,8 @@ namespace Game.Gameplay
         /// <summary>
         /// The material for one colour in one finish. Handed out shared — never write to it.
         ///
-        /// A missing map falls back to the flat colour rather than throwing or drawing magenta. The
-        /// yard has always been able to run half-dressed (see <see cref="MarketYardDressing"/>), and
-        /// that is worth keeping: a project without the texture folder still gets a market.
+        /// A missing map falls back to the flat colour rather than throwing or drawing magenta. That
+        /// is worth keeping: a project without the texture folder still draws, in plain colour.
         /// </summary>
         public static Material Get(Color colour, Finish finish)
         {

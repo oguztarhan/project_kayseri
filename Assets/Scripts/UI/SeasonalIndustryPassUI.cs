@@ -87,7 +87,7 @@ namespace Game.UI
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "SezonBiletiKanvas", sortingOrder);
-            _root = UiBuild.Flat(canvas, "Karartma", new Color(0.03f, 0.04f, 0.09f, 0.93f),
+            _root = UiBuild.Flat(canvas, "Karartma", new Color(0.03f, 0.04f, 0.09f, 1f),
                 Vector2.zero, Vector2.one);
             Button dismiss = _root.gameObject.AddComponent<Button>();
             dismiss.transition = Selectable.Transition.None;
@@ -141,6 +141,8 @@ namespace Game.UI
 
             BuildTrack(sheet);
             _reveal = RewardRevealUI.Create(_root, cardPanel, gemIcon);
+            // Content into the safe area; the scrim above it keeps covering the notch.
+            UiBuild.InsetContent(_root);
         }
 
         private void BuildTrack(RectTransform sheet)

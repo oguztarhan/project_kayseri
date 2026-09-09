@@ -11,6 +11,8 @@ namespace Game.UI
     public sealed class IslandYardUpgradeUI : MonoBehaviour
     {
         [SerializeField] private int sortingOrder = 180;
+        [Tooltip("Açıcının kendi katmanı. Sayfa 180'de kalır; açıcı HUD hizasına iner.")]
+        [SerializeField] private int openerSortingOrder = 103;
         [SerializeField] private Vector2 openerMin = new Vector2(0.70f, 0.30f);
         [SerializeField] private Vector2 openerMax = new Vector2(0.97f, 0.355f);
         [SerializeField, Min(0.1f)] private float refreshSeconds = 0.3f;
@@ -154,14 +156,24 @@ namespace Game.UI
             safe.transform.SetParent(canvas, false);
             var area = UiBuild.Anchor((RectTransform)safe.transform, Vector2.zero, Vector2.one);
             safe.AddComponent<SafeArea>();
-            _opener = UiBuild.Btn(area, "OpenYardUpgrades", "", UiSkin.ButtonYellow, Gold, 24,
+            // The opener gets its own canvas at HUD level. It is on screen permanently, and sharing
+            // the sheet's 180 meant it drew over every screen in the 105-115 band — it sat on top of
+            // the Goals claim button and of the More sheet, catching taps meant for them.
+            var openerCanvas = UiBuild.Canvas(transform, "IslandYardAcici", openerSortingOrder);
+            var openerArea = new GameObject("SafeArea", typeof(RectTransform));
+            openerArea.transform.SetParent(openerCanvas, false);
+            UiBuild.Anchor((RectTransform)openerArea.transform, Vector2.zero, Vector2.one);
+            openerArea.AddComponent<SafeArea>();
+
+            _opener = UiBuild.Btn((RectTransform)openerArea.transform, "OpenYardUpgrades", "",
+                UiSkin.ButtonYellow, Gold, 24,
                 () => Show(_market != null ? _market.ActiveIsland : null));
             UiBuild.Anchor((RectTransform)_opener.transform, openerMin, openerMax);
             _openerText = _opener.GetComponentInChildren<Text>();
             _openerText.color = Ink;
             Fit(_openerText, 24);
 
-            var veil = UiBuild.Flat(area, "YardUpgradeOverlay", new Color(0.02f, 0.04f, 0.08f, 0.72f), Vector2.zero, Vector2.one);
+            var veil = UiBuild.Flat(area, "YardUpgradeOverlay", new Color(0.02f, 0.04f, 0.08f, 1f), Vector2.zero, Vector2.one);
             _overlay = veil.gameObject;
             _sheet = UiBuild.Flat(veil, "YardUpgradeSheet", new Color(0.94f, 0.95f, 0.93f), new Vector2(0.045f, 0.15f), new Vector2(0.955f, 0.85f));
             _title = Label(_sheet, "Title", 32, new Vector2(0.04f, 0.925f), new Vector2(0.82f, 0.985f), Ink);

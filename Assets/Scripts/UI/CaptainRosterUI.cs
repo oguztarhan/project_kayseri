@@ -168,7 +168,7 @@ namespace Game.UI
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "KaptanKanvas", sortingOrder);
-            _root = UiBuild.Flat(canvas, "Karartma", scrim, Vector2.zero, Vector2.one);
+            _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
             var dismiss = _root.gameObject.AddComponent<Button>();
             dismiss.transition = Selectable.Transition.None;
             dismiss.onClick.AddListener(Hide);
@@ -188,6 +188,8 @@ namespace Game.UI
                             new Vector2(PageRight, RowsTop - c * rh - 0.006f));
             _inspect = new RosterInspectPanel(_root);
             _odds = new OddsSheetUI(_root);
+            // Content into the safe area; the scrim above it keeps covering the notch.
+            UiBuild.InsetContent(_root);
         }
 
         private void BuildBrowseBar()
@@ -232,8 +234,10 @@ namespace Game.UI
 
         private void BuildHeader()
         {
+            // 0.310..0.690, not 0.270..0.650: same 0.38 width, but centred. It used to sit 4% of the
+            // sheet left of centre, which reads as a crooked title beside the Zemin behind it.
             RectTransform band = Art(_root, "Serit", ribbon,
-                                     new Vector2(0.270f, 0.928f), new Vector2(0.650f, 0.998f));
+                                     new Vector2(0.310f, 0.928f), new Vector2(0.690f, 0.998f));
             _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
                                         new Vector2(0.87f, RibbonBand + 0.13f)),
                                    "Text", Loc.T("kaptan.baslik"), 38, TextAnchor.MiddleCenter);

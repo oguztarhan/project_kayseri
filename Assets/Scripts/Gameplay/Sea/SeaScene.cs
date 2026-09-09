@@ -131,7 +131,7 @@ namespace Game.Gameplay
         private static void Paint(GameObject go, Color c)
         {
             var r = go.GetComponent<Renderer>();
-            if (r != null) r.sharedMaterial = MarketYardBuild.Mat(c);
+            if (r != null) r.sharedMaterial = MarketSurfaces.Get(c, MarketSurfaces.Finish.Plain);
         }
     }
 }

@@ -3,10 +3,10 @@ using UnityEngine;
 namespace Game.Gameplay
 {
     /// <summary>
-    /// The camera over the sea: the same fixed-angle rig the market yard uses, following the hull.
+    /// The camera over the sea: a fixed-angle rig following the hull.
     ///
-    /// FIXED PITCH AND YAW, like <see cref="Game.Gameplay.MarketCamera"/> and for the same
-    /// reason — a camera that turns with the boat would swing the whole horizon through ninety degrees
+    /// FIXED PITCH AND YAW, and for good reason — a camera that turns with the boat would swing the
+    /// whole horizon through ninety degrees
     /// at the halfway turn, which is a way to make a player put the phone down. The ship turns; the
     /// world does not.
     ///

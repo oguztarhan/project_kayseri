@@ -118,7 +118,7 @@ namespace Game.UI
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "GorevKanvas", sortingOrder);
-            _root = UiBuild.Flat(canvas, "Karartma", scrim, Vector2.zero, Vector2.one);
+            _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
             BuildHeader();
             BuildTabs();
             _pages[0] = Page("GunlukSayfa");
@@ -128,6 +128,8 @@ namespace Game.UI
             BuildWeeklyPage(_pages[1]);
             BuildAchievementsPage(_pages[2]);
             _reveal = RewardRevealUI.Create(_root, cardPanel, gemIcon);
+            // Content into the safe area; the scrim above it keeps covering the notch.
+            UiBuild.InsetContent(_root);
         }
 
         private void BuildHeader()

@@ -61,7 +61,7 @@ namespace Game.Tests
                 for (int i = 0; i < canvases.Length; i++)
                     if (canvases[i].name == "EtkinlikKanvas")
                     {
-                        hubCanvas = canvases[i].transform.Find("Karartma");
+                        hubCanvas = canvases[i].transform.Find("Karartma/Guvenli");
                         break;
                     }
                 Assert.That(hubCanvas, Is.Not.Null, "Hub canvas was not built.");

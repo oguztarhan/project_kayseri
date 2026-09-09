@@ -27,7 +27,11 @@ namespace Game.Tests
 
                 Transform scrim = canvases[0].transform.Find("Karartma");
                 Assert.That(scrim, Is.Not.Null);
-                Transform sheet = scrim.Find("Zemin");
+                // Content sits in the safe-area wrapper UiBuild.InsetContent adds; the scrim
+                // above it stays full-bleed so the dim still covers the notch and gesture bar.
+                Transform content = scrim.Find("Guvenli");
+                Assert.That(content, Is.Not.Null);
+                Transform sheet = content.Find("Zemin");
                 Assert.That(sheet, Is.Not.Null);
                 Assert.That(sheet.Find("Sekme0"), Is.Not.Null);
                 Assert.That(sheet.Find("Sekme1"), Is.Not.Null);

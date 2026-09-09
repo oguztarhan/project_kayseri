@@ -137,7 +137,7 @@ namespace Game.UI
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "BolumKanvas", sortingOrder);
-            _root = UiBuild.Flat(canvas, "Karartma", scrim, Vector2.zero, Vector2.one);
+            _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
             var dismiss = _root.gameObject.AddComponent<Button>();
             dismiss.transition = Selectable.Transition.None;
             dismiss.onClick.AddListener(Hide);
@@ -161,6 +161,8 @@ namespace Game.UI
             for (int b = 0; b < Chapters.BeatCount; b++)
                 BuildBeat(b, new Vector2(0.355f, beatTop - (b + 1) * bh + 0.008f),
                              new Vector2(0.965f, beatTop - b * bh - 0.008f));
+            // Content into the safe area; the scrim above it keeps covering the notch.
+            UiBuild.InsetContent(_root);
         }
 
         private void BuildHeader()

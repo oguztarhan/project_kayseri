@@ -282,7 +282,7 @@ namespace Game.UI
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "UstabasiKanvas", sortingOrder);
-            _root = UiBuild.Flat(canvas, "Karartma", scrim, Vector2.zero, Vector2.one);
+            _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
 
             BuildHeader();
             BuildChestShelf();
@@ -306,6 +306,8 @@ namespace Game.UI
             BuildReveal();
             _inspect = new RosterInspectPanel(_root);
             _odds = new OddsSheetUI(_root);
+            // Content into the safe area; the scrim above it keeps covering the notch.
+            UiBuild.InsetContent(_root);
         }
 
         private void BuildBrowseBar()
@@ -412,8 +414,10 @@ namespace Game.UI
         /// <summary>The blue ribbon across the top, the income multiplier left of it, the purse right.</summary>
         private void BuildHeader()
         {
+            // 0.310..0.690, not 0.230..0.610: same 0.38 width, but centred. It used to sit 8% of the
+            // sheet left of centre — the worst offset of any screen here, and visible without measuring.
             RectTransform band = Art(_root, "Serit", ribbon,
-                                     new Vector2(0.230f, HeaderBottom), new Vector2(0.610f, 0.998f));
+                                     new Vector2(0.310f, HeaderBottom), new Vector2(0.690f, 0.998f));
             _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
                                         new Vector2(0.87f, RibbonBand + 0.13f)),
                                    "Text", Loc.T("usta.baslik"), 38, TextAnchor.MiddleCenter);
@@ -644,7 +648,7 @@ namespace Game.UI
         private void BuildReveal()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "UstaSandikKanvas", sortingOrder + 25);
-            _reveal = UiBuild.Flat(canvas, "Karartma", new Color(0.03f, 0.04f, 0.07f, 0.93f),
+            _reveal = UiBuild.Flat(canvas, "Karartma", new Color(0.03f, 0.04f, 0.07f, 1f),
                                    Vector2.zero, Vector2.one);
 
             // The whole sheet is the skip target — a reveal you have to aim at to get past is a
@@ -706,6 +710,8 @@ namespace Game.UI
             // It hangs off the canvas rather than off the reveal sheet so it still runs for a tier
             // promotion, which happens with the sheet down.
             _confetti = canvas.gameObject.AddComponent<ConfettiBurst>();
+            // Content into the safe area; the scrim above it keeps covering the notch.
+            UiBuild.InsetContent(_reveal);
         }
 
         // ------------------------------------------------------------------ pieces
