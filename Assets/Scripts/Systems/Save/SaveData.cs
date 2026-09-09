@@ -307,6 +307,17 @@ namespace Game.Systems
         // set: a default-constructed row is a player who has never entered a season, which is exactly
         // what every existing save is.
         public LadderState ladder = new LadderState();
+
+        // ---- kart koleksiyonu (CardCollectionService) ---------------------------------------------
+        // The card collection. ONE NESTED OBJECT rather than nine fields scattered across this root,
+        // because nine loose fields is nine chances for the next feature to sit between two of them
+        // and make the block impossible to read.
+        //
+        // Added WITHOUT a save-version bump, on the precedent every block above set: an empty
+        // collection is a player who has opened no packs, which is exactly what every existing save
+        // is. Docs/PLAN_14 records that this is the one Plan #05 condition the feature knowingly
+        // breaks — ownership and pity counters cannot be derived from anything already saved.
+        public CardCollectionSaveData cardCollection = new CardCollectionSaveData();
     }
 
     /// <summary>
@@ -334,6 +345,162 @@ namespace Game.Systems
         public long bestAchievedUnix;     // when bestScore was first reached — the ranking tie-break
         public List<string> settledSeasons = new List<string>();
         public List<LadderInboxRow> inbox = new List<LadderInboxRow>();
+    }
+
+    /// <summary>
+    /// One card's progress. Addressed by ID rather than by index, unlike
+    /// <see cref="SaveData.masterStars"/> and <see cref="SaveData.captainLevels"/>, and deliberately:
+    /// those two are fixed-length arrays over rosters that are frozen in code, while the card
+    /// catalogue is expected to GROW. A positional array would tie every future content set to the
+    /// order the launch cards happen to sit in.
+    ///
+    /// A row exists only for a card the player has actually met. A card in the catalogue with no row
+    /// is at level 0, which is also what every pre-collection save says about all twenty-four.
+    /// </summary>
+    [Serializable]
+    public class CardCollectionProgress
+    {
+        public string cardId = "";        // CardCollectionCatalogue.Card.Id — a save key, never renamed
+        public int level;                 // 0 = never drawn; only a pack draw can make this 1
+        public int duplicates;            // spare copies banked toward the next level
+        public bool seen;                 // cleared the "NEW" badge — presentation only
+    }
+
+    /// <summary>
+    /// The card collection's whole persisted state.
+    ///
+    /// THE PITY COUNTERS ARE SAVED, and they have to be: a guarantee the player is forty packs into
+    /// is a thing they have earned, and losing it on an app kill would make the published worst case
+    /// a lie. They are the reason this feature cannot meet Plan #05's "add no save fields" condition
+    /// — see Docs/PLAN_14.
+    ///
+    /// THE DAILY PACK IS A UTC DAY NUMBER, not a countdown, the same shape
+    /// <see cref="GoalSaveData.day"/> keeps: it ticks while the app is shut, cannot be farmed by
+    /// leaving the app open, and a clock rolled backwards only ever delays it. It banks at most one.
+    ///
+    /// <see cref="claimedSetRewardIds"/> is the idempotency key list, the same shape
+    /// <see cref="LadderState.settledSeasons"/> and <c>processedIapTransactions</c> keep: a set
+    /// completed twice must pay once. It is deliberately NOT what decides whether the permanent set
+    /// bonus is live — that is derived from the cards owned, so a player who never taps Claim keeps
+    /// the bonus they earned.
+    /// </summary>
+    [Serializable]
+    public class CardCollectionSaveData
+    {
+        public List<CardCollectionProgress> progress = new List<CardCollectionProgress>();
+        public List<string> claimedSetRewardIds = new List<string>();
+
+        public int unopenedPacks;         // claimed but not yet opened; the reveal is the player's moment
+        public int dailyPackDay = int.MinValue;   // UTC day the last free pack was claimed for
+        public int packsOpened;           // lifetime, for the collection screen's own readout
+
+        public int pullsSinceEpic;
+        public int pullsSinceLegendary;
+
+        /// <summary>
+        /// Makes a loaded block safe to read, whatever wrote it. Called once on load, before any
+        /// screen or service reads a card.
+        ///
+        /// UNKNOWN CARD IDS ARE KEPT, NOT DROPPED. A row naming a card this build does not carry is
+        /// not corruption — it is a card from a build the player has since moved off, or one a
+        /// staged rollout has not given them yet. Dropping it would silently destroy a collection on
+        /// a downgrade, so it rides along untouched and is simply never shown.
+        ///
+        /// Returns true when something actually had to be changed, so a load that repaired a save
+        /// can write the repair back rather than leaving it to be redone on every launch.
+        /// </summary>
+        public bool Normalise()
+        {
+            bool changed = false;
+
+            if (progress == null) { progress = new List<CardCollectionProgress>(); changed = true; }
+            if (claimedSetRewardIds == null) { claimedSetRewardIds = new List<string>(); changed = true; }
+
+            var seenIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = progress.Count - 1; i >= 0; i--)
+            {
+                CardCollectionProgress row = progress[i];
+
+                // A null row or one naming nothing addresses no card and can never be shown or
+                // repaired — it is the one case where dropping is the only honest answer.
+                if (row == null || string.IsNullOrEmpty(row.cardId))
+                {
+                    progress.RemoveAt(i);
+                    changed = true;
+                    continue;
+                }
+
+                // Two rows for one card would let one shadow the other's duplicates depending on
+                // which the lookup happened to reach first. The walk is backwards, so the row kept
+                // is the LAST written — the one a later append would have added, and therefore the
+                // likelier of the two to be current.
+                if (!seenIds.Add(row.cardId))
+                {
+                    progress.RemoveAt(i);
+                    changed = true;
+                    continue;
+                }
+
+                int level = Game.Core.CardCollection.ClampLevel(row.level);
+                if (level != row.level) { row.level = level; changed = true; }
+
+                if (row.duplicates < 0) { row.duplicates = 0; changed = true; }
+
+                // Duplicates on an unowned card are LEFT ALONE. They cannot unlock it — only a pack
+                // draw creates level 1, and CardCollection.CanLevel refuses a level-0 card whatever
+                // it is holding — so there is nothing to defend against, and zeroing them would
+                // throw away real progress if a future build ever hands out copies directly.
+            }
+
+            for (int i = claimedSetRewardIds.Count - 1; i >= 0; i--)
+            {
+                string id = claimedSetRewardIds[i];
+                if (string.IsNullOrEmpty(id) || claimedSetRewardIds.IndexOf(id) != i)
+                {
+                    claimedSetRewardIds.RemoveAt(i);
+                    changed = true;
+                }
+            }
+
+            if (unopenedPacks < 0) { unopenedPacks = 0; changed = true; }
+            if (packsOpened < 0) { packsOpened = 0; changed = true; }
+            if (pullsSinceEpic < 0) { pullsSinceEpic = 0; changed = true; }
+            if (pullsSinceLegendary < 0) { pullsSinceLegendary = 0; changed = true; }
+
+            return changed;
+        }
+
+        /// <summary>The row for a card id, or null for one the player has never met. Linear because
+        /// the catalogue is two dozen cards and this is asked on load and on a pack open, never in a
+        /// frame.</summary>
+        public CardCollectionProgress Find(string cardId)
+        {
+            if (string.IsNullOrEmpty(cardId) || progress == null) return null;
+            for (int i = 0; i < progress.Count; i++)
+                if (progress[i] != null && string.Equals(progress[i].cardId, cardId, StringComparison.Ordinal))
+                    return progress[i];
+            return null;
+        }
+
+        /// <summary>The row for a card id, created at level 0 if the player has not met it yet.</summary>
+        public CardCollectionProgress FindOrAdd(string cardId)
+        {
+            CardCollectionProgress row = Find(cardId);
+            if (row != null) return row;
+
+            if (progress == null) progress = new List<CardCollectionProgress>();
+            row = new CardCollectionProgress { cardId = cardId };
+            progress.Add(row);
+            return row;
+        }
+
+        public bool HasClaimedSetReward(string setId)
+        {
+            if (string.IsNullOrEmpty(setId) || claimedSetRewardIds == null) return false;
+            for (int i = 0; i < claimedSetRewardIds.Count; i++)
+                if (string.Equals(claimedSetRewardIds[i], setId, StringComparison.Ordinal)) return true;
+            return false;
+        }
     }
 
     /// <summary>

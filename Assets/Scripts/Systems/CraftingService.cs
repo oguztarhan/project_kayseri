@@ -43,6 +43,10 @@ namespace Game.Systems
         /// through it so the displaced item is scrapped (and teaches) exactly like any other.</summary>
         public ExpeditionService Expeditions { get; set; }
 
+        /// <summary>Set by the bootstrap once the collection exists; lifts the bench's XP and its
+        /// point drop. Null leaves both exactly where they were before cards existed.</summary>
+        public CardCollectionService Cards { get; set; }
+
         /// <summary>Raised on any move: a craft, a decision, points or XP landing, a stop opening.</summary>
         public event Action Changed;
 
@@ -278,7 +282,9 @@ namespace Game.Systems
             if (_data == null || !HasPending) return 0L;
             int grade = _data.craftPendingGrade - 1;
             long scrap = SeaCombat.ScrapFor(grade);
-            xp = Crafting.SalvageXpFor(grade);
+            xp = ScrapXp(grade);
+            // The hurda is NOT lifted here. SeaSalvageMultiplier is a bonus on what the sea pays out,
+            // and this is the player feeding their own item back to the bench — see Docs/PLAN_14.
             _data.salvage += scrap;
             _data.craftXp += xp;
             ClearPending();
@@ -364,23 +370,52 @@ namespace Game.Systems
 
         // --------------------------------------------------------------- income
         /// <summary>
+        /// A scrapped item's lesson, with the collection's craft XP bonus already on it.
+        ///
+        /// Both places that add scrap XP go through here, which is the point: XP lands on the bench
+        /// from the pending cell and from every SÖK button in the sea, and a bonus applied at one of
+        /// those and not the other would be a bonus that depended on which screen the player was
+        /// standing on. There is no third caller — <see cref="Crafting.SalvageXpFor"/> stays the
+        /// unmultiplied table everything else reads.
+        /// </summary>
+        private long ScrapXp(int grade)
+            => CardCollection.Scale(Crafting.SalvageXpFor(grade),
+                                    Cards != null ? Cards.Effects.CraftXpMultiplier : 1d);
+
+        /// <summary>
         /// A scrapped item's lesson, from wherever the scrap happened — the sea's SÖK buttons
         /// route through here. No save of its own: the drips ride the pause/quit save like every
         /// other sea trickle, and the rare stop-stamp inside Tick saves itself.
+        ///
+        /// Returns what actually landed, which the sea's scrap buttons report back to the player.
+        /// They used to read <see cref="Crafting.SalvageXpFor"/> themselves; once the collection can
+        /// lift the figure, the only number that is true is the one this method added.
         /// </summary>
-        public void GrantScrapXp(int grade)
+        public long GrantScrapXp(int grade)
         {
-            if (_data == null || grade < 0) return;
-            _data.craftXp += Crafting.SalvageXpFor(grade);
+            if (_data == null || grade < 0) return 0L;
+            long xp = ScrapXp(grade);
+            _data.craftXp += xp;
             Tick(NowUnix());
             Changed?.Invoke();
+            return xp;
         }
 
-        /// <summary>A won encounter's point roll. <paramref name="roll"/> is in [0,1).</summary>
+        /// <summary>
+        /// A won encounter's point roll. <paramref name="roll"/> is in [0,1).
+        ///
+        /// The collection widens the window rather than rolling a second time, so the published drop
+        /// chance stays one number a player can reason about. <see cref="CardCollection.CraftPointChance"/>
+        /// owns both the cap on the bonus and the ceiling on the total.
+        /// </summary>
         public bool TryDropPoint(double roll)
         {
             if (_data == null || _tuning.PointsPerWin <= 0) return false;
-            if (roll >= _tuning.PointDropChance) return false;
+            double chance = Cards != null
+                ? CardCollection.CraftPointChance(_tuning.PointDropChance,
+                                                  Cards.Effects.CraftPointDrop, Cards.Tuning)
+                : _tuning.PointDropChance;
+            if (roll >= chance) return false;
             _data.craftPoints += _tuning.PointsPerWin;
             ProcessAutoCraft();
             Changed?.Invoke();

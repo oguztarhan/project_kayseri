@@ -86,6 +86,10 @@ namespace Game.Systems
         /// sea works exactly as before when it is not.</summary>
         public CraftingService Crafting { get; set; }
 
+        /// <summary>Set by the bootstrap. Lifts the loot a won fight pays and nothing else — the
+        /// sea's five scrap paths are not fight loot and are deliberately left alone.</summary>
+        public CardCollectionService Cards { get; set; }
+
         public ExpeditionService(TimeService time,
                                  SaveData data = null, CaptainService captains = null,
                                  SeaCombat.Tuning? combat = null, SaveService save = null,
@@ -742,10 +746,11 @@ namespace Game.Systems
 
             int grade = _data.gearStash[index].grade - 1;
             long scrap = SeaCombat.ScrapFor(grade);
-            xp = Game.Core.Crafting.SalvageXpFor(grade);
             _data.salvage += scrap;
             _data.gearStash.RemoveAt(index);
-            Crafting?.GrantScrapXp(grade);
+            // The bench is asked what it taught rather than told — with a collection wired the lesson
+            // is larger than the table says, and the reported figure has to be the one that landed.
+            xp = Crafting != null ? Crafting.GrantScrapXp(grade) : Game.Core.Crafting.SalvageXpFor(grade);
             Commit();
             _analytics?.Log("gear_scrap_stash", "grade", grade);
             Changed?.Invoke();
@@ -766,7 +771,12 @@ namespace Game.Systems
             long scrap = GearStash.ScrapTotal(_grades, n, out xp);
             _data.salvage += scrap;
             _data.gearStash.Clear();
-            for (int i = 0; i < n; i++) Crafting?.GrantScrapXp(_grades[i]);
+            if (Crafting != null)
+            {
+                // Same reason as ScrapFromStash: the total reported is the total that landed.
+                xp = 0L;
+                for (int i = 0; i < n; i++) xp += Crafting.GrantScrapXp(_grades[i]);
+            }
             Commit();
             _analytics?.Log("gear_scrap_all", "count", n);
             Changed?.Invoke();
@@ -841,8 +851,15 @@ namespace Game.Systems
         public bool RegisterKill(int charts, int salvage)
         {
             if (!_atSea) return false;
-            if (charts > 0 && _captains != null) _captains.AddCharts(charts);
-            if (salvage > 0 && _data != null) _data.salvage += salvage;
+            // The collection lifts fight loot here and only here. Every other route to _data.salvage
+            // is a scrap — an item the player already owned turned back into hurda — and paying a
+            // find bonus on those would let a collection print salvage out of a stash it did not
+            // help fill. See Docs/PLAN_14 for the five paths this deliberately skips.
+            CardCollectionEffects gain = Cards != null ? Cards.Effects : CardCollectionEffects.None;
+            if (charts > 0 && _captains != null)
+                _captains.AddCharts(CardCollection.Scale(charts, gain.SeaChartMultiplier));
+            if (salvage > 0 && _data != null)
+                _data.salvage += CardCollection.Scale(salvage, gain.SeaSalvageMultiplier);
             // The workshop's point drop rides the same win, on the same dice-in-the-service rule.
             Crafting?.TryDropPoint(_random.NextDouble());
             Changed?.Invoke();
