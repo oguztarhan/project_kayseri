@@ -54,6 +54,10 @@ namespace Game.Systems
         private readonly SaveService _save;
         private readonly CardCollectionService _cards;   // null in tests: packs are reported, not banked
 
+        /// <summary>Assigned after PetService is built. GoalService remains the owner of the existing
+        /// claim flag, while PetService owns the pet receipt and closed pearl wallet.</summary>
+        public PetService Pets { get; set; }
+
         /// <summary>Raised when anything a goal screen shows has moved. No argument: the screen is six
         /// rows and three cards, and refreshing all of it is cheaper than working out what changed.</summary>
         public event Action Changed;
@@ -340,6 +344,7 @@ namespace Game.Systems
 
             Pay(milestone.Gems, milestone.Cards);
             PayPacks(milestone.Packs, CardCollection.PackSource.GoalMilestone);
+            Pets?.TryClaimWeeklyMilestone(milestone.Points);
             Commit();
             receipt = new ClaimReceipt(1, milestone.Gems, milestone.Cards, milestone.Packs);
             Changed?.Invoke();
@@ -361,6 +366,7 @@ namespace Game.Systems
             int taken = 0;
             // Two tallies rather than one: the collection is told where each pack came from.
             int weeklyPacks = 0, achievementPacks = 0;
+            var petWeeklyPoints = new List<int>();
 
             for (int i = 0; i < Goals.DailySlots; i++)
             {
@@ -382,9 +388,15 @@ namespace Game.Systems
                 gems += milestone.Gems;
                 cards += milestone.Cards;
                 weeklyPacks += milestone.Packs;
+                petWeeklyPoints.Add(milestone.Points);
                 taken++;
             }
             _data.goals.weeklyMilestonesClaimed = weeklyClaimed.ToArray();
+
+            // Store every goal receipt before PetService writes the same SaveData. That makes a
+            // force-close unable to leave a pearl grant on disk without its weekly claim record.
+            for (int i = 0; i < petWeeklyPoints.Count; i++)
+                Pets?.TryClaimWeeklyMilestone(petWeeklyPoints[i]);
 
             for (int i = 0; i < Goals.Ladder.Length; i++)
             {

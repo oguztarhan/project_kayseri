@@ -89,35 +89,69 @@ namespace Game.Tests
         }
 
         [Test]
-        public void RegisteringAWinPaysTheConfiguredPearlsExactlyOnce()
+        public void FusingTheEquippedSpeciesUpdatesTheVeryNextShipStatsRead()
+        {
+            var (sea, pets, data) = Make();
+            data.seaFightsWon = 25;
+            int species = 0;   // papağan -> Dodge
+            data.pets.counts[Pets.CellIndex(species, RosterCardState.Rarity.Common, 1)] = 3;
+            pets.Equip(0, species);
+
+            double before = sea.ShipStats().Dodge;
+            Assert.That(pets.Fuse(species, RosterCardState.Rarity.Common, 1), Is.True);
+            double after = sea.ShipStats().Dodge;
+
+            double expectedAfter = Pets.Bonus(Pets.EffectKindOf(species), RosterCardState.Rarity.Common, 2, PetT);
+            Assert.That(after, Is.EqualTo(expectedAfter).Within(1e-12));
+            Assert.That(after, Is.GreaterThan(before));
+        }
+
+        [Test]
+        public void ASpeciesWithNoOwnedCopiesLeftClearsToNoBonusRatherThanGoingStale()
+        {
+            // Equip refuses a species nobody owns, so the only way an equipped slot can point at
+            // one is the save arriving in that state directly (e.g. every copy consumed some other
+            // way). CombatBonus must resolve that slot to nothing rather than a stale number.
+            var (sea, pets, data) = Make();
+            data.seaFightsWon = 25;
+            data.pets.equippedSpecies[0] = 0;   // papağan, never granted a single copy
+
+            double withStaleSlot = sea.ShipStats().Dodge;
+            sea.Pets = null;
+            double unwired = sea.ShipStats().Dodge;
+
+            Assert.That(withStaleSlot, Is.EqualTo(unwired));
+            Assert.That(pets.CombatBonus()[(int)Pets.EffectKind.Dodge], Is.Zero);
+        }
+
+        [Test]
+        public void RegisteringAWinPaysTierAndKindScaledPearlsExactlyOnce()
         {
             var (sea, _, data) = Make();
-            sea.PearlsPerWin = 3L;
             sea.SetSail("coal");
 
-            sea.RegisterWin();
+            sea.RegisterWin(2, 1); // round(4 * 9 * .06 * 1.25) = 3
             Assert.That(data.pearls, Is.EqualTo(3L));
 
-            sea.RegisterWin();
+            sea.RegisterWin(2, 1);
             Assert.That(data.pearls, Is.EqualTo(6L), "two wins must pay twice, not double the first");
         }
 
         [Test]
-        public void ZeroPearlsPerWinPaysNothingRatherThanThrowing()
+        public void ThePearlFormulaFloorsAValidWinAtOne()
         {
             var (sea, _, data) = Make();
             sea.SetSail("coal");
-            Assert.DoesNotThrow(() => sea.RegisterWin());
-            Assert.That(data.pearls, Is.Zero);
+            Assert.DoesNotThrow(() => sea.RegisterWin(0, 0));
+            Assert.That(data.pearls, Is.EqualTo(1L));
         }
 
         [Test]
         public void AWinAshoreOfTheSeaPaysNoPearl()
         {
             var (sea, _, data) = Make();
-            sea.PearlsPerWin = 5L;
             // Never sailed — RegisterWin must refuse exactly as it refuses charts and salvage ashore.
-            sea.RegisterWin();
+            sea.RegisterWin(3, 1);
             Assert.That(data.pearls, Is.Zero);
         }
     }

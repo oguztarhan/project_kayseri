@@ -538,6 +538,17 @@ namespace Game.Systems
         public int chestSinceEpic;
         public int chestSinceLegendary;
         public int chestsOpened;
+        // Pet progression stays a closed loop: Essence is neither a wallet currency nor a chest
+        // payment. It is additive so saves written before the escape valve simply start at zero.
+        public long petEssence;
+        // The first pet-panel visit is a one-shot grant. The UI calls PetService, which flips this
+        // flag and saves the pearls in the same write before it shows the panel.
+        public bool bootstrapGranted;
+        // UTC day number of the daily pet reward; -1 means it has never been claimed.
+        public long dailyRewardDay = -1L;
+        // Stable reward ids for weekly, sea-win and pet-achievement claims. IDs, rather than array
+        // positions, keep a reordered Inspector table from turning an old claim into a new payout.
+        public string[] claimedRewardIds = Array.Empty<string>();
 
         private static int[] NewEquipped()
         {
@@ -588,6 +599,26 @@ namespace Game.Systems
             if (chestSinceEpic < 0) { chestSinceEpic = 0; changed = true; }
             if (chestSinceLegendary < 0) { chestSinceLegendary = 0; changed = true; }
             if (chestsOpened < 0) { chestsOpened = 0; changed = true; }
+            if (petEssence < 0L) { petEssence = 0L; changed = true; }
+            if (dailyRewardDay < -1L) { dailyRewardDay = -1L; changed = true; }
+
+            if (claimedRewardIds == null)
+            {
+                claimedRewardIds = Array.Empty<string>();
+                changed = true;
+            }
+            else
+            {
+                var unique = new List<string>(claimedRewardIds.Length);
+                for (int i = 0; i < claimedRewardIds.Length; i++)
+                {
+                    string id = claimedRewardIds[i];
+                    if (string.IsNullOrEmpty(id) || unique.Contains(id)) { changed = true; continue; }
+                    unique.Add(id);
+                }
+                if (changed || unique.Count != claimedRewardIds.Length)
+                    claimedRewardIds = unique.ToArray();
+            }
 
             return changed;
         }

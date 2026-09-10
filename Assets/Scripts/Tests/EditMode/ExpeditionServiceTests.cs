@@ -205,11 +205,11 @@ namespace Game.Tests
             var data = new SaveData();
             var sea = new ExpeditionService(new TimeService(), data, null, T);
 
-            sea.RegisterWin();
+            sea.RegisterWin(0, 0);
             Assert.That(data.seaFightsWon, Is.Zero, "ashore there is nothing to win");
 
             sea.SetSail(Coal);
-            for (int i = 0; i < Voyages.TierFightsRequired[1]; i++) sea.RegisterWin();
+            for (int i = 0; i < Voyages.TierFightsRequired[1]; i++) sea.RegisterWin(0, 0);
 
             Assert.That(data.seaFightsWon, Is.EqualTo(Voyages.TierFightsRequired[1]));
             Assert.That(sea.TierUnlocked(1), Is.True, "the ladder moves on wins now, not on voyages");

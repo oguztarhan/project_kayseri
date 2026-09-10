@@ -96,12 +96,6 @@ namespace Game.Systems
         /// own name would otherwise shadow the static maths class of the same name.</summary>
         public PetService Pets { get; set; }
 
-        /// <summary>Set by the bootstrap from <c>Game.Data.PetConfig.PearlsPerWin</c>. Pearls are the
-        /// pet chest's own closed loop — earned only here, the same way charts and salvage are earned
-        /// only by <see cref="RegisterKill"/> — and 0 until wired, so the sea pays no pearl nobody has
-        /// authored yet.</summary>
-        public long PearlsPerWin { get; set; }
-
         public ExpeditionService(TimeService time,
                                  SaveData data = null, CaptainService captains = null,
                                  SeaCombat.Tuning? combat = null, SaveService save = null,
@@ -885,11 +879,11 @@ namespace Game.Systems
         /// One won fight, counted for the route ladder. Separate from <see cref="RegisterKill"/>
         /// because that one also carries YAĞMA's mid-fight grabs, which are not wins.
         /// </summary>
-        public void RegisterWin()
+        public void RegisterWin(int tier, int enemyKind)
         {
             if (!_atSea || _data == null) return;
             _data.seaFightsWon++;
-            if (PearlsPerWin > 0L) _data.pearls += PearlsPerWin;
+            Pets?.GrantSeaFightWin(tier, enemyKind);
             _save?.Save(_data);
             Changed?.Invoke();
         }

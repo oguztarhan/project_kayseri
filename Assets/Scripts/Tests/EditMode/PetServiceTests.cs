@@ -20,6 +20,24 @@ namespace Game.Tests
         private static PetService Make(SaveData data, int seed = 12345)
             => new PetService(data, T, C, Gates, new System.Random(seed));
 
+        private static PetService MakeRewards(SaveData data, Pets.RewardTuning rewards,
+                                              System.Func<long> nowUnix = null, SaveService save = null)
+            => new PetService(data, T, C, Gates, new System.Random(12345), null, save, rewards, nowUnix);
+
+        private sealed class FixedRandom : System.Random
+        {
+            private readonly double[] _values;
+            private int _next;
+
+            public FixedRandom(params double[] values) => _values = values;
+
+            public override double NextDouble()
+            {
+                int index = _next < _values.Length ? _next++ : _values.Length - 1;
+                return _values[index];
+            }
+        }
+
         // ---- the save contract -------------------------------------------------------------------
 
         [Test]
@@ -48,6 +66,23 @@ namespace Game.Tests
             Assert.That(data.pets.counts.Length, Is.EqualTo(Pets.CountsLength));
             Assert.That(data.pets.counts[0], Is.EqualTo(7));
             Assert.That(data.pets.counts[1], Is.EqualTo(2));
+        }
+
+        [Test]
+        public void NewRewardFieldsNormaliseWithoutResettingThePetGrid()
+        {
+            var data = new SaveData();
+            data.pets.counts = new[] { 4 };
+            data.pets.petEssence = -3L;
+            data.pets.dailyRewardDay = -9L;
+            data.pets.claimedRewardIds = new[] { "pet.weekly.100", "", "pet.weekly.100", null };
+
+            Make(data);
+
+            Assert.That(data.pets.counts[0], Is.EqualTo(4));
+            Assert.That(data.pets.petEssence, Is.Zero);
+            Assert.That(data.pets.dailyRewardDay, Is.EqualTo(-1L));
+            Assert.That(data.pets.claimedRewardIds, Is.EqualTo(new[] { "pet.weekly.100" }));
         }
 
         [Test]
@@ -102,9 +137,154 @@ namespace Game.Tests
             Assert.That(data.pearls, Is.EqualTo(C.PearlCost * 4));
             Assert.That(s.ChestsOpened, Is.EqualTo(1));
 
-            (int species, RosterCardState.Rarity rarity) = pulled[0];
+            (int species, RosterCardState.Rarity rarity, bool essence) = pulled[0];
+            Assert.That(essence, Is.False);
             Assert.That(s.CountAt(species, rarity, 1), Is.EqualTo(1));
             Assert.That(s.Owned(species), Is.True);
+        }
+
+        // ---- reward economy ----------------------------------------------------------------------
+
+        [Test]
+        public void SeaWinFormulaUsesTierKindAndTheOnePearlFloor()
+        {
+            Pets.RewardTuning rewards = Pets.RewardTuning.Default;
+
+            Assert.That(PetService.PearlsForSeaWin(0, 0, rewards), Is.EqualTo(1L));
+            Assert.That(PetService.PearlsForSeaWin(2, 1, rewards), Is.EqualTo(3L));
+            Assert.That(PetService.PearlsForSeaWin(3, 1, rewards), Is.EqualTo(7L));
+        }
+
+        [Test]
+        public void BootstrapPaysExactlyOnceAcrossReload()
+        {
+            var data = new SaveData();
+            PetService first = MakeRewards(data, Pets.RewardTuning.Default);
+
+            Assert.That(first.TryGrantBootstrap(), Is.True);
+            Assert.That(data.pearls, Is.EqualTo(100L));
+
+            SaveData reloaded = UnityEngine.JsonUtility.FromJson<SaveData>(UnityEngine.JsonUtility.ToJson(data));
+            PetService second = MakeRewards(reloaded, Pets.RewardTuning.Default);
+            Assert.That(second.TryGrantBootstrap(), Is.False);
+            Assert.That(reloaded.pearls, Is.EqualTo(100L));
+        }
+
+        [Test]
+        public void DailyRewardUsesUtcDaysAndCannotBeClaimedTwice()
+        {
+            long now = 172800L;
+            var data = new SaveData();
+            PetService s = MakeRewards(data, Pets.RewardTuning.Default, () => now);
+
+            Assert.That(s.TryClaimDaily(), Is.True);
+            Assert.That(s.TryClaimDaily(), Is.False);
+            Assert.That(data.pearls, Is.EqualTo(20L));
+
+            now += 86400L;
+            Assert.That(s.TryClaimDaily(), Is.True);
+            Assert.That(data.pearls, Is.EqualTo(40L));
+        }
+
+        [Test]
+        public void SeaMilestonesAndAchievementTiersHaveStableOneShotReceipts()
+        {
+            var data = new SaveData();
+            PetService s = MakeRewards(data, Pets.RewardTuning.Default);
+            data.seaFightsWon = 50;
+            // Every species owned, one of them Legendary — all three collection tiers reached.
+            for (int species = 0; species < Pets.SpeciesCount; species++)
+                data.pets.counts[Pets.CellIndex(species, RosterCardState.Rarity.Common, 1)] = 1;
+            data.pets.counts[Pets.CellIndex(0, RosterCardState.Rarity.Legendary, 1)] = 1;
+
+            Assert.That(s.TryClaimSeaFightMilestone(0), Is.True);
+            Assert.That(s.TryClaimSeaFightMilestone(1), Is.True);
+            Assert.That(s.TryClaimSeaFightMilestone(2), Is.True);
+            Assert.That(s.TryClaimSeaFightMilestone(2), Is.False);
+            Assert.That(s.TryClaimAchievementReward(0), Is.True);
+            Assert.That(s.TryClaimAchievementReward(1), Is.True);
+            Assert.That(s.TryClaimAchievementReward(2), Is.True);
+            Assert.That(s.TryClaimAchievementReward(1), Is.False);
+            Assert.That(data.pearls, Is.EqualTo(350L));
+        }
+
+        [Test]
+        public void EachAchievementTierIsRefusedUntilItsCollectionConditionHolds()
+        {
+            var data = new SaveData();
+            PetService s = MakeRewards(data, Pets.RewardTuning.Default);
+
+            for (int tier = 0; tier < PetService.AchievementRewardTierCount; tier++)
+                Assert.That(s.TryClaimAchievementReward(tier), Is.False, "nothing owned yet: tier " + tier);
+            Assert.That(data.pearls, Is.Zero);
+
+            data.pets.counts[Pets.CellIndex(2, RosterCardState.Rarity.Common, 1)] = 1;
+            Assert.That(s.CanClaimAchievement(0), Is.True, "a first pet reaches tier 1");
+            Assert.That(s.CanClaimAchievement(1), Is.False, "one species is not all six");
+            Assert.That(s.CanClaimAchievement(2), Is.False, "a Common is not Legendary");
+            Assert.That(s.TryClaimAchievementReward(0), Is.True);
+            Assert.That(s.TryClaimAchievementReward(0), Is.False);
+
+            for (int species = 0; species < Pets.SpeciesCount; species++)
+                data.pets.counts[Pets.CellIndex(species, RosterCardState.Rarity.Common, 1)] = 1;
+            Assert.That(s.TryClaimAchievementReward(1), Is.True);
+            Assert.That(s.TryClaimAchievementReward(2), Is.False);
+
+            data.pets.counts[Pets.CellIndex(4, RosterCardState.Rarity.Mythic, 1)] = 1;
+            Assert.That(s.TryClaimAchievementReward(2), Is.True, "Mythic counts as Legendary-or-better");
+            Assert.That(data.pearls, Is.EqualTo(25L + 50L + 100L));
+        }
+
+        [Test]
+        public void DailyReadinessFlipsWithTheUtcDay()
+        {
+            long now = 172800L + 3600L;
+            var data = new SaveData();
+            PetService s = MakeRewards(data, Pets.RewardTuning.Default, () => now);
+
+            Assert.That(s.CanClaimDaily, Is.True);
+            s.TryClaimDaily();
+            Assert.That(s.CanClaimDaily, Is.False);
+            now += 86400L - 3600L;   // midnight UTC, not 24h after the claim
+            Assert.That(s.CanClaimDaily, Is.True);
+        }
+
+        [Test]
+        public void ClaimableRewardCountAddsDailyMilestonesAndAchievements()
+        {
+            var data = new SaveData();
+            PetService s = MakeRewards(data, Pets.RewardTuning.Default, () => 172800L);
+            Assert.That(s.ClaimableRewardCount, Is.EqualTo(1), "only the daily on a fresh save");
+
+            data.seaFightsWon = 25;
+            data.pets.counts[Pets.CellIndex(0, RosterCardState.Rarity.Common, 1)] = 1;
+            Assert.That(s.ClaimableRewardCount, Is.EqualTo(1 + 2 + 1));
+
+            s.TryClaimDaily();
+            s.TryClaimSeaFightMilestone(0);
+            Assert.That(s.ClaimableRewardCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TheExistingWeeklyHundredPointClaimPaysPetPearlsOnce()
+        {
+            var data = new SaveData();
+            var goals = new GoalService(data, new WalletService(data.wallet), null, new TimeService());
+            PetService pets = MakeRewards(data, Pets.RewardTuning.Default);
+            goals.Pets = pets;
+
+            for (int i = 0; i < Goals.WeeklyTasks.Length; i++)
+                goals.Record(Goals.WeeklyTasks[i].Metric, Goals.WeeklyTasks[i].Target);
+
+            int weeklyHundred = -1;
+            for (int i = 0; i < Goals.WeeklyMilestones.Length; i++)
+                if (Goals.WeeklyMilestones[i].Points == PetService.WeeklyMilestonePoints) weeklyHundred = i;
+
+            Assert.That(weeklyHundred, Is.GreaterThanOrEqualTo(0));
+            Assert.That(goals.ClaimWeeklyMilestone(weeklyHundred), Is.True);
+            Assert.That(data.pearls, Is.EqualTo(100L));
+            Assert.That(goals.ClaimWeeklyMilestone(weeklyHundred), Is.False);
+            Assert.That(data.pearls, Is.EqualTo(100L));
         }
 
         [Test]
@@ -173,6 +353,134 @@ namespace Game.Tests
 
             Assert.That(s.Fuse(0, RosterCardState.Rarity.Mythic, Pets.MaxStars), Is.False);
             Assert.That(data.pets.counts[idx], Is.EqualTo(9));
+        }
+
+        [Test]
+        public void EveryValidFusionRungProducesTheExactExpectedReceipt()
+        {
+            int transitions = 0;
+            for (int rarityIndex = 0; rarityIndex < Pets.RarityCount; rarityIndex++)
+            {
+                var rarity = (RosterCardState.Rarity)rarityIndex;
+                for (int star = 1; star <= Pets.MaxStars; star++)
+                {
+                    if (!Pets.TryFuse(rarity, star, out var expectedRarity, out int expectedStar)) continue;
+
+                    var data = new SaveData();
+                    PetService s = Make(data);
+                    int from = Pets.CellIndex(0, rarity, star);
+                    data.pets.counts[from] = Pets.FuseGroupSize;
+
+                    Assert.That(s.Fuse(0, rarity, star, out PetService.FusionResult result), Is.True,
+                                rarity + " " + star + " should be a valid rung");
+                    Assert.That(result.RealCopiesConsumed, Is.EqualTo(Pets.FuseGroupSize));
+                    Assert.That(result.EssenceSpent, Is.Zero);
+                    Assert.That(result.ResultRarity, Is.EqualTo(expectedRarity));
+                    Assert.That(result.ResultStar, Is.EqualTo(expectedStar));
+                    Assert.That(result.CrossedRarity, Is.EqualTo(star == Pets.MaxStars));
+                    Assert.That(data.pets.counts[from], Is.Zero);
+                    Assert.That(data.pets.counts[Pets.CellIndex(0, expectedRarity, expectedStar)], Is.EqualTo(1));
+                    transitions++;
+                }
+            }
+
+            Assert.That(transitions, Is.EqualTo(24));
+        }
+
+        [Test]
+        public void EssenceSubstitutionConsumesExactlyTwoCopiesAndOneEssence()
+        {
+            var data = new SaveData();
+            PetService s = Make(data);
+            int from = Pets.CellIndex(2, RosterCardState.Rarity.Rare, 5);
+            int to = Pets.CellIndex(2, RosterCardState.Rarity.Epic, 1);
+            data.pets.counts[from] = 2;
+            data.pets.petEssence = 1L;
+
+            Assert.That(s.TryGetFusionResult(2, RosterCardState.Rarity.Rare, 5, true,
+                                              out PetService.FusionResult preview), Is.True);
+            Assert.That(preview.RealCopiesConsumed, Is.EqualTo(2));
+            Assert.That(preview.EssenceSpent, Is.EqualTo(1L));
+            Assert.That(preview.CrossedRarity, Is.True);
+
+            Assert.That(s.FuseWithEssence(2, RosterCardState.Rarity.Rare, 5,
+                                           out PetService.FusionResult result), Is.True);
+            Assert.That(result.RealCopiesConsumed, Is.EqualTo(2));
+            Assert.That(result.EssenceSpent, Is.EqualTo(1L));
+            Assert.That(data.pets.counts[from], Is.Zero);
+            Assert.That(data.pets.counts[to], Is.EqualTo(1));
+            Assert.That(s.PetEssence, Is.Zero);
+        }
+
+        [Test]
+        public void InvalidEssenceFusionInputsFailWithoutMutatingTheSave()
+        {
+            var data = new SaveData();
+            PetService s = Make(data);
+            int valid = Pets.CellIndex(0, RosterCardState.Rarity.Common, 1);
+            int maxed = Pets.CellIndex(0, RosterCardState.Rarity.Mythic, Pets.MaxStars);
+            data.pets.counts[valid] = 1;
+            data.pets.counts[maxed] = 3;
+            data.pets.petEssence = 1L;
+            int[] beforeCounts = (int[])data.pets.counts.Clone();
+
+            Assert.That(s.FuseWithEssence(-1, RosterCardState.Rarity.Common, 1, out _), Is.False);
+            Assert.That(s.FuseWithEssence(0, (RosterCardState.Rarity)99, 1, out _), Is.False);
+            Assert.That(s.FuseWithEssence(0, RosterCardState.Rarity.Common, 0, out _), Is.False);
+            Assert.That(s.FuseWithEssence(0, RosterCardState.Rarity.Common, 1, out _), Is.False,
+                        "one real copy plus Essence is not a three-input fusion");
+            Assert.That(s.FuseWithEssence(0, RosterCardState.Rarity.Mythic, Pets.MaxStars, out _), Is.False);
+            Assert.That(data.pets.counts, Is.EqualTo(beforeCounts));
+            Assert.That(data.pets.petEssence, Is.EqualTo(1L));
+        }
+
+        [Test]
+        public void AMythicFiveStarChestDuplicateBecomesEssenceInsteadOfAnInertCopy()
+        {
+            var data = new SaveData();
+            data.pearls = C.PearlCost;
+            data.pets.counts[Pets.CellIndex(0, RosterCardState.Rarity.Mythic, Pets.MaxStars)] = 1;
+            var s = new PetService(data, T, C, Gates, new FixedRandom(0.999d, 0d));
+
+            var pulled = s.TryOpenChests(1);
+
+            Assert.That(pulled, Is.Not.Null);
+            Assert.That(pulled[0].Rarity, Is.EqualTo(RosterCardState.Rarity.Mythic));
+            Assert.That(pulled[0].Essence, Is.True, "the receipt says the pull became Essence");
+            Assert.That(s.PetEssence, Is.EqualTo(1L));
+            Assert.That(s.CountAt(0, RosterCardState.Rarity.Mythic, 1), Is.Zero);
+            Assert.That(s.CountAt(0, RosterCardState.Rarity.Mythic, Pets.MaxStars), Is.EqualTo(1));
+            Assert.That(s.Pearls, Is.Zero);
+        }
+
+        [Test]
+        public void AMythicPullOfASpeciesNotYetMaxedIsACopyNotEssence()
+        {
+            var data = new SaveData();
+            data.pearls = C.PearlCost;
+            var s = new PetService(data, T, C, Gates, new FixedRandom(0.999d, 0d));
+
+            var pulled = s.TryOpenChests(1);
+
+            Assert.That(pulled[0].Rarity, Is.EqualTo(RosterCardState.Rarity.Mythic));
+            Assert.That(pulled[0].Essence, Is.False);
+            Assert.That(s.CountAt(0, RosterCardState.Rarity.Mythic, 1), Is.EqualTo(1));
+            Assert.That(s.PetEssence, Is.Zero);
+        }
+
+        [Test]
+        public void MaxedPetDuplicateCannotCreateAChestRefundOrFurtherFusionLoop()
+        {
+            var data = new SaveData();
+            data.pearls = C.PearlCost;
+            data.pets.counts[Pets.CellIndex(0, RosterCardState.Rarity.Mythic, Pets.MaxStars)] = 1;
+            var s = new PetService(data, T, C, Gates, new FixedRandom(0.999d, 0d));
+
+            Assert.That(s.TryOpenChests(1), Is.Not.Null);
+            Assert.That(s.Pearls, Is.Zero, "the duplicate conversion does not refund the chest");
+            Assert.That(s.PetEssence, Is.EqualTo(1L));
+            Assert.That(s.FuseWithEssence(0, RosterCardState.Rarity.Mythic, Pets.MaxStars, out _), Is.False);
+            Assert.That(s.PetEssence, Is.EqualTo(1L), "a capped rung cannot spend or turn Essence into more pets");
         }
 
         // ---- equip and the slot gate ----------------------------------------------------------------
@@ -303,6 +611,40 @@ namespace Game.Tests
         }
 
         [Test]
+        public void EssenceGrantsAndSpendsReachTheDiskAtomically()
+        {
+            var save = new SaveService("pets-test.dat");
+            var data = new SaveData();
+            PetService s = MakeRewards(data, Pets.RewardTuning.Default, null, save);
+
+            Assert.That(s.GrantPetEssence(3L), Is.True);
+            Assert.That(save.TryLoad(out SaveData granted), Is.True);
+            Assert.That(granted.pets.petEssence, Is.EqualTo(3L));
+
+            Assert.That(s.TrySpendPetEssence(1L), Is.True);
+            Assert.That(save.TryLoad(out SaveData spent), Is.True);
+            Assert.That(spent.pets.petEssence, Is.EqualTo(2L));
+        }
+
+        [Test]
+        public void EssenceFusionWritesCopiesResultAndEssenceInOneSave()
+        {
+            var save = new SaveService("pets-test.dat");
+            var data = new SaveData();
+            PetService s = MakeSaving(data, save);
+            int from = Pets.CellIndex(3, RosterCardState.Rarity.Legendary, 5);
+            int to = Pets.CellIndex(3, RosterCardState.Rarity.Mythic, 1);
+            data.pets.counts[from] = 2;
+            data.pets.petEssence = 1L;
+
+            Assert.That(s.FuseWithEssence(3, RosterCardState.Rarity.Legendary, 5, out _), Is.True);
+            Assert.That(save.TryLoad(out SaveData onDisk), Is.True);
+            Assert.That(onDisk.pets.counts[from], Is.Zero);
+            Assert.That(onDisk.pets.counts[to], Is.EqualTo(1));
+            Assert.That(onDisk.pets.petEssence, Is.Zero);
+        }
+
+        [Test]
         public void EquipAndUnequipEachReachTheDisk()
         {
             var save = new SaveService("pets-test.dat");
@@ -367,6 +709,7 @@ namespace Game.Tests
             double after = s.CombatBonus()[(int)Pets.EffectKindOf(species)];
 
             Assert.That(after, Is.GreaterThan(before));
+            Assert.That(s.EquippedAt(0), Is.EqualTo(species));
         }
 
         [Test]

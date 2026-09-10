@@ -1,3 +1,4 @@
+using System;
 using Game.Core;
 using Game.Data;
 using UnityEngine;
@@ -103,6 +104,7 @@ namespace Game.Systems
         public MiningGearService MiningGear { get; private set; }
         public CardCollectionService CardCollection { get; private set; }
         public PetService Pets { get; private set; }
+        public PetConfig PetConfig => petConfig;
         public CannonProductionService CannonProduction { get; private set; }
         public ShipyardUnlockService ShipyardUnlocks { get; private set; }
         public LadderService Ladder { get; private set; }
@@ -349,10 +351,12 @@ namespace Game.Systems
                 petGates,
                 null,
                 petConfig != null ? petConfig.RarityTint : null,
-                Save);
+                Save,
+                petConfig != null ? petConfig.ToRewardTuning() : Game.Core.Pets.RewardTuning.Default,
+                _time != null ? (Func<long>)_time.NowUnix : null);
             ServiceLocator.Register(Pets);
             Expeditions.Pets = Pets;
-            Expeditions.PearlsPerWin = petConfig != null ? petConfig.PearlsPerWin : PetService.DefaultPearlsPerWin;
+            Goals.Pets = Pets;
 
             // The collection's two other consumers, and the two set-reward payers it could not be
             // handed at construction because they did not exist yet.

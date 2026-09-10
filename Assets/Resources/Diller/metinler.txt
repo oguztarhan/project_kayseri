@@ -105,6 +105,7 @@ hud.bedava	BEDAVA	FREE	GRATIS	GRATUIT	GRATIS	GRÁTIS	GRATIS	GRATIS	БЕСПЛА�
 hud.teklif	TEKLİF	OFFER	ANGEBOT	OFFRE	OFERTA	OFERTA	OFFERTA	OFERTA	АКЦИЯ	PENAWARAN	ƯU ĐÃI
 hud.kalkan	KALKAN	SHIELD	SCHILD	BOUCLIER	ESCUDO	ESCUDO	SCUDO	TARCZA	ЩИТ	PERISAI	KHIÊN
 hud.dahafazla	DAHA FAZLA	MORE	MEHR	PLUS	MÁS	MAIS	ALTRO	WIĘCEJ	ЕЩЁ	LAINNYA	THÊM
+dost.baslik	DENİZ DOSTLARI	SEA COMPANIONS	MEERESBEGLEITER	COMPAGNONS MARINS	COMPAÑEROS MARINOS	COMPANHEIROS MARINHOS	COMPAGNI MARINI	MORSCY TOWARZYSZE	МОРСКИЕ СПУТНИКИ	TEMAN LAUT	BẠN ĐỒNG HÀNH BIỂN
 # onarim
 onar.buton	ONAR	REPAIR	REPARIEREN	RÉPARER	REPARAR	REPARAR	RIPARA	NAPRAW	ПОЧИНИТЬ	PERBAIKI	SỬA
 onar.hepsi	HEPSİNİ ONAR	REPAIR ALL	ALLES REPARIEREN	TOUT RÉPARER	REPARAR TODO	REPARAR TUDO	RIPARA TUTTO	NAPRAW WSZYSTKO	ПОЧИНИТЬ ВСЁ	PERBAIKI SEMUA	SỬA TẤT CẢ
@@ -462,6 +463,37 @@ kaptan.ad.derya	Kalem Derya	Derya Quill	Feder-Derya	Derya la Plume	Derya Pluma	D
 kaptan.ad.ates	Karayel Ateş	Ateş Northwester	Nordwest-Ateş	Ateş le Noroît	Ateş Cierzo	Ateş Noroeste	Ateş Maestrale	Ateş Północny Wiatr	Атеш Северо-Западный	Ateş si Angin Barat Laut	Ateş Gió Tây Bắc
 sefer.kaptan	KAPTAN	CAPTAIN	KAPITÄN	CAPITAINE	CAPITÁN	CAPITÃO	CAPITANO	KAPITAN	КАПИТАН	KAPTEN	THUYỀN TRƯỞNG
 kaptan.teselli	{0}: en geç {1} çekilişte	{0}: within {1} pulls	{0}: in höchstens {1} Ziehungen	{0} : d'ici {1} tirages	{0}: en {1} tiradas como máximo	{0}: em até {1} aberturas	{0}: entro {1} estrazioni	{0}: najdalej za {1} losowań	{0}: не позже чем через {1}	{0}: paling lama {1} tarikan	{0}: trong vòng {1} lượt
+# deniz dostlari -- evcil paneli (PetRosterUI / Game.Core.Pets); nadirlik adlari kaptan.derece.*, istatistik adlari deniz.st.* satirlarindan gelir. Tur anahtarlari Pets.Roster kimliklerinden turetilir; kimlikler kayit anahtaridir, degistirilmez.
+dost.papagan.ad	Papağan	Parrot	Papagei	Perroquet	Loro	Papagaio	Pappagallo	Papuga	Попугай	Burung Beo	Vẹt
+dost.maymun.ad	Maymun	Monkey	Affe	Singe	Mono	Macaco	Scimmia	Małpa	Обезьяна	Monyet	Khỉ
+dost.ahtapot.ad	Ahtapot	Octopus	Krake	Pieuvre	Pulpo	Polvo	Polpo	Ośmiornica	Осьминог	Gurita	Bạch tuộc
+dost.gemi_faresi.ad	Gemi Faresi	Ship Rat	Schiffsratte	Rat de cale	Rata de barco	Rato de navio	Ratto di bordo	Szczur okrętowy	Корабельная крыса	Tikus Kapal	Chuột tàu
+dost.yengec.ad	Yengeç	Crab	Krabbe	Crabe	Cangrejo	Caranguejo	Granchio	Krab	Краб	Kepiting	Cua
+dost.kaplumbaga.ad	Kaplumbağa	Turtle	Schildkröte	Tortue	Tortuga	Tartaruga	Tartaruga	Żółw	Черепаха	Penyu	Rùa
+dost.sandik	DOST SANDIĞI	COMPANION CHEST	BEGLEITERTRUHE	COFFRE DE COMPAGNON	COFRE DE COMPAÑERO	BAÚ DE COMPANHEIRO	FORZIERE DEI COMPAGNI	SKRZYNIA TOWARZYSZY	СУНДУК СПУТНИКОВ	PETI TEMAN	RƯƠNG BẠN ĐỒNG HÀNH
+dost.son	Son: {0}	Last: {0}	Zuletzt: {0}	Dernier : {0}	Último: {0}	Último: {0}	Ultimo: {0}	Ostatni: {0}	Последний: {0}	Terakhir: {0}	Gần nhất: {0}
+dost.son_yok	Henüz sandık açılmadı.	No chest opened yet.	Noch keine Truhe geöffnet.	Aucun coffre ouvert pour l'instant.	Aún no has abierto ningún cofre.	Nenhum baú aberto ainda.	Nessun forziere ancora aperto.	Nie otwarto jeszcze żadnej skrzyni.	Сундуки ещё не открывались.	Belum ada peti yang dibuka.	Chưa mở rương nào.
+dost.inci	İnci	Pearls	Perlen	Perles	Perlas	Pérolas	Perle	Perły	Жемчуг	Mutiara	Ngọc trai
+dost.oz	Pet Özü	Pet Essence	Begleiter-Essenz	Essence de compagnon	Esencia de compañero	Essência de companheiro	Essenza di compagno	Esencja towarzysza	Эссенция спутника	Esensi Teman	Tinh chất bạn đồng hành
+dost.merhamet	Şans koruması	Guarantee	Garantie	Garantie	Garantía	Garantia	Garanzia	Gwarancja	Гарантия	Jaminan	Bảo đảm
+dost.yuva	Yuva {0}	Slot {0}	Platz {0}	Place {0}	Hueco {0}	Espaço {0}	Slot {0}	Miejsce {0}	Слот {0}	Slot {0}	Ô {0}
+dost.acik	Açık	Open	Offen	Ouvert	Abierto	Aberto	Aperto	Otwarte	Открыт	Terbuka	Mở
+dost.yuva_kilit	{0} zafer kaldı	{0} wins to go	noch {0} Siege	encore {0} victoires	faltan {0} victorias	faltam {0} vitórias	ancora {0} vittorie	jeszcze {0} zwycięstw	ещё {0} побед	{0} kemenangan lagi	còn {0} trận thắng
+dost.fusyon	FÜZYON	FUSE	VERSCHMELZEN	FUSIONNER	FUSIONAR	FUNDIR	FONDI	POŁĄCZ	СЛИЯНИЕ	GABUNG	HỢP NHẤT
+dost.vazgec	VAZGEÇ	CANCEL	ABBRECHEN	ANNULER	CANCELAR	CANCELAR	ANNULLA	ANULUJ	ОТМЕНА	BATAL	HỦY
+dost.onayla	ONAYLA	CONFIRM	BESTÄTIGEN	CONFIRMER	CONFIRMAR	CONFIRMAR	CONFERMA	POTWIERDŹ	ПОДТВЕРДИТЬ	KONFIRMASI	XÁC NHẬN
+dost.fusyon_eksik	{0} kopya daha gerekli	{0} more needed	noch {0} benötigt	il en manque {0}	necesitas {0} más	precisa de mais {0}	ne mancano {0}	brakuje: {0}	не хватает: {0}	perlu {0} salinan lagi	cần thêm {0} bản sao
+dost.fusyon_oz_ile	(ya da 1 Pet Özü)	(or 1 Pet Essence)	(oder 1 Begleiter-Essenz)	(ou 1 Essence de compagnon)	(o 1 Esencia de compañero)	(ou 1 Essência de companheiro)	(o 1 Essenza di compagno)	(lub 1 Esencja towarzysza)	(или 1 эссенция спутника)	(atau 1 Esensi Teman)	(hoặc 1 Tinh chất bạn đồng hành)
+dost.fusyon_zirve	En üst seviyede — füzyon yok.	Maxed out — nothing to fuse.	Maximal — nichts zu verschmelzen.	Au maximum — rien à fusionner.	Al máximo: nada que fusionar.	No máximo — nada para fundir.	Al massimo — niente da fondere.	Maksymalny poziom — nic do połączenia.	Максимум — сливать нечего.	Maksimal — tidak ada yang digabung.	Đã tối đa — không còn gì để hợp nhất.
+dost.yok	yok	none	keiner	aucun	ninguno	nenhum	nessuno	brak	нет	tidak ada	không có
+dost.en_iyi	En iyi: {0}	Best: {0}	Beste: {0}	Meilleur : {0}	Mejor: {0}	Melhor: {0}	Migliore: {0}	Najlepszy: {0}	Лучший: {0}	Terbaik: {0}	Tốt nhất: {0}
+dost.bonus	Canlı bonus: {0}	Live bonus: {0}	Aktiver Bonus: {0}	Bonus actif : {0}	Bono activo: {0}	Bônus ativo: {0}	Bonus attivo: {0}	Aktywny bonus: {0}	Активный бонус: {0}	Bonus aktif: {0}	Thưởng hiện tại: {0}
+dost.kisa.0	S	C	G	C	C	C	C	P	О	B	T
+dost.kisa.1	N	R	S	R	R	R	R	R	Р	Lk	H
+dost.kisa.2	D	E	E	É	É	É	E	E	Э	E	S
+dost.kisa.3	E	L	L	L	L	L	L	L	Л	Lg	HT
+dost.kisa.4	M	M	M	M	M	M	M	M	М	M	TT
+dost.oduller	ÖDÜLLER	REWARDS	BELOHNUNGEN	RÉCOMPENSES	RECOMPENSAS	RECOMPENSAS	PREMI	NAGRODY	НАГРАДЫ	HADIAH	PHẦN THƯỞNG
 # deniz -- aktif sefer sahnesi (SeaSceneBoot / Game.Core.Expedition)
 deniz.baslik	AÇIK DENİZ	AT SEA	AUF SEE	EN MER	EN EL MAR	NO MAR	IN MARE	NA MORZU	В МОРЕ	DI LAUT	NGOÀI KHƠI
 deniz.rihtim	RIHTIM	THE DOCK	DER KAI	LE QUAI	EL MUELLE	O CAIS	IL MOLO	NABRZEŻE	ПРИЧАЛ	DERMAGA	BẾN TÀU

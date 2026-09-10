@@ -116,6 +116,26 @@ namespace Game.Core
             };
         }
 
+        /// <summary>Save/economy tuning that has no Unity or service dependency, so PetConfig can
+        /// author it from the Data assembly and PetService can apply it from Systems.</summary>
+        public struct RewardTuning
+        {
+            public double WinBase, WinLootShare;
+            public long BootstrapPearls, DailyPearls, WeeklyMilestonePearls;
+            public long[] SeaFightMilestonePearls, AchievementPearls;
+
+            public static RewardTuning Default => new RewardTuning
+            {
+                WinBase = 4d,
+                WinLootShare = 0.06d,
+                BootstrapPearls = 100L,
+                DailyPearls = 20L,
+                WeeklyMilestonePearls = 100L,
+                SeaFightMilestonePearls = new[] { 25L, 50L, 100L },
+                AchievementPearls = new[] { 25L, 50L, 100L },
+            };
+        }
+
         /// <summary>
         /// What one star is worth, effect-major and rarity-ascending. Reading across a row shows a
         /// rarer pet being worth more of the same thing at the same star; reading down a column shows

@@ -395,7 +395,7 @@ namespace Game.Gameplay
                         LastCharts = charts;
                         LastSalvage = salvage;
                     }
-                    _sea.RegisterWin();          // opens the further routes — see ExpeditionService.MaxTier
+                    _sea.RegisterWin(_fight.Tier, _fight.Kind); // confirmed win only; pet payout needs both
                     _drop = _sea.RollDrop(_fight.Tier);
                     _hasDrop = true;
                 }

@@ -59,10 +59,17 @@ namespace Game.Data
         [SerializeField, Min(0)] private long bulkPearlCost = 900L;
 
         // ------------------------------------------------------------------ inci kazancı
-        [Header("İnci kazancı (ExpeditionService.RegisterWin)")]
-        [Tooltip("Kazanılan her deniz çatışması bu kadar inci öder. Sürülen su derinliğiyle " +
-                 "çarpılır (0-indeksli tier + 1), haritaların ve hurdanın zaten ölçeklendiği kural.")]
-        [SerializeField, Min(0)] private long pearlsPerWin = 2L;
+        [Header("İnci kazancı")]
+        [Tooltip("Deniz zaferi formülünün taban katsayısı. Ödeme, tier çarpanı ve düşman ganimet " +
+                 "çarpanıyla PetService içinde bir kez hesaplanır.")]
+        [SerializeField] private double pearlWinBase = 4d;
+        [Tooltip("Deniz zaferi formülünün ganimet payı.")]
+        [SerializeField] private double pearlWinLootShare = 0.06d;
+        [SerializeField, Min(0)] private long bootstrapPearls = 100L;
+        [SerializeField, Min(0)] private long dailyPearls = 20L;
+        [SerializeField, Min(0)] private long weeklyMilestonePearls = 100L;
+        [SerializeField, Min(0)] private long[] seaFightMilestonePearls = { 25L, 50L, 100L };
+        [SerializeField, Min(0)] private long[] achievementPearls = { 25L, 50L, 100L };
 
         // ------------------------------------------------------------------ yuva kilitleri
         [Header("Yuva kilitleri — kazanılan deniz çatışması sayısı")]
@@ -123,7 +130,26 @@ namespace Game.Data
             BulkPearlCost   = bulkPearlCost,
         };
 
-        public long PearlsPerWin => pearlsPerWin < 0L ? 0L : pearlsPerWin;
+        public Game.Core.Pets.RewardTuning ToRewardTuning() => new Game.Core.Pets.RewardTuning
+        {
+            WinBase = NonNegative(pearlWinBase),
+            WinLootShare = NonNegative(pearlWinLootShare),
+            BootstrapPearls = NonNegative(bootstrapPearls),
+            DailyPearls = NonNegative(dailyPearls),
+            WeeklyMilestonePearls = NonNegative(weeklyMilestonePearls),
+            SeaFightMilestonePearls = NonNegative(seaFightMilestonePearls),
+            AchievementPearls = NonNegative(achievementPearls),
+        };
+
+        private static long NonNegative(long value) => value < 0L ? 0L : value;
+        private static double NonNegative(double value) => value < 0d ? 0d : value;
+        private static long[] NonNegative(long[] values)
+        {
+            if (values == null) return Array.Empty<long>();
+            var copy = new long[values.Length];
+            for (int i = 0; i < copy.Length; i++) copy[i] = NonNegative(values[i]);
+            return copy;
+        }
 
         /// <summary>Won fights needed to unlock a slot. 0 for slot 0 (always open) and for a slot the
         /// array is too short to name — never negative, never unreachable by a missing cell.</summary>
@@ -160,9 +186,107 @@ namespace Game.Data
             return _portraits.TryGetValue(speciesId, out Sprite portrait) ? portrait : null;
         }
 
+        /// <summary>Checks the authored balance contract without rewriting it. An Inspector mistake
+        /// must be visible to the designer rather than silently turning into code defaults at run
+        /// time; callers can use the message in editor tooling or tests.</summary>
+        public bool TryValidate(out string message)
+        {
+            if (!HasLength(effectPerRarity, Game.Core.Pets.EffectKindCount * Game.Core.Pets.RarityCount,
+                           "effect table", out message)) return false;
+            if (!HasLength(slotUnlockFightsWon, Game.Core.Pets.SlotCount, "slot gates", out message)) return false;
+            if (!HasLength(rarityTint, Game.Core.Pets.RarityCount, "rarity colors", out message)) return false;
+            if (!HasLength(seaFightMilestonePearls,
+                           Game.Core.Pets.RewardTuning.Default.SeaFightMilestonePearls.Length,
+                           "sea-fight rewards", out message)) return false;
+            if (!HasLength(achievementPearls,
+                           Game.Core.Pets.RewardTuning.Default.AchievementPearls.Length,
+                           "achievement rewards", out message)) return false;
+
+            if (!PositiveFinite(commonWeight) || !PositiveFinite(rareWeight) || !PositiveFinite(epicWeight)
+                || !PositiveFinite(legendaryWeight) || !PositiveFinite(mythicWeight))
+            {
+                message = "Every chest rarity weight must be finite and greater than zero.";
+                return false;
+            }
+
+            if (epicPity <= 0 || legendaryPity <= 0 || softPityStart <= 0
+                || softPityStart >= legendaryPity || !PositiveFinite(softPityStep))
+            {
+                message = "Pity windows must be positive, with soft pity before Legendary pity.";
+                return false;
+            }
+
+            if (pearlCost <= 0L || bulkCount <= 1 || bulkPearlCost <= 0L
+                || (double)bulkPearlCost >= (double)pearlCost * bulkCount)
+            {
+                message = "Bulk opening must cost less than buying its chest count singly.";
+                return false;
+            }
+
+            if (epicPity > bulkCount)
+            {
+                message = "Epic pity must fit inside the configured bulk-chest count.";
+                return false;
+            }
+
+            if (!AscendingNonNegative(slotUnlockFightsWon))
+            {
+                message = "Slot gates must start at zero and be non-negative ascending values.";
+                return false;
+            }
+
+            if (!IsNonNegative(pearlWinBase) || !IsNonNegative(pearlWinLootShare)
+                || !IsNonNegative(bootstrapPearls) || !IsNonNegative(dailyPearls)
+                || !IsNonNegative(weeklyMilestonePearls) || !IsNonNegative(seaFightMilestonePearls)
+                || !IsNonNegative(achievementPearls))
+            {
+                message = "Reward amounts must be finite and non-negative.";
+                return false;
+            }
+
+            message = string.Empty;
+            return true;
+        }
+
+        private static bool HasLength(Array values, int expected, string label, out string message)
+        {
+            if (values != null && values.Length == expected)
+            {
+                message = string.Empty;
+                return true;
+            }
+            message = label + " must have " + expected + " entries.";
+            return false;
+        }
+
+        private static bool PositiveFinite(double value)
+            => !double.IsNaN(value) && !double.IsInfinity(value) && value > 0d;
+
+        private static bool IsNonNegative(double value)
+            => !double.IsNaN(value) && !double.IsInfinity(value) && value >= 0d;
+
+        private static bool IsNonNegative(long value) => value >= 0L;
+
+        private static bool IsNonNegative(long[] values)
+        {
+            if (values == null) return false;
+            for (int i = 0; i < values.Length; i++) if (!IsNonNegative(values[i])) return false;
+            return true;
+        }
+
+        private static bool AscendingNonNegative(int[] values)
+        {
+            if (values == null || values.Length == 0 || values[0] != 0) return false;
+            for (int i = 0; i < values.Length; i++)
+                if (values[i] < 0 || (i > 0 && values[i] < values[i - 1])) return false;
+            return true;
+        }
+
         private void OnValidate()
         {
             _portraits = null;
+            if (!TryValidate(out string message))
+                Debug.LogWarning("PetConfig validation: " + message, this);
         }
     }
 }

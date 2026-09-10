@@ -1,0 +1,86 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 698bec7ae210f8245b8070e93c2691c4, type: 3}
+  m_Name: PetConfig
+  m_EditorClassIdentifier: Game.Data::Game.Data.PetConfig
+  effectPerRarity:
+  - 0.0011
+  - 0.0023
+  - 0.0034
+  - 0.0056
+  - 0.009
+  - 0.0011
+  - 0.0023
+  - 0.0034
+  - 0.0056
+  - 0.009
+  - 0.0009
+  - 0.0018
+  - 0.0026
+  - 0.0044
+  - 0.007
+  - 0.0009
+  - 0.0018
+  - 0.0026
+  - 0.0044
+  - 0.007
+  - 0.2
+  - 0.4
+  - 0.6
+  - 1
+  - 1.6
+  - 1
+  - 2
+  - 3
+  - 5
+  - 8
+  commonWeight: 0.6
+  rareWeight: 0.26
+  epicWeight: 0.105
+  legendaryWeight: 0.03
+  mythicWeight: 0.005
+  epicPity: 10
+  legendaryPity: 70
+  softPityStart: 45
+  softPityStep: 0.01
+  pearlCost: 100
+  bulkCount: 10
+  bulkPearlCost: 900
+  pearlWinBase: 4
+  pearlWinLootShare: 0.06
+  bootstrapPearls: 100
+  dailyPearls: 20
+  weeklyMilestonePearls: 100
+  seaFightMilestonePearls: 190000000000000032000000000000006400000000000000
+  achievementPearls: 190000000000000032000000000000006400000000000000
+  slotUnlockFightsWon: 000000000a00000019000000
+  rarityTint:
+  - {r: 0.48, g: 0.54, b: 0.62, a: 1}
+  - {r: 0.26, g: 0.6, b: 0.92, a: 1}
+  - {r: 0.62, g: 0.38, b: 0.92, a: 1}
+  - {r: 0.96, g: 0.66, b: 0.18, a: 1}
+  - {r: 0.94, g: 0.28, b: 0.42, a: 1}
+  speciesArt:
+  - speciesId: papagan
+    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+  - speciesId: maymun
+    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+  - speciesId: ahtapot
+    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+  - speciesId: gemi_faresi
+    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+  - speciesId: yengec
+    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+  - speciesId: kaplumbaga
+    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+  chestIcon: {fileID: 21300000, guid: 78ce755dcb4b7304a9b900205d12b723, type: 3}
+  pearlIcon: {fileID: 21300000, guid: 05abb2eab9f178b44bec447840bcf110, type: 3}

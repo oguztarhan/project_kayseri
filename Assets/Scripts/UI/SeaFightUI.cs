@@ -92,6 +92,8 @@ namespace Game.UI
         private IAdService _ad;
         private SaveService _save;
         private SaveData _data;
+        private PetService _pets;
+        private PetConfig _petConfig;
 
         private CanvasGroup _rootGroup;
         private RectTransform _root, _stage, _panel;
@@ -110,6 +112,15 @@ namespace Game.UI
         private readonly TMP_Text[] _statValue = new TMP_Text[StatCount];
         private readonly Image[] _gearFrame = new Image[SeaCombat.SlotCount];
         private readonly Image[][] _gearStars = new Image[SeaCombat.SlotCount][];
+
+        // Three pet-equip slots sharing the captain's band — see BuildPetSlots.
+        private readonly Image[] _petFrame = new Image[Pets.SlotCount];
+        private readonly Image[] _petPortrait = new Image[Pets.SlotCount];
+        private readonly Image[][] _petStars = new Image[Pets.SlotCount][];
+        private readonly TMP_Text[] _petBadge = new TMP_Text[Pets.SlotCount];
+        private readonly TMP_Text[] _petBonus = new TMP_Text[Pets.SlotCount];
+        private readonly Button[] _petButton = new Button[Pets.SlotCount];
+
         private Button _search, _autoBtn;
         private TMP_Text _searchLabel, _autoLabel;
         private Image _autoImage;
@@ -187,6 +198,10 @@ namespace Game.UI
             _ad = ServiceLocator.Get<IAdService>();
             _save = ServiceLocator.Get<SaveService>();
             _data = ServiceLocator.Get<SaveData>();
+            _pets = ServiceLocator.Get<PetService>();
+            GameBootstrap bootstrap = FindAnyObjectByType<GameBootstrap>(FindObjectsInactive.Include);
+            _petConfig = bootstrap != null ? bootstrap.PetConfig : null;
+            if (_pets != null) _pets.Changed += OnPetsChanged;
             for (int g = 0; g < _gradeHex.Length; g++)
                 _gradeHex[g] = ColorUtility.ToHtmlStringRGB(GradeTint[g]);
             RectTransform canvas = UiBuild.Canvas(transform, "CarpismaKanvas", sortingOrder);
@@ -221,6 +236,21 @@ namespace Game.UI
             BuildLootCard();
             BuildGearCard();
             SetChrome(EncounterController.Phase.Idle);
+            RefreshPetSlots();
+        }
+
+        private void OnDestroy()
+        {
+            if (_pets != null) _pets.Changed -= OnPetsChanged;
+        }
+
+        /// <summary>The strip and the sheet together: the half-second probe only re-inks when POWER
+        /// moves by a quarter, and a Common pet can move it by less than that, which would leave the
+        /// stat grid disagreeing with the fight it is about to start.</summary>
+        private void OnPetsChanged()
+        {
+            RefreshPetSlots();
+            RefreshSheet();
         }
 
         // ------------------------------------------------------------------ build
@@ -461,10 +491,15 @@ namespace Game.UI
                 button.onClick.AddListener(() => OnGearSlot(captured));
             }
 
-            _captainLabel = Line(_panel, "Kaptan", 22f, new Vector2(0.04f, 0.284f), new Vector2(0.96f, 0.344f));
+            // The captain line shares its band with the pet-equip strip: the label keeps the left
+            // half (two lines if a long name needs them), three pet slots take the right. The band
+            // is taller than the captain line alone needed because the slots are real tap targets
+            // with a portrait, a bonus and stars — the height came out of SEARCH/AUTO below.
+            _captainLabel = Line(_panel, "Kaptan", 22f, new Vector2(0.04f, 0.242f), new Vector2(0.50f, 0.344f));
+            BuildPetSlots();
 
             RectTransform pill = UiBuild.Flat(_panel, "EnerjiHapi", Chrome,
-                                              new Vector2(0.035f, 0.196f), new Vector2(0.70f, 0.276f));
+                                              new Vector2(0.035f, 0.164f), new Vector2(0.70f, 0.232f));
             var pi = pill.GetComponent<Image>();
             pi.sprite = UiSkin.Pill != null ? UiSkin.Pill : UiSkin.Flat;
             pi.type = Image.Type.Sliced;
@@ -476,15 +511,220 @@ namespace Game.UI
             // The reference game's "extra stamina" grab, sat where the wait is read rather than
             // behind a popup: the pill says how long the pool takes, the button beside it says
             // what an ad would skip.
-            _energyAd = PanelButton("EnerjiReklam", UiSkin.ButtonGreen, new Vector2(0.72f, 0.196f),
-                                    new Vector2(0.965f, 0.276f), OnEnergyAd, out _energyAdLabel, 20f);
+            _energyAd = PanelButton("EnerjiReklam", UiSkin.ButtonGreen, new Vector2(0.72f, 0.164f),
+                                    new Vector2(0.965f, 0.232f), OnEnergyAd, out _energyAdLabel, 20f);
 
             _search = PanelButton("Ara", UiSkin.ButtonYellow, new Vector2(0.035f, 0.030f),
-                                  new Vector2(0.645f, 0.180f), OnSearch, out _searchLabel, 28f);
+                                  new Vector2(0.645f, 0.150f), OnSearch, out _searchLabel, 28f);
             _autoBtn = PanelButton("Oto", UiSkin.ButtonGrey, new Vector2(0.685f, 0.030f),
-                                   new Vector2(0.965f, 0.180f), OnAuto, out _autoLabel, 26f);
+                                   new Vector2(0.965f, 0.150f), OnAuto, out _autoLabel, 26f);
             _autoImage = _autoBtn.GetComponent<Image>();
             _autoLabel.text = Loc.T("deniz.oto");
+        }
+
+        /// <summary>
+        /// Three pet-equip slots, sharing the captain's band. Same visual language as the gear
+        /// slots above (tinted frame, star pips, tap-to-act): portrait on top, that pet's own bonus
+        /// under it, stars along the foot. A locked slot says LOCKED and how many more wins open
+        /// it; an unlocked slot cycles through owned, not-already-equipped species on tap — empty,
+        /// species, species, ..., empty again — straight through PetService.Equip/Unequip. No
+        /// popup: the same tap the slot answers with is the whole picker.
+        /// </summary>
+        private void BuildPetSlots()
+        {
+            const float left = 0.52f, right = 0.965f, gap = 0.016f;
+            float pitch = (right - left) / Pets.SlotCount;
+            Sprite star = S("yildiz");
+
+            for (int slot = 0; slot < Pets.SlotCount; slot++)
+            {
+                int captured = slot;
+                var go = new GameObject("EvcilYuva" + slot, typeof(RectTransform), typeof(Image), typeof(Button));
+                go.transform.SetParent(_panel, false);
+                var frame = go.GetComponent<Image>();
+                frame.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
+                frame.type = Image.Type.Sliced;
+                float x0 = left + slot * pitch;
+                UiBuild.Anchor((RectTransform)go.transform,
+                               new Vector2(x0, 0.246f), new Vector2(x0 + pitch - gap, 0.340f));
+                _petFrame[slot] = frame;
+
+                var portrait = new GameObject("Portre", typeof(RectTransform), typeof(Image));
+                portrait.transform.SetParent(go.transform, false);
+                var pi = portrait.GetComponent<Image>();
+                pi.preserveAspect = true;
+                pi.raycastTarget = false;
+                pi.enabled = false;
+                UiBuild.Anchor((RectTransform)portrait.transform, new Vector2(0.10f, 0.40f), new Vector2(0.90f, 0.97f));
+                _petPortrait[slot] = pi;
+
+                TMP_Text bonus = Line((RectTransform)go.transform, "Bonus", 20f,
+                                      new Vector2(0.04f, 0.19f), new Vector2(0.96f, 0.40f));
+                bonus.fontStyle = FontStyles.Bold;
+                bonus.color = Paper;
+                _petBonus[slot] = bonus;
+
+                _petStars[slot] = new Image[Pets.MaxStars];
+                for (int g = 0; g < Pets.MaxStars; g++)
+                {
+                    var st = new GameObject("Yildiz" + g, typeof(RectTransform), typeof(Image));
+                    st.transform.SetParent(go.transform, false);
+                    var si = st.GetComponent<Image>();
+                    si.sprite = star != null ? star : UiSkin.Flat;
+                    si.preserveAspect = true;
+                    si.raycastTarget = false;
+                    float sx = 0.07f + g * 0.176f;
+                    UiBuild.Anchor((RectTransform)st.transform, new Vector2(sx, 0.03f), new Vector2(sx + 0.16f, 0.18f));
+                    st.SetActive(false);
+                    _petStars[slot][g] = si;
+                }
+
+                TMP_Text badge = Line((RectTransform)go.transform, "Rozet", 28f,
+                                      new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.92f));
+                badge.fontStyle = FontStyles.Bold;
+                badge.color = Faded;
+                // Two lines, never three: LOCKED over "N WINS", shrunk to fit like the route pills'
+                // own caption rather than broken mid-phrase.
+                badge.textWrappingMode = TextWrappingModes.NoWrap;
+                _petBadge[slot] = badge;
+
+                var button = go.GetComponent<Button>();
+                button.targetGraphic = frame;
+                button.onClick.AddListener(() => OnPetSlot(captured));
+                _petButton[slot] = button;
+            }
+        }
+
+        /// <summary>
+        /// A locked slot answers a tap with the same toast a locked route uses; an unlocked slot
+        /// cycles straight to the next valid state and writes it through the service at once,
+        /// then names what the new pet adds — in the sheet's own stat word, so the toast points at
+        /// the row that just moved.
+        /// </summary>
+        private void OnPetSlot(int slot)
+        {
+            if (_pets == null) return;
+            if (slot >= _pets.SlotsUnlocked)
+            {
+                _toast = 2.2f;
+                _banner.color = Faded;
+                _banner.text = Loc.T("dost.baslik") + "  ·  "
+                             + string.Format(Loc.T("deniz.rotaKilit"), _pets.FightsUntilSlot(slot));
+                ServiceLocator.Get<AudioService>()?.Play(SoundId.Denied);
+                ServiceLocator.Get<HapticService>()?.Light();
+                return;
+            }
+
+            int current = _pets.EquippedAt(slot);
+            int next = NextCandidateSpecies(slot, current);
+            bool ok = next == -1 ? _pets.Unequip(slot) : _pets.Equip(slot, next);
+            if (!ok) return;
+            ServiceLocator.Get<AudioService>()?.Play(SoundId.Tap);
+            ServiceLocator.Get<HapticService>()?.Light();
+
+            if (next != -1 && _pets.TryBestOwned(next, out var rarity, out int star))
+            {
+                Pets.EffectKind kind = Pets.EffectKindOf(next);
+                _toast = 2.2f;
+                _banner.color = _pets.RarityTint(rarity);
+                _banner.text = Loc.T(EffectLabelKey(kind)) + "  "
+                             + PetBonusText(kind, Pets.Bonus(kind, rarity, star, _pets.Tuning));
+            }
+        }
+
+        /// <summary>
+        /// Walks the ring [empty, species0, species1, ..., speciesN-1] one step past
+        /// <paramref name="current"/>, skipping a species nobody owns or one already worn in
+        /// another slot. Empty is always a valid landing spot, so the walk always terminates
+        /// within one lap of the ring.
+        /// </summary>
+        private int NextCandidateSpecies(int slot, int current)
+        {
+            int ringLen = Pets.SpeciesCount + 1;
+            int currentIdx = current < 0 ? 0 : current + 1;
+            for (int i = 1; i <= ringLen; i++)
+            {
+                int idx = (currentIdx + i) % ringLen;
+                if (idx == 0) return -1;
+                int species = idx - 1;
+                if (!_pets.Owned(species)) continue;
+
+                bool wornElsewhere = false;
+                for (int other = 0; other < Pets.SlotCount; other++)
+                    if (other != slot && _pets.EquippedAt(other) == species) { wornElsewhere = true; break; }
+                if (!wornElsewhere) return species;
+            }
+            return -1;
+        }
+
+        /// <summary>Every pet slot's frame, portrait, bonus, stars and badge, re-read from the
+        /// service. Driven by PetService.Changed alone: equip, fusion, a chest and a sea win (whose
+        /// pearls raise it, and whose count is what opens a slot) are the only things that move
+        /// any of it, so there is no tick to allocate on.</summary>
+        private void RefreshPetSlots()
+        {
+            if (_pets == null || _petFrame[0] == null) return;
+            int unlocked = _pets.SlotsUnlocked;
+
+            for (int slot = 0; slot < Pets.SlotCount; slot++)
+            {
+                bool isUnlocked = slot < unlocked;
+                int species = isUnlocked ? _pets.EquippedAt(slot) : -1;
+                bool filled = false;
+                RosterCardState.Rarity rarity = RosterCardState.Rarity.Common;
+                int star = 0;
+                if (isUnlocked && Pets.Exists(species))
+                    filled = _pets.TryBestOwned(species, out rarity, out star);
+
+                _petFrame[slot].color = filled ? _pets.RarityTint(rarity)
+                                       : isUnlocked ? new Color(0.35f, 0.40f, 0.48f, 0.9f)
+                                                     : new Color(0.20f, 0.23f, 0.29f, 0.9f);
+
+                Sprite portrait = filled && _petConfig != null ? _petConfig.PortraitOf(Pets.IdOf(species)) : null;
+                _petPortrait[slot].enabled = portrait != null;
+                _petPortrait[slot].sprite = portrait;
+
+                Image[] stars = _petStars[slot];
+                for (int g = 0; g < stars.Length; g++)
+                    stars[g].gameObject.SetActive(filled && g < star);
+
+                if (filled)
+                {
+                    Pets.EffectKind kind = Pets.EffectKindOf(species);
+                    _petBonus[slot].text = PetBonusText(kind, Pets.Bonus(kind, rarity, star, _pets.Tuning));
+                }
+                else _petBonus[slot].text = string.Empty;
+
+                _petBadge[slot].text = !isUnlocked
+                    ? Loc.T("ortak.kilitli") + "\n"
+                      + string.Format(Loc.T("deniz.rotaKilit"), _pets.FightsUntilSlot(slot))
+                    : !filled ? "+" : string.Empty;
+            }
+        }
+
+        /// <summary>The sheet's own label for the stat a pet feeds — the same key the stat grid
+        /// prints above the number that pet moves. PetRosterUI reads it too, so the pet panel names
+        /// each bonus with the very word the fight sheet uses.</summary>
+        internal static string EffectLabelKey(Pets.EffectKind kind)
+        {
+            switch (kind)
+            {
+                case Pets.EffectKind.Dodge: return "deniz.st.manevra";
+                case Pets.EffectKind.Salvo: return "deniz.st.salvo";
+                case Pets.EffectKind.Stun:  return "deniz.st.sersem";
+                case Pets.EffectKind.Steal: return "deniz.st.cancalma";
+                case Pets.EffectKind.Def:   return "deniz.st.savunma";
+                default:                    return "deniz.cesaret";
+            }
+        }
+
+        /// <summary>A pet's bonus in the ink the sheet already uses for that stat: a percentage for
+        /// the four procs, one decimal for the flat defence and hull.</summary>
+        private static string PetBonusText(Pets.EffectKind kind, double value)
+        {
+            bool percent = kind == Pets.EffectKind.Dodge || kind == Pets.EffectKind.Salvo
+                        || kind == Pets.EffectKind.Stun || kind == Pets.EffectKind.Steal;
+            return percent ? "+" + (value * 100d).ToString("0.#") + "%" : "+" + value.ToString("0.#");
         }
 
         /// <summary>

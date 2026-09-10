@@ -452,7 +452,7 @@ MonoBehaviour:
   craftingConfig: {fileID: 11400000, guid: f5b81b1ad9000d44384a9d8dbb2f2335, type: 2}
   miningGearConfig: {fileID: 11400000, guid: db5e72a50ea51054d8bc6f119f89138e, type: 2}
   cardCollectionConfig: {fileID: 11400000, guid: f6b435be7a644934aa70a35931d7ce1f, type: 2}
-  petConfig: {fileID: 0}
+  petConfig: {fileID: 11400000, guid: 1beed4f51bab1464ab04b9175746d30b, type: 2}
   cannonRecipe: {fileID: 0}
   liveEventConfig: {fileID: 11400000, guid: 208f6dffb28a74346907edcbe75a4eed, type: 2}
   foundryFestivalConfig: {fileID: 11400000, guid: 8c7a982c500b32b43ad7da2f598b5141, type: 2}
