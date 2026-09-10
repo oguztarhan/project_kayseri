@@ -318,6 +318,19 @@ namespace Game.Systems
         // is. Docs/PLAN_14 records that this is the one Plan #05 condition the feature knowingly
         // breaks — ownership and pity counters cannot be derived from anything already saved.
         public CardCollectionSaveData cardCollection = new CardCollectionSaveData();
+
+        // ---- evcil hayvanlar (PetService) -------------------------------------------------------
+        // Pearls are the pet chest's own closed loop, the same shape charts and salvage already
+        // keep: earned only at sea (a small per-win trickle — see ExpeditionService.RegisterWin) and
+        // spent only on pet chests. Kept at the root, beside charts and salvage, rather than inside
+        // WalletData — those two are the shared cash/gem wallet every system can reach into, and a
+        // third closed loop living there would read as spendable on everything the other two are.
+        //
+        // Added WITHOUT a save-version bump, on the precedent every block above set: a save written
+        // before pets existed arrives with zero pearls and an empty grid, which is a player who has
+        // never opened a pet chest.
+        public long pearls;
+        public PetSaveData pets = new PetSaveData();
     }
 
     /// <summary>
@@ -500,6 +513,83 @@ namespace Game.Systems
             for (int i = 0; i < claimedSetRewardIds.Count; i++)
                 if (string.Equals(claimedSetRewardIds[i], setId, StringComparison.Ordinal)) return true;
             return false;
+        }
+    }
+
+    /// <summary>
+    /// The pet system's whole persisted state.
+    ///
+    /// COUNTS IS ONE FLAT GRID, species-major, the shape <see cref="SaveData.masterStars"/> and
+    /// <see cref="SaveData.captainLevels"/> already use for a roster that is frozen in code. A fixed
+    /// six species times five rarities times five stars is 150 cells, and a fused pet DECREASES a
+    /// cell and INCREASES another rather than raising one card's level in place — see
+    /// <see cref="Game.Core.Pets.TryFuse"/> — which is why this is a count grid and not a level array.
+    ///
+    /// EQUIPPED IS FIXED AT THE SYSTEM'S WHOLE SLOT COUNT, not at how many are unlocked right now.
+    /// Slot unlocks are progression (<c>PetService.SlotsUnlocked</c>) and can only ever widen; storing
+    /// the unlocked count here too would be a second source of truth that a changed gate could
+    /// disagree with. -1 is empty, the same convention <see cref="SaveData.masterActive"/> keeps.
+    /// </summary>
+    [Serializable]
+    public class PetSaveData
+    {
+        public int[] counts = new int[Game.Core.Pets.CountsLength];
+        public int[] equippedSpecies = NewEquipped();
+        public int chestSinceEpic;
+        public int chestSinceLegendary;
+        public int chestsOpened;
+
+        private static int[] NewEquipped()
+        {
+            var a = new int[Game.Core.Pets.SlotCount];
+            for (int i = 0; i < a.Length; i++) a[i] = -1;
+            return a;
+        }
+
+        /// <summary>Makes a loaded block safe to read, whatever wrote it. Returns true when something
+        /// actually had to be changed, the same contract <see cref="CardCollectionSaveData.Normalise"/>
+        /// keeps.</summary>
+        public bool Normalise()
+        {
+            bool changed = false;
+
+            if (counts == null || counts.Length != Game.Core.Pets.CountsLength)
+            {
+                var fitted = new int[Game.Core.Pets.CountsLength];
+                if (counts != null)
+                {
+                    int n = counts.Length < fitted.Length ? counts.Length : fitted.Length;
+                    for (int i = 0; i < n; i++) fitted[i] = counts[i];
+                }
+                counts = fitted;
+                changed = true;
+            }
+            for (int i = 0; i < counts.Length; i++)
+                if (counts[i] < 0) { counts[i] = 0; changed = true; }
+
+            if (equippedSpecies == null || equippedSpecies.Length != Game.Core.Pets.SlotCount)
+            {
+                var fitted = NewEquipped();
+                if (equippedSpecies != null)
+                {
+                    int n = equippedSpecies.Length < fitted.Length ? equippedSpecies.Length : fitted.Length;
+                    for (int i = 0; i < n; i++) fitted[i] = equippedSpecies[i];
+                }
+                equippedSpecies = fitted;
+                changed = true;
+            }
+            for (int i = 0; i < equippedSpecies.Length; i++)
+                if (!Game.Core.Pets.Exists(equippedSpecies[i]) && equippedSpecies[i] != -1)
+                {
+                    equippedSpecies[i] = -1;
+                    changed = true;
+                }
+
+            if (chestSinceEpic < 0) { chestSinceEpic = 0; changed = true; }
+            if (chestSinceLegendary < 0) { chestSinceLegendary = 0; changed = true; }
+            if (chestsOpened < 0) { chestsOpened = 0; changed = true; }
+
+            return changed;
         }
     }
 

@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff900ccd67b7cb446851568cd368be31, type: 3}
+  m_Name: CardCollectionConfig
+  m_EditorClassIdentifier: Game.Data::Game.Data.CardCollectionConfig
+  commonWeight: 0.52
+  rareWeight: 0.28
+  epicWeight: 0.14
+  legendaryWeight: 0.055
+  mythicWeight: 0.005
+  epicPity: 15
+  legendaryPity: 50
+  softPityStart: 35
+  softPityStep: 0.015
+  duplicateCurve: 0200000004000000080000000e0000000200000004000000070000000c000000010000000300000005000000090000000100000002000000040000000700000001000000020000000300000005000000
+  effectPerLevel:
+  - 0.002
+  - 0.004
+  - 0.006
+  - 0.01
+  - 0.016
+  - 0.01
+  - 0.02
+  - 0.03
+  - 0.045
+  - 0.065
+  - 0.002
+  - 0.004
+  - 0.006
+  - 0.01
+  - 0.015
+  - 0.006
+  - 0.01
+  - 0.016
+  - 0.024
+  - 0.036
+  - 0.006
+  - 0.01
+  - 0.016
+  - 0.024
+  - 0.036
+  effectCaps:
+  - 0.3
+  - 0.75
+  - 0.2
+  - 0.5
+  - 0.4
+  craftPointChanceCeiling: 0.4
+  overflowGems: 05000000000000000a00000000000000140000000000000028000000000000004b00000000000000
+  dailyPacks: 1
+  rarityTint:
+  - {r: 0.48, g: 0.54, b: 0.62, a: 1}
+  - {r: 0.26, g: 0.6, b: 0.92, a: 1}
+  - {r: 0.62, g: 0.4, b: 0.86, a: 1}
+  - {r: 0.96, g: 0.66, b: 0.18, a: 1}
+  - {r: 0.9, g: 0.32, b: 0.46, a: 1}
+  cardArt: []
+  setArt: []
+  rarityFrame:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  packIcon: {fileID: 0}
+  collectionIcon: {fileID: 0}

@@ -85,15 +85,20 @@ namespace Game.Core
             public int Points;
             public long Gems;
             public int Cards;
+
+            /// <summary>Card collection packs (Docs/PLAN_14). Deliberately the same shape as the
+            /// foreman cards beside it — the week pays the collection exactly when it pays the
+            /// roster, so neither becomes the reason to finish the track.</summary>
+            public int Packs;
         }
 
         /// <summary>Stable IDs make reordering the visible track safe for existing saves.</summary>
         public static readonly WeeklyMilestone[] WeeklyMilestones =
         {
-            new WeeklyMilestone { Id = "weekly_25",  Points = 25,  Gems = 35,  Cards = 0 },
-            new WeeklyMilestone { Id = "weekly_50",  Points = 50,  Gems = 60,  Cards = 1 },
-            new WeeklyMilestone { Id = "weekly_75",  Points = 75,  Gems = 90,  Cards = 1 },
-            new WeeklyMilestone { Id = "weekly_100", Points = 100, Gems = 150, Cards = 3 },
+            new WeeklyMilestone { Id = "weekly_25",  Points = 25,  Gems = 35,  Cards = 0, Packs = 0 },
+            new WeeklyMilestone { Id = "weekly_50",  Points = 50,  Gems = 60,  Cards = 1, Packs = 1 },
+            new WeeklyMilestone { Id = "weekly_75",  Points = 75,  Gems = 90,  Cards = 1, Packs = 1 },
+            new WeeklyMilestone { Id = "weekly_100", Points = 100, Gems = 150, Cards = 3, Packs = 3 },
         };
 
         /// <summary>
@@ -142,7 +147,17 @@ namespace Game.Core
             public long[] Tiers;      // ascending thresholds
             public long GemsPerTier;  // paid per tier passed, multiplied by the tier number
             public int CardsPerTier;
+            public int PacksPerTier;  // card collection packs, from PackFirstTier upward only
         }
+
+        /// <summary>
+        /// The first achievement tier that pays card collection packs (Docs/PLAN_14). Tiers 1 and 2
+        /// fall inside the first session or two, where the daily pack alone already opens the
+        /// collection — paying packs there as well would hand a new player a dozen of them before
+        /// they have seen what one is. From tier 3 the ladder slows to weeks, which is where a pack
+        /// is worth the wait.
+        /// </summary>
+        public const int PackFirstTier = 3;
 
         /// <summary>
         /// The long ladder. Tiers absorb the ore-tier inflation the dailies deliberately avoid: a bar
@@ -151,17 +166,17 @@ namespace Game.Core
         /// </summary>
         public static readonly Achievement[] Ladder =
         {
-            new Achievement { Metric = BarsSold,      GemsPerTier = 20, CardsPerTier = 1,
+            new Achievement { Metric = BarsSold,      GemsPerTier = 20, CardsPerTier = 1, PacksPerTier = 2,
                               Tiers = new[] { 100L, 1000L, 10000L, 100000L, 1000000L, 25000000L } },
-            new Achievement { Metric = Upgrades,      GemsPerTier = 15, CardsPerTier = 1,
+            new Achievement { Metric = Upgrades,      GemsPerTier = 15, CardsPerTier = 1, PacksPerTier = 2,
                               Tiers = new[] { 10L, 50L, 200L, 750L, 2500L, 8000L } },
-            new Achievement { Metric = Contracts,     GemsPerTier = 25, CardsPerTier = 2,
+            new Achievement { Metric = Contracts,     GemsPerTier = 25, CardsPerTier = 2, PacksPerTier = 2,
                               Tiers = new[] { 1L, 10L, 50L, 150L, 400L, 1000L } },
-            new Achievement { Metric = Repairs,       GemsPerTier = 15, CardsPerTier = 1,
+            new Achievement { Metric = Repairs,       GemsPerTier = 15, CardsPerTier = 1, PacksPerTier = 2,
                               Tiers = new[] { 5L, 25L, 100L, 300L, 800L, 2000L } },
-            new Achievement { Metric = Islands,       GemsPerTier = 60, CardsPerTier = 3,
+            new Achievement { Metric = Islands,       GemsPerTier = 60, CardsPerTier = 3, PacksPerTier = 2,
                               Tiers = new[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L } },
-            new Achievement { Metric = ForemanLevels, GemsPerTier = 30, CardsPerTier = 0,
+            new Achievement { Metric = ForemanLevels, GemsPerTier = 30, CardsPerTier = 0, PacksPerTier = 2,
                               Tiers = new[] { 1L, 8L, 25L, 50L, 80L } },
         };
 
@@ -188,6 +203,9 @@ namespace Game.Core
 
         public static int TierCards(in Achievement a, int tier)
             => tier < 1 ? 0 : a.CardsPerTier;
+
+        public static int TierPacks(in Achievement a, int tier)
+            => tier < PackFirstTier || a.PacksPerTier < 0 ? 0 : a.PacksPerTier;
 
         // ------------------------------------------------------------------ progress
         /// <summary>

@@ -347,10 +347,39 @@ invalidating a save.
 5. **Gameplay integration — complete.** `MarketService` (sale, both ceilings, price board),
    `CraftingService` (both XP write sites, the point-drop window), `ExpeditionService.RegisterKill`
    (salvage and charts). 20 tests, including one per scope boundary below.
-6. **Bootstrap and goal plumbing** — construction after `ForemanService`, before `GoalService`; pack
-   rewards on milestone tiers.
-7. **UI** — `CardCollectionUI` and the `BtnKartKoleksiyonu` opener in the "Daha Fazla" sheet.
-8. **Localization and art** — through Unity tooling only.
+6. **Bootstrap and goal plumbing — complete.** `GameBootstrap` builds the
+   service after `ForemanService` and before `GoalService`, hands it to `GoalService` and
+   `MarketService` by constructor, and wires `Expeditions.Cards`, `Crafting.Cards` and the two
+   set-reward payers (`Captains`, `Crafting`) once those exist. `Goals.WeeklyMilestone.Packs` and
+   `Goals.Achievement.PacksPerTier` (paid from `Goals.PackFirstTier` = 3) ride through all three
+   claim paths and `GoalService.ClaimReceipt.Packs`; `ClaimAll` tags weekly and achievement packs
+   with their own `PackSource`. Tiers already claimed on an existing save are not back-paid. 14
+   tests in `CardCollectionGoalTests`. Verified 2026-09-10: clean recompile, 183/183 collection
+   tests, and every reference confirmed live on the single instance in Play mode from `Main.unity`.
+7. **UI — complete.** `CardCollectionUI` (on `UI_Sistemler` in `Main.unity`, sort order 116) shows
+   the pack card (unopened count, free daily pack with an h:mm:ss countdown on its own sub-canvas,
+   both pity lines, the last pull's outcome), one tab per set with its bonus and one-time reward,
+   and that set's cards in a 2×4 grid browsed through `RosterCardQuery`; a tile opens the shared
+   `RosterInspectPanel` and clears NEW. `BtnKartKoleksiyonu` (order 8) lands in the More sheet with a
+   chip counting packs + today's pack + upgrades + claimable rewards. `OddsSheetUI.ShowCardPack`
+   omits rarities no card carries. `RewardRevealUI` and the weekly track now print
+   `ClaimReceipt.Packs`. Card art, banners and tints are read from the service's
+   `CardCollectionConfig` (`CardCollectionService.Config`), so the asset is wired in one place; the
+   component's own sprites are the shared chrome and are left for the Inspector. Card and set names
+   fall back to the id ("Pit Charter") until slice 8's rows exist. 26 `koleksiyon.*` rows in all 11
+   languages; everything else reuses `kaptan.*`, `kadro.*`, `oran.*` and `gorev.*`. 13 tests
+   (`CardCollectionUiSmokeTests` + one in `OddsSheetUiSmokeTests`); the full Play-mode flow in
+   Verification §3 was run through MCP on 2026-09-10.
+8. **Localization — complete. Art — hooks complete, assets outstanding.** 54 rows in all 11
+   languages: every card's and set's `.ad` and `.aciklama`, names approved 2026-09-10. Descriptions
+   carry no numbers (values live on the effect line, so a retune never strands the prose); a card's
+   shows on the details sheet's status line, a set's as the first line of the set panel. Art hooks:
+   `CardCollectionConfig.rarityFrame` (5, `FrameOf`) drawn over each tile, `PackIcon` on the pack
+   card, a set's banner as its tab — each switched off rather than stretched when unwired.
+   `Assets/Data/CardCollectionConfig.asset` exists with tuning identical to the code defaults and is
+   wired on `GameBootstrap` in **`Bootstrap.unity`** (not `Main.unity` — the bootstrap lives there and
+   survives the scene load). Still owed: the art itself — 24 faces, 3 banners, 5 frames, the pack
+   icon and the menu icon — into `Assets/Art/UI/Koleksiyon/`, then assigned on the config asset. 4 tests.
 
 ### Where the catalogue lives, and why it is not in the config
 

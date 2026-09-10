@@ -31,6 +31,12 @@ namespace Game.Systems
         [SerializeField] private CraftingConfig craftingConfig;
         [Tooltip("Kaptanın madencilik teçhizatı ayarları. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
         [SerializeField] private MiningGearConfig miningGearConfig;
+        [Tooltip("Kart koleksiyonu: paket oranları, kopya eğrisi, etki değerleri ve kart görselleri. " +
+                 "Boş bırakılırsa varsayılanlarla ÇALIŞIR — yalnızca görseller eksik kalır.")]
+        [SerializeField] private CardCollectionConfig cardCollectionConfig;
+        [Tooltip("Evcil hayvanlar: sandık oranları, yıldız başına etki, yuva kilitleri ve görseller. " +
+                 "Boş bırakılırsa varsayılanlarla ÇALIŞIR — yalnızca görseller eksik kalır.")]
+        [SerializeField] private Game.Data.PetConfig petConfig;
         [Tooltip("İlk gemi tezgâhının Cannon tarifi. Boş bırakılırsa Stage 3 başlangıç tarifi kullanılır.")]
         [SerializeField] private ShipyardRecipeDefinition cannonRecipe;
         [SerializeField] private LiveEventConfig liveEventConfig;
@@ -95,6 +101,8 @@ namespace Game.Systems
         public ExpeditionService Expeditions { get; private set; }
         public CraftingService Crafting { get; private set; }
         public MiningGearService MiningGear { get; private set; }
+        public CardCollectionService CardCollection { get; private set; }
+        public PetService Pets { get; private set; }
         public CannonProductionService CannonProduction { get; private set; }
         public ShipyardUnlockService ShipyardUnlocks { get; private set; }
         public LadderService Ladder { get; private set; }
@@ -262,9 +270,18 @@ namespace Game.Systems
                 foremanConfig != null ? foremanConfig.RarityTint : null);
             ServiceLocator.Register(Foremen);
 
+            // The card collection (Docs/PLAN_14). After the roster, which a set reward can pay into,
+            // and before the goals, which pay packs into IT. Before the yards too: MarketService
+            // latches its income bonus once a second exactly as it latches the roster's. The
+            // captains and the bench come later in this method and are wired onto it there — they
+            // are only ever needed to pay a set reward, never to build the collection.
+            CardCollection = new CardCollectionService(Data, Save, _time, Wallet, cardCollectionConfig);
+            CardCollection.Foremen = Foremen;
+            ServiceLocator.Register(CardCollection);
+
             // The checklist. After the roster because a goal can pay out foreman cards, and before
             // the yards and the contracts because both of them report into it.
-            Goals = new GoalService(Data, Wallet, Foremen, _time, Save);
+            Goals = new GoalService(Data, Wallet, Foremen, _time, Save, CardCollection);
             ServiceLocator.Register(Goals);
 
             // The spine over the island ladder. After the roster and the wallet because a beat pays
@@ -282,7 +299,8 @@ namespace Game.Systems
                 miningGearConfig != null ? miningGearConfig.ToTuning() : Game.Core.MiningGear.Tuning.Default);
             ServiceLocator.Register(MiningGear);
 
-            Market = new MarketService(Data, Wallet, boost, Maintenance, Foremen, Goals, MiningGear);
+            Market = new MarketService(Data, Wallet, boost, Maintenance, Foremen, Goals, MiningGear,
+                                       CardCollection);
             ServiceLocator.Register(Market);
 
             // The sea roster: a won fight settles a captain's charts and asks a bosun what the risk
@@ -314,6 +332,34 @@ namespace Game.Systems
             ServiceLocator.Register(Expeditions);
             Expeditions.Crafting = Crafting;   // scraps teach the bench, wins can drop a point
             Crafting.Expeditions = Expeditions;   // wearing a crafted item goes through the sea's Equip
+
+            // The pet roster and chest. Needs only the save — pearls are earned at sea and spent on
+            // chests, a fourth closed loop beside salvage, charts and craft points. Built after
+            // Expeditions so the gate (SaveData.seaFightsWon) it reads for slot unlocks is already a
+            // real number, and wired onto Expeditions immediately after: a fight built before this
+            // line would simply carry no pet bonus, never a double one.
+            var petGates = new int[Game.Core.Pets.SlotCount];
+            for (int i = 0; i < petGates.Length; i++)
+                petGates[i] = petConfig != null
+                    ? petConfig.SlotUnlockFightsWon(i)
+                    : PetService.DefaultSlotUnlockFightsWon[i];
+            Pets = new PetService(Data,
+                petConfig != null ? petConfig.ToTuning() : Game.Core.Pets.Tuning.Default,
+                petConfig != null ? petConfig.ToChestTuning() : Game.Core.PetChest.Tuning.Default,
+                petGates,
+                null,
+                petConfig != null ? petConfig.RarityTint : null,
+                Save);
+            ServiceLocator.Register(Pets);
+            Expeditions.Pets = Pets;
+            Expeditions.PearlsPerWin = petConfig != null ? petConfig.PearlsPerWin : PetService.DefaultPearlsPerWin;
+
+            // The collection's two other consumers, and the two set-reward payers it could not be
+            // handed at construction because they did not exist yet.
+            Expeditions.Cards = CardCollection;   // fight salvage and charts
+            Crafting.Cards = CardCollection;      // scrap XP and the point-drop window
+            CardCollection.Captains = Captains;   // a set can pay charts
+            CardCollection.Crafting = Crafting;   // a set can pay craft points
 
             // The portrait services are registered only in portrait mode. Their save payload remains
             // present in both modes, so turning the feature off pauses presentation and production

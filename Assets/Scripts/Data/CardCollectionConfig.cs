@@ -132,7 +132,13 @@ namespace Game.Data
         [Tooltip("Set afişleri. Aynı kural: sırayla değil set kimliğiyle eşleşir.")]
         [SerializeField] private SetArt[] setArt = Array.Empty<SetArt>();
 
+        [Tooltip("Kart çerçevesi, nadirlik başına: Sıradan, Nadir, Destansı, Efsanevi, Mitik. " +
+                 "Kartın üstüne serilir; boş bırakılan bir nadirlik çerçevesiz çizilir.")]
+        [SerializeField] private Sprite[] rarityFrame = new Sprite[5];
+
+        [Tooltip("Paket kartının simgesi. Boş bırakılırsa paket kartı simgesiz çizilir.")]
         [SerializeField] private Sprite packIcon;
+        [Tooltip("Daha Fazla sayfasındaki koleksiyon satırının simgesi.")]
         [SerializeField] private Sprite collectionIcon;
 
         /// <summary>One card's face, bound by id rather than by position so reordering the
@@ -182,6 +188,13 @@ namespace Game.Data
         public Color[] RarityTint => rarityTint;
         public Sprite PackIcon => packIcon;
         public Sprite CollectionIcon => collectionIcon;
+
+        /// <summary>The frame drawn over a card of this rarity, or null for one nobody has wired.</summary>
+        public Sprite FrameOf(Game.Core.RosterCardState.Rarity rarity)
+        {
+            int r = (int)rarity;
+            return rarityFrame != null && r >= 0 && r < rarityFrame.Length ? rarityFrame[r] : null;
+        }
 
         // Built on first ask rather than in OnEnable: an asset edited in the Inspector during play
         // would otherwise keep serving the art it had at load, and rebuilding a 24-entry dictionary

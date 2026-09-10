@@ -32,11 +32,16 @@ namespace Game.Systems
             public readonly long Gems;
             public readonly int Cards;
 
-            public ClaimReceipt(int items, long gems, int cards)
+            /// <summary>Card collection packs banked by this claim — unopened, waiting on the
+            /// collection screen. Zero on every daily task; see Docs/PLAN_14.</summary>
+            public readonly int Packs;
+
+            public ClaimReceipt(int items, long gems, int cards, int packs = 0)
             {
                 Items = items;
                 Gems = gems;
                 Cards = cards;
+                Packs = packs;
             }
 
             public bool Any => Items > 0;
@@ -47,19 +52,22 @@ namespace Game.Systems
         private readonly ForemanService _foremen;
         private readonly TimeService _time;
         private readonly SaveService _save;
+        private readonly CardCollectionService _cards;   // null in tests: packs are reported, not banked
 
         /// <summary>Raised when anything a goal screen shows has moved. No argument: the screen is six
         /// rows and three cards, and refreshing all of it is cheaper than working out what changed.</summary>
         public event Action Changed;
 
         public GoalService(SaveData data, WalletService wallet, ForemanService foremen = null,
-                           TimeService time = null, SaveService save = null)
+                           TimeService time = null, SaveService save = null,
+                           CardCollectionService cards = null)
         {
             _data = data;
             _wallet = wallet;
             _foremen = foremen;
             _time = time;
             _save = save;
+            _cards = cards;
             Normalise();
             Roll();
             RollWeek();
@@ -301,16 +309,18 @@ namespace Game.Systems
             Goals.Achievement a = Goals.Ladder[index];
             int claimed = _data.goals.tiersClaimed[index];
             long gems = 0L;
-            int cards = 0;
+            int cards = 0, packs = 0;
             for (int t = claimed + 1; t <= claimed + owed; t++)
             {
                 gems += Goals.TierGems(a, t);
                 cards += Goals.TierCards(a, t);
+                packs += Goals.TierPacks(a, t);
             }
             _data.goals.tiersClaimed[index] = claimed + owed;
             Pay(gems, cards);
+            PayPacks(packs, CardCollection.PackSource.AchievementMilestone);
             Commit();
-            receipt = new ClaimReceipt(1, gems, cards);
+            receipt = new ClaimReceipt(1, gems, cards, packs);
             Changed?.Invoke();
             return true;
         }
@@ -329,8 +339,9 @@ namespace Game.Systems
             _data.goals.weeklyMilestonesClaimed = claimed.ToArray();
 
             Pay(milestone.Gems, milestone.Cards);
+            PayPacks(milestone.Packs, CardCollection.PackSource.GoalMilestone);
             Commit();
-            receipt = new ClaimReceipt(1, milestone.Gems, milestone.Cards);
+            receipt = new ClaimReceipt(1, milestone.Gems, milestone.Cards, milestone.Packs);
             Changed?.Invoke();
             return true;
         }
@@ -348,6 +359,8 @@ namespace Game.Systems
             long gems = 0L;
             int cards = 0;
             int taken = 0;
+            // Two tallies rather than one: the collection is told where each pack came from.
+            int weeklyPacks = 0, achievementPacks = 0;
 
             for (int i = 0; i < Goals.DailySlots; i++)
             {
@@ -368,6 +381,7 @@ namespace Game.Systems
                 weeklyClaimed.Add(milestone.Id);
                 gems += milestone.Gems;
                 cards += milestone.Cards;
+                weeklyPacks += milestone.Packs;
                 taken++;
             }
             _data.goals.weeklyMilestonesClaimed = weeklyClaimed.ToArray();
@@ -382,6 +396,7 @@ namespace Game.Systems
                 {
                     gems += Goals.TierGems(achievement, tier);
                     cards += Goals.TierCards(achievement, tier);
+                    achievementPacks += Goals.TierPacks(achievement, tier);
                 }
                 _data.goals.tiersClaimed[i] = claimedTiers + owed;
                 taken++;
@@ -389,8 +404,10 @@ namespace Game.Systems
 
             if (taken == 0) return false;
             Pay(gems, cards);
+            PayPacks(weeklyPacks, CardCollection.PackSource.GoalMilestone);
+            PayPacks(achievementPacks, CardCollection.PackSource.AchievementMilestone);
             Commit();
-            receipt = new ClaimReceipt(taken, gems, cards);
+            receipt = new ClaimReceipt(taken, gems, cards, weeklyPacks + achievementPacks);
             Changed?.Invoke();
             return true;
         }
@@ -399,6 +416,16 @@ namespace Game.Systems
         {
             if (gems > 0L && _wallet != null) _wallet.AddGems(gems);
             if (cards > 0 && _foremen != null) _foremen.GrantRandomDuplicates(cards);
+        }
+
+        /// <summary>
+        /// Banks packs on the collection, unopened. Called after the claim is already marked in the
+        /// save, so the collection's own save (it commits on every grant) writes the claim and the
+        /// packs together — there is no moment on disk where one exists without the other.
+        /// </summary>
+        private void PayPacks(int packs, CardCollection.PackSource source)
+        {
+            if (packs > 0 && _cards != null) _cards.GrantPacks(packs, source);
         }
 
         private void Commit()

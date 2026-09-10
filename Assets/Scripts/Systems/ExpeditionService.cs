@@ -90,6 +90,18 @@ namespace Game.Systems
         /// sea's five scrap paths are not fight loot and are deliberately left alone.</summary>
         public CardCollectionService Cards { get; set; }
 
+        /// <summary>Set by the bootstrap. <see cref="ShipStats"/> adds whatever is equipped on top
+        /// of gear and the captain, once, right here — the sea works exactly as before when it is
+        /// not wired. Referenced as <c>Game.Core.Pets</c> (fully qualified) wherever this property's
+        /// own name would otherwise shadow the static maths class of the same name.</summary>
+        public PetService Pets { get; set; }
+
+        /// <summary>Set by the bootstrap from <c>Game.Data.PetConfig.PearlsPerWin</c>. Pearls are the
+        /// pet chest's own closed loop — earned only here, the same way charts and salvage are earned
+        /// only by <see cref="RegisterKill"/> — and 0 until wired, so the sea pays no pearl nobody has
+        /// authored yet.</summary>
+        public long PearlsPerWin { get; set; }
+
         public ExpeditionService(TimeService time,
                                  SaveData data = null, CaptainService captains = null,
                                  SeaCombat.Tuning? combat = null, SaveService save = null,
@@ -540,7 +552,10 @@ namespace Game.Systems
             int level = _captains != null && captain >= 0 ? _captains.Level(captain) : 0;
             int crew = _data != null && _data.shipLevels != null ? _data.shipLevels[Voyages.Crew] : 0;
             Captains.Tuning ct = _captains != null ? _captains.Tuning : Captains.Tuning.Default;
-            return SeaCombat.OurStats(captain, level, crew, Loadout(), ct, _combat);
+            SeaCombat.Stats s = SeaCombat.OurStats(captain, level, crew, Loadout(), ct, _combat);
+            // Pets add on top of gear and the captain, once, and are held to the same sea caps
+            // gear already respects — see Game.Core.Pets.ApplyCombatBonus. Unwired, this is a no-op.
+            return Pets != null ? Game.Core.Pets.ApplyCombatBonus(s, Pets.CombatBonus()) : s;
         }
 
         /// <summary>The panel's headline for <see cref="ShipStats"/>.</summary>
@@ -874,6 +889,7 @@ namespace Game.Systems
         {
             if (!_atSea || _data == null) return;
             _data.seaFightsWon++;
+            if (PearlsPerWin > 0L) _data.pearls += PearlsPerWin;
             _save?.Save(_data);
             Changed?.Invoke();
         }

@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The odds sheet, shared by the master chest and the captain crate. Both stores require the
+    /// The odds sheet, shared by the master chest, the captain crate and the card pack. Both stores require the
     /// chance of a paid randomised pull to be readable BEFORE the purchase, and the master chest is
     /// paid for in gems, which are sold for money — so the ⓘ that opens this is not decoration.
     ///
@@ -159,6 +159,38 @@ namespace Game.UI
                                       Loc.T("kaptan.derece.3"), tuning.SoftPityStart,
                                       (tuning.SoftPityStep * 100d).ToString("0.##", Culture)) + "\n";
             _note.text = note + Loc.T("oran.not");
+            Finish();
+        }
+
+        // ------------------------------------------------------------------ card pack
+        /// <summary>
+        /// The collection pack's base table, one row per rarity the catalogue actually carries, plus
+        /// its guarantees in words — the captain crate's grammar, because the two are the same shape.
+        /// <paramref name="census"/> is what drops Mythic: no card carries it at launch, and a 0% row
+        /// reads as a hidden rate rather than a rank that does not exist yet (Docs/PLAN_14).
+        /// </summary>
+        public void ShowCardPack(in CardCollectionPack.Tuning tuning, int[] census)
+        {
+            Begin();
+            for (int rarity = 0; rarity < CardCollection.RarityCount; rarity++)
+            {
+                double chance = CardCollectionPack.ChanceOf((RosterCardState.Rarity)rarity, census, tuning);
+                if (chance <= 0d) continue;
+                Row(Loc.T("kaptan.derece." + rarity.ToString(Culture)), Percent(chance));
+            }
+
+            string note = string.Empty;
+            if (tuning.EpicPity > 0)
+                note += string.Format(Culture, Loc.T("oran.kaptan.garanti"),
+                                      Loc.T("kaptan.derece.2"), tuning.EpicPity) + "\n";
+            if (tuning.LegendaryPity > 0)
+                note += string.Format(Culture, Loc.T("oran.kaptan.garanti"),
+                                      Loc.T("kaptan.derece.3"), tuning.LegendaryPity) + "\n";
+            if (tuning.SoftPityStart > 0 && tuning.SoftPityStep > 0d)
+                note += string.Format(Culture, Loc.T("oran.kaptan.yumusak"),
+                                      Loc.T("kaptan.derece.3"), tuning.SoftPityStart,
+                                      (tuning.SoftPityStep * 100d).ToString("0.##", Culture)) + "\n";
+            _note.text = note + Loc.T("koleksiyon.oran.not") + "\n" + Loc.T("oran.not");
             Finish();
         }
 

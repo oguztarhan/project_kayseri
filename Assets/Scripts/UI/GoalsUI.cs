@@ -320,7 +320,7 @@ namespace Game.UI
                 Goals.WeeklyMilestone milestone = Goals.WeeklyMilestones[i];
                 bool claimed = _goals.WeeklyMilestoneClaimed(i), ready = _goals.CanClaimWeeklyMilestone(i);
                 _weeklyMilestoneText[i].text = string.Format("{0}/{1} {2}\n{3}", points,
-                    milestone.Points, Loc.T("gorev.puan"), RewardLine(milestone.Gems, milestone.Cards));
+                    milestone.Points, Loc.T("gorev.puan"), RewardLine(milestone.Gems, milestone.Cards, milestone.Packs));
                 _weeklyMilestoneText[i].color = claimed ? InkFaint : Ink;
                 _weeklyMilestoneBtnText[i].text = StateText(ready, claimed);
                 Dress(_weeklyMilestoneBtn[i], ready, claimed);
@@ -487,9 +487,12 @@ namespace Game.UI
             if (pending > 0) _openerCount.text = pending.ToString();
         }
 
-        private static string RewardLine(long gems, int cards)
-            => cards > 0 ? string.Format("{0} ◆   +{1} {2}", gems, cards, Loc.T("ustabasi.kart"))
-                         : string.Format("{0} ◆", gems);
+        private static string RewardLine(long gems, int cards, int packs = 0)
+        {
+            string line = cards > 0 ? string.Format("{0} ◆   +{1} {2}", gems, cards, Loc.T("ustabasi.kart"))
+                                    : string.Format("{0} ◆", gems);
+            return packs > 0 ? line + "   " + string.Format(Loc.T("koleksiyon.paket_x"), packs) : line;
+        }
 
         private static string MetricName(int metric)
         {

@@ -78,6 +78,41 @@ namespace Game.Tests
         }
 
         /// <summary>
+        /// The card pack prints one row per rarity the catalogue carries and none for Mythic, which no
+        /// launch card carries: a 0% row reads as a hidden rate rather than a rank that does not exist
+        /// yet (Docs/PLAN_14). The rows it does print must add up to the whole pack.
+        /// </summary>
+        [Test]
+        public void TheCardPackListsOnlyRaritiesSomeCardCarries()
+        {
+            ServiceLocator.Clear();
+            var host = new GameObject("OranHost");
+            try
+            {
+                var sheet = new OddsSheetUI(Host(host));
+                int[] census = CardCollectionCatalogue.RarityCensus();
+                sheet.ShowCardPack(CardCollectionPack.Tuning.Default, census);
+
+                int carried = 0;
+                double sum = 0d;
+                for (int r = 0; r < CardCollection.RarityCount; r++)
+                {
+                    if (census[r] <= 0) continue;
+                    carried++;
+                    sum += CardCollectionPack.ChanceOf((RosterCardState.Rarity)r, census, CardCollectionPack.Tuning.Default);
+                }
+                Assert.That(census[(int)RosterCardState.Rarity.Mythic], Is.Zero, "the premise: no Mythic at launch");
+                Assert.That(ActiveRows(host), Is.EqualTo(carried));
+                Assert.That(sum, Is.EqualTo(1d).Within(1e-9));
+            }
+            finally
+            {
+                Object.DestroyImmediate(host);
+                ServiceLocator.Clear();
+            }
+        }
+
+        /// <summary>
         /// The percentages have to come out in the game's own number language, not the machine's. On a
         /// Turkish handset an uncultured format writes "10,5%" here while the roster card an inch away
         /// writes "10.5%" — two number languages on one screen.

@@ -66,6 +66,7 @@ namespace Game.Systems
 
         private readonly WalletService _wallet;
         private readonly int _dailyPacks;
+        private readonly CardCollectionConfig _config;
 
         public CardCollectionService(SaveData data, SaveService save, TimeService time,
                                      WalletService wallet, CardCollectionConfig config = null,
@@ -75,6 +76,7 @@ namespace Game.Systems
             _save = save;
             _time = time;
             _wallet = wallet;
+            _config = config;
             _random = random ?? new Random();
 
             _tuning = config != null ? config.ToTuning() : CardCollection.Tuning.Default;
@@ -103,6 +105,11 @@ namespace Game.Systems
         // ------------------------------------------------------------------- read
         public CardCollection.Tuning Tuning => _tuning;
         public CardCollectionPack.Tuning PackTuning => _pack;
+
+        /// <summary>The asset the collection was built from, or null when it runs on defaults. The
+        /// screen reads its card faces, banners and rarity tints here rather than holding a second
+        /// reference to the same asset that could be wired to a different one.</summary>
+        public CardCollectionConfig Config => _config;
 
         /// <summary>What the collection is worth right now. Already capped; read it, do not re-cap
         /// it.</summary>

@@ -79,6 +79,10 @@ namespace Game.UI
             _value.text = receipt.Cards > 0
                 ? string.Format("+{0} ◆    +{1} {2}", receipt.Gems, receipt.Cards, Loc.T("ustabasi.kart"))
                 : string.Format("+{0} ◆", receipt.Gems);
+            // Packs are banked unopened on the collection screen; saying so here is the only way the
+            // player learns a claim paid one (Docs/PLAN_14, slice 7).
+            if (receipt.Packs > 0)
+                _value.text += "    " + string.Format(Loc.T("koleksiyon.paket_x"), receipt.Packs);
             _shownAt = Time.unscaledTime;
             _group.alpha = 0f;
             _card.localScale = Vector3.one * 0.82f;

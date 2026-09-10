@@ -644,6 +644,7 @@ namespace Game.UI
                 case "BtnEtkinlik": return "etkinlik.baslik";
                 case "BtnLig": return "lig.baslik";
                 case "BtnMaden": return "madenci.baslik";
+                case "BtnKartKoleksiyonu": return "koleksiyon.baslik";
                 default: return name;
             }
         }
