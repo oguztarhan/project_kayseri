@@ -46,8 +46,10 @@ namespace Game.UI
 
             _title = Label(sheet, "Baslik", 38, new Vector2(0.08f, 0.83f), new Vector2(0.92f, 0.96f));
             _identity = Label(sheet, "Kimlik", 25, new Vector2(0.08f, 0.69f), new Vector2(0.92f, 0.82f));
-            _current = Label(sheet, "Mevcut", 28, new Vector2(0.08f, 0.53f), new Vector2(0.92f, 0.68f));
-            _next = Label(sheet, "Sonraki", 24, new Vector2(0.08f, 0.39f), new Vector2(0.92f, 0.52f));
+            // Current and next are intentionally multiline: captain details show the sea effect and
+            // the separate idle-income bonus together, while master details continue to use the skills block.
+            _current = Label(sheet, "Mevcut", 25, new Vector2(0.08f, 0.52f), new Vector2(0.92f, 0.68f));
+            _next = Label(sheet, "Sonraki", 22, new Vector2(0.08f, 0.37f), new Vector2(0.92f, 0.52f));
 
             // The three skills take the same band the current/next pair does, because only one of the
             // two ever shows: a master has three numbers to read and a captain has a before and after.

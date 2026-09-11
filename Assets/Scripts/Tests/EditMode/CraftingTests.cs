@@ -106,6 +106,72 @@ namespace Game.Tests
         }
 
         [Test]
+        public void AWorkshopWithoutACaptainKeepsTheExistingOdds()
+        {
+            var data = new SaveData();
+            var bench = Bench(data);
+            var tuning = T;
+            for (int level = 1; level <= Crafting.MaxLevel; level++)
+                for (int grade = 0; grade < Captains.GradeCount; grade++)
+                    Assert.That(Crafting.OddsOf(level, 0, grade, in tuning),
+                                Is.EqualTo(Crafting.OddsOf(level, grade)).Within(1e-12),
+                                $"level {level}, grade {grade}");
+
+            Assert.That(bench.AssignedCaptain, Is.EqualTo(-1));
+        }
+
+        [Test]
+        public void AHigherCaptainLevelRaisesUnlockedRareChances()
+        {
+            var data = new SaveData();
+            var captains = new CaptainService(data, Captains.Tuning.Default,
+                                              CaptainCrate.Tuning.Default);
+            var bench = new CraftingService(data, null, new TimeService(),
+                                            Crafting.Tuning.Default, SeaCombat.Tuning.Default,
+                                            captains: captains);
+            data.captainLevels[0] = 1;
+            Assert.That(bench.TryAssignCaptain(0), Is.True);
+
+            data.captainLevels[0] = 1;
+            double rareAtOne = bench.OddsOf(1);
+            data.captainLevels[0] = Captains.MaxLevel;
+            double rareAtFive = bench.OddsOf(1);
+
+            Assert.That(rareAtFive, Is.GreaterThan(rareAtOne));
+            Assert.That(bench.OddsOf(0), Is.LessThan(Crafting.OddsOf(1, 0)));
+        }
+
+        [Test]
+        public void CaptainBonusesNeverOpenAWorkshopLockedRarity()
+        {
+            var tuning = Crafting.Tuning.Default;
+            var odds = new double[Captains.GradeCount];
+            Crafting.FillOdds(1, Captains.MaxLevel, in tuning, odds);
+
+            Assert.That(odds[2], Is.Zero);
+            Assert.That(odds[3], Is.Zero);
+            Assert.That(odds[4], Is.Zero);
+            double sum = 0d;
+            for (int grade = 0; grade < odds.Length; grade++) sum += odds[grade];
+            Assert.That(sum, Is.EqualTo(1d).Within(1e-12));
+        }
+
+        [Test]
+        public void CaptainAdjustedOddsAlwaysNormaliseToOne()
+        {
+            var tuning = Crafting.Tuning.Default;
+            for (int level = 1; level <= Crafting.MaxLevel; level++)
+                for (int captainLevel = 0; captainLevel <= Captains.MaxLevel; captainLevel++)
+                {
+                    double sum = 0d;
+                    for (int grade = 0; grade < Captains.GradeCount; grade++)
+                        sum += Crafting.OddsOf(level, captainLevel, grade, in tuning);
+                    Assert.That(sum, Is.EqualTo(1d).Within(1e-12),
+                                $"level {level}, captain level {captainLevel}");
+                }
+        }
+
+        [Test]
         public void UnlockLevelsReadStraightOffTheTable()
         {
             Assert.That(Crafting.UnlockLevelOf(0), Is.EqualTo(1));
@@ -216,6 +282,50 @@ namespace Game.Tests
             var data = new SaveData();
             var bench = Bench(data);
             Assert.That(bench.TryCraft(out _), Is.False);
+        }
+
+        [Test]
+        public void AssignedCaptainPersistsThroughSaveRoundTrip()
+        {
+            var data = new SaveData();
+            var captains = new CaptainService(data, Captains.Tuning.Default,
+                                              CaptainCrate.Tuning.Default);
+            data.captainLevels[1] = 3;
+            var bench = new CraftingService(data, null, new TimeService(),
+                                            Crafting.Tuning.Default, SeaCombat.Tuning.Default,
+                                            captains: captains);
+
+            Assert.That(bench.TryAssignCaptain(1), Is.True);
+            var save = new SaveService("crafting-captain-roundtrip-test.dat");
+            SaveData reloaded = save.Decrypt(save.Encrypt(data), out bool tampered);
+
+            Assert.That(tampered, Is.False);
+            Assert.That(reloaded.craftingCaptainAssigned, Is.True);
+            Assert.That(reloaded.craftingCaptain, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void InvalidOrUnownedCaptainIsRejectedAndAStaleAssignmentIsCleared()
+        {
+            var data = new SaveData();
+            var captains = new CaptainService(data, Captains.Tuning.Default,
+                                              CaptainCrate.Tuning.Default);
+            var bench = new CraftingService(data, null, new TimeService(),
+                                            Crafting.Tuning.Default, SeaCombat.Tuning.Default,
+                                            captains: captains);
+
+            Assert.That(bench.TryAssignCaptain(1), Is.False);
+            Assert.That(bench.TryAssignCaptain(Captains.Count), Is.False);
+            Assert.That(bench.AssignedCaptain, Is.EqualTo(-1));
+
+            data.craftingCaptain = 1;
+            data.craftingCaptainAssigned = true;
+            var reloaded = new CraftingService(data, null, new TimeService(),
+                                               Crafting.Tuning.Default, SeaCombat.Tuning.Default,
+                                               captains: captains);
+            Assert.That(reloaded.AssignedCaptain, Is.EqualTo(-1));
+            Assert.That(data.craftingCaptainAssigned, Is.False);
+            Assert.That(data.craftingCaptain, Is.EqualTo(-1));
         }
 
         [Test]

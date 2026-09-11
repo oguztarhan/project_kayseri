@@ -246,7 +246,7 @@ namespace Game.UI
         {
             if (_pass == null) return;
             SeasonalIndustryPass.Reward reward = _pass.TierAt(tier).Free;
-            if (_pass.ClaimFree(tier)) _reveal?.Present(RewardText(reward));
+            if (_pass.ClaimFree(tier)) _reveal?.Present(RewardText(reward), reward.Gems > 0L);
             Refresh();
         }
 
@@ -254,7 +254,7 @@ namespace Game.UI
         {
             if (_pass == null) return;
             SeasonalIndustryPass.Reward reward = _pass.TierAt(tier).Premium;
-            if (_pass.ClaimPremium(tier)) _reveal?.Present(RewardText(reward));
+            if (_pass.ClaimPremium(tier)) _reveal?.Present(RewardText(reward), reward.Gems > 0L);
             Refresh();
         }
 
@@ -310,9 +310,9 @@ namespace Game.UI
         private static string RewardText(in SeasonalIndustryPass.Reward reward)
         {
             string text = string.Empty;
-            if (reward.Gems > 0L) text += "+" + reward.Gems + " ◆";
+            if (reward.Gems > 0L) text += CurrencyText.Gain(CurrencyId.Gems, reward.Gems);
             if (reward.Cards > 0) text += Space(text) + "+" + reward.Cards + " " + Loc.T("ustabasi.kart");
-            if (reward.Charts > 0L) text += Space(text) + "+" + reward.Charts + " " + Loc.T("kaptan.harita");
+            if (reward.Charts > 0L) text += Space(text) + CurrencyText.Gain(CurrencyId.Charts, reward.Charts);
             if (reward.CashMinutes > 0d)
                 text += Space(text) + "+" + reward.CashMinutes.ToString("0.#") + " " + Loc.T("sprint.nakit_dakika");
             return text;

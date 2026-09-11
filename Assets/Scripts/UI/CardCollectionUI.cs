@@ -900,15 +900,15 @@ namespace Game.UI
             switch (kind)
             {
                 case CardCollection.SetRewardKind.Gems:
-                    return amount.ToString(Culture) + " ◆";
+                    return CurrencyText.Gain(CurrencyId.Gems, amount);
                 case CardCollection.SetRewardKind.ForemanCards:
                     return amount.ToString(Culture) + " " + Loc.T("ustabasi.kart");
                 case CardCollection.SetRewardKind.CraftPoints:
-                    return string.Format(Loc.T("atolye.puan"), amount);
+                    return CurrencyText.Amount(CurrencyId.CraftPoints, amount);
                 case CardCollection.SetRewardKind.Charts:
-                    return amount.ToString(Culture) + " " + Loc.T("kaptan.harita");
+                    return CurrencyText.Gain(CurrencyId.Charts, amount);
                 case CardCollection.SetRewardKind.Salvage:
-                    return amount.ToString(Culture) + " " + Loc.T("sefer.hurda");
+                    return CurrencyText.Gain(CurrencyId.Salvage, amount);
                 case CardCollection.SetRewardKind.Pack:
                     return string.Format(Loc.T("koleksiyon.paket_x"), amount);
                 default:

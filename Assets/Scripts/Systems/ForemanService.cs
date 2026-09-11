@@ -40,6 +40,7 @@ namespace Game.Systems
         private readonly Foremen.Tuning _tuning;
         private readonly MasterChest.Tuning _chest;
         private readonly TimeService _time;
+        private readonly SaveService _save;
         private readonly UnityEngine.Color[] _rarityTint;
         private readonly Random _random = new Random();
 
@@ -86,16 +87,18 @@ namespace Game.Systems
         /// <summary>
         /// The chest tuning and the clock are optional so the ~thirty test sites that build a service
         /// to get at the roster maths keep compiling untouched, and so a null clock falls back to the
-        /// wall clock the same way <see cref="GoalService"/> does.
+        /// wall clock the same way <see cref="GoalService"/> does. The save service is optional for the
+        /// same reason; without one a chest is simply not written until the next autosave.
         /// </summary>
         public ForemanService(SaveData data, WalletService wallet, Foremen.Tuning tuning,
                               MasterChest.Tuning chest = default, TimeService time = null,
-                              UnityEngine.Color[] rarityTint = null)
+                              UnityEngine.Color[] rarityTint = null, SaveService save = null)
         {
             _rarityTint = rarityTint != null && rarityTint.Length >= Foremen.RarityCount
                 ? rarityTint : DefaultRarityTint;
             _data = data;
             _wallet = wallet;
+            _save = save;
             _tuning = tuning;
             // default(Tuning) is all zeroes, which would price a chest at nothing and hand over no
             // cards; an unsupplied tuning means "the defaults", not "free".
@@ -383,10 +386,19 @@ namespace Game.Systems
         /// cards at whoever is furthest behind and rolls the rest, then the whole batch lands in one
         /// go: fifteen separate RosterChanged events for a ten-chest open would rebuild the roster
         /// screen forty times while the reveal was still playing.
+        ///
+        /// The gems (or the free chest's claim stamp) and the cards are written in one save before the
+        /// reveal starts. Left to the next autosave, a force-close during the reveal refunded the gems
+        /// and let the chest be rolled again.
         /// </summary>
         private int[] Deal(int chests, int cardsPerChest)
         {
-            if (cardsPerChest <= 0) { RosterChanged?.Invoke(-1); return new int[0]; }
+            if (cardsPerChest <= 0)
+            {
+                _save?.Save(_data);
+                RosterChanged?.Invoke(-1);
+                return new int[0];
+            }
 
             int aimed = MasterChest.DirectedIn(_chest);
             var picks = new int[chests * cardsPerChest];
@@ -402,6 +414,7 @@ namespace Game.Systems
 
             FillEmptyPosts();
             Recompute();
+            _save?.Save(_data);
             RosterChanged?.Invoke(-1);
             return picks;
         }

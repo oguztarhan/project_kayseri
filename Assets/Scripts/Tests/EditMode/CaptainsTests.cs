@@ -182,6 +182,51 @@ namespace Game.Tests
             Assert.That(Captains.OwnedCount(full), Is.EqualTo(Captains.Count));
         }
 
+        [Test]
+        public void IncomeCurveMatchesEveryConfiguredRarityAtMaximumLevel()
+        {
+            var expected = new[] { 5d, 17.5d, 61.28d, 214.52d, 751d };
+            for (int grade = 0; grade < Captains.GradeCount; grade++)
+            {
+                int captain = Captains.OfGrade((Captains.Grade)grade, 0);
+                Assert.That(Captains.IncomeMultiplier(captain, Captains.MaxLevel, T),
+                            Is.EqualTo(expected[grade]).Within(1e-9), "grade " + (Captains.Grade)grade);
+            }
+        }
+
+        [Test]
+        public void IncomeCurveIsOneWhenUnownedAndIncreasesWithLevel()
+        {
+            for (int captain = 0; captain < Captains.Count; captain++)
+            {
+                Assert.That(Captains.IncomeMultiplier(captain, Captains.NotOwned, T), Is.EqualTo(1d));
+                double previous = 1d;
+                for (int level = 1; level <= Captains.MaxLevel; level++)
+                {
+                    double current = Captains.IncomeMultiplier(captain, level, T);
+                    Assert.That(current, Is.GreaterThan(previous), "captain " + captain + " level " + level);
+                    previous = current;
+                }
+            }
+        }
+
+        [Test]
+        public void IncomePercentFormattingGroupsLargeBonusesWithoutOverflow()
+        {
+            Assert.That(Captains.IncomePercent(400d), Is.EqualTo("400"));
+            Assert.That(Captains.IncomePercent(21352d), Is.EqualTo("21,352"));
+            Assert.That(Captains.IncomePercent(75000d), Is.EqualTo("75,000"));
+        }
+
+        [Test]
+        public void BestOwnedUsesHighestLevelAndRosterOrderForTies()
+        {
+            Assert.That(Captains.BestOwned(null), Is.EqualTo(-1));
+            Assert.That(Captains.BestOwned(new[] { 0, 0, 0 }), Is.EqualTo(-1));
+            Assert.That(Captains.BestOwned(new[] { 2, 5, 5, 1, 0 }), Is.EqualTo(1));
+            Assert.That(Captains.BestOwned(new[] { 4, 0, 4, 0, 0 }), Is.EqualTo(0));
+        }
+
         // ---- effects -----------------------------------------------------------------------------
 
         [Test]

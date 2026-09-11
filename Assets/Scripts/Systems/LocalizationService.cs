@@ -21,18 +21,14 @@ namespace Game.Systems
     public sealed class LocalizationService
     {
         public const string PrefKey = "ayar_dil";
+        public const string UserChoicePrefKey = "ayar_dil_secildi";
 
         private const string ResourcePath = "Diller/metinler";
 
         /// <summary>
-        /// English: where a device whose language the game does not speak lands, and what a key another
-        /// language has not been given yet falls back to.
-        ///
-        /// It was Turkish, on the reasoning that the table is authored in Turkish so that column is the
-        /// one always filled. The tracking permission dialog was reasoned about the same way and that
-        /// one cost a rejection — see <c>IOSBuildPostProcess.BaseLanguage</c>. English is the language a
-        /// review specialist anywhere can read, the <c>en</c> column is as complete as the <c>tr</c> one,
-        /// and a Turkish device still gets Turkish through <see cref="FromSystem"/>. Nobody loses.
+        /// English is the deterministic first-launch language and the fallback for missing translations.
+        /// The device language is deliberately not used here: a player should see a readable game on
+        /// first launch, then choose another language explicitly from Settings if desired.
         /// </summary>
         private const string FallbackCode = "en";
 
@@ -62,7 +58,7 @@ namespace Game.Systems
         public LocalizationService()
         {
             Load();
-            SetLanguage(Stored());
+            ApplyLanguage(Stored(), false);
         }
 
         /// <summary>The line for <paramref name="key"/>. Never null.</summary>
@@ -79,6 +75,11 @@ namespace Game.Systems
 
         public void SetLanguage(string code)
         {
+            ApplyLanguage(code, true);
+        }
+
+        private void ApplyLanguage(string code, bool persist)
+        {
             if (string.IsNullOrEmpty(code)) code = FallbackCode;
             if (IndexOf(code) < 0) code = FallbackCode;
             if (code == _code) return;
@@ -86,8 +87,12 @@ namespace Game.Systems
             _code = code;
             Fill(_text, code);
             Fill(_fallback, FallbackCode);
-            PlayerPrefs.SetString(PrefKey, code);
-            PlayerPrefs.Save();
+            if (persist)
+            {
+                PlayerPrefs.SetString(PrefKey, code);
+                PlayerPrefs.SetInt(UserChoicePrefKey, 1);
+                PlayerPrefs.Save();
+            }
             if (Changed != null) Changed();
         }
 
@@ -160,36 +165,14 @@ namespace Game.Systems
 
         // ------------------------------------------------------------------ first run
 
-        /// <summary>Saved choice, else the device language when the game speaks it, else English.</summary>
+        /// <summary>Explicitly saved choice, else English. Legacy automatic device-language values are
+        /// ignored once so old installs also start in English.</summary>
         private string Stored()
         {
             string saved = PlayerPrefs.GetString(PrefKey, "");
-            if (!string.IsNullOrEmpty(saved) && IndexOf(saved) >= 0) return saved;
-
-            string device = FromSystem(Application.systemLanguage);
-            return IndexOf(device) >= 0 ? device : FallbackCode;
-        }
-
-        private static string FromSystem(SystemLanguage l)
-        {
-            switch (l)
-            {
-                case SystemLanguage.Turkish: return "tr";
-                case SystemLanguage.German: return "de";
-                case SystemLanguage.French: return "fr";
-                case SystemLanguage.Spanish: return "es";
-                case SystemLanguage.Portuguese: return "pt";
-                case SystemLanguage.Italian: return "it";
-                case SystemLanguage.Polish: return "pl";
-                case SystemLanguage.Russian: return "ru";
-                case SystemLanguage.Indonesian: return "id";
-                case SystemLanguage.Vietnamese: return "vi";
-                case SystemLanguage.English: return "en";
-                // Konuşmadığımız bir cihaz İngilizce'ye düşer. Japon, Çinli, Arap bir oyuncunun — ve
-                // App Review uzmanının — okuyabileceği tek dil bu; Türk cihaz zaten yukarıdaki
-                // satırdan Türkçe alıyor.
-                default: return FallbackCode;
-            }
+            return PlayerPrefs.GetInt(UserChoicePrefKey, 0) == 1
+                   && !string.IsNullOrEmpty(saved) && IndexOf(saved) >= 0
+                ? saved : FallbackCode;
         }
     }
 }

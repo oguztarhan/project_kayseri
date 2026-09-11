@@ -76,6 +76,11 @@ namespace Game.Systems
         }
 
         public bool TryGetDefinition(CurrencyId id, out CurrencyDefinition definition)
+            => TryDescribe(id, out definition);
+
+        /// <summary>The same static metadata without a live registry, for text built where only the
+        /// currency's identity is known (a spend receipt, a reward line).</summary>
+        public static bool TryDescribe(CurrencyId id, out CurrencyDefinition definition)
         {
             int index = (int)id;
             if (index >= 0 && index < DefinitionsById.Length)

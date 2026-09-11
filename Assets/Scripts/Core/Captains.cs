@@ -104,6 +104,14 @@ namespace Game.Core
             public double CommonPerLevel, RarePerLevel, EpicPerLevel, LegendaryPerLevel, MythicPerLevel;
 
             /// <summary>
+            /// Maximum idle-income bonus by grade. These are separate from the sea-effect values
+            /// above: a captain's income bonus is an economy multiplier, while the existing values
+            /// continue to drive charts, salvage, risk, repair and cards.
+            /// </summary>
+            public double CommonIncomeBonus, RareIncomeBonus, EpicIncomeBonus,
+                          LegendaryIncomeBonus, MythicIncomeBonus;
+
+            /// <summary>
             /// Risk points a bosun takes off per level, per grade. On its OWN scale rather than derived
             /// from the numbers above, because risk is measured in absolute percentage points and
             /// everything else is a multiplier — deriving one from the other made a Mythic bosun erase
@@ -148,6 +156,14 @@ namespace Game.Core
                 EpicPerLevel      = 0.180d,
                 LegendaryPerLevel = 0.260d,
                 MythicPerLevel    = 0.360d,
+
+                // Maximum idle-income bonuses at MaxLevel. Mythic owns the fifth-rarity +75,000%
+                // value so the existing five-grade crate and save layout remain unchanged.
+                CommonIncomeBonus    = 4.00d,
+                RareIncomeBonus      = 16.50d,
+                EpicIncomeBonus      = 60.28d,
+                LegendaryIncomeBonus = 213.52d,
+                MythicIncomeBonus    = 750.00d,
 
                 // Maxed, these are 2, 3, 4, 5 and 6 risk points — the same as the ten-level ladder
                 // paid, doubled per level for the same reason as the block above. A maxed Mythic bosun
@@ -222,6 +238,56 @@ namespace Game.Core
                 case Grade.Rare:      return t.RarePerLevel;
                 default:              return t.CommonPerLevel;
             }
+        }
+
+        /// <summary>Maximum idle-income bonus for this captain's grade.</summary>
+        public static double MaxIncomeBonus(int captain, in Tuning t)
+        {
+            switch (RankOf(captain))
+            {
+                case Grade.Mythic:    return t.MythicIncomeBonus;
+                case Grade.Legendary: return t.LegendaryIncomeBonus;
+                case Grade.Epic:      return t.EpicIncomeBonus;
+                case Grade.Rare:      return t.RareIncomeBonus;
+                default:              return t.CommonIncomeBonus;
+            }
+        }
+
+        /// <summary>
+        /// Idle-income multiplier. A level-0 or invalid captain is unowned and contributes x1;
+        /// owned levels scale linearly from level 1 through MaxLevel.
+        /// </summary>
+        public static double IncomeMultiplier(int captain, int level, in Tuning t)
+        {
+            if (!Exists(captain) || level <= NotOwned) return 1d;
+            int clamped = Clamp(level, 0, MaxLevel);
+            double bonus = MaxIncomeBonus(captain, t);
+            return 1d + bonus * clamped / MaxLevel;
+        }
+
+        /// <summary>Formats an income bonus with grouping, so late-game values remain readable.</summary>
+        public static string IncomePercent(double bonusPercent)
+            => bonusPercent.ToString("#,0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// Selects the highest-level owned captain. Strictly greater preserves roster order when
+        /// levels tie, matching the ship's existing automatic captain rule.
+        /// </summary>
+        public static int BestOwned(int[] levels)
+        {
+            if (levels == null) return -1;
+            int best = -1, bestLevel = NotOwned;
+            int length = levels.Length < Count ? levels.Length : Count;
+            for (int captain = 0; captain < length; captain++)
+            {
+                int level = levels[captain];
+                if (level > bestLevel)
+                {
+                    best = captain;
+                    bestLevel = level;
+                }
+            }
+            return best;
         }
 
         private static double BosunRiskPerLevel(int captain, in Tuning t)

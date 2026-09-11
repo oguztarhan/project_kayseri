@@ -257,5 +257,39 @@ namespace Game.Tests
             Assert.That(ready.CanUpgrade, Is.True);
             Assert.That(ready.Effect, Is.GreaterThan(0d));
         }
+
+        [Test]
+        public void IncomeMultiplierUsesTheActiveCaptainAndPreservesTies()
+        {
+            var data = new SaveData();
+            CaptainService s = Make(data);
+            Assert.That(s.IncomeMultiplier, Is.EqualTo(1d));
+
+            data.captainLevels[0] = 5;
+            Assert.That(s.BestOwnedCaptain, Is.EqualTo(0));
+            Assert.That(s.IncomeMultiplier, Is.EqualTo(5d).Within(1e-9));
+
+            data.captainLevels[1] = 5;
+            Assert.That(s.BestOwnedCaptain, Is.EqualTo(0), "roster order resolves an equal-level tie");
+            Assert.That(s.IncomeMultiplier, Is.EqualTo(5d).Within(1e-9));
+
+            data.captainLevels[1] = 6;
+            Assert.That(s.BestOwnedCaptain, Is.EqualTo(1));
+            Assert.That(s.IncomeMultiplier, Is.EqualTo(17.5d).Within(1e-9),
+                        "levels above the ceiling clamp to MaxLevel");
+        }
+
+        [Test]
+        public void SeaEffectsRemainDrivenByTheExistingPerLevelValues()
+        {
+            var data = new SaveData();
+            CaptainService s = Make(data);
+            int captain = Captains.OfGrade(Captains.Grade.Common, 0);
+            data.captainLevels[captain] = Captains.MaxLevel;
+
+            Assert.That(s.ChartMultiplier(captain),
+                        Is.EqualTo(1d + T.CommonPerLevel * Captains.MaxLevel).Within(1e-9));
+            Assert.That(s.IncomeMultiplier, Is.EqualTo(5d).Within(1e-9));
+        }
     }
 }

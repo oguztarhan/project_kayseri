@@ -2223,6 +2223,7 @@ GameObject:
   - component: {fileID: 583636280}
   - component: {fileID: 583636279}
   - component: {fileID: 583636281}
+  - component: {fileID: 583636282}
   m_Layer: 0
   m_Name: Shipyard_Runtime
   m_TagString: Untagged
@@ -2300,6 +2301,29 @@ MonoBehaviour:
   closeIcon: {fileID: 0}
   scrim: {r: 0.04, g: 0.05, b: 0.08, a: 0.92}
   backdrop: {r: 0.15, g: 0.18, b: 0.26, a: 1}
+--- !u!114 &583636282
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 583636278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf7dea61b4afa441acddbe6bfc5f6e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.WalletUI
+  sortingOrder: 120
+  standaloneOpenerSortingOrder: 99
+  rowHeight: 104
+  rowSpacing: 10
+  iconSize: 72
+  scrim: {r: 0, g: 0, b: 0, a: 0.66}
+  backdrop: {r: 0.92, g: 0.94, b: 0.99, a: 0.98}
+  rowColor: {r: 0.17, g: 0.21, b: 0.31, a: 1}
+  groupColor: {r: 0.1, g: 0.14, b: 0.23, a: 1}
+  descriptionColor: {r: 0.72, g: 0.78, b: 0.88, a: 1}
+  iconOverrides: []
 --- !u!1 &610793552
 GameObject:
   m_ObjectHideFlags: 0

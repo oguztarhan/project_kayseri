@@ -228,6 +228,10 @@ namespace Game.Systems
         // Rewarded auto-craft is a wall-clock window, just like the income boost. Points arriving
         // while this is in the future are spent and resolved immediately by CraftingService.
         public long autoCraftEndUnix;
+        // The captain assigned to the workshop. The separate flag is intentional: old JSON saves do
+        // not contain either new field, and a missing int would otherwise look like captain index 0.
+        public int craftingCaptain = -1;
+        public bool craftingCaptainAssigned;
 
         // ---- depo (ExpeditionService, Game.Core.GearStash) --------------------------------------
         // The workshop's shelf: gear that has been crafted or taken off and is being kept rather

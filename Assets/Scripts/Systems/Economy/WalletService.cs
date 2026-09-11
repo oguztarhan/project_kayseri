@@ -17,6 +17,25 @@ namespace Game.Systems
         public WalletService(WalletData data)
         {
             _data = data ?? new WalletData();
+            Normalise();
+        }
+
+        /// <summary>
+        /// Repairs a loaded wallet the way every other balance owner repairs its block. Nothing the
+        /// game writes can make either balance negative, so a negative one is damage and reads as
+        /// empty. A cash value that is not a number would throw from every comparison
+        /// (<see cref="Math.Sign(double)"/> rejects NaN), and one that was never normalised would
+        /// compare wrongly, so it is rebuilt through the constructor that normalises it.
+        /// </summary>
+        private void Normalise()
+        {
+            double mantissa = _data.cash.Mantissa;
+            if (double.IsNaN(mantissa) || double.IsInfinity(mantissa) || mantissa < 0d)
+                _data.cash = BigDouble.Zero;
+            else
+                _data.cash = new BigDouble(mantissa, _data.cash.Exponent);
+
+            if (_data.gems < 0L) _data.gems = 0L;
         }
 
         public BigDouble Cash => _data.cash;

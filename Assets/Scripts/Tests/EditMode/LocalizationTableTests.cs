@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Systems;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -142,6 +143,58 @@ namespace Game.Tests.EditMode
                 return;
             }
             Assert.Fail("_dil_adi row missing — the language picker would list codes, not names");
+        }
+
+        [Test]
+        public void FirstLaunchDefaultsToEnglishAndIgnoresLegacyAutomaticLanguage()
+        {
+            bool hadLanguage = PlayerPrefs.HasKey(LocalizationService.PrefKey);
+            string previousLanguage = PlayerPrefs.GetString(LocalizationService.PrefKey, "");
+            bool hadChoiceMarker = PlayerPrefs.HasKey(LocalizationService.UserChoicePrefKey);
+            int previousChoiceMarker = PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0);
+            try
+            {
+                PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+                PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+                Assert.That(new LocalizationService().Code, Is.EqualTo("en"));
+
+                PlayerPrefs.SetString(LocalizationService.PrefKey, "vi");
+                Assert.That(new LocalizationService().Code, Is.EqualTo("en"));
+            }
+            finally
+            {
+                if (hadLanguage) PlayerPrefs.SetString(LocalizationService.PrefKey, previousLanguage);
+                else PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+                if (hadChoiceMarker) PlayerPrefs.SetInt(LocalizationService.UserChoicePrefKey, previousChoiceMarker);
+                else PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+                PlayerPrefs.Save();
+            }
+        }
+
+        [Test]
+        public void ExplicitLanguageChoiceStillPersistsAcrossLaunches()
+        {
+            bool hadLanguage = PlayerPrefs.HasKey(LocalizationService.PrefKey);
+            string previousLanguage = PlayerPrefs.GetString(LocalizationService.PrefKey, "");
+            bool hadChoiceMarker = PlayerPrefs.HasKey(LocalizationService.UserChoicePrefKey);
+            int previousChoiceMarker = PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0);
+            try
+            {
+                PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+                PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+                var first = new LocalizationService();
+                first.SetLanguage("vi");
+
+                Assert.That(new LocalizationService().Code, Is.EqualTo("vi"));
+            }
+            finally
+            {
+                if (hadLanguage) PlayerPrefs.SetString(LocalizationService.PrefKey, previousLanguage);
+                else PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+                if (hadChoiceMarker) PlayerPrefs.SetInt(LocalizationService.UserChoicePrefKey, previousChoiceMarker);
+                else PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+                PlayerPrefs.Save();
+            }
         }
 
         private static string[] Trimmed(string[] cells)

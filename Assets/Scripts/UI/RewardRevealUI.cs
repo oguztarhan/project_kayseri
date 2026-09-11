@@ -17,6 +17,7 @@ namespace Game.UI
         private RectTransform _card;
         private Text _title;
         private Text _value;
+        private Image _icon;
         private float _shownAt;
 
         public static RewardRevealUI Create(RectTransform parent, Sprite cardSprite, Sprite gemIcon)
@@ -64,6 +65,7 @@ namespace Game.UI
             icon.preserveAspect = true;
             icon.raycastTarget = false;
             icon.enabled = gemIcon != null;
+            reveal._icon = icon;
             UiBuild.Anchor((RectTransform)iconGo.transform,
                 new Vector2(0.10f, 0.20f), new Vector2(0.22f, 0.48f));
             go.SetActive(false);
@@ -76,13 +78,15 @@ namespace Game.UI
             _title.text = receipt.Items > 1
                 ? string.Format("{0} ×{1}", Loc.T("gorev.odul_alindi"), receipt.Items)
                 : Loc.T("gorev.odul_alindi");
-            _value.text = receipt.Cards > 0
-                ? string.Format("+{0} ◆    +{1} {2}", receipt.Gems, receipt.Cards, Loc.T("ustabasi.kart"))
-                : string.Format("+{0} ◆", receipt.Gems);
+            string value = receipt.Gems > 0L ? CurrencyText.Gain(CurrencyId.Gems, receipt.Gems) : string.Empty;
+            if (receipt.Cards > 0)
+                value = Spaced(value, string.Format("+{0} {1}", receipt.Cards, Loc.T("ustabasi.kart")));
             // Packs are banked unopened on the collection screen; saying so here is the only way the
             // player learns a claim paid one (Docs/PLAN_14, slice 7).
             if (receipt.Packs > 0)
-                _value.text += "    " + string.Format(Loc.T("koleksiyon.paket_x"), receipt.Packs);
+                value = Spaced(value, string.Format(Loc.T("koleksiyon.paket_x"), receipt.Packs));
+            _value.text = value;
+            ShowIcon(receipt.Gems > 0L);
             _shownAt = Time.unscaledTime;
             _group.alpha = 0f;
             _card.localScale = Vector3.one * 0.82f;
@@ -92,12 +96,15 @@ namespace Game.UI
             ServiceLocator.Get<HapticService>()?.Medium();
         }
 
-        /// <summary>Shows an already committed reward rendered by another reward-owning service.</summary>
-        public void Present(string value)
+        /// <summary>Shows an already committed reward rendered by another reward-owning service.
+        /// <paramref name="showIcon"/> is false when the reward holds none of the currency the card's
+        /// icon was built with — a charts-only pass tier must not wear the gem.</summary>
+        public void Present(string value, bool showIcon = true)
         {
             if (string.IsNullOrEmpty(value)) return;
             _title.text = Loc.T("gorev.odul_alindi");
             _value.text = value;
+            ShowIcon(showIcon);
             _shownAt = Time.unscaledTime;
             _group.alpha = 0f;
             _card.localScale = Vector3.one * 0.82f;
@@ -119,5 +126,12 @@ namespace Game.UI
         }
 
         private void Hide() => gameObject.SetActive(false);
+
+        private void ShowIcon(bool show)
+        {
+            if (_icon != null) _icon.enabled = show && _icon.sprite != null;
+        }
+
+        private static string Spaced(string head, string tail) => head.Length > 0 ? head + "    " + tail : tail;
     }
 }

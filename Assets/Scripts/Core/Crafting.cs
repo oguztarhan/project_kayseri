@@ -79,6 +79,15 @@ namespace Game.Core
             public double PointDropChance;
             public int PointsPerWin;
 
+            /// <summary>
+            /// Relative weight added to an already-unlocked rarity for each crafting-captain level.
+            /// Zero keeps a rarity unchanged. These are weights, not percentage points: the final
+            /// row is normalised after the captain adjustment and locked rarities remain zero.
+            /// </summary>
+            public double CaptainCommonBonusPerLevel, CaptainRareBonusPerLevel,
+                          CaptainEpicBonusPerLevel, CaptainLegendaryBonusPerLevel,
+                          CaptainMythicBonusPerLevel;
+
             public static Tuning Default => new Tuning
             {
                 CraftCost = 1L,
@@ -93,6 +102,15 @@ namespace Game.Core
                 // points, which prices the 280-craft ladder in weeks rather than sittings.
                 PointDropChance = 0.20d,
                 PointsPerWin = 1,
+
+                // A captain improves the relative weight of rarer outcomes. Common is deliberately
+                // unchanged so the bonus is a real rarity lift rather than a flat multiplier that
+                // disappears during normalisation. No captain means level zero and the old table.
+                CaptainCommonBonusPerLevel    = 0.00d,
+                CaptainRareBonusPerLevel      = 0.020d,
+                CaptainEpicBonusPerLevel      = 0.040d,
+                CaptainLegendaryBonusPerLevel = 0.060d,
+                CaptainMythicBonusPerLevel    = 0.080d,
             };
         }
 
@@ -118,6 +136,37 @@ namespace Game.Core
             if (total <= 0d) return grade == 0 ? 1d : 0d;
             double w = row[grade] > 0d ? row[grade] : 0d;
             return w / total;
+        }
+
+        /// <summary>
+        /// A grade's final share after the assigned captain's level adjusts unlocked weights.
+        /// The workshop row still owns the unlocks: a zero base weight always returns zero here.
+        /// </summary>
+        public static double OddsOf(int level, int captainLevel, int grade, in Tuning t)
+        {
+            if (grade < 0 || grade >= Captains.GradeCount) return 0d;
+            double[] row = LevelOdds[BracketOf(level)];
+            double total = WeightedTotal(row, captainLevel, in t);
+            if (total <= 0d) return grade == 0 ? 1d : 0d;
+            double weight = AdjustedWeight(row, grade, captainLevel, in t);
+            return weight / total;
+        }
+
+        /// <summary>Writes the final, normalised row into <paramref name="destination"/> without
+        /// allocating. Returns false when the destination cannot hold the five-grade ladder.</summary>
+        public static bool FillOdds(int level, int captainLevel, in Tuning t, double[] destination)
+        {
+            if (destination == null || destination.Length < Captains.GradeCount) return false;
+            double[] row = LevelOdds[BracketOf(level)];
+            double total = WeightedTotal(row, captainLevel, in t);
+            if (total <= 0d)
+            {
+                for (int g = 0; g < Captains.GradeCount; g++) destination[g] = g == 0 ? 1d : 0d;
+                return true;
+            }
+            for (int g = 0; g < Captains.GradeCount; g++)
+                destination[g] = AdjustedWeight(row, g, captainLevel, in t) / total;
+            return true;
         }
 
         /// <summary>The level a grade first becomes craftable at, or 0 when no bracket carries it —
@@ -155,6 +204,63 @@ namespace Game.Core
             }
             return 0;
         }
+
+        /// <summary>Rolls the final workshop row. Captain level can only change the probability of
+        /// grades the workshop already makes; it cannot open a locked tier.</summary>
+        public static int RollGrade(double roll, int level, int captainLevel, in Tuning t)
+        {
+            if (roll < 0d) roll = 0d;
+            if (roll >= 1d) roll = 0.9999999999d;
+
+            double[] row = LevelOdds[BracketOf(level)];
+            double total = WeightedTotal(row, captainLevel, in t);
+            if (total <= 0d) return 0;
+
+            double target = roll * total;
+            double acc = 0d;
+            for (int g = 0; g < Captains.GradeCount; g++)
+            {
+                double weight = AdjustedWeight(row, g, captainLevel, in t);
+                if (weight <= 0d) continue;
+                acc += weight;
+                if (target < acc) return g;
+            }
+            return 0;
+        }
+
+        private static double WeightedTotal(double[] row, int captainLevel, in Tuning t)
+        {
+            double total = 0d;
+            for (int g = 0; g < row.Length && g < Captains.GradeCount; g++)
+                total += AdjustedWeight(row, g, captainLevel, in t);
+            return total;
+        }
+
+        private static double AdjustedWeight(double[] row, int grade, int captainLevel, in Tuning t)
+        {
+            if (grade < 0 || grade >= row.Length || row[grade] <= 0d) return 0d;
+            double bonus = CaptainBonusPerLevel(grade, in t);
+            int level = captainLevel < 0 ? 0 : captainLevel > Captains.MaxLevel
+                ? Captains.MaxLevel : captainLevel;
+            double multiplier = 1d + (IsFiniteNonNegative(bonus) ? bonus * level : 0d);
+            return row[grade] * (multiplier > 0d && !double.IsNaN(multiplier)
+                && !double.IsInfinity(multiplier) ? multiplier : 1d);
+        }
+
+        private static double CaptainBonusPerLevel(int grade, in Tuning t)
+        {
+            switch (grade)
+            {
+                case 4: return t.CaptainMythicBonusPerLevel;
+                case 3: return t.CaptainLegendaryBonusPerLevel;
+                case 2: return t.CaptainEpicBonusPerLevel;
+                case 1: return t.CaptainRareBonusPerLevel;
+                default: return t.CaptainCommonBonusPerLevel;
+            }
+        }
+
+        private static bool IsFiniteNonNegative(double value)
+            => value >= 0d && !double.IsNaN(value) && !double.IsInfinity(value);
 
         // --------------------------------------------------------------------- xp
         /// <summary>XP the NEXT level-up costs from this level. 0 at the top of the ladder.</summary>

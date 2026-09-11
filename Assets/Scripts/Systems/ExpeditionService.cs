@@ -163,6 +163,13 @@ namespace Game.Systems
                 _data.seaEnergy = _combat.EnergyMax;
                 _data.seaEnergyStampUnix = NowUnix();
             }
+            // A pool stored above its size (a size lowered in tuning, or damage) already reads as
+            // full — SeaCombat.EnergyAt caps it — so writing the cap back takes nothing spendable.
+            else if (_data.seaEnergy > _combat.EnergyMax && _combat.EnergyMax > 0)
+                _data.seaEnergy = _combat.EnergyMax;
+
+            // Nothing spends salvage below zero, so a negative balance is damage and reads as empty.
+            if (_data.salvage < 0L) _data.salvage = 0L;
 
             // Only the TABLE's range is enforced here — a save written under a longer route ladder
             // must not index past its end. Whether the stored tier is still UNLOCKED is the getter's
@@ -527,14 +534,7 @@ namespace Game.Systems
         {
             get
             {
-                if (_captains == null) return -1;
-                int best = -1, bestLevel = 0;
-                for (int c = 0; c < Captains.Count; c++)
-                {
-                    int level = _captains.Level(c);
-                    if (level > bestLevel) { best = c; bestLevel = level; }
-                }
-                return best;
+                return _captains != null ? _captains.BestOwnedCaptain : -1;
             }
         }
 
@@ -863,20 +863,40 @@ namespace Game.Systems
         public bool RegisterKill(int charts, int salvage)
         {
             if (!_atSea) return false;
+            LastKillCharts = 0L;
+            LastKillSalvage = 0L;
+            LastKillCraftPoints = 0L;
             // The collection lifts fight loot here and only here. Every other route to _data.salvage
             // is a scrap — an item the player already owned turned back into hurda — and paying a
             // find bonus on those would let a collection print salvage out of a stash it did not
             // help fill. See Docs/PLAN_14 for the five paths this deliberately skips.
             CardCollectionEffects gain = Cards != null ? Cards.Effects : CardCollectionEffects.None;
             if (charts > 0 && _captains != null)
-                _captains.AddCharts(CardCollection.Scale(charts, gain.SeaChartMultiplier));
+            {
+                LastKillCharts = CardCollection.Scale(charts, gain.SeaChartMultiplier);
+                _captains.AddCharts(LastKillCharts);
+            }
             if (salvage > 0 && _data != null)
-                _data.salvage += CardCollection.Scale(salvage, gain.SeaSalvageMultiplier);
+            {
+                LastKillSalvage = CardCollection.Scale(salvage, gain.SeaSalvageMultiplier);
+                _data.salvage += LastKillSalvage;
+            }
             // The workshop's point drop rides the same win, on the same dice-in-the-service rule.
-            Crafting?.TryDropPoint(_random.NextDouble());
+            if (Crafting != null && Crafting.TryDropPoint(_random.NextDouble()))
+                LastKillCraftPoints = Crafting.Tuning.PointsPerWin;
             Changed?.Invoke();
             return true;
         }
+
+        /// <summary>What the last <see cref="RegisterKill"/> actually banked — after the collection's
+        /// lift, which the fight's own base numbers do not include — so the win banner quotes the
+        /// balances that moved rather than the table they were rolled from.</summary>
+        public long LastKillCharts { get; private set; }
+        public long LastKillSalvage { get; private set; }
+        public long LastKillCraftPoints { get; private set; }
+
+        /// <summary>Pearls the last confirmed win paid, 0 when the pet service was absent or full.</summary>
+        public long LastWinPearls { get; private set; }
 
         /// <summary>
         /// One won fight, counted for the route ladder. Separate from <see cref="RegisterKill"/>
@@ -884,9 +904,15 @@ namespace Game.Systems
         /// </summary>
         public void RegisterWin(int tier, int enemyKind)
         {
+            LastWinPearls = 0L;
             if (!_atSea || _data == null) return;
             _data.seaFightsWon++;
-            Pets?.GrantSeaFightWin(tier, enemyKind);
+            if (Pets != null)
+            {
+                long before = Pets.Pearls;
+                Pets.GrantSeaFightWin(tier, enemyKind);
+                LastWinPearls = Pets.Pearls - before;
+            }
             _save?.Save(_data);
             Changed?.Invoke();
         }

@@ -8,6 +8,8 @@ namespace Game.Systems
     {
         public CurrencyId Id { get; }
         public string LocalizedNameKey { get; }
+        /// <summary>One-line "where it comes from, what it buys" text for the wallet row.</summary>
+        public string LocalizedDescriptionKey => LocalizedNameKey + ".desc";
         public string IconKey { get; }
         public CurrencyCategory Category { get; }
         public CurrencyNumberFormat NumberFormat { get; }

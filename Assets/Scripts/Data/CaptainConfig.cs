@@ -25,6 +25,15 @@ namespace Game.Data
         [SerializeField] private double legendaryPerLevel = 0.130d;
         [SerializeField] private double mythicPerLevel = 0.180d;
 
+        [Header("Ada geliri — azami bonus, dereceye göre")]
+        [Tooltip("Azami seviyedeki kaptanın ada geliri bonusu. Deniz etkilerinden ayrı tutulur. " +
+                 "Sıradan +%400, nadir +%1.650, destansı +%6.028, efsanevi +%21.352, mitik +%75.000.")]
+        [SerializeField] private double commonIncomeBonus = 4.00d;
+        [SerializeField] private double rareIncomeBonus = 16.50d;
+        [SerializeField] private double epicIncomeBonus = 60.28d;
+        [SerializeField] private double legendaryIncomeBonus = 213.52d;
+        [SerializeField] private double mythicIncomeBonus = 750.00d;
+
         [Header("Lostromo — riskten düşülen puan, seviye başına")]
         [Tooltip("AYRI bir ölçek: risk mutlak yüzde puanıyla ölçülür, yukarıdaki her şey çarpandır. " +
                  "Formenin indirimiyle TOPLANIR. Seviye 10'da 2/3/4/5/6 puan; en iyi ihtimalle " +
@@ -91,6 +100,11 @@ namespace Game.Data
             EpicPerLevel       = epicPerLevel,
             LegendaryPerLevel  = legendaryPerLevel,
             MythicPerLevel     = mythicPerLevel,
+            CommonIncomeBonus  = commonIncomeBonus,
+            RareIncomeBonus    = rareIncomeBonus,
+            EpicIncomeBonus    = epicIncomeBonus,
+            LegendaryIncomeBonus = legendaryIncomeBonus,
+            MythicIncomeBonus   = mythicIncomeBonus,
             BosunRiskCommon    = bosunRiskCommon,
             BosunRiskRare      = bosunRiskRare,
             BosunRiskEpic      = bosunRiskEpic,

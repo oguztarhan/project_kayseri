@@ -202,6 +202,9 @@ namespace Game.Systems
 
             bool hadSave = Save.TryLoad(out SaveData loaded);
             Data = hadSave ? loaded : new SaveData();
+            if (hadSave && Save.LastLoadSource != SaveService.LoadSource.Main)
+                Debug.LogWarning($"[Save] main save unreadable; progress restored from the " +
+                                 $"{Save.LastLoadSource} copy.");
 
             // A save from a build with a different economy is not playable progress — see
             // SaveMigration for why, and for the one constant that arms this.
@@ -270,7 +273,8 @@ namespace Game.Systems
                 foremanConfig != null ? foremanConfig.ToTuning() : Game.Core.Foremen.Tuning.Default,
                 foremanConfig != null ? foremanConfig.ToChestTuning() : Game.Core.MasterChest.Tuning.Default,
                 _time,
-                foremanConfig != null ? foremanConfig.RarityTint : null);
+                foremanConfig != null ? foremanConfig.RarityTint : null,
+                Save);
             ServiceLocator.Register(Foremen);
 
             // The card collection (Docs/PLAN_14). After the roster, which a set reward can pay into,
@@ -302,25 +306,25 @@ namespace Game.Systems
                 miningGearConfig != null ? miningGearConfig.ToTuning() : Game.Core.MiningGear.Tuning.Default);
             ServiceLocator.Register(MiningGear);
 
-            Market = new MarketService(Data, Wallet, boost, Maintenance, Foremen, Goals, MiningGear,
-                                       CardCollection);
-            ServiceLocator.Register(Market);
-
-            // The sea roster: a won fight settles a captain's charts and asks a bosun what the risk
-            // is, so the sea service is handed one rather than looking for it later. Needs nothing
-            // but the save — charts are earned at sea and spent on crates, and neither end of that
-            // loop touches the wallet.
+            // The sea roster is built before the market because its active captain affects idle cash.
+            // It remains independent of the market: charts and sea effects never read cash.
             Captains = new CaptainService(Data,
                 captainConfig != null ? captainConfig.ToTuning() : Game.Core.Captains.Tuning.Default,
-                captainConfig != null ? captainConfig.ToCrateTuning() : Game.Core.CaptainCrate.Tuning.Default);
+                captainConfig != null ? captainConfig.ToCrateTuning() : Game.Core.CaptainCrate.Tuning.Default,
+                save: Save);
             ServiceLocator.Register(Captains);
 
-            // The workshop bench. Before the sea service because both ends of its loop attach to
+            Market = new MarketService(Data, Wallet, boost, Maintenance, Foremen, Goals, MiningGear,
+                                       CardCollection, Captains);
+            ServiceLocator.Register(Market);
+
+            // The workshop bench. After the sea service because both ends of its loop attach to
             // one: scraps teach it and wins drop its points. Needs only the save and the clock —
             // points and XP are a third closed loop beside salvage and charts.
             Crafting = new CraftingService(Data, Save, _time,
                 craftingConfig != null ? craftingConfig.ToTuning() : Game.Core.Crafting.Tuning.Default,
-                seaCombatConfig != null ? seaCombatConfig.ToTuning() : Game.Core.SeaCombat.Tuning.Default);
+                seaCombatConfig != null ? seaCombatConfig.ToTuning() : Game.Core.SeaCombat.Tuning.Default,
+                captains: Captains);
             ServiceLocator.Register(Crafting);
 
             // Going out to fight. Holds no save state of its own beyond the sea block — standing on

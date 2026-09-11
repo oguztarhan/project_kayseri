@@ -12,12 +12,27 @@ namespace Game.Systems
     /// hand-edited save file is rejected on load.
     /// NOTE: the key lives in the client binary, so this is obfuscation + tamper detection,
     /// not server-grade anti-cheat. Trusted-time validation for offline earnings lands in M3.
+    ///
+    /// A WRITE NEVER TOUCHES THE LIVE FILE UNTIL THE NEW ONE IS WHOLE. The blob goes to a temporary
+    /// file first, is flushed to the device, and only then do the files change places, the previous
+    /// save becoming the backup. An app killed mid-write therefore leaves either the old save or the
+    /// new one, never half of one — and a half file used to fail the MAC, read as "no save", and be
+    /// overwritten by a fresh game on the first autosave. A load that cannot read the main file
+    /// falls back to the temporary file and then the backup, and keeps a copy of a file nothing
+    /// could read rather than letting the next write destroy it.
     /// </summary>
     public sealed class SaveService
     {
         private const string Passphrase = "OreEmpire.v1.salt.9c3f"; // client-side obfuscation key
         private const int IvSize = 16;
         private const int MacSize = 32;
+
+        public const string TempSuffix = ".tmp";
+        public const string BackupSuffix = ".bak";
+        public const string UnreadableSuffix = ".unreadable";
+
+        /// <summary>Which file the last <see cref="TryLoad"/> read.</summary>
+        public enum LoadSource { None, Main, Temporary, Backup }
 
         private readonly byte[] _aesKey;
         private readonly byte[] _macKey;
@@ -39,25 +54,81 @@ namespace Game.Systems
         /// session) so test purchases never reach disk — the next launch loads the real save untouched.</summary>
         public bool Suspended;
 
+        /// <summary>Which file the last <see cref="TryLoad"/> read. Anything but
+        /// <see cref="LoadSource.Main"/> after a successful load means the main file was missing or
+        /// unreadable and the progress came from a fallback.</summary>
+        public LoadSource LastLoadSource { get; private set; }
+
         public void Save(SaveData data)
         {
             if (Suspended) return;
             data.savedUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            File.WriteAllBytes(_path, Encrypt(data));
+            WriteReplacing(Encrypt(data));
+        }
+
+        /// <summary>
+        /// Temporary file, flushed, then two renames. Between the renames the main file is briefly
+        /// absent, which is why <see cref="TryLoad"/> reads the temporary file before the backup: by
+        /// then it is complete, and it is newer.
+        /// </summary>
+        private void WriteReplacing(byte[] blob)
+        {
+            string temp = _path + TempSuffix;
+            using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                stream.Write(blob, 0, blob.Length);
+                stream.Flush(true);
+            }
+
+            if (File.Exists(_path))
+            {
+                string backup = _path + BackupSuffix;
+                if (File.Exists(backup)) File.Delete(backup);
+                File.Move(_path, backup);
+            }
+            File.Move(temp, _path);
         }
 
         public bool TryLoad(out SaveData data)
         {
+            LastLoadSource = LoadSource.None;
+            if (TryRead(_path, out data)) { LastLoadSource = LoadSource.Main; return true; }
+            if (TryRead(_path + TempSuffix, out data)) { LastLoadSource = LoadSource.Temporary; return true; }
+            if (TryRead(_path + BackupSuffix, out data)) { LastLoadSource = LoadSource.Backup; return true; }
+
+            // Nothing could be read. The game will start over and its first write would bury this
+            // file under the backup and then delete it, so a copy is kept for support to look at.
+            KeepUnreadable();
+            return false;
+        }
+
+        private bool TryRead(string path, out SaveData data)
+        {
             data = null;
-            if (!File.Exists(_path)) return false;
+            if (!File.Exists(path)) return false;
             try
             {
-                data = Decrypt(File.ReadAllBytes(_path), out bool tampered);
-                return !tampered && data != null;
+                data = Decrypt(File.ReadAllBytes(path), out bool tampered);
+                if (tampered) data = null;
+                return data != null;
             }
             catch
             {
+                data = null;
                 return false;
+            }
+        }
+
+        private void KeepUnreadable()
+        {
+            if (!File.Exists(_path)) return;
+            try
+            {
+                File.Copy(_path, _path + UnreadableSuffix, true);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                // Best effort: failing to keep a copy must not stop the game from starting.
             }
         }
 

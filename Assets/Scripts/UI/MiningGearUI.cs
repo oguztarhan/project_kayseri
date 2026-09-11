@@ -241,6 +241,11 @@ namespace Game.UI
             UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0.10f, 0.215f), new Vector2(0.47f, 0.300f));
             PillFit.Wrap(_craftBtn.GetComponent<Image>());
             _craftLabel = _craftBtn.GetComponentInChildren<Text>();
+            // The price names its currency now — "3 MINING POINTS", not "3 PTS" — so it takes a line of
+            // its own, kept inside the pill's round end caps.
+            UiBuild.Anchor(_craftLabel.rectTransform, new Vector2(0.14f, 0.12f), new Vector2(0.86f, 0.88f));
+            Fit(_craftLabel, 14, 28);
+            _craftLabel.verticalOverflow = VerticalWrapMode.Truncate;
 
             _targetBtn = UiBuild.Btn(_root, "HedefliUret", string.Empty,
                                      actionButton != null ? actionButton : UiSkin.ButtonGreen,
@@ -309,19 +314,7 @@ namespace Game.UI
             if (_mining == null) return;
             MiningGearService.CraftResult result = _mining.TryCraft();
             if (!result.Crafted) return;   // refused for lack of points; refresh rides Changed either way
-
-            string slotName = Loc.T("madenci.yuva." + result.Slot);
-            string gradeName = Loc.T("kaptan.derece." + result.Grade);
-            if (result.Equipped)
-            {
-                _resultLabel.text = string.Format(Loc.T("madenci.kusanildi"), gradeName, slotName);
-                _resultLabel.color = GradeTint[Mathf.Clamp(result.Grade, 0, GradeTint.Length - 1)];
-            }
-            else
-            {
-                _resultLabel.text = string.Format(Loc.T("madenci.hurda"), result.ScrapEarned);
-                _resultLabel.color = InkSoft;
-            }
+            ShowResult(result);
         }
 
         private void OnTargetedCraft()
@@ -335,16 +328,32 @@ namespace Game.UI
                 _resultLabel.color = InkSoft;
                 return;
             }
+            ShowResult(result);
+        }
 
-            string slotName = Loc.T("madenci.yuva." + result.Slot);
-            string gradeName = Loc.T("kaptan.derece." + result.Grade);
-            _resultLabel.text = result.Equipped
-                ? string.Format(Loc.T("madenci.hedef.kusanildi"), gradeName, slotName, result.ScrapSpent)
-                : string.Format(Loc.T("madenci.hedef.hurda"), gradeName, result.ScrapSpent, result.ScrapEarned);
+        private void ShowResult(in MiningGearService.CraftResult result)
+        {
+            _resultLabel.text = ResultText(result);
             _resultLabel.color = result.Equipped
                 ? GradeTint[Mathf.Clamp(result.Grade, 0, GradeTint.Length - 1)]
                 : InkSoft;
         }
+
+        /// <summary>What was made, then a receipt of every balance the craft moved, each by name:
+        /// the points always, the targeting fee when there was one, and the scrap refund — from the
+        /// loser, or from the old piece an upgrade pushed out of its slot.</summary>
+        private static string ResultText(in MiningGearService.CraftResult r)
+        {
+            string outcome = string.Format(Loc.T(r.Equipped ? "madenci.kusanildi" : "madenci.hurdaya_dondu"),
+                                           Loc.T("kaptan.derece." + r.Grade), Loc.T("madenci.yuva." + r.Slot));
+            string receipt = string.Empty;
+            if (r.PointsSpent > 0L) receipt = CurrencyText.Cost(CurrencyId.MiningPoints, r.PointsSpent);
+            if (r.ScrapSpent > 0L) receipt = Joined(receipt, CurrencyText.Cost(CurrencyId.MiningScrap, r.ScrapSpent));
+            if (r.ScrapEarned > 0L) receipt = Joined(receipt, CurrencyText.Gain(CurrencyId.MiningScrap, r.ScrapEarned));
+            return receipt.Length > 0 ? outcome + "\n" + receipt : outcome;
+        }
+
+        private static string Joined(string head, string tail) => head.Length > 0 ? head + "  ·  " + tail : tail;
 
         // --------------------------------------------------------------- refresh
         private void Refresh()
@@ -378,7 +387,7 @@ namespace Game.UI
                 }
             }
 
-            _craftLabel.text = Loc.T("madenci.uret") + "  ·  " + string.Format(Loc.T("madenci.puan"), _mining.CraftCost);
+            _craftLabel.text = Loc.T("madenci.uret") + "\n" + CurrencyText.Amount(CurrencyId.MiningPoints, _mining.CraftCost);
             _craftBtn.interactable = _mining.CanCraft;
 
             long scrapCost = _mining.TargetedScrapCost(_selectedSlot);

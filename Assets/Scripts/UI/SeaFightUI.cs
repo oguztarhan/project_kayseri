@@ -1234,8 +1234,8 @@ namespace Game.UI
                 _toast = 2.2f;
                 _banner.color = _fights.LastWon ? Win : Loss;
                 _banner.text = _fights.LastWon
-                    ? Loc.T("deniz.batti") + "  " + string.Format(Loc.T("deniz.ganimet"),
-                                                                  _fights.LastCharts, _fights.LastSalvage)
+                    ? Loc.T("deniz.batti") + "  " + WinReceipt(_fights.LastCharts, _fights.LastSalvage,
+                                                               _fights.LastCraftPoints, _fights.LastPearls)
                     : Loc.T("deniz.yenildik");
             }
             if (_toast > 0f) { _toast -= dt; if (_toast <= 0f) _banner.text = string.Empty; }
@@ -1620,7 +1620,9 @@ namespace Game.UI
                 Push(_energyLabel, pill, ref _lastEnergy);
 
                 bool idle = phase == EncounterController.Phase.Idle;
-                Push(_searchLabel, Loc.T("deniz.ara") + "  (1)", ref _lastSearch);
+                Push(_searchLabel, Loc.T("deniz.ara") + "  ("
+                                   + string.Format(Loc.T("currency.cost"), "1", Loc.T("deniz.enerji")) + ")",
+                     ref _lastSearch);
                 _search.interactable = idle && have > 0;
                 _search.targetGraphic.color = idle && have > 0 ? Color.white : new Color(0.72f, 0.75f, 0.80f, 1f);
 
@@ -1809,6 +1811,21 @@ namespace Game.UI
             _energyAd.interactable = ready;
             _energyAd.targetGraphic.color = ready ? Color.white : new Color(0.72f, 0.75f, 0.80f, 1f);
         }
+
+        /// <summary>The win banner's loot line: every balance the win moved, each by name and as
+        /// banked. The workshop point and the pearls ride the same win, so they are said here too —
+        /// they used to land with no word at all.</summary>
+        private static string WinReceipt(long charts, long salvage, long craftPoints, long pearls)
+        {
+            string line = string.Empty;
+            if (charts > 0L) line = CurrencyText.Gain(CurrencyId.Charts, charts);
+            if (salvage > 0L) line = Joined(line, CurrencyText.Gain(CurrencyId.Salvage, salvage));
+            if (craftPoints > 0L) line = Joined(line, CurrencyText.Gain(CurrencyId.CraftPoints, craftPoints));
+            if (pearls > 0L) line = Joined(line, CurrencyText.Gain(CurrencyId.Pearls, pearls));
+            return line;
+        }
+
+        private static string Joined(string head, string tail) => head.Length > 0 ? head + " · " + tail : tail;
 
         /// <summary>A drop-table share as a percent. A share too small to round to a whole percent
         /// reads as "about none" rather than as a flat zero it is not.</summary>

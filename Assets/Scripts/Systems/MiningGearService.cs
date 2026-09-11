@@ -149,6 +149,10 @@ namespace Game.Systems
         /// Advances the point pool off the wall clock — the captain earns duty pay just by being
         /// assigned, the same shape <c>seaEnergy</c> regenerates in. The stamp only ever advances by
         /// whole ticks consumed, so a part-tick in progress is never lost to a read that lands mid-tick.
+        ///
+        /// The cap stops the pool FILLING; it never takes points away. A pool already above the cap
+        /// (one lowered in tuning after it filled) keeps every point, all still spendable, and simply
+        /// earns nothing until crafting brings it back under the line.
         /// </summary>
         private bool AccruePoints(long now)
         {
@@ -167,7 +171,7 @@ namespace Game.Systems
             long perTick = _tuning.PointsPerTick < 0 ? 0 : _tuning.PointsPerTick;
             long total = _data.miningPoints + ticks * perTick;
             long cap = PointCap;
-            if (cap > 0L && total > cap) total = cap;
+            if (cap > 0L && total > cap) total = _data.miningPoints > cap ? _data.miningPoints : cap;
 
             bool changed = total != _data.miningPoints;
             _data.miningPoints = total;

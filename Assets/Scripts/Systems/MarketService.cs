@@ -74,6 +74,7 @@ namespace Game.Systems
         private readonly GoalService _goals;                // null in tests: nothing is counted
         private readonly MiningGearService _miningGear;      // null in tests: an empty loadout is x1
         private readonly CardCollectionService _cards;       // null in tests: an empty collection is x1
+        private readonly CaptainService _captains;           // null in tests: no captain is x1
 
         private readonly Dictionary<string, Yard> _yards = new Dictionary<string, Yard>();
         private readonly List<Yard> _order = new List<Yard>();   // stable iteration without allocating
@@ -85,6 +86,7 @@ namespace Game.Systems
         private double _foremanMult = 1d;
         private double _miningGearMult = 1d;
         private double _collectionMult = 1d;
+        private double _captainMult = 1d;
 
         // A yard sells a fraction of a bar per tick, so casting per call would floor to zero forever
         // and the bar counter would never move. The remainder carries between ticks instead.
@@ -105,7 +107,7 @@ namespace Game.Systems
         public MarketService(SaveData data, WalletService wallet, BoostService boost,
                              MaintenanceService maintenance = null, ForemanService foremen = null,
                              GoalService goals = null, MiningGearService miningGear = null,
-                             CardCollectionService cards = null)
+                             CardCollectionService cards = null, CaptainService captains = null)
         {
             _data = data;
             _wallet = wallet;
@@ -115,6 +117,7 @@ namespace Game.Systems
             _goals = goals;
             _miningGear = miningGear;
             _cards = cards;
+            _captains = captains;
         }
 
         // ------------------------------------------------------------------ wiring
@@ -316,7 +319,8 @@ namespace Game.Systems
             Yard y;
             if (!_yards.TryGetValue(islandKey ?? string.Empty, out y) || y.terms == null) return 0d;
             return y.terms.BarPriceRaw * _legacyIncomeMult / SpeedFor(y)
-                   * _permanentSpeed * _foremanMult * _collectionMult * _boostMult;
+                   * _permanentSpeed * _foremanMult * _miningGearMult * _collectionMult
+                   * _captainMult * _boostMult;
         }
 
         public double Stock(string islandKey) => ProductRow(Get(islandKey)).stock;
@@ -451,6 +455,7 @@ namespace Game.Systems
             // only changes when a pack is opened, so reading it per sale would be per-frame work for a
             // number that moves a handful of times a day. See Game.Core.CardCollection.
             _collectionMult = _cards != null ? _cards.Effects.IncomeMultiplier : 1d;
+            _captainMult = _captains != null ? _captains.IncomeMultiplier : 1d;
             // Spent on the live island's clock when there is one running, and on price otherwise. The
             // guard is what stops a boost going nowhere while the player stands in a market hall: no
             // island is simulating there, so there is nothing to speed up and the price keeps it.
@@ -540,11 +545,11 @@ namespace Game.Systems
             // through it the NEXT session's offline grant) never banks a rate that only existed while an
             // ad was running.
             double sale = bars * y.terms.BarPriceRaw * _legacyIncomeMult / speed * _permanentSpeed
-                        * _foremanMult * _miningGearMult * _collectionMult;
+                        * _foremanMult * _miningGearMult * _collectionMult * _captainMult;
             if (sale <= 0d) return 0d;
 
             double cap = y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed
-                       * _foremanMult * _miningGearMult * _collectionMult;
+                       * _foremanMult * _miningGearMult * _collectionMult * _captainMult;
             double headroom = cap - (y.earnTrailing + y.earnedThisTick);
             if (sale > headroom) sale = headroom > 0d ? headroom : 0d;
             if (sale <= 0d) return 0d;
@@ -639,7 +644,7 @@ namespace Game.Systems
 
             double cap = y.terms != null
                 ? y.terms.IncomeCapPerMinuteRaw * _legacyIncomeMult * _permanentSpeed
-                    * _foremanMult * _miningGearMult * _collectionMult
+                    * _foremanMult * _miningGearMult * _collectionMult * _captainMult
                 : double.MaxValue;
             // Clamp the extrapolation rather than the buckets: while the window is still filling, one
             // good second scaled up by 60/filled reads far above anything the yard can sustain.

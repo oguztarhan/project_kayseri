@@ -17,6 +17,11 @@ MonoBehaviour:
   epicPerLevel: 0.09
   legendaryPerLevel: 0.13
   mythicPerLevel: 0.18
+  commonIncomeBonus: 4
+  rareIncomeBonus: 16.5
+  epicIncomeBonus: 60.279998779296875
+  legendaryIncomeBonus: 213.52000427246094
+  mythicIncomeBonus: 750
   bosunRiskCommon: 0.002
   bosunRiskRare: 0.003
   bosunRiskEpic: 0.004
@@ -25,6 +30,11 @@ MonoBehaviour:
   minRepairFraction: 0.25
   duplicateBase: 2
   duplicateStep: 2
+  dupScaleCommon: 1
+  dupScaleRare: 0.89
+  dupScaleEpic: 0.61
+  dupScaleLegendary: 0.39
+  dupScaleMythic: 0.17
   commonWeight: 0.6
   rareWeight: 0.26
   epicWeight: 0.105

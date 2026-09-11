@@ -1,0 +1,117 @@
+Currency & Resources Implementation Plan — Claude Code Handoff
+
+CURRENT STATE
+
+Continue from Phase 5. Phases 1–4 are already implemented and verified. Do not redo them.
+
+Phase 1 completed:
+- CurrencyId, currency metadata, read-only snapshots/registry, and CurrencyRegistryTests.
+- Existing domain services remain authorities for mutation and save data.
+
+Phase 2 completed:
+- Wallet UI and HUD opener wiring.
+- Wallet localization and WalletUiSmokeTests.
+
+Phase 3 completed:
+- Targeted Mining Gear Crafting using Mining Points plus grade-scaled Mining Scrap.
+- Normal crafting behavior preserved.
+- Save-before-reveal behavior preserved.
+- MiningGearServiceTests and MiningGearUiSmokeTests added.
+
+Phase 4 completed:
+- Inventory/Catalogue displays live ore quantities and live market stock for refined products.
+- Composite catalogue products explicitly show that no live runtime stock exists.
+- Production-input/refined-product labels and Cash conversion messaging added.
+- Gold Ore/Gold Bar and Diamond Ore/Polished Diamond are distinct in Turkish and English.
+- InventoryResourceCatalogueTests added.
+
+Latest Phase 4 verification:
+- Unity 6.4.9f1 refresh/recompile completed successfully.
+- Compile errors: 0.
+- Compile warnings after the final refresh: 0.
+- Focused EditMode run: 43 total, 43 passed, 0 failed, 0 skipped.
+- Covered InventoryResourceCatalogueTests, CatalogueTests, and MarketServiceTests.
+- No Phase 4 production-chain regression was detected.
+- Console entries after testing were Unity Test Framework result-saving messages and unrelated test/MCP tooling warnings, not Phase 4 code errors.
+
+Before editing:
+- Read CLAUDE.md completely.
+- Inspect git status and git diff. The worktree contains the completed Phase 1–4 changes; preserve them.
+- Do not assume earlier changes are committed.
+
+WORKING AGREEMENT — MANDATORY
+
+- Implement only the currently approved phase.
+- Stop at the end of each phase.
+- Report exact changes, tests, results, warnings/errors, and remaining risk.
+- Wait for explicit approval before starting the next phase.
+- Do not modify project files while waiting for approval.
+- Preserve existing systems and player saves. Do not refactor unrelated code.
+- Never manually edit .unity, .prefab, .asset, or .meta files. Use Unity MCP/editor tooling for scene or asset changes.
+- After every C# change, let Unity recompile, inspect the Console, and do not report success while new errors or warnings remain.
+- Run tests through Unity Test Runner via Unity MCP, not manually.
+- Do not touch Library/, Temp/, Logs/, obj/, Build/, *.csproj, or *.sln.
+
+PROJECT CONTEXT
+
+- Repository: C:\GitHub\project_kayseri
+- Unity version: 6000.4.9f1 / Unity 6.4.9f1
+- Active Unity scene during verification: Assets/Scenes/Bootstrap.unity
+- Unity MCP instance used previously: project_kayseri@9d96833cc55a3a5d
+
+PHASE 5 — VISUAL, LOCALIZATION, AND REWARD FEEDBACK PASS
+
+Polish currency presentation and player feedback.
+
+- Add complete Turkish and English labels, descriptions, timer text, and earn/spend messages.
+- Reuse existing icons where possible; add only missing icons needed for visual consistency.
+- Ensure reward reveals and spend actions name the correct currency and amount.
+- Keep the HUD compact and preserve mobile readability.
+
+Verification:
+
+- Localization tests.
+- Reward/spend message tests.
+- UI smoke tests at supported aspect ratios.
+- Console remains clean.
+
+Stop and wait for approval.
+
+PHASE 6 — PERSISTENCE, MIGRATION, AND REGRESSION COVERAGE
+
+Harden the feature against real player saves.
+
+- Preserve every existing currency balance on old saves.
+- Confirm clean-save defaults are safe and understandable.
+- Normalise invalid negative values, invalid capacity states, and malformed save data safely.
+- Do not introduce a destructive save migration.
+- Verify all currency-specific services save their changes atomically.
+
+Verification:
+
+- Old-save compatibility tests.
+- Clean-save tests.
+- Save/reload and force-close tests for every currency group.
+- Full EditMode suite.
+
+Stop and wait for approval.
+
+PHASE 7 — FINAL LIVE VERIFICATION
+
+Run a clean, end-to-end validation.
+
+Verify from a true clean-start flow:
+
+- Live HUD opens the Wallet screen.
+- Every listed currency displays the correct value and updates live.
+- Combat Energy and Mining Points regenerate and show correct timers.
+- Sea rewards and spending correctly affect Salvage, Charts, and Energy.
+- Crafting correctly spends Craft Points.
+- Normal and Targeted Mining Gear Crafts correctly use Points and Scrap.
+- Pet chest opening and fusion correctly use Pearls and Pet Essence.
+- Production resources appear in Inventory/Catalogue and remain distinct from currencies.
+- Save/reload and force-close persistence remain correct.
+- Full EditMode suite passes.
+- Unity Console is clean.
+
+Stop, report final verification results, and wait for approval before declaring the work complete.

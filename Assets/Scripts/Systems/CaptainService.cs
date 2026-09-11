@@ -26,18 +26,23 @@ namespace Game.Systems
     public sealed class CaptainService
     {
         private readonly SaveData _data;
+        private readonly SaveService _save;
         private readonly Random _random;
         private readonly UnityEngine.Color[] _gradeTint;
         private Captains.Tuning _tuning;
         private CaptainCrate.Tuning _crate;
+        private bool _incomeCacheReady;
+        private int _incomeCacheFingerprint;
+        private int _cachedBestOwnedCaptain = -1;
+        private double _cachedIncomeMultiplier = 1d;
 
         /// <summary>Used when no config is wired, so an unconfigured project still reads correctly
         /// rather than drawing every grade white. Matches the master roster's palette where the two
         /// overlap — Legendary is gold everywhere in the game.</summary>
         private static readonly UnityEngine.Color[] DefaultGradeTint =
         {
-            new UnityEngine.Color(0.48f, 0.54f, 0.62f, 1f),   // Common
-            new UnityEngine.Color(0.26f, 0.60f, 0.92f, 1f),   // Rare
+            new UnityEngine.Color(0.26f, 0.60f, 0.92f, 1f),   // Common
+            new UnityEngine.Color(0.20f, 0.80f, 0.70f, 1f),   // Rare
             new UnityEngine.Color(0.62f, 0.38f, 0.92f, 1f),   // Epic
             new UnityEngine.Color(0.96f, 0.66f, 0.18f, 1f),   // Legendary
             new UnityEngine.Color(0.94f, 0.28f, 0.42f, 1f),   // Mythic
@@ -50,9 +55,11 @@ namespace Game.Systems
         public event Action<int> Pulled;
 
         public CaptainService(SaveData data, Captains.Tuning tuning, CaptainCrate.Tuning crate,
-                              Random random = null, UnityEngine.Color[] gradeTint = null)
+                              Random random = null, UnityEngine.Color[] gradeTint = null,
+                              SaveService save = null)
         {
             _data = data;
+            _save = save;
             _tuning = tuning;
             _crate = crate;
             _random = random ?? new Random();
@@ -123,6 +130,54 @@ namespace Game.Systems
         public bool Owned(int captain) => Level(captain) > Captains.NotOwned;
 
         public int OwnedCount => _data != null ? Captains.OwnedCount(_data.captainLevels) : 0;
+
+        /// <summary>The automatically active captain: highest level, roster order on ties.</summary>
+        public int BestOwnedCaptain
+        {
+            get
+            {
+                EnsureIncomeCache();
+                return _cachedBestOwnedCaptain;
+            }
+        }
+
+        /// <summary>Idle cash multiplier from the automatically active captain, or x1 with none.</summary>
+        public double IncomeMultiplier
+        {
+            get
+            {
+                EnsureIncomeCache();
+                return _cachedIncomeMultiplier;
+            }
+        }
+
+        /// <summary>
+        /// Keeps the hot market read on a cached result while still noticing a save array changed by
+        /// migration or an editor/test fixture. Runtime mutations go through this service; the
+        /// fingerprint makes the read robust to older callers that still hold the save object directly.
+        /// </summary>
+        private void EnsureIncomeCache()
+        {
+            int fingerprint = 17;
+            int[] levels = _data != null ? _data.captainLevels : null;
+            if (levels != null)
+            {
+                fingerprint = unchecked(fingerprint * 31 + levels.Length);
+                int length = levels.Length < Captains.Count ? levels.Length : Captains.Count;
+                for (int i = 0; i < length; i++)
+                    fingerprint = unchecked(fingerprint * 31 + levels[i]);
+            }
+
+            if (_incomeCacheReady && fingerprint == _incomeCacheFingerprint) return;
+
+            _cachedBestOwnedCaptain = _data != null ? Captains.BestOwned(levels) : -1;
+            _cachedIncomeMultiplier = _cachedBestOwnedCaptain >= 0
+                ? Captains.IncomeMultiplier(_cachedBestOwnedCaptain,
+                                            levels[_cachedBestOwnedCaptain], _tuning)
+                : 1d;
+            _incomeCacheFingerprint = fingerprint;
+            _incomeCacheReady = true;
+        }
 
         /// <summary>Duplicates still wanted for this captain's next level. 0 at the ceiling.</summary>
         public int DuplicatesNeeded(int captain)
@@ -202,6 +257,10 @@ namespace Game.Systems
         /// The charts are taken BEFORE the first roll and the whole batch is rolled in one call, so a
         /// bulk open cannot be interrupted half-paid, and the pity counters advance across the batch
         /// exactly as they would across ten separate presses.
+        ///
+        /// The spend and the pulls reach the disk in ONE write before this returns, the contract the
+        /// pet chest and both benches keep: an app killed after the reveal can neither refund the
+        /// charts nor roll the crate again.
         /// </summary>
         public int[] TryOpen(int crates)
         {
@@ -233,6 +292,7 @@ namespace Game.Systems
             }
 
             _data.cratesOpened += crates;
+            _save?.Save(_data);
             Changed?.Invoke();
             for (int i = 0; i < pulled.Length; i++) Pulled?.Invoke(pulled[i]);
             return pulled;

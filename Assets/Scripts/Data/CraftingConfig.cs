@@ -32,6 +32,16 @@ namespace Game.Data
         [SerializeField] private double pointDropChance = 0.20d;
         [SerializeField, Min(0)] private int pointsPerWin = 1;
 
+        [Header("Zanaat Kaptanı — seviye başına göreli nadirlik ağırlığı")]
+        [Tooltip("Kaptanın her seviyesi, atölyenin zaten açtığı nadirliğe bu göreli ağırlığı ekler. " +
+                 "Sıra: Sıradan, Nadir, Destansı, Efsanevi, Mitik. Kilitli nadirlikler hiçbir zaman " +
+                 "ağırlık kazanmaz; sonuçlar her zaman yeniden normalize edilir.")]
+        [SerializeField, Min(0)] private double captainCommonBonusPerLevel = 0.00d;
+        [SerializeField, Min(0)] private double captainRareBonusPerLevel = 0.020d;
+        [SerializeField, Min(0)] private double captainEpicBonusPerLevel = 0.040d;
+        [SerializeField, Min(0)] private double captainLegendaryBonusPerLevel = 0.060d;
+        [SerializeField, Min(0)] private double captainMythicBonusPerLevel = 0.080d;
+
 
         public Game.Core.Crafting.Tuning ToTuning() => new Game.Core.Crafting.Tuning
         {
@@ -41,6 +51,11 @@ namespace Game.Data
             Gate3Hours      = gate3Hours,
             PointDropChance = pointDropChance,
             PointsPerWin    = pointsPerWin,
+            CaptainCommonBonusPerLevel    = captainCommonBonusPerLevel,
+            CaptainRareBonusPerLevel      = captainRareBonusPerLevel,
+            CaptainEpicBonusPerLevel      = captainEpicBonusPerLevel,
+            CaptainLegendaryBonusPerLevel = captainLegendaryBonusPerLevel,
+            CaptainMythicBonusPerLevel    = captainMythicBonusPerLevel,
         };
     }
 }

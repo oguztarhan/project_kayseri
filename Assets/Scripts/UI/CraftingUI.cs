@@ -70,6 +70,7 @@ namespace Game.UI
         private const float RibbonBand = 0.677f;
 
         private CraftingService _crafting;
+        private CaptainService _captains;
         private ExpeditionService _sea;
         private FreeRewardService _freeRewards;
         private IAdService _ad;
@@ -78,7 +79,8 @@ namespace Game.UI
         private RectTransform _root;
 
         private Text _titleLabel, _pointsLabel, _levelLabel, _tierLabel, _xpLabel, _craftLabel,
-                     _gateLabel, _gateClockLabel, _bankLabel, _sourceLabel, _oddsTitleLabel;
+                     _gateLabel, _gateClockLabel, _bankLabel, _sourceLabel, _oddsTitleLabel,
+                     _captainLabel, _unlockLabel;
         private RectTransform _xpFill;
         private Button _craftBtn;
         private Button _autoCraftAdBtn;
@@ -88,6 +90,7 @@ namespace Game.UI
         private readonly Image[] _oddsStripe = new Image[Captains.GradeCount];
         private readonly Text[] _oddsName = new Text[Captains.GradeCount];
         private readonly Text[] _oddsValue = new Text[Captains.GradeCount];
+        private Button _captainPrevBtn, _captainNextBtn;
 
         private RectTransform _decideCard;
         private Text _decideTitle, _decideScore, _decideRows, _decideWorn, _equipLabel, _salvageLabel;
@@ -103,6 +106,7 @@ namespace Game.UI
         private void Awake()
         {
             _crafting = ServiceLocator.Get<CraftingService>();
+            _captains = ServiceLocator.Get<CaptainService>();
             _sea = ServiceLocator.Get<ExpeditionService>();
             _freeRewards = ServiceLocator.Get<FreeRewardService>();
             _ad = ServiceLocator.Get<IAdService>();
@@ -131,6 +135,8 @@ namespace Game.UI
             if (_gateLabel != null) _gateLabel.text = Loc.T("atolye.yenileniyor");
             if (_bankLabel != null) _bankLabel.text = Loc.T("atolye.birikiyor");
             if (_sourceLabel != null) _sourceLabel.text = Loc.T("atolye.nereden");
+            if (_captainLabel != null) RefreshCaptainAssignment();
+            if (_unlockLabel != null) RefreshNextUnlock();
             if (_root != null && _root.gameObject.activeSelf) Refresh();
             RefreshOpener();
         }
@@ -236,6 +242,11 @@ namespace Game.UI
             UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0.10f, 0.560f), new Vector2(0.90f, 0.690f));
             PillFit.Wrap(_craftBtn.GetComponent<Image>());
             _craftLabel = _craftBtn.GetComponentInChildren<Text>();
+            // The price names its currency now — "3 CRAFT POINTS", not "3 PTS" — so it takes a line of
+            // its own, kept inside the pill's round end caps.
+            UiBuild.Anchor(_craftLabel.rectTransform, new Vector2(0.14f, 0.12f), new Vector2(0.86f, 0.88f));
+            Fit(_craftLabel, 16, 30);
+            _craftLabel.verticalOverflow = VerticalWrapMode.Truncate;
 
             _autoCraftAdBtn = UiBuild.Btn(c, "OtoUretReklam", string.Empty,
                                           actionButton != null ? actionButton : UiSkin.ButtonBlue,
@@ -272,7 +283,26 @@ namespace Game.UI
                                             "Text", Loc.T("atolye.oranlar"), 30, TextAnchor.MiddleCenter);
             _oddsTitleLabel.color = Ink;
 
-            const float top = 0.860f, bottom = 0.040f;
+            _captainLabel = UiBuild.Label(Zone(c, "ZanaatKaptani", new Vector2(0.19f, 0.795f), new Vector2(0.81f, 0.875f)),
+                                          "Text", string.Empty, 19, TextAnchor.MiddleCenter);
+            _captainLabel.color = Ink;
+            Fit(_captainLabel, 10, 19);
+
+            _captainPrevBtn = UiBuild.Btn(c, "OncekiKaptan", "‹", UiSkin.ButtonGrey,
+                                           InkSoft, 24, OnPreviousCaptain);
+            UiBuild.Anchor((RectTransform)_captainPrevBtn.transform,
+                           new Vector2(0.055f, 0.795f), new Vector2(0.18f, 0.875f));
+            _captainNextBtn = UiBuild.Btn(c, "SonrakiKaptan", "›", UiSkin.ButtonGrey,
+                                           InkSoft, 24, OnNextCaptain);
+            UiBuild.Anchor((RectTransform)_captainNextBtn.transform,
+                           new Vector2(0.82f, 0.795f), new Vector2(0.945f, 0.875f));
+
+            _unlockLabel = UiBuild.Label(Zone(c, "SonrakiAcilis", new Vector2(0.07f, 0.715f), new Vector2(0.93f, 0.790f)),
+                                         "Text", string.Empty, 17, TextAnchor.MiddleCenter);
+            _unlockLabel.color = InkSoft;
+            Fit(_unlockLabel, 10, 17);
+
+            const float top = 0.705f, bottom = 0.040f;
             float rh = (top - bottom) / Captains.GradeCount;
             for (int g = 0; g < Captains.GradeCount; g++)
             {
@@ -431,6 +461,28 @@ namespace Game.UI
             _crafting.StowPending();
         }
 
+        private void OnPreviousCaptain() => CycleCaptain(-1);
+
+        private void OnNextCaptain() => CycleCaptain(1);
+
+        private void CycleCaptain(int direction)
+        {
+            if (_crafting == null || _captains == null || _captains.OwnedCount <= 0) return;
+            int current = _crafting.AssignedCaptain;
+            int candidate = current;
+            for (int i = 0; i <= Captains.Count; i++)
+            {
+                candidate += direction;
+                if (candidate >= Captains.Count) candidate = -1;
+                if (candidate < -1) candidate = Captains.Count - 1;
+                if (candidate < 0 || _captains.Owned(candidate))
+                {
+                    _crafting.TryAssignCaptain(candidate);
+                    return;
+                }
+            }
+        }
+
         private void OnDepo()
         {
             if (_depo != null) _depo.Show();
@@ -441,7 +493,7 @@ namespace Game.UI
         {
             if (_crafting == null) return;
 
-            _pointsLabel.text = string.Format(Loc.T("atolye.puan"), _crafting.Points);
+            _pointsLabel.text = CurrencyText.Amount(CurrencyId.CraftPoints, _crafting.Points);
 
             if (_depoLabel != null)
                 _depoLabel.text = Loc.T("depo.baslik") + "  "
@@ -454,9 +506,11 @@ namespace Game.UI
 
             RefreshXpBar(level);
             RefreshGate();
+            RefreshCaptainAssignment();
+            RefreshNextUnlock();
 
-            _craftLabel.text = Loc.T("atolye.uret") + "  ·  "
-                             + string.Format(Loc.T("atolye.puan"), _crafting.Tuning.CraftCost);
+            _craftLabel.text = Loc.T("atolye.uret") + "\n"
+                             + CurrencyText.Amount(CurrencyId.CraftPoints, _crafting.Tuning.CraftCost);
             bool canCraft = !_crafting.HasPending && _crafting.Points >= _crafting.Tuning.CraftCost;
             _craftBtn.interactable = canCraft;
 
@@ -473,12 +527,13 @@ namespace Game.UI
             for (int g = 0; g < Captains.GradeCount; g++)
             {
                 _oddsName[g].text = Loc.T("kaptan.derece." + g);
+                double baseOdds = _crafting.BaseOddsOf(g);
                 double odds = _crafting.OddsOf(g);
                 if (odds > 0d)
                 {
                     _oddsName[g].color = Ink;
                     _oddsStripe[g].color = GradeTint[g];
-                    _oddsValue[g].text = PctOdds(odds);
+                    _oddsValue[g].text = PctOdds(baseOdds) + " → " + PctOdds(odds);
                     _oddsValue[g].color = GradeTint[g];
                 }
                 else
@@ -492,6 +547,33 @@ namespace Game.UI
             }
 
             RefreshDecideCard();
+        }
+
+        private void RefreshCaptainAssignment()
+        {
+            if (_captainLabel == null || _crafting == null) return;
+            int captain = _crafting.AssignedCaptain;
+            if (captain < 0)
+                _captainLabel.text = Loc.T("atolye.kaptan") + "\n" + Loc.T("atolye.kaptan_yok");
+            else
+                _captainLabel.text = Loc.T("atolye.kaptan") + "  "
+                                   + Loc.T("kaptan.ad." + Captains.IdOf(captain))
+                                   + "  ·  " + string.Format(Loc.T("atolye.seviye"),
+                                                               _crafting.AssignedCaptainLevel);
+
+            bool canSelect = _captains != null && _captains.OwnedCount > 0;
+            if (_captainPrevBtn != null) _captainPrevBtn.interactable = canSelect;
+            if (_captainNextBtn != null) _captainNextBtn.interactable = canSelect;
+        }
+
+        private void RefreshNextUnlock()
+        {
+            if (_unlockLabel == null || _crafting == null) return;
+            int grade = _crafting.NextUnlockGrade;
+            _unlockLabel.text = grade >= 0
+                ? string.Format(Loc.T("atolye.sonraki_acilis"), Loc.T("kaptan.derece." + grade),
+                                _crafting.NextUnlockLevel)
+                : Loc.T("atolye.tum_acik");
         }
 
         private void RefreshXpBar(int level)

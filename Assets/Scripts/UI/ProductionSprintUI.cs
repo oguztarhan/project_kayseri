@@ -169,7 +169,7 @@ namespace Game.UI
             ProductionSprint.Reward reward = _sprint.MilestoneAt(index).Reward;
             if (_sprint.ClaimMilestone(index))
             {
-                _reveal?.Present(RewardText(reward));
+                _reveal?.Present(RewardText(reward), reward.Gems > 0L);
             }
             Refresh();
         }
@@ -238,7 +238,7 @@ namespace Game.UI
         private static string RewardText(in ProductionSprint.Reward reward)
         {
             string text = string.Empty;
-            if (reward.Gems > 0L) text += "+" + reward.Gems + " ◆";
+            if (reward.Gems > 0L) text += CurrencyText.Gain(CurrencyId.Gems, reward.Gems);
             if (reward.Cards > 0) text += Space(text) + "+" + reward.Cards + " " + Loc.T("ustabasi.kart");
             if (reward.CashMinutes > 0d)
                 text += Space(text) + "+" + reward.CashMinutes.ToString("0.#") + " " + Loc.T("sprint.nakit_dakika");

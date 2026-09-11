@@ -80,8 +80,12 @@ namespace Game.Gameplay
         /// <summary>Bumped when a fight ends, so the UI can catch the result without an event pair.</summary>
         public int Stamp { get; private set; }
         public bool LastWon { get; private set; }
-        public int LastCharts { get; private set; }
-        public int LastSalvage { get; private set; }
+        /// <summary>The last win's receipt, as banked: after the collection's lift, and with the
+        /// fight's YAĞMA grabs inside the salvage, since they are banked in the same call.</summary>
+        public long LastCharts { get; private set; }
+        public long LastSalvage { get; private set; }
+        public long LastCraftPoints { get; private set; }
+        public long LastPearls { get; private set; }
 
         /// <summary>Total fight events ever emitted; read the tail with <see cref="EventAt"/>.</summary>
         public int EventCount { get; private set; }
@@ -374,8 +378,10 @@ namespace Game.Gameplay
         private void Resolve()
         {
             LastWon = _fight.Won;
-            LastCharts = 0;
-            LastSalvage = 0;
+            LastCharts = 0L;
+            LastSalvage = 0L;
+            LastCraftPoints = 0L;
+            LastPearls = 0L;
             _hasDrop = false;
 
             if (_sea != null)
@@ -392,10 +398,12 @@ namespace Game.Gameplay
                     int salvage = SeaCombat.SalvageFor(_fight.Tier, _fight.Kind, vt, _sea.Combat);
                     if (_sea.RegisterKill(charts, salvage + (int)_plunder))
                     {
-                        LastCharts = charts;
-                        LastSalvage = salvage;
+                        LastCharts = _sea.LastKillCharts;
+                        LastSalvage = _sea.LastKillSalvage;
+                        LastCraftPoints = _sea.LastKillCraftPoints;
                     }
                     _sea.RegisterWin(_fight.Tier, _fight.Kind); // confirmed win only; pet payout needs both
+                    LastPearls = _sea.LastWinPearls;
                     _drop = _sea.RollDrop(_fight.Tier);
                     _hasDrop = true;
                 }

@@ -64,8 +64,8 @@ namespace Game.UI
         [SerializeField]
         private Color[] gradeTint =
         {
-            new Color(0.48f, 0.54f, 0.62f, 1f),   // Common
-            new Color(0.26f, 0.60f, 0.92f, 1f),   // Rare
+            new Color(0.26f, 0.60f, 0.92f, 1f),   // Common
+            new Color(0.20f, 0.80f, 0.70f, 1f),   // Rare
             new Color(0.62f, 0.38f, 0.92f, 1f),   // Epic
             new Color(0.96f, 0.66f, 0.18f, 1f),   // Legendary
             new Color(0.94f, 0.28f, 0.42f, 1f),   // Mythic
@@ -290,6 +290,8 @@ namespace Game.UI
             UiBuild.Anchor((RectTransform)_openOne.transform, new Vector2(0.640f, 0.560f), new Vector2(0.970f, 0.930f));
             PillFit.Wrap(_openOne.GetComponent<Image>());
             _openOneText = _openOne.GetComponentInChildren<Text>();
+            UiBuild.Anchor(_openOneText.rectTransform, new Vector2(0.14f, 0.12f), new Vector2(0.86f, 0.88f));
+            Fit(_openOneText, 14, 26);
 
             _openBulk = UiBuild.Btn(c, "AcCok", string.Empty,
                                     actionButton != null ? actionButton : UiSkin.ButtonYellow,
@@ -298,6 +300,8 @@ namespace Game.UI
             UiBuild.Anchor((RectTransform)_openBulk.transform, new Vector2(0.640f, 0.090f), new Vector2(0.970f, 0.460f));
             PillFit.Wrap(_openBulk.GetComponent<Image>());
             _openBulkText = _openBulk.GetComponentInChildren<Text>();
+            UiBuild.Anchor(_openBulkText.rectTransform, new Vector2(0.14f, 0.12f), new Vector2(0.86f, 0.88f));
+            Fit(_openBulkText, 14, 26);
 
             _pityLabel = UiBuild.Label(Slot(c, "Teselli", new Vector2(0.435f, 0.520f), new Vector2(0.615f, 0.940f)),
                                        "Text", string.Empty, 22, TextAnchor.UpperLeft);
@@ -420,10 +424,12 @@ namespace Game.UI
             // COUNT, THEN PRICE, WITH A SEPARATOR. These read "OPEN 100" and "OPEN 10 900" before,
             // so the single-open button quoted a price with no count and the ten-open button quoted
             // what looked like one number: ten thousand nine hundred. Both now say the same two things
-            // in the same order.
-            _openOneText.text = string.Format("{0} ×1   ·   {1}", Loc.T("kaptan.ac"), _captains.CrateCost(1));
-            _openBulkText.text = string.Format("{0} ×{1}   ·   {2}", Loc.T("kaptan.ac"), ct.BulkCount,
-                                               _captains.CrateCost(ct.BulkCount));
+            // in the same order. The price names what it is paid in — the charts chip is a screen away
+            // from the thumb on the button — and takes the second line, since it no longer fits beside.
+            _openOneText.text = string.Format("{0} ×1\n{1}", Loc.T("kaptan.ac"),
+                                              CurrencyText.Amount(CurrencyId.Charts, _captains.CrateCost(1)));
+            _openBulkText.text = string.Format("{0} ×{1}\n{2}", Loc.T("kaptan.ac"), ct.BulkCount,
+                                               CurrencyText.Amount(CurrencyId.Charts, _captains.CrateCost(ct.BulkCount)));
             Dress(_openOne, _captains.CanOpen(1));
             Dress(_openBulk, _captains.CanOpen(ct.BulkCount));
 
@@ -596,7 +602,8 @@ namespace Game.UI
                 : rarity + " · " + role;
             int nextLevel = state.Owned ? Mathf.Min(Captains.MaxLevel, state.Level + 1) : 1;
             string next = state.IsMaxed ? Loc.T("sefer.azami")
-                                        : EffectDeltaAt(captain, state.Level, nextLevel);
+                                        : EffectDeltaAt(captain, state.Level, nextLevel)
+                                          + "\n" + IncomeLine(captain, nextLevel);
             string progress = state.Owned && !state.IsMaxed
                 ? string.Format(Loc.T("kadro.ilerleme"), state.Duplicates, state.DuplicatesRequired)
                 : state.IsMaxed ? Loc.T("sefer.azami") : Loc.T("kaptan.bulunmadi");
@@ -608,7 +615,8 @@ namespace Game.UI
 
             int selected = captain;
             _inspect.Show(name, identity,
-                          string.Format(Loc.T("kadro.simdi"), EffectAt(captain, state.Level)),
+                          string.Format(Loc.T("kadro.simdi"), EffectAt(captain, state.Level)
+                              + "\n" + IncomeLine(captain, state.Level)),
                           string.Format(Loc.T("kadro.sonraki"), next),
                           progress, status, Loc.T("kaptan.yukselt"), state.CanUpgrade,
                           () => { _captains.TryLevelUp(selected); ShowDetails(selected); });
@@ -665,7 +673,15 @@ namespace Game.UI
             }
         }
 
+        private string IncomeLine(int captain, int level)
+        {
+            double bonus = (Captains.IncomeMultiplier(captain, level, _captains.Tuning) - 1d) * 100d;
+            return string.Format(Loc.T("kaptan.gelir"), IncomePercent(bonus));
+        }
+
         private static string Percent(double value) => value.ToString("0.#", Culture);
+
+        private static string IncomePercent(double value) => Captains.IncomePercent(value);
 
         /// <summary>
         /// A grade's colour, from the service so the card and the captain at the ship's wheel agree.

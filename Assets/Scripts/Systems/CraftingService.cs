@@ -35,6 +35,7 @@ namespace Game.Systems
         private readonly TimeService _time;
         private readonly Crafting.Tuning _tuning;
         private readonly SeaCombat.Tuning _combat;
+        private readonly CaptainService _captains;
 
         /// <summary>The craft dice. Here and not in Core — Crafting takes rolls and stays testable.</summary>
         private readonly Random _random;
@@ -52,7 +53,7 @@ namespace Game.Systems
 
         public CraftingService(SaveData data, SaveService save, TimeService time,
                                Crafting.Tuning? tuning = null, SeaCombat.Tuning? combat = null,
-                               Random random = null)
+                               Random random = null, CaptainService captains = null)
         {
             _data = data;
             _save = save;
@@ -60,6 +61,7 @@ namespace Game.Systems
             _tuning = tuning ?? Crafting.Tuning.Default;
             _combat = combat ?? SeaCombat.Tuning.Default;
             _random = random ?? new Random();
+            _captains = captains;
             Normalise();
             Tick(NowUnix());
         }
@@ -79,6 +81,14 @@ namespace Game.Systems
             if (_data.craftGatesCleared > Crafting.GateCount) _data.craftGatesCleared = Crafting.GateCount;
             if (_data.craftGateEndUnix < 0L) _data.craftGateEndUnix = 0L;
 
+            if (!_data.craftingCaptainAssigned)
+                _data.craftingCaptain = -1;
+            else if (_captains == null || !_captains.Owned(_data.craftingCaptain))
+            {
+                _data.craftingCaptain = -1;
+                _data.craftingCaptainAssigned = false;
+            }
+
             if (_data.craftPendingGrade < 0 || _data.craftPendingGrade > Captains.GradeCount
                 || _data.craftPendingSlot < 0 || _data.craftPendingSlot >= SeaCombat.SlotCount)
                 ClearPending();
@@ -90,6 +100,8 @@ namespace Game.Systems
 
         // ------------------------------------------------------------------- read
         public Crafting.Tuning Tuning => _tuning;
+
+        public CaptainService CaptainRoster => _captains;
 
         public long Points => _data != null ? _data.craftPoints : 0L;
 
@@ -116,8 +128,69 @@ namespace Game.Systems
             }
         }
 
-        /// <summary>A grade's share at the CURRENT level — what the panel prints.</summary>
-        public double OddsOf(int grade) => Crafting.OddsOf(Level, grade);
+        /// <summary>A grade's base share at the CURRENT workshop level, before the captain bonus.</summary>
+        public double BaseOddsOf(int grade) => Crafting.OddsOf(Level, grade);
+
+        /// <summary>A grade's final share at the CURRENT level, after the assigned captain bonus.</summary>
+        public double OddsOf(int grade) => Crafting.OddsOf(Level, AssignedCaptainLevel, grade, in _tuning);
+
+        /// <summary>The selected captain, or -1 when the workshop has no valid assignment.</summary>
+        public int AssignedCaptain
+        {
+            get
+            {
+                if (_data == null || !_data.craftingCaptainAssigned || _captains == null
+                    || !_captains.Owned(_data.craftingCaptain)) return -1;
+                return _data.craftingCaptain;
+            }
+        }
+
+        public int AssignedCaptainLevel
+        {
+            get
+            {
+                int captain = AssignedCaptain;
+                return captain >= 0 ? _captains.Level(captain) : 0;
+            }
+        }
+
+        /// <summary>The next rarity this workshop can unlock, or -1 when all grades are open.</summary>
+        public int NextUnlockGrade
+        {
+            get
+            {
+                for (int grade = 0; grade < Captains.GradeCount; grade++)
+                    if (BaseOddsOf(grade) <= 0d && Crafting.UnlockLevelOf(grade) > Level)
+                        return grade;
+                return -1;
+            }
+        }
+
+        public int NextUnlockLevel => NextUnlockGrade >= 0
+            ? Crafting.UnlockLevelOf(NextUnlockGrade) : 0;
+
+        /// <summary>Assigns an owned captain, or -1 to clear the assignment.</summary>
+        public bool TryAssignCaptain(int captain)
+        {
+            if (_data == null) return false;
+            if (captain < 0)
+            {
+                if (!_data.craftingCaptainAssigned && _data.craftingCaptain < 0) return true;
+                _data.craftingCaptain = -1;
+                _data.craftingCaptainAssigned = false;
+            }
+            else
+            {
+                if (_captains == null || !Game.Core.Captains.Exists(captain) || !_captains.Owned(captain))
+                    return false;
+                if (_data.craftingCaptainAssigned && _data.craftingCaptain == captain) return true;
+                _data.craftingCaptain = captain;
+                _data.craftingCaptainAssigned = true;
+            }
+            _save?.Save(_data);
+            Changed?.Invoke();
+            return true;
+        }
 
         /// <summary>Whether an undecided craft is sitting on the bench.</summary>
         public bool HasPending => _data != null && _data.craftPendingGrade > 0;
@@ -233,7 +306,7 @@ namespace Game.Systems
 
             _data.craftPoints -= cost;
             int slot = SeaCombat.RollSlot(_random.NextDouble());
-            int grade = Crafting.RollGrade(_random.NextDouble(), Level);
+            int grade = Crafting.RollGrade(_random.NextDouble(), Level, AssignedCaptainLevel, in _tuning);
             int tier = Crafting.TierFor(_data.craftGatesCleared);
             item = SeaCombat.ItemFor(slot, tier, grade, _random.NextDouble(), _combat);
 
