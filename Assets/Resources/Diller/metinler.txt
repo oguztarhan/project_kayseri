@@ -105,6 +105,26 @@ hud.bedava	BEDAVA	FREE	GRATIS	GRATUIT	GRATIS	GRÁTIS	GRATIS	GRATIS	БЕСПЛА�
 hud.teklif	TEKLİF	OFFER	ANGEBOT	OFFRE	OFERTA	OFERTA	OFFERTA	OFERTA	АКЦИЯ	PENAWARAN	ƯU ĐÃI
 hud.kalkan	KALKAN	SHIELD	SCHILD	BOUCLIER	ESCUDO	ESCUDO	SCUDO	TARCZA	ЩИТ	PERISAI	KHIÊN
 hud.dahafazla	DAHA FAZLA	MORE	MEHR	PLUS	MÁS	MAIS	ALTRO	WIĘCEJ	ЕЩЁ	LAINNYA	THÊM
+wallet.title	CÜZDAN	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET
+wallet.open	KAYNAKLAR	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES
+wallet.close	KAPAT	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE
+wallet.group.main	ANA EKONOMİ	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY
+wallet.group.sea	DENİZ	SEA	SEA	SEA	SEA	SEA	SEA	SEA	SEA	SEA	SEA
+wallet.group.crafting	ZANAAT	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING
+wallet.group.mining	MADEN TEÇHİZATI	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR
+wallet.group.pets	EVCİL HAYVANLAR	PETS	PETS	PETS	PETS	PETS	PETS	PETS	PETS	PETS	PETS
+wallet.next_regen	Sonraki: {0}	Next: {0}	Next: {0}	Next: {0}	Next: {0}	Next: {0}	Next: {0}	Next: {0}	Next: {0}	Next: {0}	Next: {0}
+wallet.full	DOLU	FULL	FULL	FULL	FULL	FULL	FULL	FULL	FULL	FULL	FULL
+currency.cash	NAKİT	CASH	CASH	CASH	CASH	CASH	CASH	CASH	CASH	CASH	CASH
+currency.gems	ELMAS	GEMS	GEMS	GEMS	GEMS	GEMS	GEMS	GEMS	GEMS	GEMS	GEMS
+currency.salvage	HURDA	SALVAGE	SALVAGE	SALVAGE	SALVAGE	SALVAGE	SALVAGE	SALVAGE	SALVAGE	SALVAGE	SALVAGE
+currency.charts	HARİTA	CHARTS	CHARTS	CHARTS	CHARTS	CHARTS	CHARTS	CHARTS	CHARTS	CHARTS	CHARTS
+currency.combat_energy	SAVAŞ ENERJİSİ	COMBAT ENERGY	COMBAT ENERGY	COMBAT ENERGY	COMBAT ENERGY	COMBAT ENERGY	COMBAT ENERGY	COMBAT ENERGY	COMBAT ENERGY	COMBAT ENERGY	COMBAT ENERGY
+currency.craft_points	ZANAAT PUANI	CRAFT POINTS	CRAFT POINTS	CRAFT POINTS	CRAFT POINTS	CRAFT POINTS	CRAFT POINTS	CRAFT POINTS	CRAFT POINTS	CRAFT POINTS	CRAFT POINTS
+currency.mining_points	MADENCİLİK PUANI	MINING POINTS	MINING POINTS	MINING POINTS	MINING POINTS	MINING POINTS	MINING POINTS	MINING POINTS	MINING POINTS	MINING POINTS	MINING POINTS
+currency.mining_scrap	MADEN HURDASI	MINING SCRAP	MINING SCRAP	MINING SCRAP	MINING SCRAP	MINING SCRAP	MINING SCRAP	MINING SCRAP	MINING SCRAP	MINING SCRAP	MINING SCRAP
+currency.pearls	İNCİ	PEARLS	PEARLS	PEARLS	PEARLS	PEARLS	PEARLS	PEARLS	PEARLS	PEARLS	PEARLS
+currency.pet_essence	PET ÖZÜ	PET ESSENCE	PET ESSENCE	PET ESSENCE	PET ESSENCE	PET ESSENCE	PET ESSENCE	PET ESSENCE	PET ESSENCE	PET ESSENCE	PET ESSENCE
 dost.baslik	DENİZ DOSTLARI	SEA COMPANIONS	MEERESBEGLEITER	COMPAGNONS MARINS	COMPAÑEROS MARINOS	COMPANHEIROS MARINHOS	COMPAGNI MARINI	MORSCY TOWARZYSZE	МОРСКИЕ СПУТНИКИ	TEMAN LAUT	BẠN ĐỒNG HÀNH BIỂN
 # onarim
 onar.buton	ONAR	REPAIR	REPARIEREN	RÉPARER	REPARAR	REPARAR	RIPARA	NAPRAW	ПОЧИНИТЬ	PERBAIKI	SỬA
@@ -599,6 +619,11 @@ madenci.bonus	+{0} ADA GELİRİ	+{0} ISLAND INCOME	+{0} INSELEINKOMMEN	+{0} REVE
 madenci.sonraki	Sonraki puan: {0}	Next point: {0}	Nächster Punkt: {0}	Prochain point : {0}	Próximo punto: {0}	Próximo ponto: {0}	Prossimo punto: {0}	Następny punkt: {0}	Следующее очко: {0}	Poin berikutnya: {0}	Điểm tiếp theo: {0}
 madenci.kusanildi	{0} {1} kuşanıldı!	Equipped {0} {1}!	{0} {1} ausgerüstet!	{0} {1} équipé(e) !	¡{0} {1} equipado!	{0} {1} equipado!	{0} {1} equipaggiato!	Założono {0} {1}!	Экипировано: {0} {1}!	{0} {1} dipasang!	Đã trang bị {0} {1}!
 madenci.hurda	Hurdaya çevrildi (+{0})	Scrapped (+{0})	Verschrottet (+{0})	Ferraillé (+{0})	Desguazado (+{0})	Sucateado (+{0})	Demolito (+{0})	Zezłomowano (+{0})	На лом (+{0})	Dibesituakan (+{0})	Đã tháo dỡ (+{0})
+madenci.hedef.uret	{0} HEDEFLE	TARGET {0}	ZIEL: {0}	CIBLER {0}	ELEGIR {0}	ALVO: {0}	MIRA {0}	CELUJ: {0}	ЦЕЛЬ: {0}	TARGET {0}	NHẮM {0}
+madenci.hedef.maliyet	Hedef: {0} puan + {1} hurda (sende {2} puan / {3} hurda)	Target: {0} pts + {1} scrap (you have {2} pts / {3} scrap)	Ziel: {0} Pkt. + {1} Schrott (du hast {2} Pkt. / {3} Schrott)	Cible : {0} pts + {1} ferraille (vous avez {2} pts / {3} ferraille)	Objetivo: {0} pts + {1} chatarra (tienes {2} pts / {3} chatarra)	Alvo: {0} pts + {1} sucata (você tem {2} pts / {3} sucata)	Obiettivo: {0} pt + {1} rottami (hai {2} pt / {3} rottami)	Cel: {0} pkt. + {1} złomu (masz {2} pkt. / {3} złomu)	Цель: {0} очк. + {1} лома (есть {2} очк. / {3} лома)	Target: {0} poin + {1} scrap (kamu punya {2} poin / {3} scrap)	Mục tiêu: {0} điểm + {1} phế liệu (có {2} điểm / {3} phế liệu)
+madenci.hedef.yetersiz	Hedefli üretim için yeterli puan veya hurda yok.	Not enough points or scrap for targeted crafting.	Nicht genug Punkte oder Schrott für Zielanfertigung.	Pas assez de points ou de ferraille pour la fabrication ciblée.	No hay suficientes puntos o chatarra para fabricar con objetivo.	Pontos ou sucata insuficientes para a fabricação direcionada.	Punti o rottami insufficienti per la creazione mirata.	Za mało punktów lub złomu na celowane wytwarzanie.	Недостаточно очков или лома для целевого создания.	Poin atau scrap tidak cukup untuk crafting bertarget.	Không đủ điểm hoặc phế liệu để chế tạo mục tiêu.
+madenci.hedef.kusanildi	{0} {1} kuşanıldı! -{2} hurda	Equipped {0} {1}! -{2} scrap	{0} {1} ausgerüstet! -{2} Schrott	{0} {1} équipé(e) ! -{2} ferraille	¡{0} {1} equipado! -{2} chatarra	{0} {1} equipado! -{2} sucata	{0} {1} equipaggiato! -{2} rottami	Założono {0} {1}! -{2} złomu	Экипировано: {0} {1}! -{2} лома	{0} {1} dipasang! -{2} scrap	Đã trang bị {0} {1}! -{2} phế liệu
+madenci.hedef.hurda	{0} {1} hurdaya döndü. -{2} hurda, +{3} hurda	{0} {1} scrapped. -{2} scrap, +{3} scrap	{0} {1} verschrottet. -{2} Schrott, +{3} Schrott	{0} {1} ferraillé(e). -{2} ferraille, +{3} ferraille	{0} {1} desguazado. -{2} chatarra, +{3} chatarra	{0} {1} sucateado. -{2} sucata, +{3} sucata	{0} {1} demolito. -{2} rottami, +{3} rottami	{0} {1} zezłomowano. -{2} złomu, +{3} złomu	{0} {1} отправлено в лом. -{2} лома, +{3} лома	{0} {1} dibesituakan. -{2} scrap, +{3} scrap	{0} {1} thành phế liệu. -{2} phế liệu, +{3} phế liệu
 # ustalar -- sandik ve kadro ekrani (ForemanRosterUI); isimler istasyon.* satirlarindan gelir
 usta.baslik	USTALAR	MASTERS	MEISTER	MAÎTRES	MAESTROS	MESTRES	MAESTRI	MISTRZOWIE	МАСТЕРА	MAESTRO	CAO THỦ
 usta.nadirlik.0	SIRADAN	COMMON	GEWÖHNLICH	COMMUN	COMÚN	COMUM	COMUNE	POSPOLITY	ОБЫЧНЫЙ	BIASA	THƯỜNG
@@ -706,6 +731,12 @@ depo.cevherler	CEVHERLER	ORES	ERZE	MINERAIS	MINERALES	MINÉRIOS	MINERALI	RUDY	Р
 depo.urunler	İŞLENMİŞ ÜRÜNLER	REFINED GOODS	VEREDELTE WAREN	PRODUITS RAFFINÉS	BIENES REFINADOS	BENS REFINADOS	BENI RAFFINATI	WYROBY	ИЗДЕЛИЯ	BARANG OLAHAN	HÀNG TINH CHẾ
 depo.ada_gerek	{0} gerekli	needs {0}	benötigt {0}	nécessite {0}	requiere {0}	requer {0}	richiede {0}	wymaga: {0}	нужен {0}	perlu {0}	cần {0}
 depo.saniye	{0} sn	{0}s	{0} s	{0} s	{0} s	{0} s	{0} s	{0} s	{0} с	{0} dtk	{0} giây
+depo.girdi	ÜRETİM GİRDİSİ	PRODUCTION INPUT	PRODUKTIONSINPUT	INTRANT DE PRODUCTION	INSUMO DE PRODUCCIÓN	INSUMO DE PRODUÇÃO	INPUT DI PRODUZIONE	SUROWIEC PRODUKCYJNY	ПРОИЗВОДСТВЕННОЕ СЫРЬЁ	BAHAN PRODUKSI	NGUYÊN LIỆU SẢN XUẤT
+depo.urun_tipi	RAFİNE ÜRÜN	REFINED PRODUCT	VERARBEITETES PRODUKT	PRODUIT RAFFINÉ	PRODUCTO REFINADO	PRODUTO REFINADO	PRODOTTO RAFFINATO	PRODUKT RAFINOWANY	РАФИНИРОВАННЫЙ ПРОДУКТ	PRODUK OLAHAN	SẢN PHẨM TINH CHẾ
+depo.depo_miktar	Depoda: {0}	In storage: {0}	Im Lager: {0}	En stock: {0}	En almacén: {0}	Em estoque: {0}	In deposito: {0}	W magazynie: {0}	На складе: {0}	Di penyimpanan: {0}	Trong kho: {0}
+depo.pazar_miktar	Satış stoğu: {0}	Market stock: {0}	Marktbestand: {0}	Stock du marché : {0}	Stock del mercado: {0}	Estoque do mercado: {0}	Scorta mercato: {0}	Stan magazynu: {0}	Запас рынка: {0}	Stok pasar: {0}	Tồn kho thị trường: {0}
+depo.nakite	NAKİTE ÇEVRİLİR	CONVERTS TO CASH	WIRD ZU BARGELD	SE CONVERTIT EN ESPÈCES	SE CONVIERTE EN EFECTIVO	CONVERTE EM DINHEIRO	CONVERTITO IN CONTANTI	ZAMIANA NA GOTÓWKĘ	КОНВЕРТИРУЕТСЯ В НАЛИЧНЫЕ	DIKONVERSI KE UANG TUNAI	ĐỔI THÀNH TIỀN MẶT
+depo.katalog_miktar	Katalog ürünü · canlı stok yok	Catalogue product · no live stock	Katalogprodukt · kein Live-Bestand	Produit catalogue · aucun stock en direct	Producto de catálogo · sin stock en vivo	Produto de catálogo · sem estoque ao vivo	Prodotto da catalogo · nessuna scorta live	Produkt katalogowy · brak żywego stanu	Каталожный продукт · нет живого запаса	Produk katalog · tidak ada stok langsung	Sản phẩm danh mục · không có tồn kho trực tiếp
 urun.coke	KOK KÖMÜRÜ	COKE	KOKS	COKE	COQUE	COQUE	COKE	KOKS	КОКС	KOKAS	THAN CỐC
 urun.copper_bar	BAKIR KÜLÇE	COPPER BAR	KUPFERBARREN	LINGOT DE CUIVRE	BARRA DE COBRE	BARRA DE COBRE	LINGOTTO DI RAME	SZTABA MIEDZI	МЕДНЫЙ СЛИТОК	BATANG TEMBAGA	THANH ĐỒNG
 urun.steel_beam	ÇELİK KİRİŞ	STEEL BEAM	STAHLTRÄGER	POUTRE D'ACIER	VIGA DE ACERO	VIGA DE AÇO	TRAVE D'ACCIAIO	BELKA STALOWA	СТАЛЬНАЯ БАЛКА	BALOK BAJA	DẦM THÉP

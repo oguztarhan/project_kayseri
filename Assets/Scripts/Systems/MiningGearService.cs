@@ -96,6 +96,21 @@ namespace Game.Systems
 
         public bool CanCraft => _data != null && _data.miningPoints >= CraftCost;
 
+        /// <summary>Scrap required to target a slot. Empty slots use the Common rung.</summary>
+        public long TargetedScrapCost(int slot)
+        {
+            return slot < 0 || slot >= MiningGear.SlotCount
+                ? long.MaxValue
+                : MiningGear.TargetedScrapCost(WornGrade(slot));
+        }
+
+        public bool CanTargetedCraft(int slot)
+        {
+            long scrapCost = TargetedScrapCost(slot);
+            return _data != null && scrapCost != long.MaxValue
+                && _data.miningPoints >= CraftCost && _data.miningScrap >= scrapCost;
+        }
+
         /// <summary>The island income multiplier this loadout is worth right now.</summary>
         public double IncomeMultiplier => _incomeMultiplier;
 
@@ -169,26 +184,34 @@ namespace Game.Systems
         }
 
         // ------------------------------------------------------------------ craft
-        /// <summary>One craft's outcome. <see cref="Crafted"/> is false when there were not enough
-        /// points to spend at all — nothing else on the struct means anything in that case.</summary>
+        /// <summary>One craft's outcome. <see cref="Crafted"/> is false when either required balance
+        /// was short — nothing else on the struct means anything in that case.</summary>
         public readonly struct CraftResult
         {
             public readonly bool Crafted;
+            public readonly bool Targeted;
             public readonly int Slot;
             public readonly int Grade;
             public readonly bool Equipped;
+            public readonly long PointsSpent;
+            public readonly long ScrapSpent;
             public readonly long ScrapEarned;
 
-            public CraftResult(bool crafted, int slot, int grade, bool equipped, long scrapEarned)
+            public CraftResult(bool crafted, bool targeted, int slot, int grade, bool equipped,
+                               long pointsSpent, long scrapSpent, long scrapEarned)
             {
                 Crafted = crafted;
+                Targeted = targeted;
                 Slot = slot;
                 Grade = grade;
                 Equipped = equipped;
+                PointsSpent = pointsSpent;
+                ScrapSpent = scrapSpent;
                 ScrapEarned = scrapEarned;
             }
 
-            public static CraftResult None => new CraftResult(false, 0, MiningGear.NoGrade, false, 0L);
+            public static CraftResult None => new CraftResult(false, false, 0, MiningGear.NoGrade,
+                                                              false, 0L, 0L, 0L);
         }
 
         /// <summary>
@@ -201,12 +224,41 @@ namespace Game.Systems
         /// <summary>The same craft, with the dice supplied — what a test drives directly.</summary>
         public CraftResult TryCraftWithRolls(double slotRoll, double gradeRoll)
         {
-            if (_data == null) return CraftResult.None;
-            long cost = CraftCost;
-            if (_data.miningPoints < cost) return CraftResult.None;
-
-            _data.miningPoints -= cost;
             int slot = MiningGear.RollSlot(slotRoll);
+            return Craft(slot, false, gradeRoll);
+        }
+
+        /// <summary>Target one slot while keeping the normal grade probability table.</summary>
+        public CraftResult TryTargetedCraft(int slot)
+        {
+            return TryTargetedCraftWithRoll(slot, _random.NextDouble());
+        }
+
+        /// <summary>The targeted craft with a supplied grade roll, used by deterministic tests.</summary>
+        public CraftResult TryTargetedCraftWithRoll(int slot, double gradeRoll)
+        {
+            return Craft(slot, true, gradeRoll);
+        }
+
+        /// <summary>Plural alias matching the normal test helper's naming.</summary>
+        public CraftResult TryTargetedCraftWithRolls(int slot, double gradeRoll)
+        {
+            return TryTargetedCraftWithRoll(slot, gradeRoll);
+        }
+
+        private CraftResult Craft(int slot, bool targeted, double gradeRoll)
+        {
+            if (_data == null || slot < 0 || slot >= MiningGear.SlotCount) return CraftResult.None;
+
+            long pointsCost = CraftCost;
+            long scrapCost = targeted ? TargetedScrapCost(slot) : 0L;
+            if (_data.miningPoints < pointsCost || _data.miningScrap < scrapCost)
+                return CraftResult.None;
+
+            // All costs and the rolled outcome are committed before the caller can reveal feedback.
+            // A force-close therefore cannot refund the targeted fee or reroll the result.
+            _data.miningPoints -= pointsCost;
+            _data.miningScrap -= scrapCost;
             int grade = MiningGear.RollGrade(gradeRoll, _tuning);
             int worn = WornGrade(slot);
 
@@ -226,7 +278,7 @@ namespace Game.Systems
 
             _save?.Save(_data);
             Changed?.Invoke();
-            return new CraftResult(true, slot, grade, equipped, scrapEarned);
+            return new CraftResult(true, targeted, slot, grade, equipped, pointsCost, scrapCost, scrapEarned);
         }
     }
 }

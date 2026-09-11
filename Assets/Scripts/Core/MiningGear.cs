@@ -142,6 +142,14 @@ namespace Game.Core
             return ScrapByGrade[g];
         }
 
+        /// <summary>Mining Scrap paid by a targeted craft. An empty slot starts at the Common
+        /// rung; each worn grade raises the price to the next scrap rung. This narrows the slot
+        /// roll only — the grade roll still uses the normal probability table.</summary>
+        public static long TargetedScrapCost(int wornGrade)
+        {
+            return ScrapFor(wornGrade + 1);
+        }
+
         /// <summary>Whether a freshly crafted item beats what is worn in its slot. An empty slot is
         /// always an upgrade; a tie is not.</summary>
         public static bool IsUpgrade(int candidateGrade, int wornGrade)

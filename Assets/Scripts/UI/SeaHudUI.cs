@@ -23,8 +23,10 @@ namespace Game.UI
         [SerializeField] private int sortingOrder = 100;
         [SerializeField] private float refreshInterval = 0.25f;
 
-        private static readonly Color Chrome = new Color(0.06f, 0.10f, 0.16f, 0.88f);
-        private static readonly Color Fill = new Color(0.36f, 0.74f, 0.99f, 0.95f);
+        // Both multiply the kit's slate stat card: the track tinted down to deep blue, the fill left as
+        // the card's own lighter slate so it reads against the track.
+        private static readonly Color Track = new Color(0.22f, 0.34f, 0.50f, 1f);
+        private static readonly Color Fill = new Color(0.85f, 1f, 1f, 1f);
 
         private ExpeditionService _sea;
         private TMP_Text _route, _clock;
@@ -46,25 +48,34 @@ namespace Game.UI
             safe.SetParent(canvas, false);
             safe.gameObject.AddComponent<SafeArea>();
 
-            RectTransform bar = Plate(safe, new Vector2(0.29f, 0.905f), new Vector2(0.985f, 0.978f));
-            _route = Line(bar, "Rota", 34f, 0.52f, 1f);
-            _clock = Line(bar, "Saat", 26f, 0.04f, 0.50f);
+            // The kit's title plate. Its anchor medallion rides the top edge and dips into the body, so
+            // the two lines sit in the lower two thirds: the route under the medallion, the clock under
+            // that.
+            RectTransform bar = SeaKit.Plate(safe, "Levha", "plaka", new Vector2(0.175f, 0.893f),
+                                             new Vector2(0.985f, 0.985f));
+            _route = Line(bar, "Rota", 34f, 0.36f, 0.60f);
+            _clock = Line(bar, "Saat", 26f, 0.11f, 0.37f);
 
             // The crossing bar sits under the caption rather than at the foot of the screen: it and the
             // words it explains are one reading, and splitting them across the whole display makes the
             // player hunt for the half they did not look at first.
-            RectTransform track = UiBuild.Bar(safe, "Yol", new Color(0f, 0f, 0f, 0.45f), Fill,
-                                              new Vector2(0.31f, 0.887f), new Vector2(0.965f, 0.901f),
-                                              out _progressFill);
-            track.GetComponent<Image>().raycastTarget = false;
-            _progressFill.GetComponent<Image>().raycastTarget = false;
+            // Drawn with the kit's rounded stat card, dark for the track and sky-blue for the fill, so the
+            // bar has the same soft corners as everything else on the screen.
+            Image track = SeaKit.Sliced(safe, "Yol", "stat", new Vector2(0.20f, 0.878f),
+                                        new Vector2(0.96f, 0.889f), true);
+            track.color = Track;
+            Image fill = SeaKit.Sliced(track.rectTransform, "Fill", "stat", Vector2.zero, new Vector2(0f, 1f), true);
+            fill.color = Fill;
+            _progressFill = fill.rectTransform;
 
-            Button ashore = UiBuild.Btn(safe, "Karaya", Loc.T("deniz.karaya"),
-                                        UiSkin.ButtonGrey, Chrome, 28,
-                                        () => { ServiceLocator.Get<HapticService>()?.Medium(); onAshore?.Invoke(); });
-            UiBuild.Anchor((RectTransform)ashore.transform, new Vector2(0.025f, 0.912f),
-                           new Vector2(0.265f, 0.972f));
-            PillFit.Wrap(ashore.GetComponent<Image>());
+            // The kit's back arrow, square and uncaptioned: the arrow is the universal way out, and the
+            // freed width went to the plate beside it.
+            Image arrow = SeaKit.Square(safe, "Karaya", "geri", new Vector2(0.025f, 0.025f),
+                                        new Vector2(0.905f, 0.975f), 0f);
+            arrow.raycastTarget = true;
+            var ashore = arrow.gameObject.AddComponent<Button>();
+            ashore.targetGraphic = arrow;
+            ashore.onClick.AddListener(() => { ServiceLocator.Get<HapticService>()?.Medium(); onAshore?.Invoke(); });
 
             Refresh();
         }
@@ -114,16 +125,6 @@ namespace Game.UI
             last = value;
         }
 
-        private static RectTransform Plate(RectTransform parent, Vector2 aMin, Vector2 aMax)
-        {
-            RectTransform rt = UiBuild.Flat(parent, "Levha", Chrome, aMin, aMax);
-            var img = rt.GetComponent<Image>();
-            img.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
-            img.type = Image.Type.Sliced;
-            img.raycastTarget = false;
-            return rt;
-        }
-
         private static TMP_Text Line(Transform parent, string name, float size, float bottom, float top)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -135,7 +136,7 @@ namespace Game.UI
             text.fontSizeMin = size * 0.5f;
             text.fontSizeMax = size;
             text.raycastTarget = false;
-            UiBuild.Anchor((RectTransform)go.transform, new Vector2(0.04f, bottom), new Vector2(0.96f, top));
+            UiBuild.Anchor((RectTransform)go.transform, new Vector2(0.09f, bottom), new Vector2(0.91f, top));
             return text;
         }
     }

@@ -64,7 +64,9 @@ namespace Game.UI
         private RectTransform _root;
 
         private Text _titleLabel, _pointsLabel, _bonusLabel, _craftLabel, _nextPointLabel, _resultLabel;
-        private Button _craftBtn;
+        private Text _targetLabel, _targetCostLabel;
+        private Button _craftBtn, _targetBtn;
+        private int _selectedSlot;
 
         private readonly RectTransform[] _slotCard = new RectTransform[MiningGear.SlotCount];
         private readonly Image[] _slotStripe = new Image[MiningGear.SlotCount];
@@ -182,7 +184,7 @@ namespace Game.UI
         /// <see cref="MiningGear"/>'s own slot order.</summary>
         private void BuildSlots()
         {
-            const float gridTop = 0.660f, gridBottom = 0.340f, gridLeft = 0.10f, gridRight = 0.90f;
+            const float gridTop = 0.660f, gridBottom = 0.385f, gridLeft = 0.10f, gridRight = 0.90f;
             const float pad = 0.015f;
             float colW = (gridRight - gridLeft) / 2f;
             float rowH = (gridTop - gridBottom) / 2f;
@@ -195,6 +197,13 @@ namespace Game.UI
 
                 RectTransform card = Art(_root, "Yuva" + i, cardPanel, aMin, aMax);
                 _slotCard[i] = card;
+
+                var select = card.gameObject.AddComponent<Button>();
+                select.transition = Selectable.Transition.None;
+                select.targetGraphic = card.GetComponent<Image>();
+                if (select.targetGraphic != null) select.targetGraphic.raycastTarget = true;
+                int picked = i;
+                select.onClick.AddListener(() => SelectSlot(picked));
 
                 _slotStripe[i] = Stripe(card, new Vector2(0f, 0f), new Vector2(0.05f, 1f));
                 _slotStripe[i].color = GradeTint[0];
@@ -229,16 +238,28 @@ namespace Game.UI
             _craftBtn = UiBuild.Btn(_root, "Uret", string.Empty,
                                     actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                     Good, 30, OnCraft);
-            UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0.10f, 0.220f), new Vector2(0.90f, 0.320f));
+            UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0.10f, 0.215f), new Vector2(0.47f, 0.300f));
             PillFit.Wrap(_craftBtn.GetComponent<Image>());
             _craftLabel = _craftBtn.GetComponentInChildren<Text>();
 
-            _nextPointLabel = UiBuild.Label(Zone(_root, "SonrakiPuan", new Vector2(0.10f, 0.170f), new Vector2(0.90f, 0.212f)),
+            _targetBtn = UiBuild.Btn(_root, "HedefliUret", string.Empty,
+                                     actionButton != null ? actionButton : UiSkin.ButtonGreen,
+                                     new Color(0.20f, 0.50f, 0.82f, 1f), 24, OnTargetedCraft);
+            UiBuild.Anchor((RectTransform)_targetBtn.transform, new Vector2(0.53f, 0.215f), new Vector2(0.90f, 0.300f));
+            PillFit.Wrap(_targetBtn.GetComponent<Image>());
+            _targetLabel = _targetBtn.GetComponentInChildren<Text>();
+
+            _targetCostLabel = UiBuild.Label(Zone(_root, "HedefMaliyet", new Vector2(0.10f, 0.165f), new Vector2(0.90f, 0.210f)),
+                                             "Text", string.Empty, 18, TextAnchor.MiddleCenter);
+            _targetCostLabel.color = InkSoft;
+            Fit(_targetCostLabel, 11, 18);
+
+            _nextPointLabel = UiBuild.Label(Zone(_root, "SonrakiPuan", new Vector2(0.10f, 0.120f), new Vector2(0.90f, 0.158f)),
                                             "Text", string.Empty, 20, TextAnchor.MiddleCenter);
             _nextPointLabel.color = InkFaint;
             Fit(_nextPointLabel, 12, 20);
 
-            _resultLabel = UiBuild.Label(Zone(_root, "Sonuc", new Vector2(0.10f, 0.075f), new Vector2(0.90f, 0.162f)),
+            _resultLabel = UiBuild.Label(Zone(_root, "Sonuc", new Vector2(0.10f, 0.045f), new Vector2(0.90f, 0.112f)),
                                          "Text", string.Empty, 22, TextAnchor.UpperCenter);
             _resultLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
             Fit(_resultLabel, 12, 22);
@@ -276,6 +297,13 @@ namespace Game.UI
         }
 
         // --------------------------------------------------------------- actions
+        private void SelectSlot(int slot)
+        {
+            if (slot < 0 || slot >= MiningGear.SlotCount) return;
+            _selectedSlot = slot;
+            Refresh();
+        }
+
         private void OnCraft()
         {
             if (_mining == null) return;
@@ -296,6 +324,28 @@ namespace Game.UI
             }
         }
 
+        private void OnTargetedCraft()
+        {
+            if (_mining == null) return;
+            MiningGearService.CraftResult result = _mining.TryTargetedCraft(_selectedSlot);
+            if (!result.Crafted)
+            {
+                Refresh();
+                _resultLabel.text = Loc.T("madenci.hedef.yetersiz");
+                _resultLabel.color = InkSoft;
+                return;
+            }
+
+            string slotName = Loc.T("madenci.yuva." + result.Slot);
+            string gradeName = Loc.T("kaptan.derece." + result.Grade);
+            _resultLabel.text = result.Equipped
+                ? string.Format(Loc.T("madenci.hedef.kusanildi"), gradeName, slotName, result.ScrapSpent)
+                : string.Format(Loc.T("madenci.hedef.hurda"), gradeName, result.ScrapSpent, result.ScrapEarned);
+            _resultLabel.color = result.Equipped
+                ? GradeTint[Mathf.Clamp(result.Grade, 0, GradeTint.Length - 1)]
+                : InkSoft;
+        }
+
         // --------------------------------------------------------------- refresh
         private void Refresh()
         {
@@ -307,6 +357,10 @@ namespace Game.UI
             for (int i = 0; i < MiningGear.SlotCount; i++)
             {
                 int grade = _mining.WornGrade(i);
+                Image cardImage = _slotCard[i].GetComponent<Image>();
+                if (cardImage != null) cardImage.color = i == _selectedSlot
+                    ? new Color(0.84f, 0.92f, 1f, 1f)
+                    : Color.white;
                 if (grade >= 0)
                 {
                     Color tint = GradeTint[Mathf.Clamp(grade, 0, GradeTint.Length - 1)];
@@ -326,6 +380,12 @@ namespace Game.UI
 
             _craftLabel.text = Loc.T("madenci.uret") + "  ·  " + string.Format(Loc.T("madenci.puan"), _mining.CraftCost);
             _craftBtn.interactable = _mining.CanCraft;
+
+            long scrapCost = _mining.TargetedScrapCost(_selectedSlot);
+            _targetLabel.text = string.Format(Loc.T("madenci.hedef.uret"), Loc.T("madenci.yuva." + _selectedSlot));
+            _targetCostLabel.text = string.Format(Loc.T("madenci.hedef.maliyet"),
+                                                   _mining.CraftCost, scrapCost, _mining.Points, _mining.Scrap);
+            _targetBtn.interactable = _mining.CanTargetedCraft(_selectedSlot);
 
             RefreshNextPoint();
         }

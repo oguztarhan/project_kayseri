@@ -256,6 +256,12 @@ namespace Game.UI
             // opener now lands in the More sheet.
             BuildLadder();
 
+            // The wallet screen is code-built and attaches its opener to the existing rail/More sheet;
+            // no scene or prefab edit is needed for the compact HUD to reach it.
+            WalletUI walletScreen = FindAnyObjectByType<WalletUI>(FindObjectsInactive.Include);
+            if (walletScreen == null) walletScreen = new GameObject("CuzdanUI").AddComponent<WalletUI>();
+            walletScreen.Initialize(this);
+
             if (_wallet != null) _wallet.GemsChanged += RefreshGems;
             RefreshGems();
             Refresh();
@@ -646,6 +652,7 @@ namespace Game.UI
                 case "BtnMaden": return "madenci.baslik";
                 case "BtnKartKoleksiyonu": return "koleksiyon.baslik";
                 case "BtnDenizDostlari": return "dost.baslik";
+                case "BtnCuzdan": return "wallet.open";
                 default: return name;
             }
         }

@@ -389,6 +389,9 @@ namespace Game.Systems
         public string IslandKey => _atSea ? _islandKey : string.Empty;
 
         // ----------------------------------------------------------------- energy
+        /// <summary>Sea-combat currency earned from encounters and spent on ship upgrades.</summary>
+        public long Salvage => _data != null ? _data.salvage : 0L;
+
         public int EnergyMax => _combat.EnergyMax;
 
         /// <summary>The pool right now, refilled off the wall clock on read.</summary>

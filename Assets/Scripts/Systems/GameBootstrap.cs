@@ -104,6 +104,7 @@ namespace Game.Systems
         public MiningGearService MiningGear { get; private set; }
         public CardCollectionService CardCollection { get; private set; }
         public PetService Pets { get; private set; }
+        public CurrencyRegistry Currencies { get; private set; }
         public PetConfig PetConfig => petConfig;
         public CannonProductionService CannonProduction { get; private set; }
         public ShipyardUnlockService ShipyardUnlocks { get; private set; }
@@ -357,6 +358,11 @@ namespace Game.Systems
             ServiceLocator.Register(Pets);
             Expeditions.Pets = Pets;
             Goals.Pets = Pets;
+
+            // Presentation-only currency index. Each domain service remains the sole owner of its
+            // own balance and mutations; this only gathers their live, read-only snapshots for UI.
+            Currencies = new CurrencyRegistry(_time, Wallet, Expeditions, Crafting, MiningGear, Captains, Pets);
+            ServiceLocator.Register(Currencies);
 
             // The collection's two other consumers, and the two set-reward payers it could not be
             // handed at construction because they did not exist yet.

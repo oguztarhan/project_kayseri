@@ -25,13 +25,19 @@ namespace Game.UI
     /// applies damage on the ball's landing frame and narrates through its event ring; this file
     /// only draws what the ring says happened.
     ///
-    /// Sprites from Resources/UI/Sea (Tools/ui/deniz_savas_seti.py); every slot falls back to the
+    /// The chrome — backdrop, plates, panels, slots, bars, buttons, icons — is the design kit
+    /// (<see cref="SeaKit"/>); the theater's older pieces (balls, bursts, the non-raider threats)
+    /// still come from Resources/UI/Sea (Tools/ui/deniz_savas_seti.py). Every slot falls back to the
     /// flat quad. Balls, flashes and floating texts are pooled — fixed arrays, zero allocation
     /// after Build.
     /// </summary>
     public sealed class SeaFightUI : MonoBehaviour
     {
         [SerializeField] private int sortingOrder = 102;   // above SeaHudUI's 100
+
+        [Tooltip("Boyalı deniz arka planının kanvası. SeaHudUI'nin (100) ALTINDA durmalı: resim " +
+                 "ekranın tepesine kadar, rota levhasının arkasına uzanıyor.")]
+        [SerializeField] private int backdropSortingOrder = 99;
 
         [Header("Enerji reklamı — ekstra arama hakkı")]
         [Tooltip("Bir reklamın doldurduğu enerji, günlük hak ve iki izleme arasındaki bekleme. " +
@@ -47,9 +53,36 @@ namespace Game.UI
 
         private static readonly Color Chrome = new Color(0.06f, 0.10f, 0.16f, 0.88f);
         private static readonly Color SkyTint = new Color(0.55f, 0.73f, 0.86f, 1f);
-        private static readonly Color SeaTint = new Color(0.09f, 0.30f, 0.46f, 1f);
         private static readonly Color HullFillTint = new Color(0.92f, 0.30f, 0.26f, 0.95f);
         private static readonly Color NerveFillTint = new Color(0.36f, 0.74f, 0.99f, 0.95f);
+
+        // The kit's art is pre-coloured, so these MULTIPLY it: white is the art as drawn.
+        private static readonly Color Deck = new Color(0.04f, 0.11f, 0.20f, 1f);         // under the sheet
+        private static readonly Color StatTint = new Color(0.60f, 0.68f, 0.80f, 1f);     // core stat cells
+        private static readonly Color InsetTint = new Color(0.36f, 0.44f, 0.56f, 1f);    // dark wells on a card
+        private static readonly Color InsetEmpty = new Color(0.28f, 0.31f, 0.36f, 1f);
+        private static readonly Color GridTint = new Color(0.30f, 0.38f, 0.50f, 0.55f); // behind the procs
+        private static readonly Color SlotEmpty = new Color(0.62f, 0.66f, 0.72f, 1f);
+        private static readonly Color SlotLocked = new Color(0.40f, 0.44f, 0.50f, 1f);
+        private static readonly Color RouteOpen = new Color(0.70f, 0.76f, 0.84f, 1f);
+        private static readonly Color RouteLocked = new Color(0.45f, 0.50f, 0.58f, 1f);
+        private static readonly Color AutoOn = new Color(0.55f, 0.95f, 0.55f, 1f);
+        private static readonly Color Outline = new Color(0.02f, 0.06f, 0.14f, 0.94f);
+
+        /// <summary>How far a grade or rarity tint leans the teal slot frame. Full strength drowns the
+        /// art in one colour; this keeps the frame the kit's and still reads the grade at a glance.</summary>
+        private const float FrameTintWeight = 0.5f;
+
+        /// <summary>The HP frame's trough, as anchors on can_cerceve — printed by the kit script.</summary>
+        private static readonly Vector2 TroughMin = new Vector2(0.153f, 0.261f);
+        private static readonly Vector2 TroughMax = new Vector2(0.966f, 0.712f);
+
+        /// <summary>How much of a 06 button's width its compass medallion takes, by where it is used.
+        /// A slice border is in canvas units, so this depends on the box's own aspect.</summary>
+        private const float CompassSearch = 0.17f, CompassCard = 0.20f, CompassWide = 0.25f;
+
+        /// <summary>The route numeral's size: a whole tab when open, beside the padlock when locked.</summary>
+        private const float RouteMarkOpen = 30f, RouteMarkLocked = 24f;
         private static readonly Color EnergyTint = new Color(0.99f, 0.82f, 0.28f, 1f);
         private static readonly Color Win = new Color(0.55f, 0.95f, 0.55f, 1f);
         private static readonly Color Loss = new Color(0.95f, 0.75f, 0.45f, 1f);
@@ -97,20 +130,24 @@ namespace Game.UI
 
         private CanvasGroup _rootGroup;
         private RectTransform _root, _stage, _panel;
-        private RawImage _horizonWaves, _frontWaves;
-        private RectTransform[] _clouds;
+        private GameObject _scrim, _bannerBack;
+        private Material _outlined;   // one shared copy, so every outlined stage text still batches
 
         private RectTransform _shipRoot, _threatRoot;
         private CanvasGroup _threatGroup;
         private Image _threatImage;
 
         private RectTransform _hullTrack, _hullFill, _nerveTrack, _nerveFill;
+        private float _barAspect = 6.6f;
         private TMP_Text _threatName, _banner;
 
         // The sheet panel.
         private TMP_Text _powerLabel, _captainLabel, _energyLabel;
+        private Image _captainPortrait;
         private readonly TMP_Text[] _statValue = new TMP_Text[StatCount];
         private readonly Image[] _gearFrame = new Image[SeaCombat.SlotCount];
+        private readonly Image[] _gearIcon = new Image[SeaCombat.SlotCount];
+        private readonly Sprite[] _slotIcon = new Sprite[SeaCombat.SlotCount];
         private readonly Image[][] _gearStars = new Image[SeaCombat.SlotCount][];
 
         // Three pet-equip slots sharing the captain's band — see BuildPetSlots.
@@ -128,7 +165,9 @@ namespace Game.UI
         // The route strip and what it promises: which waters the fights are priced for, what a
         // locked route still wants, the threat band out there and the drop table it rolls.
         private readonly Button[] _routeBtn = new Button[Voyages.TierCount];
-        private readonly Image[] _routeFrame = new Image[Voyages.TierCount];
+        private readonly Image[] _routeLeft = new Image[Voyages.TierCount];
+        private readonly Image[] _routeRight = new Image[Voyages.TierCount];
+        private readonly Image[] _routeLock = new Image[Voyages.TierCount];
         private readonly TMP_Text[] _routeMark = new TMP_Text[Voyages.TierCount];
         private readonly TMP_Text[] _routeSub = new TMP_Text[Voyages.TierCount];
         private TMP_Text _threatLine, _lootLine;
@@ -144,7 +183,7 @@ namespace Game.UI
         // The details card (Found).
         private RectTransform _foundCard;
         private TMP_Text _foundTitle, _foundTag, _foundDanger, _foundPower, _foundStats, _foundReward;
-        private Image _foundTagPill;
+        private Image _foundTagPill, _foundDangerIcon;
 
         // The loot compare card.
         private RectTransform _lootCard;
@@ -155,6 +194,7 @@ namespace Game.UI
 
         // The worn-gear popup.
         private RectTransform _gearCard;
+        private Image _gearCardIcon;
         private TMP_Text _gearTitle, _gearRows, _gearScrapLabel;
         private Button _gearScrap;
         private int _gearShown = -1;
@@ -184,7 +224,9 @@ namespace Game.UI
 
         private static Sprite S(string name) => Resources.Load<Sprite>("UI/Sea/" + name);
 
-        private static readonly string[] KindSprite = { "korsan", "canavar", "enkaz", "alev", "hayalet" };
+        /// <summary>The theater's threat art by kind. The raider is the kit's pirate ship
+        /// (<see cref="ThreatArt"/>), so it has no entry here.</summary>
+        private static readonly string[] KindSprite = { null, "canavar", "enkaz", "alev", "hayalet" };
 
         public void Build(EncounterController fights)
         {
@@ -214,24 +256,43 @@ namespace Game.UI
             _rootGroup.alpha = 0f;
             _rootGroup.blocksRaycasts = false;
 
-            // A full-width band between the sheet's top edge (0.545) and SeaHudUI's strip (0.885).
-            _stage = UiBuild.Flat(_root, "Sahne", SkyTint, new Vector2(0f, 0.545f), new Vector2(1f, 0.885f));
-            _stage.GetComponent<Image>().raycastTarget = false;
-
             BuildBackdrop();
-            _shipRoot = Vessel("Gemi", S("gemi"), false);
+
+            // A full-width band between the sheet's top edge (0.545) and SeaHudUI's strip (0.885). It
+            // draws nothing itself — the painted sea behind it is the backdrop.
+            var stageGo = new GameObject("Sahne", typeof(RectTransform));
+            stageGo.transform.SetParent(_root, false);
+            _stage = UiBuild.Anchor((RectTransform)stageGo.transform, new Vector2(0f, 0.545f), new Vector2(1f, 0.885f));
+
+            _shipRoot = Vessel("Gemi", SeaKit.Get("oyuncu_gemisi"), false);
             _threatRoot = Vessel("Tehdit", null, true);
             _threatGroup = _threatRoot.gameObject.AddComponent<CanvasGroup>();
             _threatGroup.alpha = 0f;
             _threatImage = _threatRoot.GetChild(0).GetComponent<Image>();
-            BuildFrontWaves();
             BuildBars();
             BuildPools();
 
-            _banner = Line(_stage, "Sonuc", 52f, new Vector2(0.10f, 0.68f), new Vector2(0.90f, 0.84f));
+            // The result toast sits on a dark plate: the painted sky behind it is too light for the
+            // win green to read on its own.
+            Image back = SeaKit.Sliced(_stage, "SonucLevhasi", "stat", new Vector2(0.08f, 0.70f),
+                                       new Vector2(0.92f, 0.84f), true);
+            back.color = Outline;
+            _bannerBack = back.gameObject;
+            _banner = Line((RectTransform)back.transform, "Sonuc", 44f, new Vector2(0.05f, 0.08f), new Vector2(0.95f, 0.92f));
             _banner.fontStyle = FontStyles.Bold;
+            _bannerBack.SetActive(false);
 
             BuildPanel();
+
+            // Behind whichever card is open: dims the whole screen so the decision reads first. It
+            // catches no taps — the cards eat their own, exactly as before it existed — so the HUD's
+            // way ashore still answers under it: leaving is always allowed (SeaSceneBoot).
+            RectTransform scrim = UiBuild.Flat(_root, "Karartma", new Color(0f, 0f, 0f, 0.5f),
+                                               Vector2.zero, Vector2.one);
+            scrim.GetComponent<Image>().raycastTarget = false;
+            _scrim = scrim.gameObject;
+            _scrim.SetActive(false);
+
             BuildFoundCard();
             BuildLootCard();
             BuildGearCard();
@@ -242,6 +303,7 @@ namespace Game.UI
         private void OnDestroy()
         {
             if (_pets != null) _pets.Changed -= OnPetsChanged;
+            if (_outlined != null) Destroy(_outlined);
         }
 
         /// <summary>The strip and the sheet together: the half-second probe only re-inks when POWER
@@ -254,46 +316,35 @@ namespace Game.UI
         }
 
         // ------------------------------------------------------------------ build
+        /// <summary>
+        /// The painted sea, on its own canvas one step UNDER SeaHudUI's: the picture runs from the
+        /// sheet's top edge to the top of the screen, behind the route plate, so there is no seam where
+        /// the stage used to meet the 3D camera's flat sky. The fight canvas itself sits above the HUD,
+        /// which is why this cannot simply be a child image of the stage. The root group still fades it.
+        ///
+        /// ENVELOPED, NOT STRETCHED: it covers its region at the art's own aspect and lets the sides fall
+        /// off-screen on a tall phone. The region starts a little below the sheet's edge (the sheet is
+        /// opaque and hides the overlap) so the horizon lands just above the ships' waterline.
+        /// </summary>
         private void BuildBackdrop()
         {
-            RectTransform sea = UiBuild.Flat(_stage, "Deniz", SeaTint, Vector2.zero, new Vector2(1f, 0.46f));
-            sea.GetComponent<Image>().raycastTarget = false;
+            var layer = new GameObject("ArkaPlan", typeof(RectTransform), typeof(Canvas));
+            layer.transform.SetParent(_root, false);
+            var canvas = layer.GetComponent<Canvas>();
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = backdropSortingOrder;
+            RectTransform region = UiBuild.Anchor((RectTransform)layer.transform, new Vector2(0f, 0.50f), Vector2.one);
 
-            Sprite cloud = S("bulut");
-            _clouds = new RectTransform[2];
-            for (int i = 0; i < 2; i++)
-            {
-                var go = new GameObject("Bulut" + i, typeof(RectTransform), typeof(Image));
-                go.transform.SetParent(_stage, false);
-                var img = go.GetComponent<Image>();
-                img.sprite = cloud != null ? cloud : UiSkin.Flat;
-                img.preserveAspect = true;
-                img.raycastTarget = false;
-                img.color = new Color(1f, 1f, 1f, 0.85f);
-                _clouds[i] = UiBuild.Anchor((RectTransform)go.transform,
-                    new Vector2(i == 0 ? 0.08f : 0.62f, i == 0 ? 0.80f : 0.87f),
-                    new Vector2(i == 0 ? 0.24f : 0.80f, i == 0 ? 0.92f : 0.97f));
-            }
-            _horizonWaves = Waves("UfukDalga", new Vector2(0f, 0.42f), new Vector2(1f, 0.50f),
-                                  new Color(1f, 1f, 1f, 0.9f));
-        }
-
-        private void BuildFrontWaves()
-            => _frontWaves = Waves("OnDalga", new Vector2(0f, 0f), new Vector2(1f, 0.13f),
-                                   new Color(0.75f, 0.85f, 0.95f, 1f));
-
-        private RawImage Waves(string name, Vector2 aMin, Vector2 aMax, Color tint)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(RawImage));
-            go.transform.SetParent(_stage, false);
-            var raw = go.GetComponent<RawImage>();
-            Sprite strip = S("dalga");
-            raw.texture = strip != null ? strip.texture : null;
-            raw.color = strip != null ? tint : new Color(SeaTint.r, SeaTint.g, SeaTint.b, 0.6f);
-            raw.raycastTarget = false;
-            raw.uvRect = new Rect(0f, 0f, 3f, 1f);
-            UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
-            return raw;
+            var go = new GameObject("Resim", typeof(RectTransform), typeof(Image), typeof(AspectRatioFitter));
+            go.transform.SetParent(region, false);
+            var img = go.GetComponent<Image>();
+            Sprite art = SeaKit.Backdrop;
+            img.sprite = art != null ? art : UiSkin.Flat;
+            img.color = art != null ? Color.white : SkyTint;
+            img.raycastTarget = false;
+            var fit = go.GetComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            fit.aspectRatio = art != null ? art.rect.width / art.rect.height : 1.5f;
         }
 
         private RectTransform Vessel(string name, Sprite sprite, bool mirrored)
@@ -323,21 +374,58 @@ namespace Game.UI
             _threatName = Line(_stage, "TehditAdi", 30f, Vector2.zero, Vector2.one);
             _threatName.rectTransform.anchorMin = _threatName.rectTransform.anchorMax = Vector2.zero;
             _threatName.rectTransform.sizeDelta = new Vector2(560f, 60f);
+            Outlined(_threatName);
 
             _nerveTrack = BarTrack("Cesaret", out _nerveFill, NerveFillTint);
         }
 
-        private RectTransform BarTrack(string name, out RectTransform fill, Color tint)
+        /// <summary>
+        /// The kit's heart bar: the frame with its trough emptied, and the red keyed out of it as a
+        /// separate fill that runs inside the trough. Sized by the frame's own aspect in DriveBars, so the
+        /// heart never squashes. Without the kit it is the old dark track and a flat tinted fill.
+        /// </summary>
+        private RectTransform BarTrack(string name, out RectTransform fill, Color flatTint)
         {
-            RectTransform track = UiBuild.Flat(_stage, name, new Color(0f, 0f, 0f, 0.55f),
-                                               Vector2.zero, Vector2.zero);
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(_stage, false);
+            var frame = go.GetComponent<Image>();
+            Sprite art = SeaKit.Get("can_cerceve");
+            frame.sprite = art != null ? art : UiSkin.Flat;
+            frame.color = art != null ? Color.white : new Color(0f, 0f, 0f, 0.55f);
+            frame.raycastTarget = false;
+            if (art != null) _barAspect = art.rect.width / art.rect.height;
+            var track = (RectTransform)go.transform;
             track.anchorMin = track.anchorMax = Vector2.zero;
-            track.GetComponent<Image>().raycastTarget = false;
-            fill = UiBuild.Flat(track, "Dolgu", tint, Vector2.zero, Vector2.one);
-            fill.GetComponent<Image>().raycastTarget = false;
-            fill.offsetMin = new Vector2(3f, 3f);
-            fill.offsetMax = new Vector2(-3f, -3f);
+
+            var trough = new GameObject("Oluk", typeof(RectTransform));
+            trough.transform.SetParent(track, false);
+            RectTransform troughRt = art != null
+                ? UiBuild.Anchor((RectTransform)trough.transform, TroughMin, TroughMax)
+                : UiBuild.Anchor((RectTransform)trough.transform, new Vector2(0.02f, 0.1f), new Vector2(0.98f, 0.9f));
+
+            Image bar = SeaKit.Sliced(troughRt, "Dolgu", "can_dolgu", Vector2.zero, Vector2.one, true);
+            if (bar.sprite == UiSkin.Flat) bar.color = flatTint;
+            fill = bar.rectTransform;
             return track;
+        }
+
+        /// <summary>
+        /// Gives a stage text the navy outline the kit's stickers wear — the painted sky is light, and
+        /// a white or pale number on it disappears. One material copy is shared by every text that
+        /// asks, so they still batch as one; it is destroyed with the screen.
+        /// </summary>
+        private void Outlined(TMP_Text text)
+        {
+            if (text.fontSharedMaterial == null) return;
+            if (_outlined == null)
+            {
+                ShaderUtilities.GetShaderPropertyIDs();
+                _outlined = new Material(text.fontSharedMaterial) { name = "DenizYazi (Kontur)" };
+                _outlined.EnableKeyword(ShaderUtilities.Keyword_Outline);
+                _outlined.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.24f);
+                _outlined.SetColor(ShaderUtilities.ID_OutlineColor, Outline);
+            }
+            text.fontSharedMaterial = _outlined;
         }
 
         private void BuildPools()
@@ -361,6 +449,7 @@ namespace Game.UI
                 txt.rectTransform.sizeDelta = new Vector2(460f, 80f);
                 txt.enableAutoSizing = false;
                 txt.fontStyle = FontStyles.Bold;
+                Outlined(txt);
                 txt.gameObject.SetActive(false);
                 _float[i] = txt;
                 _floatT[i] = -1f;
@@ -389,13 +478,22 @@ namespace Game.UI
         /// </summary>
         private void BuildPanel()
         {
-            _panel = UiBuild.Flat(_root, "Levha", Chrome, new Vector2(0.015f, 0.020f), new Vector2(0.985f, 0.535f));
-            var img = _panel.GetComponent<Image>();
-            img.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
-            img.type = Image.Type.Sliced;
-            img.raycastTarget = true;   // eats taps so the 3D scene never hears the sheet
+            // Full-bleed deck under the sheet: the sheet's rounded frame no longer leaves the 3D sea
+            // showing at its corners and along the foot of the screen.
+            RectTransform deck = UiBuild.Flat(_root, "Guverte", Deck, Vector2.zero, new Vector2(1f, 0.545f));
+            deck.GetComponent<Image>().raycastTarget = true;
 
-            _powerLabel = Line(_panel, "Guc", 40f, new Vector2(0.05f, 0.930f), new Vector2(0.95f, 0.990f));
+            Image img = SeaKit.Sliced(_root, "Levha", "panel", new Vector2(0.015f, 0.020f),
+                                      new Vector2(0.985f, 0.535f), false);
+            if (img.sprite == UiSkin.Flat) img.color = Chrome;
+            img.raycastTarget = true;   // eats taps so the 3D scene never hears the sheet
+            _panel = img.rectTransform;
+
+            // POWER on the kit's title plate, straddling the sheet's top edge — the plate's medallion
+            // covers the panel's own top ornament, which a sheet this wide would otherwise stretch.
+            RectTransform powerPlate = SeaKit.Plate(_panel, "GucLevhasi", "plaka", new Vector2(0.23f, 0.922f),
+                                                    new Vector2(0.77f, 1.03f));
+            _powerLabel = Line(powerPlate, "Guc", 40f, new Vector2(0.12f, 0.10f), new Vector2(0.88f, 0.58f));
             _powerLabel.fontStyle = FontStyles.Bold;
             _powerLabel.color = EnergyTint;
 
@@ -411,115 +509,137 @@ namespace Game.UI
                 Loc.T("deniz.st.sersem"), Loc.T("deniz.st.onarim"), Loc.T("deniz.st.cancalma"),
                 Loc.T("deniz.st.yagma"), Loc.T("deniz.st.yangin"), Loc.T("deniz.st.zehir"),
             };
+            // The four core stats each on a kit stat card; the nine procs share one darker card
+            // behind their grid, so the two tiers read as two tiers.
             for (int i = 0; i < CoreStatCount; i++)
             {
                 float x0 = 0.035f + i * 0.2375f, x1 = x0 + 0.22f;
-                TMP_Text label = Line(_panel, "Ist" + i, 15f, new Vector2(x0, 0.756f), new Vector2(x1, 0.792f));
+                Image cell = SeaKit.Sliced(_panel, "Hucre" + i, "stat", new Vector2(x0, 0.696f),
+                                           new Vector2(x1, 0.780f), false);
+                cell.color = StatTint;
+                TMP_Text label = Line(cell.rectTransform, "Ist" + i, 15f, new Vector2(0.06f, 0.54f), new Vector2(0.94f, 0.90f));
                 label.text = labels[i];
                 label.color = Faded;
-                _statValue[i] = Line(_panel, "Deger" + i, 24f, new Vector2(x0, 0.706f), new Vector2(x1, 0.754f));
+                _statValue[i] = Line(cell.rectTransform, "Deger" + i, 24f, new Vector2(0.06f, 0.10f), new Vector2(0.94f, 0.56f));
                 _statValue[i].fontStyle = FontStyles.Bold;
             }
+            Image grid = SeaKit.Sliced(_panel, "IkincilIzgara", "stat", new Vector2(0.035f, 0.508f),
+                                       new Vector2(0.965f, 0.690f), false);
+            grid.color = GridTint;
             for (int i = CoreStatCount; i < StatCount; i++)
             {
                 int col = (i - CoreStatCount) % 3, row = (i - CoreStatCount) / 3;
                 float x0 = 0.04f + col * 0.315f, x1 = x0 + 0.30f;
-                float y1 = 0.694f - row * 0.060f, y0 = y1 - 0.058f;
-                TMP_Text label = Line(_panel, "Ist" + i, 14f, new Vector2(x0, y0 + 0.030f), new Vector2(x1, y1));
+                float y1 = 0.684f - row * 0.058f, y0 = y1 - 0.056f;
+                TMP_Text label = Line(_panel, "Ist" + i, 14f, new Vector2(x0, y0 + 0.029f), new Vector2(x1, y1));
                 label.text = labels[i];
                 label.color = Faded;
-                _statValue[i] = Line(_panel, "Deger" + i, 18f, new Vector2(x0, y0), new Vector2(x1, y0 + 0.032f));
+                _statValue[i] = Line(_panel, "Deger" + i, 18f, new Vector2(x0, y0), new Vector2(x1, y0 + 0.031f));
                 _statValue[i].fontStyle = FontStyles.Bold;
             }
 
             // One icon per slot, in SeaCombat's own order — cannon, plating, spyglass, charm,
             // rigging. It was four entries against a five-slot loop, which threw IndexOutOfRange out
             // of BuildPanel and left the panel half-built, so every Update() after it raised a
-            // NullReference. Rigging has no art of its own yet and falls back to the flat skin below;
-            // the kit's rope hook is the nearest thing the pack ships.
-            Sprite[] icons = new Sprite[SeaCombat.SlotCount];
-            icons[SeaCombat.SlotCannon] = S("ikon_top");
-            icons[SeaCombat.SlotPlating] = S("ikon_zirh");
-            icons[SeaCombat.SlotSpyglass] = S("ikon_durbun");
-            icons[SeaCombat.SlotCharm] = S("ikon_tilsim");
-            icons[SeaCombat.SlotRigging] = S("kanca");
+            // NullReference. The kit finally gives rigging art of its own.
+            _slotIcon[SeaCombat.SlotCannon] = SeaKit.Get("top");
+            _slotIcon[SeaCombat.SlotPlating] = SeaKit.Get("zirh");
+            _slotIcon[SeaCombat.SlotSpyglass] = SeaKit.Get("durbun");
+            _slotIcon[SeaCombat.SlotCharm] = SeaKit.Get("tilsim");
+            _slotIcon[SeaCombat.SlotRigging] = SeaKit.Get("riging");
 
             // The row is laid out from the slot count rather than from a pitch measured against four,
             // or the fifth frame starts at 0.985 and hangs off the panel's right edge.
             const float rowLeft = 0.035f, rowRight = 0.965f, gap = 0.018f;
             float slotPitch = (rowRight - rowLeft) / SeaCombat.SlotCount;
 
-            Sprite star = S("yildiz");
+            Sprite star = SeaKit.Get("yildiz");
             for (int slot = 0; slot < SeaCombat.SlotCount; slot++)
             {
                 int captured = slot;
-                var go = new GameObject("Yuva" + slot, typeof(RectTransform), typeof(Image), typeof(Button));
-                go.transform.SetParent(_panel, false);
-                var frame = go.GetComponent<Image>();
-                frame.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
-                frame.type = Image.Type.Sliced;
                 float x0 = rowLeft + slot * slotPitch;
-                UiBuild.Anchor((RectTransform)go.transform,
-                               new Vector2(x0, 0.348f), new Vector2(x0 + slotPitch - gap, 0.505f));
+                // The kit's equipment slot: the icon in the well, the grade's stars in the strip along
+                // its foot. PillFit keeps the strip the same share of the slot at every size.
+                Image frame = SeaKit.Sliced(_panel, "Yuva" + slot, "slot", new Vector2(x0, 0.344f),
+                                            new Vector2(x0 + slotPitch - gap, 0.500f), true);
+                frame.raycastTarget = true;
                 _gearFrame[slot] = frame;
 
                 var icon = new GameObject("Ikon", typeof(RectTransform), typeof(Image));
-                icon.transform.SetParent(go.transform, false);
+                icon.transform.SetParent(frame.transform, false);
                 var ii = icon.GetComponent<Image>();
-                ii.sprite = icons[slot] != null ? icons[slot] : UiSkin.Flat;
+                ii.sprite = _slotIcon[slot] != null ? _slotIcon[slot] : UiSkin.Flat;
                 ii.preserveAspect = true;
                 ii.raycastTarget = false;
-                UiBuild.Anchor((RectTransform)icon.transform, new Vector2(0.14f, 0.30f), new Vector2(0.86f, 0.96f));
+                UiBuild.Anchor((RectTransform)icon.transform, new Vector2(0.18f, 0.29f), new Vector2(0.82f, 0.84f));
+                _gearIcon[slot] = ii;
 
                 _gearStars[slot] = new Image[SeaCombat.GradeMult.Length];
-                for (int g = 0; g < _gearStars[slot].Length; g++)
-                {
-                    var st = new GameObject("Yildiz" + g, typeof(RectTransform), typeof(Image));
-                    st.transform.SetParent(go.transform, false);
-                    var si = st.GetComponent<Image>();
-                    si.sprite = star != null ? star : UiSkin.Flat;
-                    si.preserveAspect = true;
-                    si.raycastTarget = false;
-                    float sx = 0.10f + g * 0.165f;
-                    UiBuild.Anchor((RectTransform)st.transform, new Vector2(sx, 0.05f), new Vector2(sx + 0.15f, 0.28f));
-                    st.SetActive(false);
-                    _gearStars[slot][g] = si;
-                }
+                Stars(frame.transform, star, _gearStars[slot]);
 
-                var button = go.GetComponent<Button>();
+                var button = frame.gameObject.AddComponent<Button>();
                 button.targetGraphic = frame;
                 button.onClick.AddListener(() => OnGearSlot(captured));
             }
 
-            // The captain line shares its band with the pet-equip strip: the label keeps the left
-            // half (two lines if a long name needs them), three pet slots take the right. The band
-            // is taller than the captain line alone needed because the slots are real tap targets
-            // with a portrait, a bonus and stars — the height came out of SEARCH/AUTO below.
-            _captainLabel = Line(_panel, "Kaptan", 22f, new Vector2(0.04f, 0.242f), new Vector2(0.50f, 0.344f));
+            // The captain line shares its band with the pet-equip strip: the kit's captain portrait and
+            // the label keep the left half (two lines if a long name needs them), three pet slots take
+            // the right. The band is taller than the captain line alone needed because the slots are
+            // real tap targets with a portrait, a bonus and stars — the height came out of SEARCH/AUTO.
+            _captainPortrait = SeaKit.Square(_panel, "KaptanPortre", "kaptan", new Vector2(0.035f, 0.035f),
+                                             new Vector2(0.246f, 0.334f), 0f);
+            _captainLabel = Line(_panel, "Kaptan", 22f, new Vector2(0.145f, 0.244f), new Vector2(0.50f, 0.336f));
             BuildPetSlots();
 
-            RectTransform pill = UiBuild.Flat(_panel, "EnerjiHapi", Chrome,
-                                              new Vector2(0.035f, 0.164f), new Vector2(0.70f, 0.232f));
-            var pi = pill.GetComponent<Image>();
-            pi.sprite = UiSkin.Pill != null ? UiSkin.Pill : UiSkin.Flat;
-            pi.type = Image.Type.Sliced;
-            pi.raycastTarget = false;
-            PillFit.Wrap(pi);
-            _energyLabel = Line(pill, "Yazi", 24f, new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.92f));
+            // The kit's energy pill: the bolt rides its left cap, the count reads after it.
+            Image pill = SeaKit.Sliced(_panel, "EnerjiHapi", "enerji_pili", new Vector2(0.035f, 0.166f),
+                                       new Vector2(0.835f, 0.236f), true);
+            if (pill.sprite == UiSkin.Flat) pill.color = Chrome;
+            _energyLabel = Line(pill.rectTransform, "Yazi", 24f, new Vector2(0.13f, 0.12f), new Vector2(0.96f, 0.88f));
             _energyLabel.color = EnergyTint;
 
             // The reference game's "extra stamina" grab, sat where the wait is read rather than
-            // behind a popup: the pill says how long the pool takes, the button beside it says
-            // what an ad would skip.
-            _energyAd = PanelButton("EnerjiReklam", UiSkin.ButtonGreen, new Vector2(0.72f, 0.164f),
-                                    new Vector2(0.965f, 0.232f), OnEnergyAd, out _energyAdLabel, 20f);
+            // behind a popup: the pill says how long the pool takes, the kit's "+" beside it says what
+            // an ad would skip — its caption on a small plate across the button's foot.
+            Image plus = SeaKit.Square(_panel, "EnerjiReklam", "enerji_ekle", new Vector2(0.952f, 0.952f),
+                                       new Vector2(0.160f, 0.242f), 1f);
+            plus.raycastTarget = true;
+            _energyAd = plus.gameObject.AddComponent<Button>();
+            _energyAd.targetGraphic = plus;
+            _energyAd.colors = Opaque(_energyAd.colors);
+            _energyAd.onClick.AddListener(OnEnergyAd);
+            Image tag = SeaKit.Sliced(plus.rectTransform, "Etiket", "stat", new Vector2(-0.26f, -0.10f),
+                                      new Vector2(1.14f, 0.28f), true);
+            tag.color = Outline;
+            _energyAdLabel = Line(tag.rectTransform, "Yazi", 17f, new Vector2(0.08f, 0.06f), new Vector2(0.92f, 0.94f));
+            _energyAdLabel.fontStyle = FontStyles.Bold;
 
-            _search = PanelButton("Ara", UiSkin.ButtonYellow, new Vector2(0.035f, 0.030f),
-                                  new Vector2(0.645f, 0.150f), OnSearch, out _searchLabel, 28f);
-            _autoBtn = PanelButton("Oto", UiSkin.ButtonGrey, new Vector2(0.685f, 0.030f),
-                                   new Vector2(0.965f, 0.150f), OnAuto, out _autoLabel, 26f);
+            _search = PanelButton("Ara", "ana_buton", new Vector2(0.035f, 0.030f),
+                                  new Vector2(0.645f, 0.148f), OnSearch, out _searchLabel, 28f, CompassSearch);
+            _autoBtn = PanelButton("Oto", "oto_buton", new Vector2(0.685f, 0.030f),
+                                   new Vector2(0.965f, 0.148f), OnAuto, out _autoLabel, 26f, 0f);
             _autoImage = _autoBtn.GetComponent<Image>();
             _autoLabel.text = Loc.T("deniz.oto");
+        }
+
+        /// <summary>A slot's star pips, laid across the kit slot's foot strip and hidden until a
+        /// refresh says how many to show.</summary>
+        private static void Stars(Transform slot, Sprite star, Image[] into)
+        {
+            float pitch = 0.74f / into.Length;
+            for (int g = 0; g < into.Length; g++)
+            {
+                var st = new GameObject("Yildiz" + g, typeof(RectTransform), typeof(Image));
+                st.transform.SetParent(slot, false);
+                var si = st.GetComponent<Image>();
+                si.sprite = star != null ? star : UiSkin.Flat;
+                si.preserveAspect = true;
+                si.raycastTarget = false;
+                float sx = 0.13f + g * pitch;
+                UiBuild.Anchor((RectTransform)st.transform, new Vector2(sx, 0.085f), new Vector2(sx + pitch * 0.92f, 0.225f));
+                st.SetActive(false);
+                into[g] = si;
+            }
         }
 
         /// <summary>
@@ -534,19 +654,16 @@ namespace Game.UI
         {
             const float left = 0.52f, right = 0.965f, gap = 0.016f;
             float pitch = (right - left) / Pets.SlotCount;
-            Sprite star = S("yildiz");
+            Sprite star = SeaKit.Get("yildiz");
 
             for (int slot = 0; slot < Pets.SlotCount; slot++)
             {
                 int captured = slot;
-                var go = new GameObject("EvcilYuva" + slot, typeof(RectTransform), typeof(Image), typeof(Button));
-                go.transform.SetParent(_panel, false);
-                var frame = go.GetComponent<Image>();
-                frame.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
-                frame.type = Image.Type.Sliced;
                 float x0 = left + slot * pitch;
-                UiBuild.Anchor((RectTransform)go.transform,
-                               new Vector2(x0, 0.246f), new Vector2(x0 + pitch - gap, 0.340f));
+                Image frame = SeaKit.Sliced(_panel, "EvcilYuva" + slot, "slot", new Vector2(x0, 0.244f),
+                                            new Vector2(x0 + pitch - gap, 0.336f), true);
+                frame.raycastTarget = true;
+                var go = frame.gameObject;
                 _petFrame[slot] = frame;
 
                 var portrait = new GameObject("Portre", typeof(RectTransform), typeof(Image));
@@ -555,32 +672,21 @@ namespace Game.UI
                 pi.preserveAspect = true;
                 pi.raycastTarget = false;
                 pi.enabled = false;
-                UiBuild.Anchor((RectTransform)portrait.transform, new Vector2(0.10f, 0.40f), new Vector2(0.90f, 0.97f));
+                UiBuild.Anchor((RectTransform)portrait.transform, new Vector2(0.12f, 0.44f), new Vector2(0.88f, 0.86f));
                 _petPortrait[slot] = pi;
 
                 TMP_Text bonus = Line((RectTransform)go.transform, "Bonus", 20f,
-                                      new Vector2(0.04f, 0.19f), new Vector2(0.96f, 0.40f));
+                                      new Vector2(0.06f, 0.25f), new Vector2(0.94f, 0.46f));
                 bonus.fontStyle = FontStyles.Bold;
                 bonus.color = Paper;
                 _petBonus[slot] = bonus;
 
                 _petStars[slot] = new Image[Pets.MaxStars];
-                for (int g = 0; g < Pets.MaxStars; g++)
-                {
-                    var st = new GameObject("Yildiz" + g, typeof(RectTransform), typeof(Image));
-                    st.transform.SetParent(go.transform, false);
-                    var si = st.GetComponent<Image>();
-                    si.sprite = star != null ? star : UiSkin.Flat;
-                    si.preserveAspect = true;
-                    si.raycastTarget = false;
-                    float sx = 0.07f + g * 0.176f;
-                    UiBuild.Anchor((RectTransform)st.transform, new Vector2(sx, 0.03f), new Vector2(sx + 0.16f, 0.18f));
-                    st.SetActive(false);
-                    _petStars[slot][g] = si;
-                }
+                Stars(go.transform, star, _petStars[slot]);
 
-                TMP_Text badge = Line((RectTransform)go.transform, "Rozet", 28f,
-                                      new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.92f));
+                // Sized for the lone "+" of an empty slot; LOCKED over its wins auto-sizes down.
+                TMP_Text badge = Line((RectTransform)go.transform, "Rozet", 44f,
+                                      new Vector2(0.08f, 0.26f), new Vector2(0.92f, 0.86f));
                 badge.fontStyle = FontStyles.Bold;
                 badge.color = Faded;
                 // Two lines, never three: LOCKED over "N WINS", shrunk to fit like the route pills'
@@ -588,7 +694,7 @@ namespace Game.UI
                 badge.textWrappingMode = TextWrappingModes.NoWrap;
                 _petBadge[slot] = badge;
 
-                var button = go.GetComponent<Button>();
+                var button = go.AddComponent<Button>();
                 button.targetGraphic = frame;
                 button.onClick.AddListener(() => OnPetSlot(captured));
                 _petButton[slot] = button;
@@ -676,9 +782,8 @@ namespace Game.UI
                 if (isUnlocked && Pets.Exists(species))
                     filled = _pets.TryBestOwned(species, out rarity, out star);
 
-                _petFrame[slot].color = filled ? _pets.RarityTint(rarity)
-                                       : isUnlocked ? new Color(0.35f, 0.40f, 0.48f, 0.9f)
-                                                     : new Color(0.20f, 0.23f, 0.29f, 0.9f);
+                _petFrame[slot].color = filled ? Color.Lerp(Color.white, _pets.RarityTint(rarity), FrameTintWeight)
+                                       : isUnlocked ? SlotEmpty : SlotLocked;
 
                 Sprite portrait = filled && _petConfig != null ? _petConfig.PortraitOf(Pets.IdOf(species)) : null;
                 _petPortrait[slot].enabled = portrait != null;
@@ -740,126 +845,191 @@ namespace Game.UI
         /// </summary>
         private void BuildRoutes()
         {
-            Sprite art = UiSkin.Pill != null ? UiSkin.Pill : UiSkin.Flat;
+            Sprite lockArt = SeaKit.Get("kilit");
             for (int tier = 0; tier < Voyages.TierCount; tier++)
             {
                 int captured = tier;
-                var go = new GameObject("Rota" + tier, typeof(RectTransform), typeof(Image), typeof(Button));
-                go.transform.SetParent(_panel, false);
-                var frame = go.GetComponent<Image>();
-                frame.sprite = art;
-                frame.type = Image.Type.Sliced;
                 float x0 = 0.035f + tier * 0.2375f;
-                UiBuild.Anchor((RectTransform)go.transform, new Vector2(x0, 0.858f),
-                               new Vector2(x0 + 0.22f, 0.922f));
-                PillFit.Wrap(frame);
-                _routeFrame[tier] = frame;
+                // The kit's route tab, drawn as its two halves so its star never stretches. The star
+                // rides the top edge and dips into the body, so the numeral sits below it.
+                RectTransform tab = SeaKit.Plate(_panel, "Rota" + tier, "rota", new Vector2(x0, 0.840f),
+                                                 new Vector2(x0 + 0.22f, 0.912f),
+                                                 out _routeLeft[tier], out _routeRight[tier]);
+                _routeLeft[tier].raycastTarget = true;
+                _routeRight[tier].raycastTarget = true;
 
-                _routeMark[tier] = Line((RectTransform)go.transform, "Kademe", 22f,
-                                        new Vector2(0.04f, 0.40f), new Vector2(0.96f, 0.97f));
+                // A locked route wears the kit's padlock beside what still opens it.
+                var lk = new GameObject("Kilit", typeof(RectTransform), typeof(Image));
+                lk.transform.SetParent(tab, false);
+                var li = lk.GetComponent<Image>();
+                li.sprite = lockArt != null ? lockArt : UiSkin.Flat;
+                li.preserveAspect = true;
+                li.raycastTarget = false;
+                UiBuild.Anchor((RectTransform)lk.transform, new Vector2(0.09f, 0.10f), new Vector2(0.30f, 0.64f));
+                lk.SetActive(false);
+                _routeLock[tier] = li;
+
+                // A fixed size, not auto-sized: Baloo2's tall line box made auto-size shrink a lone
+                // numeral to half the tab. RefreshRoutes sets it per state; the glyph may use the box's
+                // slack above and below.
+                _routeMark[tier] = Line(tab, "Kademe", RouteMarkOpen, new Vector2(0.06f, 0.10f), new Vector2(0.94f, 0.64f));
                 _routeMark[tier].fontStyle = FontStyles.Bold;
+                _routeMark[tier].enableAutoSizing = false;
+                _routeMark[tier].overflowMode = TextOverflowModes.Overflow;
                 _routeMark[tier].text = TierMark[tier];
-                _routeSub[tier] = Line((RectTransform)go.transform, "Sart", 12f,
-                                       new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.40f));
+                _routeSub[tier] = Line(tab, "Sart", 17f, new Vector2(0.30f, 0.08f), new Vector2(0.94f, 0.38f));
+                _routeSub[tier].fontStyle = FontStyles.Bold;
                 _routeSub[tier].color = Faded;
 
-                var button = go.GetComponent<Button>();
-                button.targetGraphic = frame;
+                // The halves tint by state, so the press is shown by the pick itself, not a tint.
+                var button = tab.gameObject.AddComponent<Button>();
+                button.transition = Selectable.Transition.None;
                 button.onClick.AddListener(() => OnRoute(captured));
                 _routeBtn[tier] = button;
             }
 
             _threatLine = Line(_panel, "TehditBandi", 17f,
-                               new Vector2(0.035f, 0.826f), new Vector2(0.965f, 0.856f));
+                               new Vector2(0.035f, 0.808f), new Vector2(0.965f, 0.836f));
             _lootLine = Line(_panel, "GanimetSinifi", 15f,
-                             new Vector2(0.035f, 0.796f), new Vector2(0.965f, 0.824f));
+                             new Vector2(0.035f, 0.784f), new Vector2(0.965f, 0.808f));
             _lootLine.richText = true;
         }
 
-        private Button PanelButton(string name, Sprite art, Vector2 aMin, Vector2 aMax,
-                                   UnityEngine.Events.UnityAction onClick, out TMP_Text label, float size)
+        /// <summary>
+        /// A kit capsule button — <c>ana_buton</c> (orange, the one move that matters) or
+        /// <c>oto_buton</c> (teal, everything else). The orange one carries a compass medallion in its
+        /// left cap, so its label starts after <paramref name="labelLeft"/> of the width.
+        /// </summary>
+        private static Button KitButton(RectTransform parent, string name, string art, Vector2 aMin, Vector2 aMax,
+                                        UnityEngine.Events.UnityAction onClick, out TMP_Text label, float size,
+                                        float labelLeft)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(_panel, false);
-            var image = go.GetComponent<Image>();
-            image.sprite = art != null ? art : UiSkin.Flat;
-            image.type = Image.Type.Sliced;
-            image.color = UiSkin.HasArt ? Color.white : Chrome;
-            UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
-            PillFit.Wrap(image);
-            label = Line((RectTransform)go.transform, "Yazi", size,
-                         new Vector2(0.05f, 0.1f), new Vector2(0.95f, 0.9f));
-            var b = go.GetComponent<Button>();
+            Image image = SeaKit.Sliced(parent, name, art, aMin, aMax, true);
+            image.raycastTarget = true;
+            if (image.sprite == UiSkin.Flat) image.color = Chrome;
+            label = Line(image.rectTransform, "Yazi", size,
+                         new Vector2(Mathf.Max(0.06f, labelLeft), 0.12f), new Vector2(0.94f, 0.88f));
+            label.fontStyle = FontStyles.Bold;
+            var b = image.gameObject.AddComponent<Button>();
             b.targetGraphic = image;
+            b.colors = Opaque(b.colors);
             b.onClick.AddListener(onClick);
             return b;
         }
 
-        // ------------------------------------------------------------ the cards
-        private RectTransform Card(string name, Vector2 aMin, Vector2 aMax)
+        /// <summary>
+        /// Keeps a disabled kit button solid. The default disabled tint is half transparent, which on
+        /// a pre-coloured button lets the panel read through and looks like a rendering fault rather
+        /// than "not now"; callers grey the art themselves when they switch it off.
+        /// </summary>
+        private static ColorBlock Opaque(ColorBlock colors)
         {
-            RectTransform card = UiBuild.Flat(_root, name, Chrome, aMin, aMax);
-            var img = card.GetComponent<Image>();
-            img.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
-            img.type = Image.Type.Sliced;
+            colors.disabledColor = new Color(0.78f, 0.78f, 0.78f, 1f);
+            return colors;
+        }
+
+        private Button PanelButton(string name, string art, Vector2 aMin, Vector2 aMax,
+                                   UnityEngine.Events.UnityAction onClick, out TMP_Text label, float size,
+                                   float labelLeft)
+            => KitButton(_panel, name, art, aMin, aMax, onClick, out label, size, labelLeft);
+
+        // ------------------------------------------------------------ the cards
+        /// <summary>
+        /// A card on the kit's info panel — opaque, so the sheet under it no longer reads through — with
+        /// the kit's title plate straddling its top edge, carrying the title. Returns the card; the
+        /// title label comes back through <paramref name="title"/>.
+        /// </summary>
+        private RectTransform Card(string name, Vector2 aMin, Vector2 aMax, out TMP_Text title)
+        {
+            Image img = SeaKit.Sliced(_root, name, "panel", aMin, aMax, false);
+            if (img.sprite == UiSkin.Flat) img.color = Chrome;
+            img.raycastTarget = true;
+            RectTransform card = img.rectTransform;
             // The card eats taps so nothing behind it can fire while the decision is open.
             card.gameObject.AddComponent<Button>().transition = Selectable.Transition.None;
+
+            RectTransform plate = SeaKit.Plate(card, "BaslikLevhasi", "plaka", new Vector2(0.16f, 1f), new Vector2(0.84f, 1f));
+            plate.offsetMin = new Vector2(0f, -64f);
+            plate.offsetMax = new Vector2(0f, 50f);
+            title = Line(plate, "Baslik", 34f, new Vector2(0.12f, 0.10f), new Vector2(0.88f, 0.58f));
+            title.fontStyle = FontStyles.Bold;
+
             card.gameObject.SetActive(false);
             return card;
         }
 
-        private Button CardButton(RectTransform card, string name, Sprite art, Vector2 aMin, Vector2 aMax,
-                                  UnityEngine.Events.UnityAction onClick, out TMP_Text label)
+        private static Button CardButton(RectTransform card, string name, string art, Vector2 aMin, Vector2 aMax,
+                                         UnityEngine.Events.UnityAction onClick, out TMP_Text label, float labelLeft)
+            => KitButton(card, name, art, aMin, aMax, onClick, out label, 26f, labelLeft);
+
+        /// <summary>A dark well on a card — the kit's stat card, tinted down.</summary>
+        private static Image Inset(RectTransform card, string name, Vector2 aMin, Vector2 aMax)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(card, false);
-            var image = go.GetComponent<Image>();
-            image.sprite = art != null ? art : UiSkin.Flat;
-            image.type = Image.Type.Sliced;
-            image.color = UiSkin.HasArt ? Color.white : Chrome;
-            UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
-            PillFit.Wrap(image);
-            label = Line((RectTransform)go.transform, "Yazi", 26f,
-                         new Vector2(0.05f, 0.1f), new Vector2(0.95f, 0.9f));
-            var b = go.GetComponent<Button>();
-            b.targetGraphic = image;
-            b.onClick.AddListener(onClick);
-            return b;
+            Image well = SeaKit.Sliced(card, name, "stat", aMin, aMax, false);
+            well.color = InsetTint;
+            return well;
         }
 
         /// <summary>The details card — the reference game's Monster Details: who this is, what it
         /// does, whether it outguns us, and the one decision: SAVAŞ! or VAZGEÇ.</summary>
         private void BuildFoundCard()
         {
-            _foundCard = Card("DetayKarti", new Vector2(0.06f, 0.31f), new Vector2(0.94f, 0.69f));
+            _foundCard = Card("DetayKarti", new Vector2(0.06f, 0.31f), new Vector2(0.94f, 0.69f), out _foundTitle);
 
-            _foundTitle = Line(_foundCard, "Baslik", 36f, new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.97f));
-            _foundTitle.fontStyle = FontStyles.Bold;
+            // The signature chip: a dark kit stat card with the signature written in its own colour —
+            // tinting the slate card itself turned CRIT's yellow into olive.
+            Image tag = SeaKit.Sliced(_foundCard, "Imza", "stat", new Vector2(0.28f, 0.795f),
+                                      new Vector2(0.72f, 0.880f), true);
+            tag.color = Outline;
+            _foundTagPill = tag;
+            _foundTag = Line(tag.rectTransform, "Yazi", 22f, new Vector2(0.08f, 0.10f), new Vector2(0.92f, 0.90f));
+            _foundTag.fontStyle = FontStyles.Bold;
 
-            RectTransform tag = UiBuild.Flat(_foundCard, "Imza", Chrome,
-                                             new Vector2(0.28f, 0.755f), new Vector2(0.72f, 0.845f));
-            _foundTagPill = tag.GetComponent<Image>();
-            _foundTagPill.sprite = UiSkin.Pill != null ? UiSkin.Pill : UiSkin.Flat;
-            _foundTagPill.type = Image.Type.Sliced;
-            _foundTagPill.raycastTarget = false;
-            PillFit.Wrap(_foundTagPill);
-            _foundTag = Line(tag, "Yazi", 22f, new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.92f));
-
-            _foundDanger = Line(_foundCard, "Uyari", 30f, new Vector2(0.05f, 0.655f), new Vector2(0.95f, 0.745f));
+            // DANGEROUS, with the kit's warning sign beside the word. The word is short and set
+            // at a fixed size, so FillFoundCard can place the sign against its measured width.
+            _foundDanger = Line(_foundCard, "Uyari", 30f, new Vector2(0.05f, 0.700f), new Vector2(0.95f, 0.785f));
             _foundDanger.fontStyle = FontStyles.Bold;
+            _foundDanger.enableAutoSizing = false;
+            var sign = new GameObject("UyariIkon", typeof(RectTransform), typeof(Image));
+            sign.transform.SetParent(_foundDanger.transform, false);
+            _foundDangerIcon = sign.GetComponent<Image>();
+            Sprite danger = SeaKit.Get("tehlike");
+            _foundDangerIcon.sprite = danger != null ? danger : UiSkin.Flat;
+            _foundDangerIcon.preserveAspect = true;
+            _foundDangerIcon.raycastTarget = false;
+            var srt = (RectTransform)sign.transform;
+            srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0.5f);
+            srt.sizeDelta = new Vector2(56f, 56f);
 
-            _foundPower = Line(_foundCard, "Guc", 27f, new Vector2(0.05f, 0.545f), new Vector2(0.95f, 0.645f));
-            _foundStats = Line(_foundCard, "Blok", 23f, new Vector2(0.07f, 0.315f), new Vector2(0.93f, 0.535f));
-            _foundReward = Line(_foundCard, "Odul", 21f, new Vector2(0.05f, 0.225f), new Vector2(0.95f, 0.305f));
+            _foundPower = Line(_foundCard, "Guc", 27f, new Vector2(0.05f, 0.610f), new Vector2(0.95f, 0.695f));
+            Image block = Inset(_foundCard, "BlokKuyusu", new Vector2(0.07f, 0.380f), new Vector2(0.93f, 0.600f));
+            _foundStats = Line(block.rectTransform, "Blok", 23f, new Vector2(0.04f, 0.06f), new Vector2(0.96f, 0.94f));
+
+            // What a win pays, as the kit's three loot icons over the words that name them — gear
+            // (the cannon stands for the whole loadout), charts, salvage — in the words' own order.
+            string[] loot = { "top", "harita", "hurda" };
+            for (int i = 0; i < loot.Length; i++)
+            {
+                var go = new GameObject("OdulIkon" + i, typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(_foundCard, false);
+                var icon = go.GetComponent<Image>();
+                Sprite art = SeaKit.Get(loot[i]);
+                icon.sprite = art != null ? art : UiSkin.Flat;
+                icon.preserveAspect = true;
+                icon.raycastTarget = false;
+                float cx = 0.34f + i * 0.16f;
+                UiBuild.Anchor((RectTransform)go.transform, new Vector2(cx - 0.06f, 0.262f), new Vector2(cx + 0.06f, 0.364f));
+            }
+            _foundReward = Line(_foundCard, "Odul", 21f, new Vector2(0.05f, 0.208f), new Vector2(0.95f, 0.260f));
             _foundReward.color = Faded;
 
             TMP_Text fightLabel, passLabel;
-            CardButton(_foundCard, "Savas", UiSkin.ButtonGreen, new Vector2(0.07f, 0.05f),
-                       new Vector2(0.60f, 0.19f), OnConfirm, out fightLabel);
+            CardButton(_foundCard, "Savas", "ana_buton", new Vector2(0.07f, 0.04f),
+                       new Vector2(0.60f, 0.18f), OnConfirm, out fightLabel, CompassCard);
             fightLabel.text = Loc.T("deniz.savas");
             fightLabel.fontSize = 30f;
-            CardButton(_foundCard, "Vazgec", UiSkin.ButtonGrey, new Vector2(0.64f, 0.05f),
-                       new Vector2(0.93f, 0.19f), OnDecline, out passLabel);
+            CardButton(_foundCard, "Vazgec", "oto_buton", new Vector2(0.64f, 0.04f),
+                       new Vector2(0.93f, 0.18f), OnDecline, out passLabel, 0f);
             passLabel.text = Loc.T("deniz.vazgec");
         }
 
@@ -867,35 +1037,30 @@ namespace Game.UI
         /// the worn thing beside the dropped thing, row by row, delta on top.</summary>
         private void BuildLootCard()
         {
-            _lootCard = Card("GanimetKarti", new Vector2(0.05f, 0.29f), new Vector2(0.95f, 0.71f));
+            _lootCard = Card("GanimetKarti", new Vector2(0.05f, 0.32f), new Vector2(0.95f, 0.68f), out _lootTitle);
 
-            _lootTitle = Line(_lootCard, "Baslik", 32f, new Vector2(0.05f, 0.885f), new Vector2(0.95f, 0.975f));
-            _lootTitle.fontStyle = FontStyles.Bold;
-            _lootDelta = Line(_lootCard, "Fark", 27f, new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.875f));
+            _lootDelta = Line(_lootCard, "Fark", 27f, new Vector2(0.05f, 0.78f), new Vector2(0.95f, 0.86f));
             _lootDelta.fontStyle = FontStyles.Bold;
 
-            _curFrame = Column(new Vector2(0.05f, 0.24f), new Vector2(0.485f, 0.79f),
+            _curFrame = Column(new Vector2(0.05f, 0.25f), new Vector2(0.485f, 0.765f),
                                out _curHead, out _curGrade, out _curRows);
-            _newFrame = Column(new Vector2(0.515f, 0.24f), new Vector2(0.95f, 0.79f),
+            _newFrame = Column(new Vector2(0.515f, 0.25f), new Vector2(0.95f, 0.765f),
                                out _newHead, out _newGrade, out _newRows);
             _curHead.text = Loc.T("deniz.mevcut");
             _newHead.text = Loc.T("deniz.yeni");
 
             TMP_Text equipLabel;
-            CardButton(_lootCard, "Giydir", UiSkin.ButtonGreen, new Vector2(0.07f, 0.05f),
-                       new Vector2(0.48f, 0.19f), OnEquip, out equipLabel);
+            CardButton(_lootCard, "Giydir", "ana_buton", new Vector2(0.07f, 0.05f),
+                       new Vector2(0.48f, 0.20f), OnEquip, out equipLabel, CompassWide);
             equipLabel.text = Loc.T("deniz.giydir");
-            CardButton(_lootCard, "Sok", UiSkin.ButtonGrey, new Vector2(0.52f, 0.05f),
-                       new Vector2(0.93f, 0.19f), OnScrap, out _scrapLabel);
+            CardButton(_lootCard, "Sok", "oto_buton", new Vector2(0.52f, 0.05f),
+                       new Vector2(0.93f, 0.20f), OnScrap, out _scrapLabel, 0f);
         }
 
         private Image Column(Vector2 aMin, Vector2 aMax, out TMP_Text head, out TMP_Text grade, out TMP_Text rows)
         {
-            RectTransform col = UiBuild.Flat(_lootCard, "Sutun", new Color(0f, 0f, 0f, 0.30f), aMin, aMax);
-            var img = col.GetComponent<Image>();
-            img.sprite = UiSkin.Panel != null ? UiSkin.Panel : UiSkin.Flat;
-            img.type = Image.Type.Sliced;
-            img.raycastTarget = false;
+            Image img = Inset(_lootCard, "Sutun", aMin, aMax);
+            RectTransform col = img.rectTransform;
             head = Line(col, "Bas", 22f, new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.98f));
             head.color = Faded;
             grade = Line(col, "Derece", 24f, new Vector2(0.05f, 0.70f), new Vector2(0.95f, 0.85f));
@@ -908,17 +1073,24 @@ namespace Game.UI
         /// <summary>The worn-item popup off the sheet's slots: what it does, SÖK for salvage.</summary>
         private void BuildGearCard()
         {
-            _gearCard = Card("TakiKarti", new Vector2(0.14f, 0.32f), new Vector2(0.86f, 0.68f));
-            _gearTitle = Line(_gearCard, "Baslik", 30f, new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.96f));
-            _gearTitle.fontStyle = FontStyles.Bold;
-            _gearRows = Line(_gearCard, "Satirlar", 24f, new Vector2(0.08f, 0.30f), new Vector2(0.92f, 0.82f));
+            _gearCard = Card("TakiKarti", new Vector2(0.14f, 0.32f), new Vector2(0.86f, 0.68f), out _gearTitle);
+
+            // The slot's own kit icon, so the card says which slot it is before a word is read.
+            var icon = new GameObject("Ikon", typeof(RectTransform), typeof(Image));
+            icon.transform.SetParent(_gearCard, false);
+            _gearCardIcon = icon.GetComponent<Image>();
+            _gearCardIcon.preserveAspect = true;
+            _gearCardIcon.raycastTarget = false;
+            UiBuild.Anchor((RectTransform)icon.transform, new Vector2(0.38f, 0.70f), new Vector2(0.62f, 0.88f));
+
+            _gearRows = Line(_gearCard, "Satirlar", 24f, new Vector2(0.08f, 0.26f), new Vector2(0.92f, 0.68f));
             _gearRows.alignment = TextAlignmentOptions.Top;
 
             TMP_Text closeLabel;
-            _gearScrap = CardButton(_gearCard, "Sok", UiSkin.ButtonGrey, new Vector2(0.07f, 0.06f),
-                                    new Vector2(0.52f, 0.22f), OnGearScrap, out _gearScrapLabel);
-            CardButton(_gearCard, "Kapat", UiSkin.ButtonBlue, new Vector2(0.56f, 0.06f),
-                       new Vector2(0.93f, 0.22f), OnGearClose, out closeLabel);
+            _gearScrap = CardButton(_gearCard, "Sok", "oto_buton", new Vector2(0.07f, 0.06f),
+                                    new Vector2(0.52f, 0.21f), OnGearScrap, out _gearScrapLabel, 0f);
+            CardButton(_gearCard, "Kapat", "oto_buton", new Vector2(0.56f, 0.06f),
+                       new Vector2(0.93f, 0.21f), OnGearClose, out closeLabel, 0f);
             closeLabel.text = Loc.T("deniz.kapat");
         }
 
@@ -1023,6 +1195,7 @@ namespace Game.UI
             _gearShown = slot;
             FillGearCard();
             _gearCard.gameObject.SetActive(true);
+            RefreshScrim();
             ServiceLocator.Get<HapticService>()?.Light();
         }
 
@@ -1038,6 +1211,14 @@ namespace Game.UI
         {
             _gearShown = -1;
             _gearCard.gameObject.SetActive(false);
+            RefreshScrim();
+        }
+
+        private void RefreshScrim()
+        {
+            bool open = _foundCard.gameObject.activeSelf || _lootCard.gameObject.activeSelf
+                     || _gearCard.gameObject.activeSelf;
+            if (_scrim.activeSelf != open) _scrim.SetActive(open);
         }
 
         // ----------------------------------------------------------------- drive
@@ -1058,6 +1239,8 @@ namespace Game.UI
                     : Loc.T("deniz.yenildik");
             }
             if (_toast > 0f) { _toast -= dt; if (_toast <= 0f) _banner.text = string.Empty; }
+            bool toasting = _toast > 0f;
+            if (_bannerBack.activeSelf != toasting) _bannerBack.SetActive(toasting);
 
             if (phase != _seenPhase)
             {
@@ -1081,13 +1264,6 @@ namespace Game.UI
 
             float w = _stage.rect.width, h = _stage.rect.height;
             float t = Time.time;
-
-            if (_horizonWaves.texture != null)
-                _horizonWaves.uvRect = new Rect(t * 0.020f, 0f, 3f, 1f);
-            if (_frontWaves.texture != null)
-                _frontWaves.uvRect = new Rect(-t * 0.045f, 0f, 3.6f, 1f);
-            for (int i = 0; i < _clouds.Length; i++)
-                _clouds[i].anchoredPosition = new Vector2(Mathf.Sin(t * 0.05f + i * 2.4f) * 26f, 0f);
 
             DriveShip(w, h, t, dt);
             DriveThreat(phase, w, h, t);
@@ -1121,8 +1297,12 @@ namespace Game.UI
             if (visible && kind != _seenKind)
             {
                 _seenKind = kind;
-                Sprite art = S(KindSprite[Mathf.Clamp(kind, 0, KindSprite.Length - 1)]);
+                bool raider;
+                Sprite art = ThreatArt(kind, out raider);
                 if (art != null) _threatImage.sprite = art;
+                // Every older threat sprite faces right and is mirrored to face us; the kit's pirate
+                // ship is drawn already facing left, so mirroring it would turn its stern on us.
+                _threatImage.rectTransform.localScale = new Vector3(raider ? 1f : -1f, 1f, 1f);
                 _threatName.text = Loc.T("deniz.tehdit." + kind);
             }
 
@@ -1173,6 +1353,21 @@ namespace Game.UI
             }
         }
 
+        /// <summary>The raider is the kit's pirate ship; the other kinds keep the theater set's art.
+        /// <paramref name="raider"/> says whether the kit ship was used, which decides the facing.</summary>
+        private static Sprite ThreatArt(int kind, out bool raider)
+        {
+            if (kind == SeaCombat.Raider)
+            {
+                Sprite ship = SeaKit.Get("korsan_gemisi");
+                raider = ship != null;
+                if (raider) return ship;
+            }
+            raider = false;
+            string name = KindSprite[Mathf.Clamp(kind, 0, KindSprite.Length - 1)];
+            return name != null ? S(name) : null;
+        }
+
         private static void SizeVessel(RectTransform root, float height)
         {
             var img = (RectTransform)root.GetChild(0);
@@ -1192,14 +1387,16 @@ namespace Game.UI
 
             SeaCombat.Fight f = _fights.Current;
             float hull = fighting && f.Them.HullMax > 0d ? (float)(f.Them.Hull / f.Them.HullMax) : 1f;
-            _hullTrack.sizeDelta = new Vector2(w * 0.24f, h * 0.034f);
-            _hullTrack.anchoredPosition = new Vector2(w * 0.74f, h * 0.66f);
+            // Sized by the heart frame's own aspect, so the heart stays round on any screen.
+            _hullTrack.sizeDelta = new Vector2(w * 0.30f, w * 0.30f / _barAspect);
+            // Just clear of the masthead: the kit ships are tall, and at 0.66 the bar sat on the flag.
+            _hullTrack.anchoredPosition = new Vector2(w * 0.74f, h * 0.70f);
             _hullFill.anchorMax = new Vector2(Mathf.Clamp01(hull), 1f);
-            _threatName.rectTransform.anchoredPosition = new Vector2(w * 0.74f, h * 0.715f);
+            _threatName.rectTransform.anchoredPosition = new Vector2(w * 0.74f, h * 0.70f + w * 0.075f);
 
             if (!fighting) return;
-            _nerveTrack.sizeDelta = new Vector2(w * 0.20f, h * 0.030f);
-            _nerveTrack.anchoredPosition = new Vector2(w * 0.26f, h * 0.66f);
+            _nerveTrack.sizeDelta = new Vector2(w * 0.26f, w * 0.26f / _barAspect);
+            _nerveTrack.anchoredPosition = new Vector2(w * 0.26f, h * 0.70f);
             _nerveFill.anchorMax = new Vector2(
                 Mathf.Clamp01(f.Us.HullMax > 0d ? (float)(f.Us.Hull / f.Us.HullMax) : 0f), 1f);
         }
@@ -1431,7 +1628,8 @@ namespace Game.UI
                 if (auto != _lastAuto)
                 {
                     _lastAuto = auto;
-                    _autoImage.color = auto ? Easy : Color.white;
+                    _autoImage.color = auto ? AutoOn : Color.white;
+                    _autoLabel.color = auto ? CritTint : Color.white;
                 }
 
                 RefreshEnergyAd(have);
@@ -1477,8 +1675,11 @@ namespace Game.UI
             for (int slot = 0; slot < SeaCombat.SlotCount; slot++)
             {
                 int grade = _sea.GearGrade(slot);
-                _gearFrame[slot].color = grade < 0 ? new Color(0.35f, 0.40f, 0.48f, 0.9f)
-                                                   : GradeTint[Mathf.Clamp(grade, 0, GradeTint.Length - 1)];
+                _gearFrame[slot].color = grade < 0
+                    ? SlotEmpty
+                    : Color.Lerp(Color.white, GradeTint[Mathf.Clamp(grade, 0, GradeTint.Length - 1)], FrameTintWeight);
+                // An empty slot keeps its icon as a ghost, so the row still says what goes where.
+                _gearIcon[slot].color = grade < 0 ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
                 Image[] stars = _gearStars[slot];
                 for (int g = 0; g < stars.Length; g++)
                     stars[g].gameObject.SetActive(grade >= 0 && g <= grade);
@@ -1492,6 +1693,8 @@ namespace Game.UI
             else captain = Loc.T("deniz.kaptanyok");
             Push(_captainLabel, captain, ref _lastCaptain);
             _captainLabel.color = aboard >= 0 ? Paper : Faded;
+            // One painted captain stands for whoever is aboard; with nobody at the wheel he greys out.
+            _captainPortrait.color = aboard >= 0 ? Color.white : new Color(0.45f, 0.48f, 0.54f, 0.7f);
 
             // The threat reading is OUR power against theirs and the drop odds lean on the worn
             // spyglass, so both move with the sheet and re-derive here rather than on their own clock.
@@ -1505,7 +1708,7 @@ namespace Game.UI
         /// </summary>
         private void RefreshRoutes()
         {
-            if (_sea == null || _routeFrame[0] == null) return;
+            if (_sea == null || _routeLeft[0] == null) return;
             int tier = _sea.Tier, max = _sea.MaxTier;
             if (tier == _routeSeenTier && max == _routeSeenMax) return;
             _routeSeenTier = tier;
@@ -1515,14 +1718,22 @@ namespace Game.UI
             {
                 bool open = t <= max;
                 bool picked = open && t == tier;
-                _routeFrame[t].color = picked ? EnergyTint
-                                     : open ? new Color(0.42f, 0.48f, 0.58f, 1f)
-                                            : new Color(0.22f, 0.26f, 0.33f, 1f);
-                _routeMark[t].color = picked ? Chrome : (open ? Paper : Faded);
+                // The pick is the tab as drawn, full size; an open route dims; a locked one darkens,
+                // shows the padlock, and moves its numeral over to make room for it.
+                Color tab = picked ? Color.white : (open ? RouteOpen : RouteLocked);
+                _routeLeft[t].color = tab;
+                _routeRight[t].color = tab;
+                _routeBtn[t].transform.localScale = picked ? Vector3.one : new Vector3(0.93f, 0.93f, 1f);
+                _routeLock[t].gameObject.SetActive(!open);
+
+                RectTransform mark = _routeMark[t].rectTransform;
+                mark.anchorMin = new Vector2(open ? 0.06f : 0.30f, open ? 0.10f : 0.36f);
+                mark.anchorMax = new Vector2(open ? 0.94f : 0.92f, 0.64f);
+                _routeMark[t].fontSize = open ? RouteMarkOpen : RouteMarkLocked;
+                _routeMark[t].color = picked ? EnergyTint : (open ? Paper : Faded);
                 _routeSub[t].text = open
                     ? string.Empty
                     : string.Format(Loc.T("deniz.rotaKilit"), _sea.FightsToUnlock(t));
-                _routeSub[t].color = picked ? Chrome : Faded;
             }
 
             RefreshPreview();
@@ -1619,12 +1830,26 @@ namespace Game.UI
             int sig = SeaCombat.SignatureOf(kind);
             _foundTag.text = sig == SeaCombat.SecNone
                 ? Loc.T("deniz.savunmasiz") : Loc.T(SecKey(sig)) + "  " + Pct(SigAmount(them, sig));
-            _foundTagPill.color = sig == SeaCombat.SecNone ? Easy : SecTint(sig);
+            _foundTag.color = sig == SeaCombat.SecNone ? Easy : SecTint(sig);
 
             int menace = _fights.MenaceLevel;
             _foundDanger.gameObject.SetActive(menace != 1);
             _foundDanger.text = menace == 2 ? Loc.T("deniz.tehlikeli") : Loc.T("deniz.kolay");
             _foundDanger.color = menace == 2 ? Danger : Easy;
+            // An even match has no verdict line, so the power line moves up into its place rather
+            // than leaving a hole between the chip and the stat block.
+            RectTransform power = _foundPower.rectTransform;
+            power.anchorMin = new Vector2(0.05f, menace != 1 ? 0.610f : 0.655f);
+            power.anchorMax = new Vector2(0.95f, menace != 1 ? 0.695f : 0.760f);
+
+            // The warning sign stands just left of the word, whatever the language made it.
+            _foundDangerIcon.gameObject.SetActive(menace == 2);
+            if (menace == 2)
+            {
+                float word = _foundDanger.GetPreferredValues(_foundDanger.text).x;
+                var sign = _foundDangerIcon.rectTransform;
+                sign.anchoredPosition = new Vector2(-(word * 0.5f + 14f + sign.sizeDelta.x * 0.5f), 0f);
+            }
 
             _foundPower.text = Loc.T("deniz.guc") + " " + N(_fights.ThreatPower)
                              + "   ·   " + Loc.T("deniz.biz") + " " + N(_fights.OurPower);
@@ -1651,8 +1876,9 @@ namespace Game.UI
             SeaCombat.Tuning t = _fights.Combat;
             Color tint = GradeTint[Mathf.Clamp(drop.Grade, 0, GradeTint.Length - 1)];
 
+            // White on the teal title plate — a blue or purple grade would sink into it; the grade's
+            // colour is carried by the NEW column's grade line below.
             _lootTitle.text = Loc.T("kaptan.derece." + drop.Grade) + "  ·  " + Loc.T("deniz.slot." + drop.Slot);
-            _lootTitle.color = tint;
 
             int delta = SeaCombat.ItemScore(drop, t) - (_sea != null ? _sea.GearScore(drop.Slot) : 0);
             _lootDelta.text = Loc.T("deniz.guc") + "  " + (delta >= 0 ? "+" : "") + delta;
@@ -1663,20 +1889,20 @@ namespace Game.UI
                 _curGrade.text = Loc.T("deniz.bos");
                 _curGrade.color = Faded;
                 _curRows.text = string.Empty;
-                _curFrame.color = new Color(0.30f, 0.34f, 0.42f, 0.85f);
+                _curFrame.color = InsetEmpty;
             }
             else
             {
                 _curGrade.text = Loc.T("kaptan.derece." + cur.Grade);
                 _curGrade.color = GradeTint[Mathf.Clamp(cur.Grade, 0, GradeTint.Length - 1)];
                 _curRows.text = ItemRows(cur, cur, false);
-                _curFrame.color = new Color(0.16f, 0.20f, 0.28f, 0.95f);
+                _curFrame.color = InsetTint;
             }
 
             _newGrade.text = Loc.T("kaptan.derece." + drop.Grade);
             _newGrade.color = tint;
             _newRows.text = ItemRows(drop, cur, true);
-            _newFrame.color = new Color(0.16f, 0.20f, 0.28f, 0.95f);
+            _newFrame.color = InsetTint;
 
             _scrapLabel.text = string.Format(Loc.T("deniz.sok"), SeaCombat.ScrapFor(drop.Grade));
         }
@@ -1713,6 +1939,9 @@ namespace Game.UI
         private void FillGearCard()
         {
             SeaCombat.Item item = _sea.GearItem(_gearShown);
+            Sprite icon = _slotIcon[_gearShown];
+            _gearCardIcon.sprite = icon != null ? icon : UiSkin.Flat;
+            _gearCardIcon.color = item.Grade < 0 ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
             if (item.Grade < 0)
             {
                 _gearTitle.text = Loc.T("deniz.slot." + _gearShown);
@@ -1721,8 +1950,9 @@ namespace Game.UI
                 _gearScrap.gameObject.SetActive(false);
                 return;
             }
+            // White on the plate, as on the compare card; the grade shows in the rows' own tint.
             _gearTitle.text = Loc.T("kaptan.derece." + item.Grade) + "  ·  " + Loc.T("deniz.slot." + _gearShown);
-            _gearTitle.color = GradeTint[Mathf.Clamp(item.Grade, 0, GradeTint.Length - 1)];
+            _gearTitle.color = Paper;
             _gearRows.text = Loc.T("deniz.guc") + "  " + _sea.GearScore(_gearShown) + "\n"
                            + ItemRows(item, item, false);
             _gearScrap.gameObject.SetActive(true);
@@ -1736,6 +1966,7 @@ namespace Game.UI
             _foundCard.gameObject.SetActive(phase == EncounterController.Phase.Found);
             _lootCard.gameObject.SetActive(phase == EncounterController.Phase.Loot);
             if (phase != EncounterController.Phase.Idle) OnGearClose();
+            RefreshScrim();
         }
 
         // ---------------------------------------------------------------- helpers

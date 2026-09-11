@@ -17,6 +17,7 @@ its artboard.
 | `rasterize_harita.py` | Renders the above straight into `Assets/Art/UI/Harita/`. |
 | `yeni_parcalar.py` | The earlier batch: rope link, page pips, "you are here" pin, gem price pill, contract icon. |
 | `rasterize_yeni.py` | Renders that batch into a local `png/` folder; the pieces were filed into `Gostergeler/`, `Ikonlar/` and `Butonlar/` by hand. |
+| `deniz_tasarim_kiti.ps1` | Derives the sea screen's kit from the 25-piece design set in `Assets/UI DESİGNS/Deniz ekranı tasarım`: trims, downscales, clamps alpha, splits the HP bar and the two ornamented plates, into `Assets/Art/UI/DenizKiti/` (packed by `Resources/UI/Sea/DenizKiti.spriteatlasv2`) plus the backdrop in `Resources/UI/Sea/`. Windows PowerShell only — no Python needed. It prints the nine-slice borders to re-apply if a size changes. |
 
 ## Running
 

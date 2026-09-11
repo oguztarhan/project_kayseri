@@ -138,6 +138,86 @@ namespace Game.Tests
         }
 
         [Test]
+        public void TargetedScrapCostScalesWithTheSelectedSlotsCurrentGrade()
+        {
+            var data = new SaveData { miningGearGrade = new[] { 0, 1, 2, 5 } };
+            MiningGearService s = Make(data);
+
+            Assert.That(s.TargetedScrapCost(0), Is.EqualTo(MiningGear.ScrapFor(0)));
+            Assert.That(s.TargetedScrapCost(1), Is.EqualTo(MiningGear.ScrapFor(1)));
+            Assert.That(s.TargetedScrapCost(2), Is.EqualTo(MiningGear.ScrapFor(2)));
+            Assert.That(s.TargetedScrapCost(3), Is.EqualTo(MiningGear.ScrapFor(4)));
+            Assert.That(s.TargetedScrapCost(-1), Is.EqualTo(long.MaxValue));
+        }
+
+        [Test]
+        public void TargetedCraftSpendsBothCurrenciesAndUsesTheChosenSlot()
+        {
+            var data = new SaveData
+            {
+                miningPoints = T.CraftCost,
+                miningScrap = 20L,
+                miningGearGrade = new[] { 1, 0, 0, 0 },
+            };
+            MiningGearService s = Make(data);
+            long scrapCost = s.TargetedScrapCost(MiningGear.SlotPickaxe);
+
+            MiningGearService.CraftResult result = s.TryTargetedCraftWithRolls(
+                MiningGear.SlotPickaxe, 0.999d);
+
+            Assert.That(result.Crafted, Is.True);
+            Assert.That(result.Targeted, Is.True);
+            Assert.That(result.Slot, Is.EqualTo(MiningGear.SlotPickaxe));
+            Assert.That(result.ScrapSpent, Is.EqualTo(scrapCost));
+            Assert.That(s.Points, Is.Zero);
+            Assert.That(s.Scrap, Is.EqualTo(20L - scrapCost + result.ScrapEarned));
+            Assert.That(s.WornGrade(MiningGear.SlotPickaxe), Is.EqualTo((int)Captains.Grade.Mythic));
+        }
+
+        [Test]
+        public void TargetedCraftRefusesWithoutEitherBalanceAndLeavesBothUntouched()
+        {
+            var data = new SaveData
+            {
+                miningPoints = T.CraftCost - 1L,
+                miningScrap = 0L,
+            };
+            MiningGearService s = Make(data);
+
+            MiningGearService.CraftResult result = s.TryTargetedCraftWithRolls(MiningGear.SlotBag, 0.5d);
+
+            Assert.That(result.Crafted, Is.False);
+            Assert.That(s.Points, Is.EqualTo(T.CraftCost - 1L));
+            Assert.That(s.Scrap, Is.Zero);
+            Assert.That(s.WornGrade(MiningGear.SlotBag), Is.EqualTo(MiningGear.NoGrade));
+        }
+
+        [Test]
+        public void TargetedCraftCommitsCostsBeforeTheResultCanBeRevealed()
+        {
+            var data = new SaveData
+            {
+                miningPoints = T.CraftCost,
+                miningScrap = 10L,
+            };
+            MiningGearService s = Make(data);
+            long scrapCost = s.TargetedScrapCost(MiningGear.SlotHelmet);
+
+            MiningGearService.CraftResult result = s.TryTargetedCraftWithRolls(
+                MiningGear.SlotHelmet, 0.1d);
+            Assert.That(result.Crafted, Is.True);
+
+            var save = new SaveService("phase3-mining-test.dat") { Suspended = true };
+            SaveData reloaded = save.Decrypt(save.Encrypt(data), out bool tampered);
+
+            Assert.That(tampered, Is.False);
+            Assert.That(reloaded.miningPoints, Is.EqualTo(0L));
+            Assert.That(reloaded.miningScrap, Is.EqualTo(10L - scrapCost + result.ScrapEarned));
+            Assert.That(reloaded.miningGearGrade[MiningGear.SlotHelmet],
+                        Is.EqualTo(data.miningGearGrade[MiningGear.SlotHelmet]));
+        }
+
+        [Test]
         public void EquippingOverAWornItemScrapsTheDisplacedOneNotTheNewOne()
         {
             var data = new SaveData

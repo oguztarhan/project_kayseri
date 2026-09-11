@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Gameplay;
 using Game.Systems;
 using UnityEngine;
 using UnityEngine.UI;
@@ -115,8 +116,14 @@ namespace Game.UI
         // ---- katalog
         private readonly Text[] _entryName = new Text[64];
         private readonly Text[] _entryState = new Text[64];
+        private readonly Text[] _entryQuantity = new Text[64];
         private readonly Image[] _entryStripe = new Image[64];
         private Text _oresTitle, _goodsTitle;
+
+        // CoalOperation keeps the live ore buffers on the island component. Cache the components
+        // when the catalogue is opened so the once-a-second refresh only loops those references.
+        // The catalogue is a reader: no quantity here is persisted or consumed.
+        private CoalOperation[] _operations;
 
         /// <summary>What the action strip is pointed at: a shelf id, or a worn slot, or nothing.
         /// Never a cell index — see the class header.</summary>
@@ -181,12 +188,15 @@ namespace Game.UI
         {
             if (_root == null) Build();
             if (_root != null) _root.gameObject.SetActive(true);
+            _operations = FindObjectsByType<CoalOperation>(FindObjectsInactive.Include);
             Refresh();
         }
 
         public void Hide()
         {
             if (_root != null) _root.gameObject.SetActive(false);
+            CancelInvoke(nameof(RefreshCatalogueQuantities));
+            _operations = null;
             ClearPick();
         }
 
@@ -427,6 +437,10 @@ namespace Game.UI
                 _entryState[e] = UiBuild.Label(Zone(row, "Durum", new Vector2(0.08f, 0f), new Vector2(1f, 0.46f)),
                                                "Text", string.Empty, 17, TextAnchor.UpperLeft);
                 Fit(_entryState[e], 9, 17);
+                _entryQuantity[e] = UiBuild.Label(Zone(row, "Miktar", new Vector2(0.08f, 0f), new Vector2(1f, 0.23f)),
+                                                  "Text", string.Empty, 15, TextAnchor.LowerLeft);
+                _entryQuantity[e].color = InkSoft;
+                Fit(_entryQuantity[e], 8, 15);
             }
         }
 
@@ -436,6 +450,12 @@ namespace Game.UI
             if (_showCatalogue == catalogue && _root != null && _root.gameObject.activeSelf) return;
             _showCatalogue = catalogue;
             ClearPick();
+            CancelInvoke(nameof(RefreshCatalogueQuantities));
+            if (_showCatalogue)
+            {
+                _operations = FindObjectsByType<CoalOperation>(FindObjectsInactive.Include);
+                InvokeRepeating(nameof(RefreshCatalogueQuantities), 1f, 1f);
+            }
             Refresh();
         }
 
@@ -661,13 +681,78 @@ namespace Game.UI
                         ? string.Format(Loc.T("depo.ada_gerek"), Loc.Id("ada", Catalogue.OreKeys[missing]))
                         : Loc.T("senlik.kilitli");
                     _entryState[e].color = InkFaint;
+                    _entryQuantity[e].text = string.Empty;
                     continue;
                 }
 
                 _entryState[e].text = ore
-                    ? Loc.Id("ada", Catalogue.OreKeys[e])
-                    : Inputs(e) + "   ·   " + string.Format(Loc.T("depo.saniye"), Sec(e));
+                    ? Loc.T("depo.girdi") + "   ·   " + Loc.Id("ada", Catalogue.OreKeys[e])
+                    : Loc.T("depo.urun_tipi") + "   ·   " + Inputs(e) + "   ·   " +
+                      string.Format(Loc.T("depo.saniye"), Sec(e));
                 _entryState[e].color = InkSoft;
+                _entryQuantity[e].text = ore
+                    ? string.Format(Loc.T("depo.depo_miktar"), N(LiveOre(e)))
+                    : LiveProductText(e);
+                _entryQuantity[e].color = InkSoft;
+            }
+        }
+
+        private void RefreshCatalogueQuantities()
+        {
+            if (!_showCatalogue || _cataloguePage == null || !_cataloguePage.gameObject.activeSelf) return;
+            for (int e = 0; e < Catalogue.EntryCount && e < _entryQuantity.Length; e++)
+            {
+                if (_entryQuantity[e] == null || !Catalogue.IsDiscovered(e, _owned)) continue;
+                _entryQuantity[e].text = Catalogue.IsOre(e)
+                    ? string.Format(Loc.T("depo.depo_miktar"), N(LiveOre(e)))
+                    : LiveProductText(e);
+            }
+        }
+
+        private double LiveOre(int entry)
+        {
+            int island = Catalogue.IslandOf(entry);
+            if (_operations == null || island < 0 || island >= Catalogue.OreCount) return 0d;
+            string key = Catalogue.OreKeys[island];
+            for (int i = 0; i < _operations.Length; i++)
+            {
+                CoalOperation operation = _operations[i];
+                if (operation != null && operation.IslandKey == key) return operation.StorageOre;
+            }
+            return 0d;
+        }
+
+        private string LiveProductText(int entry)
+        {
+            int island = Catalogue.IslandOf(entry);
+            string marketProduct = MarketProductFor(entry);
+            if (_market == null || island < 0 || marketProduct == null)
+                return Loc.T("depo.katalog_miktar");
+
+            string islandKey = Catalogue.OreKeys[island];
+            return string.Format(Loc.T("depo.pazar_miktar"), N(_market.Stock(islandKey))) +
+                   "   ·   " + Loc.T("depo.nakite");
+        }
+
+        /// <summary>
+        /// Only the eight products the live market actually trades have a runtime stock counter.
+        /// Composite catalogue entries remain reference rows until their production system exists;
+        /// never show a component's stock as if it belonged to the composite.
+        /// </summary>
+        private static string MarketProductFor(int entry)
+        {
+            if (!Catalogue.IsProduct(entry)) return null;
+            switch (Catalogue.KeyOf(entry))
+            {
+                case "coke": return "Coke";
+                case "copper_bar": return "CopperBar";
+                case "steel_beam": return "SteelBeam";
+                case "silver_bar": return "SilverBar";
+                case "gold_bar": return "GoldBar";
+                case "cut_ruby": return "CutRuby";
+                case "cut_emerald": return "CutEmerald";
+                case "polished_diamond": return "PolishedDiamond";
+                default: return null;
             }
         }
 
