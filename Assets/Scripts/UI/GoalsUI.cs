@@ -6,21 +6,19 @@ using UnityEngine.UI;
 
 namespace Game.UI
 {
-    /// <summary>Tabbed presentation over GoalService. This class never grants rewards.</summary>
+    /// <summary>
+    /// Tabbed presentation over GoalService. This class never grants rewards.
+    ///
+    /// THE ART IS THE DESIGN KIT, loaded through <see cref="AtolyeKit"/> and shared with
+    /// <see cref="CraftingUI"/> and <see cref="ChapterUI"/> — the set's own goal card carries every
+    /// row here, and its three bar fills happen to be the three colours the pages were already named
+    /// in. The kit is pre-coloured, so a claim button's state is a SPRITE swap, never a tint.
+    /// </summary>
     public sealed class GoalsUI : MonoBehaviour
     {
         public enum Tab { Daily, Weekly, Achievements }
 
         [SerializeField] private int sortingOrder = 106;
-        [Header("Görseller")]
-        [SerializeField] private Sprite cardPanel;
-        [SerializeField] private Sprite ribbon;
-        [SerializeField] private Sprite actionButton;
-        [SerializeField] private Sprite closeIcon;
-        [SerializeField] private Sprite barTrack;
-        [SerializeField] private Sprite barFill;
-        [SerializeField] private Sprite chipPill;
-        [SerializeField] private Sprite gemIcon;
         [Header("Renkler")]
         [SerializeField] private Color scrim = new Color(0.04f, 0.05f, 0.08f, 0.86f);
         [SerializeField] private Color card = new Color(0.16f, 0.19f, 0.27f, 1f);
@@ -28,6 +26,17 @@ namespace Game.UI
         [SerializeField] private Color dailyFill = new Color(0.35f, 0.72f, 0.98f, 1f);
         [SerializeField] private Color weeklyFill = new Color(0.37f, 0.82f, 0.55f, 1f);
         [SerializeField] private Color ladderFill = new Color(0.98f, 0.74f, 0.24f, 1f);
+
+        /// <summary>
+        /// The kit art, fetched once in <see cref="Awake"/>. See <see cref="AtolyeKit"/>.
+        ///
+        /// THE KIT HAS A FILL FOR EACH PAGE. The three colour fields above named the daily page blue,
+        /// the weekly green and the achievements gold long before there was art for them, and the set
+        /// ships exactly those three bar fills — so the colours stay as the fallback and the sprite
+        /// carries the same meaning.
+        /// </summary>
+        private Sprite _panel, _rowCard, _ribbon, _btnLive, _btnDead, _btnMavi, _closeIcon,
+                       _barTrack, _chip, _gemIcon, _fillDaily, _fillWeekly, _fillLadder;
 
         private const string OpenerIconResource = "UI/Buttons/gorev";
         private const float RibbonBand = 0.677f;
@@ -68,6 +77,7 @@ namespace Game.UI
         private void Awake()
         {
             _goals = ServiceLocator.Get<GoalService>();
+            LoadKit();
             Build();
             BuildOpener();
             if (_goals != null) _goals.Changed += OnChanged;
@@ -115,6 +125,24 @@ namespace Game.UI
 
         public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }
 
+        /// <summary>Before <see cref="Build"/>, which reads every one of these.</summary>
+        private void LoadKit()
+        {
+            _panel = AtolyeKit.Get("panel_kart");
+            _rowCard = AtolyeKit.Get("gorev_kart");
+            _ribbon = AtolyeKit.Get("serit_baslik");
+            _btnLive = AtolyeKit.Get("btn_yesil");
+            _btnDead = AtolyeKit.Get("btn_al");
+            _btnMavi = AtolyeKit.Get("btn_mavi");
+            _closeIcon = AtolyeKit.Get("kapat");
+            _barTrack = AtolyeKit.Get("cubuk_yatak");
+            _chip = AtolyeKit.Get("hap_cip");
+            _gemIcon = AtolyeKit.Get("elmas");
+            _fillDaily = AtolyeKit.Get("cubuk_mavi");
+            _fillWeekly = AtolyeKit.Get("cubuk_yesil");
+            _fillLadder = AtolyeKit.Get("cubuk_altin");
+        }
+
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "GorevKanvas", sortingOrder);
@@ -127,21 +155,21 @@ namespace Game.UI
             BuildDailyPage(_pages[0]);
             BuildWeeklyPage(_pages[1]);
             BuildAchievementsPage(_pages[2]);
-            _reveal = RewardRevealUI.Create(_root, cardPanel, gemIcon);
+            _reveal = RewardRevealUI.Create(_root, _panel, _gemIcon);
             // Content into the safe area; the scrim above it keeps covering the notch.
             UiBuild.InsetContent(_root);
         }
 
         private void BuildHeader()
         {
-            RectTransform band = Art(_root, "Serit", ribbon,
+            RectTransform band = Art(_root, "Serit", _ribbon,
                 new Vector2(0.36f, 0.87f), new Vector2(0.64f, 0.995f));
             _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
                 new Vector2(0.87f, RibbonBand + 0.13f)), "Text", Loc.T("gorev.baslik"), 38,
                 TextAnchor.MiddleCenter);
             _claimAllButton = UiBuild.Btn(_root, "HepsiniAl", Loc.T("gorev.hepsini_al"),
-                actionButton != null ? actionButton : UiSkin.ButtonGreen,
-                new Color(0.24f, 0.68f, 0.36f, 1f), 24, ClaimAll);
+                _btnLive != null ? _btnLive : UiSkin.ButtonGreen,
+                Color.white, 24, ClaimAll);
             UiBuild.Anchor((RectTransform)_claimAllButton.transform,
                 new Vector2(0.035f, 0.895f), new Vector2(0.235f, 0.955f));
             PillFit.Wrap(_claimAllButton.GetComponent<Image>());
@@ -150,7 +178,7 @@ namespace Game.UI
             _pendingLabel = UiBuild.Label(_pendingChip, "Yazi", string.Empty, 26, TextAnchor.MiddleCenter);
             _pendingLabel.color = Paper;
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
-                closeIcon != null ? closeIcon : UiSkin.ButtonGrey, track, 34, Hide);
+                _closeIcon != null ? _closeIcon : UiSkin.ButtonGrey, Color.white, 34, Hide);
             Image image = close.GetComponent<Image>();
             image.type = Image.Type.Simple;
             image.preserveAspect = true;
@@ -166,7 +194,7 @@ namespace Game.UI
                 int captured = i;
                 float left = 0.035f + i * 0.31f;
                 _tabButtons[i] = UiBuild.Btn(_root, "Sekme_" + i, Loc.T(keys[i]),
-                    actionButton != null ? actionButton : UiSkin.ButtonGrey, track, 24,
+                    _btnMavi != null ? _btnMavi : UiSkin.ButtonGrey, Color.white, 24,
                     () => SelectTab((Tab)captured));
                 UiBuild.Anchor((RectTransform)_tabButtons[i].transform,
                     new Vector2(left, 0.795f), new Vector2(left + 0.285f, 0.855f));
@@ -188,9 +216,9 @@ namespace Game.UI
                     new Vector2(0.02f, 0.97f - (i + 1) * height + 0.012f),
                     new Vector2(0.98f, 0.97f - i * height - 0.012f));
                 _dailyText[i] = RowText(row, new Vector2(0.035f, 0.58f), new Vector2(0.69f, 0.91f), 30);
-                _dailyFillImage[i] = Bar(row, new Vector2(0.035f, 0.39f), new Vector2(0.69f, 0.54f), dailyFill);
+                _dailyFillImage[i] = Bar(row, new Vector2(0.035f, 0.39f), new Vector2(0.69f, 0.54f), _fillDaily, dailyFill);
                 _dailyReward[i] = RowText(row, new Vector2(0.10f, 0.09f), new Vector2(0.69f, 0.34f), 25);
-                Icon(row, "Elmas", gemIcon, new Vector2(0.035f, 0.10f), new Vector2(0.09f, 0.33f));
+                Icon(row, "Elmas", _gemIcon, new Vector2(0.035f, 0.10f), new Vector2(0.09f, 0.33f));
                 int captured = i;
                 _dailyBtn[i] = ClaimButton(row, () => ClaimDaily(captured), out _dailyBtnText[i]);
             }
@@ -207,7 +235,7 @@ namespace Game.UI
                     new Vector2(0.02f, 0.88f - (i + 1) * height + 0.01f),
                     new Vector2(0.49f, 0.88f - i * height - 0.01f));
                 _weeklyTaskText[i] = RowText(row, new Vector2(0.04f, 0.46f), new Vector2(0.96f, 0.91f), 25);
-                _weeklyTaskFill[i] = Bar(row, new Vector2(0.04f, 0.16f), new Vector2(0.96f, 0.36f), weeklyFill);
+                _weeklyTaskFill[i] = Bar(row, new Vector2(0.04f, 0.16f), new Vector2(0.96f, 0.36f), _fillWeekly, weeklyFill);
             }
             for (int i = 0; i < Goals.WeeklyMilestones.Length; i++)
             {
@@ -233,7 +261,7 @@ namespace Game.UI
                     new Vector2(left, 0.98f - (rowIndex + 1) * height + 0.012f),
                     new Vector2(right, 0.98f - rowIndex * height - 0.012f));
                 _ladderText[i] = RowText(row, new Vector2(0.04f, 0.52f), new Vector2(0.70f, 0.92f), 24);
-                _ladderFillImage[i] = Bar(row, new Vector2(0.04f, 0.18f), new Vector2(0.70f, 0.40f), ladderFill);
+                _ladderFillImage[i] = Bar(row, new Vector2(0.04f, 0.18f), new Vector2(0.70f, 0.40f), _fillLadder, ladderFill);
                 int captured = i;
                 _ladderBtn[i] = ClaimButton(row, () => ClaimAchievement(captured), out _ladderBtnText[i]);
             }
@@ -246,8 +274,11 @@ namespace Game.UI
             {
                 bool selected = i == (int)tab;
                 _pages[i].gameObject.SetActive(selected);
-                _tabButtons[i].GetComponent<Image>().color = selected
-                    ? Color.white : new Color(0.58f, 0.62f, 0.70f, 1f);
+                // The page you are on is the kit's blue capsule, the other two its pale one — the
+                // same pair the claim buttons use, so "this one is live" reads the same everywhere.
+                if (!AtolyeKit.Face(_tabButtons[i], _btnMavi, _btnDead, selected))
+                    _tabButtons[i].GetComponent<Image>().color = selected
+                        ? Color.white : new Color(0.58f, 0.62f, 0.70f, 1f);
             }
             Refresh();
         }
@@ -348,9 +379,19 @@ namespace Game.UI
         private static string StateText(bool ready, bool claimed)
             => claimed ? Loc.T("gorev.alindi") : Loc.T(ready ? "gorev.al" : "gorev.kilitli");
 
-        private static void Dress(Button button, bool ready, bool claimed)
+        /// <summary>
+        /// A claim button's states, as SPRITES — the kit's green capsule when there is something to
+        /// take and its pale one when there is not.
+        ///
+        /// TWO SPRITES FOR THREE STATES, deliberately: the kit has no third capsule, and already
+        /// taken and not yet earned are both "nothing to press here". What tells them apart is the
+        /// word on the button, which <see cref="StateText"/> has always written — ALINDI against
+        /// KİLİTLİ. The old pair of near-identical greys carried less than that text does.
+        /// </summary>
+        private void Dress(Button button, bool ready, bool claimed)
         {
             button.interactable = ready;
+            if (AtolyeKit.Face(button, _btnLive, _btnDead, ready)) return;
             button.GetComponent<Image>().color = ready ? Color.white : claimed
                 ? new Color(0.52f, 0.70f, 0.60f, 1f) : new Color(0.66f, 0.69f, 0.75f, 1f);
         }
@@ -358,19 +399,20 @@ namespace Game.UI
         private Button ClaimButton(RectTransform parent, UnityEngine.Events.UnityAction action, out Text label)
         {
             Button button = UiBuild.Btn(parent, "Al", string.Empty,
-                actionButton != null ? actionButton : UiSkin.ButtonGreen,
-                new Color(0.24f, 0.68f, 0.36f, 1f), 23, action);
-            UiBuild.Anchor((RectTransform)button.transform, new Vector2(0.72f, 0.29f), new Vector2(0.97f, 0.70f));
+                _btnLive != null ? _btnLive : UiSkin.ButtonGreen,
+                Color.white, 23, action);
+            // Low enough that the capsule's two end caps do not meet in the middle — see
+            // AtolyeKit.Label, which then keeps the word off them.
+            UiBuild.Anchor((RectTransform)button.transform, new Vector2(0.70f, 0.33f), new Vector2(0.98f, 0.66f));
             PillFit.Wrap(button.GetComponent<Image>());
-            label = button.GetComponentInChildren<Text>();
-            Fit(label, 14, 23);
+            label = AtolyeKit.Label(button, 11, 23);
             return button;
         }
 
         private RectTransform Card(RectTransform parent, string name, Vector2 min, Vector2 max)
         {
-            RectTransform result = Art(parent, name, cardPanel, min, max);
-            if (cardPanel == null) result.GetComponent<Image>().color = card;
+            RectTransform result = Art(parent, name, _rowCard, min, max);
+            if (_rowCard == null) result.GetComponent<Image>().color = card;
             return result;
         }
 
@@ -407,7 +449,7 @@ namespace Game.UI
 
         private RectTransform Chip(RectTransform parent, string name, Vector2 min, Vector2 max)
         {
-            Sprite art = chipPill != null ? chipPill : cardPanel;
+            Sprite art = _chip != null ? _chip : _panel;
             RectTransform result = Art(parent, name, art, min, max);
             Image image = result.GetComponent<Image>();
             if (art != null) { image.type = Image.Type.Sliced; image.preserveAspect = false; PillFit.Wrap(image); }
@@ -427,24 +469,28 @@ namespace Game.UI
             return image;
         }
 
-        private Image Bar(RectTransform parent, Vector2 min, Vector2 max, Color fallback)
+        /// <summary>
+        /// A capsule bar: a track, and inside it a fill whose WIDTH is driven. Each page brings its
+        /// own fill — the kit ships one in each of the three colours the pages were already named in.
+        /// </summary>
+        private Image Bar(RectTransform parent, Vector2 min, Vector2 max, Sprite fill, Color fallback)
         {
-            RectTransform bed = Art(parent, "Cubuk", barTrack, min, max);
+            RectTransform bed = Art(parent, "Cubuk", _barTrack, min, max);
             Image bedImage = bed.GetComponent<Image>();
             bedImage.type = Image.Type.Sliced;
             bedImage.preserveAspect = false;
             PillFit.Wrap(bedImage);
-            if (barTrack == null) bedImage.color = track;
+            if (_barTrack == null) bedImage.color = track;
             RectTransform area = Slot(bed, "DolguAlani", Vector2.zero, Vector2.one);
             area.offsetMin = new Vector2(3f, 3f);
             area.offsetMax = new Vector2(-3f, -3f);
             var go = new GameObject("Dolgu", typeof(RectTransform), typeof(Image));
             go.transform.SetParent(area, false);
             Image image = go.GetComponent<Image>();
-            image.sprite = barFill;
+            image.sprite = fill;
             image.type = Image.Type.Sliced;
             image.raycastTarget = false;
-            if (barFill == null) image.color = fallback;
+            if (fill == null) image.color = fallback;
             UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, new Vector2(0f, 1f));
             PillFit.Wrap(image);
             return image;
@@ -473,7 +519,8 @@ namespace Game.UI
         {
             HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Include);
             if (hud == null) return;
-            Button open = hud.AttachBottomButton(0, "BtnGorev", Resources.Load<Sprite>(OpenerIconResource), Show);
+            Sprite icon = AtolyeKit.Get("gorev_ikon") ?? Resources.Load<Sprite>(OpenerIconResource);
+            Button open = hud.AttachBottomButton(0, "BtnGorev", icon, Show);
             if (open == null) return;
             _openerChip = hud.AttachCounterChip(open);
             if (_openerChip != null) _openerCount = _openerChip.GetComponentInChildren<TMP_Text>(true);

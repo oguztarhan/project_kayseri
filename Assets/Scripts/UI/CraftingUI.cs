@@ -19,6 +19,13 @@ namespace Game.UI
     /// level or the level it opens at — the "possibilities per level" the design asks for, and the
     /// disclosure Google Play expects the day points are ever sold.
     ///
+    /// THE ART IS THE DESIGN KIT, loaded through <see cref="AtolyeKit"/> and shared with
+    /// <see cref="ChapterUI"/> and <see cref="GoalsUI"/>. The kit is pre-coloured, so the three
+    /// decision buttons are three sprites rather than one pill tinted three ways, and the retooling
+    /// strip is the set's blue capsule instead of the flat rectangle it was. The sprites are handed
+    /// on to the depo through <see cref="BuildDepo"/>, so that screen wears the same skin without a
+    /// scene edit.
+    ///
     /// Refreshed on open and on <see cref="CraftingService.Changed"/>; the once-a-second Update
     /// only drives the retooling clock, and only while the screen is open.
     /// </summary>
@@ -26,24 +33,19 @@ namespace Game.UI
     {
         [SerializeField] private int sortingOrder = 110;
 
-        [Header("Görseller")]
-        [Tooltip("Kart gövdesi — MaviSet/panel_beyaz.")]
-        [SerializeField] private Sprite cardPanel;
-        [Tooltip("Başlık şeridi — MaviSet/serit_mavi.")]
-        [SerializeField] private Sprite ribbon;
-        [Tooltip("ÜRET ve karar düğmeleri — MaviSet/btn_hap_kalin.")]
-        [SerializeField] private Sprite actionButton;
-        [Tooltip("Kapat düğmesi — MaviSet/btn_kapat_yeni.")]
-        [SerializeField] private Sprite closeIcon;
-        [Tooltip("XP çubuğunun yatağı ve dolgusu — Gostergeler/slider_yatak, bar_dolgu.")]
-        [SerializeField] private Sprite barTrack;
-        [SerializeField] private Sprite barFill;
-        [Tooltip("Puan hapı — MaviSet/gosterge_grafit.")]
-        [SerializeField] private Sprite chipPill;
-
         [Header("Renkler")]
         [SerializeField] private Color scrim = new Color(0f, 0f, 0f, 0.62f);
         [SerializeField] private Color backdrop = new Color(0.92f, 0.94f, 0.99f, 0.98f);
+
+        /// <summary>
+        /// The kit art, fetched once in <see cref="Awake"/>. See <see cref="AtolyeKit"/>.
+        ///
+        /// THE THREE DECISION BUTTONS ARE THREE SPRITES — green to wear it, blue to shelve it, the
+        /// pale capsule to scrap it. The kit ships no red or yellow, and scrapping is the one of the
+        /// three that should not be shouting anyway.
+        /// </summary>
+        private Sprite _panel, _ribbon, _btnGreen, _btnBlue, _btnPale, _closeIcon, _barTrack,
+                       _barFill, _chip, _gatePill, _pointsIcon;
 
         [Header("Ödüllü otomatik üretim")]
         [Tooltip("Reklam tamamlanınca otomatik üretimin açık kalacağı süre (saniye).")]
@@ -110,6 +112,7 @@ namespace Game.UI
             _sea = ServiceLocator.Get<ExpeditionService>();
             _freeRewards = ServiceLocator.Get<FreeRewardService>();
             _ad = ServiceLocator.Get<IAdService>();
+            LoadKit();
             BuildDepo();
             Build();
             BuildOpener();
@@ -157,6 +160,22 @@ namespace Game.UI
         }
 
         // ------------------------------------------------------------------ build
+        /// <summary>Before <see cref="BuildDepo"/> and <see cref="Build"/>, which read all of these.</summary>
+        private void LoadKit()
+        {
+            _panel = AtolyeKit.Get("panel_kart");
+            _ribbon = AtolyeKit.Get("serit_baslik");
+            _btnGreen = AtolyeKit.Get("btn_yesil");
+            _btnBlue = AtolyeKit.Get("btn_mavi");
+            _btnPale = AtolyeKit.Get("btn_al");
+            _closeIcon = AtolyeKit.Get("kapat");
+            _barTrack = AtolyeKit.Get("cubuk_yatak");
+            _barFill = AtolyeKit.Get("cubuk_yesil");
+            _chip = AtolyeKit.Get("hap_cip");
+            _gatePill = AtolyeKit.Get("durak_kart");
+            _pointsIcon = AtolyeKit.Get("zanaat_puani");
+        }
+
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "AtolyeKanvas", sortingOrder);
@@ -177,7 +196,7 @@ namespace Game.UI
         /// <summary>One opaque sheet behind everything — see CaptainRosterUI.BuildBackdrop for why.</summary>
         private void BuildBackdrop()
         {
-            RectTransform sheet = Art(_root, "Zemin", cardPanel,
+            RectTransform sheet = Art(_root, "Zemin", _panel,
                                       new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.842f));
             var image = sheet.GetComponent<Image>();
             image.color = backdrop;
@@ -188,31 +207,41 @@ namespace Game.UI
 
         private void BuildHeader()
         {
-            RectTransform band = Art(_root, "Serit", ribbon, new Vector2(0.360f, 0.850f), new Vector2(0.640f, 0.992f));
+            RectTransform band = Art(_root, "Serit", _ribbon, new Vector2(0.360f, 0.850f), new Vector2(0.640f, 0.992f));
             _titleLabel = UiBuild.Label(Zone(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
                                              new Vector2(0.87f, RibbonBand + 0.13f)),
                                         "Text", Loc.T("atolye.baslik"), 38, TextAnchor.MiddleCenter);
 
-            RectTransform chip = Chip(_root, "Puan", new Vector2(0.035f, 0.880f), new Vector2(0.235f, 0.963f));
-            _pointsLabel = UiBuild.Label(Zone(chip, "Yazi", new Vector2(0.08f, 0f), new Vector2(0.92f, 1f)),
-                                         "Text", string.Empty, 30, TextAnchor.MiddleCenter);
+            // The points chip now says WHICH points. It carried a bare number — on a screen whose
+            // ÜRET button spells out "3 CRAFT POINTS" in full, the one place the balance lives was
+            // the only thing not naming its currency. The kit's gear-and-spark is that name.
+            // Wider and lower than it was: the chip carries a whole phrase ("0 CRAFT POINTS"), and
+            // the kit capsule spends its height on two end caps, so a tall box left nothing between
+            // them. Art draws a borderless sprite Simple and aspect-locked, which is what an icon
+            // wants — and the icon is why the chip can say which points these are.
+            RectTransform chip = Chip(_root, "Puan", new Vector2(0.030f, 0.893f), new Vector2(0.300f, 0.957f));
+            bool named = _pointsIcon != null;
+            if (named) Art(chip, "Ikon", _pointsIcon, new Vector2(0.06f, 0.14f), new Vector2(0.26f, 0.86f));
+            _pointsLabel = UiBuild.Label(Zone(chip, "Yazi", new Vector2(named ? 0.29f : 0.10f, 0.08f),
+                                              new Vector2(0.90f, 0.92f)),
+                                         "Text", string.Empty, 26, TextAnchor.MiddleCenter);
             _pointsLabel.color = Paper;
+            Fit(_pointsLabel, 11, 26);
 
             // The way through to the shelf. Beside the title rather than on the bench card: the depo
             // is a screen of its own, not one more control on the bench, and the header is where
             // this screen already keeps what is true of the whole workshop.
             Button depo = UiBuild.Btn(_root, "Depo", string.Empty,
-                                      actionButton != null ? actionButton : UiSkin.ButtonBlue,
-                                      new Color(0.26f, 0.60f, 0.92f, 1f), 22, OnDepo);
+                                      _btnBlue != null ? _btnBlue : UiSkin.ButtonBlue,
+                                      Color.white, 22, OnDepo);
             UiBuild.Anchor((RectTransform)depo.transform,
                            new Vector2(0.655f, 0.880f), new Vector2(0.860f, 0.963f));
             PillFit.Wrap(depo.GetComponent<Image>());
-            _depoLabel = depo.GetComponentInChildren<Text>();
-            Fit(_depoLabel, 11, 22);
+            _depoLabel = AtolyeKit.Label(depo, 11, 22);
 
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
-                                       closeIcon != null ? closeIcon : UiSkin.ButtonGrey,
-                                       new Color(0.30f, 0.34f, 0.42f, 1f), 34, Hide);
+                                       _closeIcon != null ? _closeIcon : UiSkin.ButtonGrey,
+                                       Color.white, 34, Hide);
             var closeImage = close.GetComponent<Image>();
             closeImage.type = Image.Type.Simple;
             closeImage.preserveAspect = true;
@@ -222,7 +251,7 @@ namespace Game.UI
         /// <summary>The bench card: level, XP, the ÜRET button, and the retooling stop when one runs.</summary>
         private void BuildBench()
         {
-            RectTransform c = Art(_root, "Tezgah", cardPanel, new Vector2(0.035f, 0.030f), new Vector2(0.475f, 0.815f));
+            RectTransform c = Art(_root, "Tezgah", _panel, new Vector2(0.035f, 0.030f), new Vector2(0.475f, 0.815f));
 
             _levelLabel = UiBuild.Label(Zone(c, "Seviye", new Vector2(0.07f, 0.880f), new Vector2(0.93f, 0.970f)),
                                         "Text", string.Empty, 40, TextAnchor.MiddleCenter);
@@ -237,8 +266,8 @@ namespace Game.UI
             _xpLabel.color = Paper;
 
             _craftBtn = UiBuild.Btn(c, "Uret", string.Empty,
-                                    actionButton != null ? actionButton : UiSkin.ButtonGreen,
-                                    Good, 30, OnCraft);
+                                    _btnGreen != null ? _btnGreen : UiSkin.ButtonGreen,
+                                    Color.white, 30, OnCraft);
             UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0.10f, 0.560f), new Vector2(0.90f, 0.690f));
             PillFit.Wrap(_craftBtn.GetComponent<Image>());
             _craftLabel = _craftBtn.GetComponentInChildren<Text>();
@@ -249,22 +278,34 @@ namespace Game.UI
             _craftLabel.verticalOverflow = VerticalWrapMode.Truncate;
 
             _autoCraftAdBtn = UiBuild.Btn(c, "OtoUretReklam", string.Empty,
-                                          actionButton != null ? actionButton : UiSkin.ButtonBlue,
-                                          new Color(0.26f, 0.60f, 0.92f, 1f), 20, OnAutoCraftAd);
+                                          _btnBlue != null ? _btnBlue : UiSkin.ButtonBlue,
+                                          Color.white, 20, OnAutoCraftAd);
             UiBuild.Anchor((RectTransform)_autoCraftAdBtn.transform,
                            new Vector2(0.10f, 0.445f), new Vector2(0.90f, 0.515f));
             PillFit.Wrap(_autoCraftAdBtn.GetComponent<Image>());
-            _autoCraftAdLabel = _autoCraftAdBtn.GetComponentInChildren<Text>();
+            // The longest string on the screen ("WATCH AD · 15 MIN AUTO-CRAFT") in the shortest pill.
+            _autoCraftAdLabel = AtolyeKit.Label(_autoCraftAdBtn, 10, 20);
 
             // The stop's own strip. It does NOT replace the button — crafting carries on while the
-            // bench retools; only the level waits, which is exactly what the strip says.
-            _gateCard = Flat(c, "Durak", new Color(0.15f, 0.21f, 0.33f, 0.96f),
-                             new Vector2(0.07f, 0.330f), new Vector2(0.93f, 0.530f));
-            _gateLabel = UiBuild.Label(Zone(_gateCard, "Baslik", new Vector2(0.05f, 0.58f), new Vector2(0.95f, 0.96f)),
+            // bench retools; only the level waits, which is exactly what the strip says. The kit's
+            // deep blue capsule, not the flat navy rectangle it used to be: the strip sits on a white
+            // card among capsules, and a bare rectangle was the one square corner on the screen.
+            //
+            // WIDER AND LOWER THAN THE RECTANGLE WAS. The capsule is 4:1 art, and in the old box —
+            // barely wider than it was tall — the two end caps met and it drew as a blue egg. Full
+            // card width and about half the height is what makes it read as a strip; the three lines
+            // it carries still fit, kept inside the caps.
+            _gateCard = Art(c, "Durak", _gatePill, new Vector2(0.04f, 0.318f), new Vector2(0.96f, 0.430f));
+            var gateImage = _gateCard.GetComponent<Image>();
+            gateImage.type = Image.Type.Sliced;
+            gateImage.preserveAspect = false;
+            if (_gatePill != null) PillFit.Wrap(gateImage);
+            else gateImage.color = new Color(0.15f, 0.21f, 0.33f, 0.96f);
+            _gateLabel = UiBuild.Label(Zone(_gateCard, "Baslik", new Vector2(0.14f, 0.60f), new Vector2(0.86f, 0.94f)),
                                        "Text", Loc.T("atolye.yenileniyor"), 26, TextAnchor.MiddleCenter);
-            _gateClockLabel = UiBuild.Label(Zone(_gateCard, "Saat", new Vector2(0.05f, 0.24f), new Vector2(0.95f, 0.58f)),
+            _gateClockLabel = UiBuild.Label(Zone(_gateCard, "Saat", new Vector2(0.14f, 0.30f), new Vector2(0.86f, 0.60f)),
                                             "Text", string.Empty, 34, TextAnchor.MiddleCenter);
-            _bankLabel = UiBuild.Label(Zone(_gateCard, "Not", new Vector2(0.05f, 0.02f), new Vector2(0.95f, 0.24f)),
+            _bankLabel = UiBuild.Label(Zone(_gateCard, "Not", new Vector2(0.14f, 0.06f), new Vector2(0.86f, 0.30f)),
                                        "Text", Loc.T("atolye.birikiyor"), 18, TextAnchor.MiddleCenter);
             _bankLabel.color = new Color(0.75f, 0.81f, 0.92f, 1f);
 
@@ -277,7 +318,7 @@ namespace Game.UI
         /// <summary>The odds table: one row per grade, straight off <see cref="Crafting.LevelOdds"/>.</summary>
         private void BuildOdds()
         {
-            RectTransform c = Art(_root, "Oranlar", cardPanel, new Vector2(0.505f, 0.030f), new Vector2(0.965f, 0.815f));
+            RectTransform c = Art(_root, "Oranlar", _panel, new Vector2(0.505f, 0.030f), new Vector2(0.965f, 0.815f));
 
             _oddsTitleLabel = UiBuild.Label(Zone(c, "Baslik", new Vector2(0.07f, 0.890f), new Vector2(0.93f, 0.970f)),
                                             "Text", Loc.T("atolye.oranlar"), 30, TextAnchor.MiddleCenter);
@@ -288,14 +329,20 @@ namespace Game.UI
             _captainLabel.color = Ink;
             Fit(_captainLabel, 10, 19);
 
-            _captainPrevBtn = UiBuild.Btn(c, "OncekiKaptan", "‹", UiSkin.ButtonGrey,
-                                           InkSoft, 24, OnPreviousCaptain);
+            // FLATTER THAN THE ROW THEY SIT IN. The kit's buttons are all about 2:1, and the boxes
+            // these used to have were taller than they were wide, which draws a capsule as a standing
+            // oval. Short and wide, they come out as the stubby pills the rest of the screen is made
+            // of instead of the two grey blocks they were.
+            _captainPrevBtn = UiBuild.Btn(c, "OncekiKaptan", "‹", _btnPale != null ? _btnPale : UiSkin.ButtonGrey,
+                                           Color.white, 24, OnPreviousCaptain);
             UiBuild.Anchor((RectTransform)_captainPrevBtn.transform,
-                           new Vector2(0.055f, 0.795f), new Vector2(0.18f, 0.875f));
-            _captainNextBtn = UiBuild.Btn(c, "SonrakiKaptan", "›", UiSkin.ButtonGrey,
-                                           InkSoft, 24, OnNextCaptain);
+                           new Vector2(0.040f, 0.812f), new Vector2(0.205f, 0.858f));
+            PillFit.Wrap(_captainPrevBtn.GetComponent<Image>());
+            _captainNextBtn = UiBuild.Btn(c, "SonrakiKaptan", "›", _btnPale != null ? _btnPale : UiSkin.ButtonGrey,
+                                           Color.white, 24, OnNextCaptain);
             UiBuild.Anchor((RectTransform)_captainNextBtn.transform,
-                           new Vector2(0.82f, 0.795f), new Vector2(0.945f, 0.875f));
+                           new Vector2(0.795f, 0.812f), new Vector2(0.960f, 0.858f));
+            PillFit.Wrap(_captainNextBtn.GetComponent<Image>());
 
             _unlockLabel = UiBuild.Label(Zone(c, "SonrakiAcilis", new Vector2(0.07f, 0.715f), new Vector2(0.93f, 0.790f)),
                                          "Text", string.Empty, 17, TextAnchor.MiddleCenter);
@@ -323,7 +370,7 @@ namespace Game.UI
         /// draws over both columns; only ever visible while a craft is pending.</summary>
         private void BuildDecideCard()
         {
-            _decideCard = Art(_root, "Karar", cardPanel, new Vector2(0.130f, 0.140f), new Vector2(0.870f, 0.790f));
+            _decideCard = Art(_root, "Karar", _panel, new Vector2(0.130f, 0.140f), new Vector2(0.870f, 0.790f));
             var image = _decideCard.GetComponent<Image>();
             image.raycastTarget = true;
             var eat = _decideCard.gameObject.AddComponent<Button>();
@@ -331,6 +378,9 @@ namespace Game.UI
 
             _decideTitle = UiBuild.Label(Zone(_decideCard, "Baslik", new Vector2(0.06f, 0.880f), new Vector2(0.94f, 0.970f)),
                                          "Text", string.Empty, 34, TextAnchor.MiddleCenter);
+            // UiBuild.Label writes white, and the kit's card is white paper — the title was invisible
+            // on it until this line. The rows and the worn line below already carry their own ink.
+            _decideTitle.color = Ink;
             Fit(_decideTitle, 16, 34);
 
             _decideScore = UiBuild.Label(Zone(_decideCard, "Guc", new Vector2(0.06f, 0.800f), new Vector2(0.94f, 0.875f)),
@@ -349,28 +399,25 @@ namespace Game.UI
             // rolled before the charm slot is worth filling used to be a coin toss between wearing
             // the wrong thing and scrapping the right one.
             Button equip = UiBuild.Btn(_decideCard, "Giydir", string.Empty,
-                                       actionButton != null ? actionButton : UiSkin.ButtonGreen,
-                                       Good, 24, OnEquip);
-            UiBuild.Anchor((RectTransform)equip.transform, new Vector2(0.06f, 0.060f), new Vector2(0.34f, 0.200f));
+                                       _btnGreen != null ? _btnGreen : UiSkin.ButtonGreen,
+                                       Color.white, 24, OnEquip);
+            UiBuild.Anchor((RectTransform)equip.transform, new Vector2(0.05f, 0.070f), new Vector2(0.35f, 0.170f));
             PillFit.Wrap(equip.GetComponent<Image>());
-            _equipLabel = equip.GetComponentInChildren<Text>();
-            Fit(_equipLabel, 11, 24);
+            _equipLabel = AtolyeKit.Label(equip, 10, 22);
 
             _stowBtn = UiBuild.Btn(_decideCard, "Depoya", string.Empty,
-                                   actionButton != null ? actionButton : UiSkin.ButtonBlue,
-                                   new Color(0.26f, 0.60f, 0.92f, 1f), 24, OnStow);
-            UiBuild.Anchor((RectTransform)_stowBtn.transform, new Vector2(0.36f, 0.060f), new Vector2(0.64f, 0.200f));
+                                   _btnBlue != null ? _btnBlue : UiSkin.ButtonBlue,
+                                   Color.white, 24, OnStow);
+            UiBuild.Anchor((RectTransform)_stowBtn.transform, new Vector2(0.35f, 0.070f), new Vector2(0.65f, 0.170f));
             PillFit.Wrap(_stowBtn.GetComponent<Image>());
-            _stowLabel = _stowBtn.GetComponentInChildren<Text>();
-            Fit(_stowLabel, 11, 24);
+            _stowLabel = AtolyeKit.Label(_stowBtn, 10, 22);
 
             Button scrap = UiBuild.Btn(_decideCard, "Sok", string.Empty,
-                                       actionButton != null ? actionButton : UiSkin.ButtonYellow,
-                                       new Color(0.94f, 0.68f, 0.20f, 1f), 24, OnSalvage);
-            UiBuild.Anchor((RectTransform)scrap.transform, new Vector2(0.66f, 0.060f), new Vector2(0.94f, 0.200f));
+                                       _btnPale != null ? _btnPale : UiSkin.ButtonYellow,
+                                       Color.white, 24, OnSalvage);
+            UiBuild.Anchor((RectTransform)scrap.transform, new Vector2(0.65f, 0.070f), new Vector2(0.95f, 0.170f));
             PillFit.Wrap(scrap.GetComponent<Image>());
-            _salvageLabel = scrap.GetComponentInChildren<Text>();
-            Fit(_salvageLabel, 11, 24);
+            _salvageLabel = AtolyeKit.Label(scrap, 10, 22);
         }
 
         /// <summary>
@@ -386,7 +433,7 @@ namespace Game.UI
         {
             _depo = FindAnyObjectByType<InventoryUI>(FindObjectsInactive.Include);
             if (_depo == null) _depo = new GameObject("DepoPaneli").AddComponent<InventoryUI>();
-            _depo.Adopt(cardPanel, ribbon, actionButton, closeIcon, chipPill);
+            _depo.Adopt(_panel, _ribbon, _btnBlue, _closeIcon, _chip);
         }
 
         // ---------------------------------------------------------------- opener
@@ -397,7 +444,7 @@ namespace Game.UI
             HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Include);
             if (hud == null) return;
 
-            Sprite icon = Resources.Load<Sprite>(OpenerIconResource);
+            Sprite icon = AtolyeKit.Get("atolye_ikon") ?? Resources.Load<Sprite>(OpenerIconResource);
             Button open = hud.AttachBottomButton(4, "BtnAtolye",
                                                  icon != null ? icon : UiSkin.ButtonYellow, Show);
             if (open == null) return;
@@ -513,11 +560,13 @@ namespace Game.UI
                              + CurrencyText.Amount(CurrencyId.CraftPoints, _crafting.Tuning.CraftCost);
             bool canCraft = !_crafting.HasPending && _crafting.Points >= _crafting.Tuning.CraftCost;
             _craftBtn.interactable = canCraft;
+            Dress(_craftBtn, _btnGreen, canCraft);
 
             if (_autoCraftAdBtn != null)
             {
                 bool active = _crafting.AutoCraftActive;
                 _autoCraftAdBtn.interactable = !active && AutoCraftAdReady;
+                Dress(_autoCraftAdBtn, _btnBlue, _autoCraftAdBtn.interactable);
                 _autoCraftAdLabel.text = active
                     ? "OTO ÜRETİM  " + UiBuild.Clock(_crafting.AutoCraftSecondsLeft)
                     : "REKLAM İZLE · " + Mathf.CeilToInt(rewardedAutoCraftSeconds / 60f)
@@ -701,15 +750,16 @@ namespace Game.UI
             var go = new GameObject(name, typeof(RectTransform), typeof(Image));
             go.transform.SetParent(parent, false);
             var img = go.GetComponent<Image>();
-            img.sprite = chipPill != null ? chipPill : UiSkin.Pill;
+            img.sprite = _chip != null ? _chip : UiSkin.Pill;
             img.type = Image.Type.Sliced;
             img.color = img.sprite != null ? Color.white : new Color(0.16f, 0.20f, 0.28f, 0.95f);
             img.raycastTarget = false;
-            return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
+            RectTransform rt = UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
+            // The kit chip is a capsule; keep its caps round however short the box, the way the
+            // chapter and goal screens already do with the same sprite.
+            if (_chip != null) PillFit.Wrap(img);
+            return rt;
         }
-
-        private static RectTransform Flat(RectTransform parent, string name, Color c, Vector2 aMin, Vector2 aMax)
-            => UiBuild.Flat(parent, name, c, aMin, aMax);
 
         private static Image Stripe(RectTransform parent, Vector2 aMin, Vector2 aMax)
         {
@@ -727,13 +777,13 @@ namespace Game.UI
                                   out RectTransform fill)
         {
             RectTransform track;
-            if (barTrack != null)
+            if (_barTrack != null)
             {
-                track = Art(parent, name, barTrack, aMin, aMax);
+                track = Art(parent, name, _barTrack, aMin, aMax);
                 var go = new GameObject("Fill", typeof(RectTransform), typeof(Image));
                 go.transform.SetParent(track, false);
                 var img = go.GetComponent<Image>();
-                img.sprite = barFill;
+                img.sprite = _barFill;
                 img.type = Image.Type.Sliced;
                 img.raycastTarget = false;
                 fill = UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, new Vector2(0f, 1f));
@@ -745,6 +795,10 @@ namespace Game.UI
             }
             return track;
         }
+
+        /// <summary>The kit's live/dead capsule pair — see <see cref="AtolyeKit.Face"/>.</summary>
+        private void Dress(Button button, Sprite live, bool canPress)
+            => AtolyeKit.Face(button, live, _btnPale, canPress);
 
         /// <summary>Shrink-to-fit so a long translation stays on its row.</summary>
         private static void Fit(Text label, int min, int max)

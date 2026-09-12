@@ -19,28 +19,17 @@ namespace Game.UI
     /// down a landscape screen come out as a letterbox with bars in it. The left column is also the
     /// selector, which is what lets the right one be five tall rows instead of forty short ones.
     ///
+    /// THE ART IS THE DESIGN KIT, loaded through <see cref="AtolyeKit"/> and shared with
+    /// <see cref="CraftingUI"/> and <see cref="GoalsUI"/>. The kit is pre-coloured, so state is picked
+    /// by swapping the SPRITE, never by tinting: an island tab is gold when it is the one being read,
+    /// plain silver when it is owned, and silver with a padlock when it is not — three sprites where
+    /// this screen used to wash one panel in three colours.
+    ///
     /// Refreshed on open and on <see cref="ChapterService.Changed"/>, never per frame.
     /// </summary>
     public sealed class ChapterUI : MonoBehaviour
     {
         [SerializeField] private int sortingOrder = 107;
-
-        [Header("Görseller")]
-        [Tooltip("Satır gövdesi — MaviSet/panel_beyaz.")]
-        [SerializeField] private Sprite cardPanel;
-        [Tooltip("Başlık şeridi — MaviSet/serit_mavi.")]
-        [SerializeField] private Sprite ribbon;
-        [Tooltip("Al düğmesi — MaviSet/btn_hap_kalin.")]
-        [SerializeField] private Sprite actionButton;
-        [Tooltip("Kapat düğmesi — MaviSet/btn_kapat_yeni.")]
-        [SerializeField] private Sprite closeIcon;
-        [Tooltip("İlerleme çubuğunun yatağı ve dolgusu — Gostergeler/slider_yatak, bar_dolgu.")]
-        [SerializeField] private Sprite barTrack;
-        [SerializeField] private Sprite barFill;
-        [Tooltip("Bekleyen sayacı — MaviSet/gosterge_grafit.")]
-        [SerializeField] private Sprite chipPill;
-        [Tooltip("Ödülün solundaki elmas ikonu — Ikonlar/ikon_elmas.")]
-        [SerializeField] private Sprite gemIcon;
 
         [Header("Renkler")]
         [SerializeField] private Color scrim = new Color(0.04f, 0.05f, 0.08f, 0.92f);
@@ -48,9 +37,16 @@ namespace Game.UI
         [SerializeField] private Color backdrop = new Color(0.15f, 0.18f, 0.26f, 1f);
         [SerializeField] private Color track = new Color(0.10f, 0.11f, 0.16f, 1f);
         [SerializeField] private Color beatFill = new Color(0.98f, 0.74f, 0.24f, 1f);
-        [SerializeField] private Color selectedTint = new Color(1f, 0.93f, 0.72f, 1f);
 
-        /// <summary>The rail button's icon. Missing until the art lands — see Docs/ASSETS.md.</summary>
+        /// <summary>
+        /// The kit art, fetched once in <see cref="Awake"/> — see <see cref="AtolyeKit"/> for why it
+        /// comes from an atlas rather than from wired Inspector slots, and why a tab's state is a
+        /// different SPRITE rather than a tint on one.
+        /// </summary>
+        private Sprite _panel, _ribbon, _btnLive, _btnDead, _closeIcon, _barTrack, _barFill, _chip,
+                       _gemIcon, _tabPlain, _tabPicked, _tabLocked;
+
+        /// <summary>The rail button's icon before the kit had one; still the fallback.</summary>
         private const string OpenerIconResource = "UI/Buttons/bolum";
 
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
@@ -90,6 +86,7 @@ namespace Game.UI
         private void Awake()
         {
             _chapters = ServiceLocator.Get<ChapterService>();
+            LoadKit();
             Build();
             BuildOpener();
             if (_chapters != null) _chapters.Changed += OnChanged;
@@ -134,6 +131,23 @@ namespace Game.UI
         public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }
 
         // ------------------------------------------------------------------ build
+        /// <summary>Before <see cref="Build"/>, which reads every one of these.</summary>
+        private void LoadKit()
+        {
+            _panel = AtolyeKit.Get("panel_kart");
+            _ribbon = AtolyeKit.Get("serit_baslik");
+            _btnLive = AtolyeKit.Get("btn_yesil");
+            _btnDead = AtolyeKit.Get("btn_al");
+            _closeIcon = AtolyeKit.Get("kapat");
+            _barTrack = AtolyeKit.Get("cubuk_yatak");
+            _barFill = AtolyeKit.Get("cubuk_altin");
+            _chip = AtolyeKit.Get("hap_cip");
+            _gemIcon = AtolyeKit.Get("elmas");
+            _tabPlain = AtolyeKit.Get("sekme");
+            _tabPicked = AtolyeKit.Get("sekme_secili");
+            _tabLocked = AtolyeKit.Get("sekme_kilitli");
+        }
+
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "BolumKanvas", sortingOrder);
@@ -167,7 +181,7 @@ namespace Game.UI
 
         private void BuildHeader()
         {
-            RectTransform band = Art(_root, "Serit", ribbon, new Vector2(0.360f, 0.850f), new Vector2(0.640f, 0.992f));
+            RectTransform band = Art(_root, "Serit", _ribbon, new Vector2(0.360f, 0.850f), new Vector2(0.640f, 0.992f));
             _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
                                         new Vector2(0.87f, RibbonBand + 0.13f)),
                                    "Text", Loc.T("bolum.baslik"), 38, TextAnchor.MiddleCenter);
@@ -178,7 +192,7 @@ namespace Game.UI
             _pendingLabel.color = Paper;
 
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
-                                       closeIcon != null ? closeIcon : UiSkin.ButtonGrey, track, 34, Hide);
+                                       _closeIcon != null ? _closeIcon : UiSkin.ButtonGrey, Color.white, 34, Hide);
             var closeImage = close.GetComponent<Image>();
             closeImage.type = Image.Type.Simple;
             closeImage.preserveAspect = true;
@@ -189,7 +203,7 @@ namespace Game.UI
         /// <summary>The selected chapter's opening line, with the claim-all button beside it.</summary>
         private void BuildStory()
         {
-            RectTransform c = Art(_root, "Hikaye", cardPanel, new Vector2(0.355f, 0.680f), new Vector2(0.965f, 0.815f));
+            RectTransform c = Art(_root, "Hikaye", _panel, new Vector2(0.355f, 0.680f), new Vector2(0.965f, 0.815f));
 
             _storyTitle = UiBuild.Label(Slot(c, "Baslik", new Vector2(0.035f, 0.56f), new Vector2(0.700f, 0.92f)),
                                         "Text", string.Empty, 30, TextAnchor.MiddleLeft);
@@ -202,44 +216,67 @@ namespace Game.UI
             Fit(_storyLine, 14, 24);
 
             _claimAll = UiBuild.Btn(c, "HepsiniAl", string.Empty,
-                                    actionButton != null ? actionButton : UiSkin.ButtonGreen,
-                                    new Color(0.24f, 0.68f, 0.36f, 1f), 26,
+                                    _btnLive != null ? _btnLive : UiSkin.ButtonGreen,
+                                    Color.white, 26,
                                     () => { if (_chapters != null && _chapters.ClaimChapter(_shown) > 0) Ping(); });
+            // Wide and low, near the capsule art's own 2:1 — a taller box spends its width on two
+            // end caps and leaves the label nowhere to sit.
             UiBuild.Anchor((RectTransform)_claimAll.transform,
-                           new Vector2(0.725f, 0.300f), new Vector2(0.968f, 0.700f));
+                           new Vector2(0.710f, 0.340f), new Vector2(0.980f, 0.660f));
             PillFit.Wrap(_claimAll.GetComponent<Image>());
-            _claimAllText = _claimAll.GetComponentInChildren<Text>();
+            _claimAllText = AtolyeKit.Label(_claimAll, 11, 24);
         }
 
+        /// <summary>
+        /// One island: a name plate, and the chapter's number and progress underneath it.
+        ///
+        /// THE PLATE IS NOT THE ROW. The kit's tab is a 4:1 name plate with an ornament at each end —
+        /// studs when it is the chapter being read, a padlock when the island is not owned — and a row
+        /// tall enough for two lines is nearer 1.6:1. Drawn as the whole row, the two end caps met in
+        /// the middle and the text ran across the padlock. So the plate takes the top band at close to
+        /// its authored proportion and carries the name alone, and the caption sits below it on the
+        /// backdrop, which is also where a caption belongs.
+        ///
+        /// The button itself is the whole row, transparent: the whole row should be tappable, not just
+        /// the plate.
+        /// </summary>
         private void BuildTab(int chapter, Vector2 aMin, Vector2 aMax)
         {
             int captured = chapter;
             _tabBtn[chapter] = UiBuild.Btn(_root, "Ada_" + chapter, string.Empty,
-                                           cardPanel != null ? cardPanel : UiSkin.Panel, Color.white, 24,
-                                           () => Select(captured));
-            var img = _tabBtn[chapter].GetComponent<Image>();
-            img.type = Image.Type.Sliced;
-            _tabArt[chapter] = img;
+                                           UiSkin.Flat, Color.clear, 24, () => Select(captured));
+            var hit = _tabBtn[chapter].GetComponent<Image>();
+            hit.color = Color.clear;      // invisible, but still the row's raycast target
             RectTransform rt = UiBuild.Anchor((RectTransform)_tabBtn[chapter].transform, aMin, aMax);
 
             // The button's own auto-label is unused — two lines are wanted, not one centred string.
             Text made = _tabBtn[chapter].GetComponentInChildren<Text>();
             if (made != null) made.gameObject.SetActive(false);
 
-            _tabName[chapter] = UiBuild.Label(Slot(rt, "Ad", new Vector2(0.07f, 0.44f), new Vector2(0.72f, 0.90f)),
-                                              "Text", string.Empty, 24, TextAnchor.MiddleLeft);
-            _tabName[chapter].color = Ink;
-            Fit(_tabName[chapter], 13, 24);
+            RectTransform plate = Art(rt, "Plaka", _tabPlain, new Vector2(0f, 0.46f), Vector2.one);
+            var plateImage = plate.GetComponent<Image>();
+            plateImage.type = Image.Type.Sliced;
+            plateImage.preserveAspect = false;
+            if (_tabPlain != null) PillFit.Wrap(plateImage);
+            _tabArt[chapter] = plateImage;
 
-            _tabCount[chapter] = UiBuild.Label(Slot(rt, "Sayac", new Vector2(0.07f, 0.10f), new Vector2(0.93f, 0.42f)),
-                                               "Text", string.Empty, 20, TextAnchor.MiddleLeft);
-            _tabCount[chapter].color = InkSoft;
-            Fit(_tabCount[chapter], 11, 20);
+            // Inside the plate's field, clear of the widest cap the three states use — the padlock's.
+            _tabName[chapter] = UiBuild.Label(Slot(plate, "Ad", new Vector2(0.14f, 0.08f),
+                                                   new Vector2(0.66f, 0.92f)),
+                                              "Text", string.Empty, 22, TextAnchor.MiddleLeft);
+            _tabName[chapter].color = Ink;
+            Fit(_tabName[chapter], 11, 22);
+
+            _tabCount[chapter] = UiBuild.Label(Slot(rt, "Sayac", new Vector2(0.06f, 0.02f),
+                                                    new Vector2(0.98f, 0.42f)),
+                                               "Text", string.Empty, 19, TextAnchor.MiddleLeft);
+            _tabCount[chapter].color = Paper;
+            Fit(_tabCount[chapter], 10, 19);
         }
 
         private void BuildBeat(int beat, Vector2 aMin, Vector2 aMax)
         {
-            RectTransform c = Art(_root, "Asama_" + beat, cardPanel, aMin, aMax);
+            RectTransform c = Art(_root, "Asama_" + beat, _panel, aMin, aMax);
 
             _beatName[beat] = UiBuild.Label(Slot(c, "Ad", new Vector2(0.030f, 0.58f), new Vector2(0.545f, 0.94f)),
                                             "Text", string.Empty, 28, TextAnchor.MiddleLeft);
@@ -254,7 +291,7 @@ namespace Game.UI
             _beatFillImage[beat] = Bar(c, new Vector2(0.030f, 0.10f), new Vector2(0.545f, 0.26f), beatFill);
 
             RectTransform odul = Slot(c, "Odul", new Vector2(0.570f, 0.30f), new Vector2(0.780f, 0.70f));
-            Icon(odul, "Elmas", gemIcon, new Vector2(0f, 0.10f), new Vector2(0.22f, 0.90f));
+            Icon(odul, "Elmas", _gemIcon, new Vector2(0f, 0.10f), new Vector2(0.22f, 0.90f));
             _beatReward[beat] = UiBuild.Label(Slot(odul, "Yazi", new Vector2(0.26f, 0f), new Vector2(1f, 1f)),
                                               "Text", string.Empty, 24, TextAnchor.MiddleLeft);
             _beatReward[beat].color = InkSoft;
@@ -262,14 +299,14 @@ namespace Game.UI
 
             int captured = beat;
             _beatBtn[beat] = UiBuild.Btn(c, "Al", string.Empty,
-                                         actionButton != null ? actionButton : UiSkin.ButtonGreen,
-                                         new Color(0.24f, 0.68f, 0.36f, 1f), 26,
+                                         _btnLive != null ? _btnLive : UiSkin.ButtonGreen,
+                                         Color.white, 26,
                                          () => { if (_chapters != null && _chapters.Claim(_shown, captured)) Ping(); });
-            // Geniş ve alçak: hap sanatının kendi oranı 4:1 ve uçları yatayda dilimleniyor.
+            // Geniş ve alçak: hap sanatının kendi oranı 2,5:1 ve uçları yatayda dilimleniyor.
             UiBuild.Anchor((RectTransform)_beatBtn[beat].transform,
-                           new Vector2(0.800f, 0.320f), new Vector2(0.972f, 0.680f));
+                           new Vector2(0.780f, 0.380f), new Vector2(0.980f, 0.620f));
             PillFit.Wrap(_beatBtn[beat].GetComponent<Image>());
-            _beatBtnText[beat] = _beatBtn[beat].GetComponentInChildren<Text>();
+            _beatBtnText[beat] = AtolyeKit.Label(_beatBtn[beat], 10, 22);
         }
 
         private void Select(int chapter)
@@ -305,7 +342,8 @@ namespace Game.UI
             // and left "Chapter 4" as the only thing telling them apart — a list of seven identical
             // rows is not a list. The lock belongs in the subtitle, where the progress would be.
             _tabName[chapter].text = Loc.Id("ada", island);
-            _tabName[chapter].color = owned ? Ink : InkFaint;
+            // The name sits on the plate's pale field, the caption on the dark backdrop below it.
+            _tabName[chapter].color = owned ? Ink : InkSoft;
 
             if (owned)
             {
@@ -322,13 +360,16 @@ namespace Game.UI
                 _tabCount[chapter].text = string.Format("{0} {1}   ·   {2}",
                                           Loc.T("bolum.bolum"), chapter + 1, Loc.T("bolum.kilitli"));
             }
-            _tabCount[chapter].color = owned ? InkSoft : InkFaint;
+            _tabCount[chapter].color = owned ? Paper : InkFaint;
 
-            // The selected row is tinted rather than swapped for a second sprite the kit does not have;
-            // a locked one is greyed the same way a dead claim button is.
-            _tabArt[chapter].color = chapter == _shown ? selectedTint
-                                   : owned ? Color.white
-                                           : new Color(0.80f, 0.82f, 0.86f, 1f);
+            // THREE STATES, THREE SPRITES. The kit carries a gold tab for the one being read and a
+            // silver one with a padlock for an island not owned yet; the plain silver between them is
+            // the locked tab with its lock mirrored away (Tools/ui/atolye_tasarim_kiti.ps1). This row
+            // used to tint one panel three ways, which is what pre-coloured art must never be asked
+            // to do — the gold would have come out of a wash over white.
+            // All three are the same height, so PillFit's multiplier holds across a swap.
+            Sprite art = chapter == _shown ? _tabPicked : owned ? _tabPlain : _tabLocked;
+            if (art != null) _tabArt[chapter].sprite = art;
         }
 
         private void RefreshStory()
@@ -399,7 +440,7 @@ namespace Game.UI
             HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Include);
             if (hud == null) return;
 
-            Sprite icon = Resources.Load<Sprite>(OpenerIconResource);
+            Sprite icon = AtolyeKit.Get("bolum_ikon") ?? Resources.Load<Sprite>(OpenerIconResource);
             Button open = hud.AttachBottomButton(2, "BtnBolum",
                                                  icon != null ? icon : UiSkin.ButtonBlue, Show);
             if (open == null) return;
@@ -430,7 +471,7 @@ namespace Game.UI
         /// </summary>
         private void BuildBackdrop()
         {
-            RectTransform sheet = Art(_root, "Zemin", cardPanel,
+            RectTransform sheet = Art(_root, "Zemin", _panel,
                                       new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.842f));
             var image = sheet.GetComponent<Image>();
             image.color = backdrop;
@@ -469,7 +510,7 @@ namespace Game.UI
 
         private RectTransform Chip(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
         {
-            Sprite art = chipPill != null ? chipPill : cardPanel;
+            Sprite art = _chip != null ? _chip : _panel;
             RectTransform rt = Art(parent, name, art, aMin, aMax);
             var img = rt.GetComponent<Image>();
             if (art != null) { img.type = Image.Type.Sliced; img.preserveAspect = false; PillFit.Wrap(img); }
@@ -496,12 +537,12 @@ namespace Game.UI
         /// </summary>
         private Image Bar(RectTransform parent, Vector2 aMin, Vector2 aMax, Color fallback)
         {
-            RectTransform bed = Art(parent, "Cubuk", barTrack, aMin, aMax);
+            RectTransform bed = Art(parent, "Cubuk", _barTrack, aMin, aMax);
             var bedImage = bed.GetComponent<Image>();
             bedImage.type = Image.Type.Sliced;
             bedImage.preserveAspect = false;
             PillFit.Wrap(bedImage);
-            if (barTrack == null) bedImage.color = track;
+            if (_barTrack == null) bedImage.color = track;
 
             RectTransform alan = Slot(bed, "DolguAlani", Vector2.zero, Vector2.one);
             alan.offsetMin = new Vector2(3f, 3f);
@@ -510,11 +551,11 @@ namespace Game.UI
             var go = new GameObject("Dolgu", typeof(RectTransform), typeof(Image));
             go.transform.SetParent(alan, false);
             var img = go.GetComponent<Image>();
-            img.sprite = barFill;
+            img.sprite = _barFill;
             img.type = Image.Type.Sliced;
             img.preserveAspect = false;
             img.raycastTarget = false;
-            if (barFill == null) img.color = fallback;
+            if (_barFill == null) img.color = fallback;
             UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, new Vector2(0f, 1f));
             PillFit.Wrap(img);
             return img;
@@ -523,10 +564,16 @@ namespace Game.UI
         private static void Progress(Image fill, float t)
             => ((RectTransform)fill.transform).anchorMax = new Vector2(Mathf.Clamp01(t), 1f);
 
-        private static void Dress(Button b, bool live)
+        /// <summary>
+        /// A claim button's two states, as two SPRITES — the kit's green capsule when there is
+        /// something to take and its pale one when there is not. This used to grey the green pill,
+        /// which is what the pale capsule exists to save it from. See <see cref="AtolyeKit.Face"/>.
+        /// </summary>
+        private void Dress(Button b, bool live)
         {
             b.interactable = live;
-            b.GetComponent<Image>().color = live ? Color.white : new Color(0.72f, 0.75f, 0.80f, 1f);
+            if (!AtolyeKit.Face(b, _btnLive, _btnDead, live))
+                b.GetComponent<Image>().color = live ? Color.white : new Color(0.72f, 0.75f, 0.80f, 1f);
         }
 
         private static void Ping() => ServiceLocator.Get<HapticService>()?.Medium();
