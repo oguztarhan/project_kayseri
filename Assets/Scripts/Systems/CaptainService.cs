@@ -92,6 +92,12 @@ namespace Game.Systems
         /// Pads the two arrays, the way the foreman roster and the dock already do. A save written
         /// before captains existed arrives with them null; one written before a captain was APPENDED
         /// to the roster arrives short, and keeps everything it had.
+        ///
+        /// The one case padding cannot fix — a save from before the roster was REWRITTEN, whose
+        /// indices no longer name the same people — is handled at load instead, by
+        /// <see cref="SaveMigration.RecastCaptainRoster"/>. It does not belong here: this runs for
+        /// every SaveData the game builds, including ones handed straight to the constructor with
+        /// levels already set, and dropping those would be a wipe rather than a migration.
         /// </summary>
         private void Normalise()
         {

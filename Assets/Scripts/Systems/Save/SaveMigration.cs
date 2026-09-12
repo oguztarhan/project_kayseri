@@ -66,6 +66,34 @@ namespace Game.Systems
             return true;
         }
 
+        /// <summary>The roster generation <see cref="SaveData.captainLevels"/> is addressed by. Raised
+        /// when the table in <see cref="Game.Core.Captains.Roster"/> is rewritten rather than appended
+        /// to, which is the only edit that changes who an index means.</summary>
+        public const int CaptainRosterSchema = 1;
+
+        /// <summary>
+        /// Drops captain levels once, for a save whose indices were written against the old five-name
+        /// roster. Padding (CaptainService.Normalise) keeps such a save loadable, but the levels parked
+        /// at 0-4 would be handed to whoever now sits at 0-4 — captains the player never pulled.
+        ///
+        /// Deliberately independent of the save version, like <see cref="RetirePrestige"/> above:
+        /// bumping the version wipes the empire, and one roster edit is not worth that. Charts, both
+        /// pity counters and the lifetime crate count all survive — they were paid for, and not one of
+        /// them names a captain.
+        ///
+        /// Called only for a save that came off disk. A fresh SaveData has nothing to migrate, and
+        /// running this over one would clear levels that were just set rather than loaded.
+        /// </summary>
+        public static bool RecastCaptainRoster(SaveData data)
+        {
+            if (data == null || data.captainRosterSchema >= CaptainRosterSchema) return false;
+
+            data.captainLevels = null;
+            data.captainDuplicates = null;
+            data.captainRosterSchema = CaptainRosterSchema;
+            return true;
+        }
+
         /// <summary>
         /// A fresh run, carrying across only what was bought with money.
         ///

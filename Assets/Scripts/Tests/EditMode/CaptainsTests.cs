@@ -54,7 +54,7 @@ namespace Game.Tests
         [Test]
         public void EveryRoleIsDrawable()
         {
-            // Four roles across five captains. A role nobody carries is a role the odds sheet, the
+            // Four roles across fifteen captains. A role nobody carries is a role the odds sheet, the
             // dock's officer picker and the loc table all describe and no player can ever field.
             for (int role = 0; role < Captains.RoleCount; role++)
             {
@@ -65,15 +65,24 @@ namespace Game.Tests
         }
 
         [Test]
-        public void EachGradeIsExactlyOneCaptain()
+        public void GradesNarrowTowardTheTop()
         {
-            // Five captains at five grades is what makes the crate's rarity readout and the card you
-            // actually get the same fact. A grade carrying two would put a second roll inside the
-            // first and quietly halve the odds the sheet prints for each of them.
-            Assert.That(Captains.Count, Is.EqualTo(Captains.GradeCount));
+            // Five-four-three-two-one. It was one captain per grade, so the grade WAS the captain and
+            // the odds sheet needed no second paragraph; fifteen means a grade is a bucket you roll
+            // into and then roll again inside, and a named captain's odds are their grade's weight
+            // divided by the members below. The pyramid is what keeps that honest: flat thirds would
+            // make a Mythic as easy to name as a Common.
+            var expected = new[] { 5, 4, 3, 2, 1 };
+            Assert.That(expected.Length, Is.EqualTo(Captains.GradeCount));
+
+            int total = 0;
             for (int g = 0; g < Captains.GradeCount; g++)
-                Assert.That(Captains.CountOfGrade((Captains.Grade)g), Is.EqualTo(1),
-                            "grade " + (Captains.Grade)g);
+            {
+                int n = Captains.CountOfGrade((Captains.Grade)g);
+                Assert.That(n, Is.EqualTo(expected[g]), "grade " + (Captains.Grade)g);
+                total += n;
+            }
+            Assert.That(total, Is.EqualTo(Captains.Count), "a captain sits outside the five grades");
         }
 
         [Test]

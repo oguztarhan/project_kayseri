@@ -223,6 +223,11 @@ namespace Game.Systems
             // a plain permanent bonus and never expose/reset the run again. No save-version bump: this
             // update must preserve progression.
             if (SaveMigration.RetirePrestige(Data, 0.10d)) Save.Save(Data);
+
+            // The captain roster was rewritten rather than appended to, so index 0 stopped meaning the
+            // captain whose level is parked there. Only a save off disk can be carrying the old
+            // numbering. No save-version bump: this update must preserve progression.
+            if (hadSave && SaveMigration.RecastCaptainRoster(Data)) Save.Save(Data);
             ServiceLocator.Register(Data);
 
             Clock = new GameClock(ticksPerSecond);

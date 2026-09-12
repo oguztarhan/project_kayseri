@@ -265,16 +265,23 @@ namespace Game.Tests
             CaptainService s = Make(data);
             Assert.That(s.IncomeMultiplier, Is.EqualTo(1d));
 
-            data.captainLevels[0] = 5;
-            Assert.That(s.BestOwnedCaptain, Is.EqualTo(0));
+            // Addressed by GRADE rather than by index: the roster is fifteen deep now, so indices 0
+            // and 1 are two Commons and the second one would prove nothing about a richer captain
+            // taking over. The first of each grade is what it always was — see Captains.Roster.
+            int common = Captains.OfGrade(Captains.Grade.Common, 0);
+            int rare = Captains.OfGrade(Captains.Grade.Rare, 0);
+            Assert.That(common, Is.LessThan(rare), "the tie below rests on Common sorting first");
+
+            data.captainLevels[common] = 5;
+            Assert.That(s.BestOwnedCaptain, Is.EqualTo(common));
             Assert.That(s.IncomeMultiplier, Is.EqualTo(5d).Within(1e-9));
 
-            data.captainLevels[1] = 5;
-            Assert.That(s.BestOwnedCaptain, Is.EqualTo(0), "roster order resolves an equal-level tie");
+            data.captainLevels[rare] = 5;
+            Assert.That(s.BestOwnedCaptain, Is.EqualTo(common), "roster order resolves an equal-level tie");
             Assert.That(s.IncomeMultiplier, Is.EqualTo(5d).Within(1e-9));
 
-            data.captainLevels[1] = 6;
-            Assert.That(s.BestOwnedCaptain, Is.EqualTo(1));
+            data.captainLevels[rare] = 6;
+            Assert.That(s.BestOwnedCaptain, Is.EqualTo(rare));
             Assert.That(s.IncomeMultiplier, Is.EqualTo(17.5d).Within(1e-9),
                         "levels above the ceiling clamp to MaxLevel");
         }

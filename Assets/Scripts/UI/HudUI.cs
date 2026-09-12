@@ -303,6 +303,8 @@ namespace Game.UI
         public Button AttachBottomButton(int order, string name, Sprite icon,
                                          UnityEngine.Events.UnityAction onClick)
         {
+            Sprite portraitIcon = PortraitOpenerIcon(name);
+            if (portraitIcon != null) icon = portraitIcon;
             // Compact mode keeps the rail down to primaries: sea combat is a primary loop in the
             // five-station game, and the two rosters are the whole of the collection layer. The rest
             // go into the More sheet rather than being dropped — a screen you cannot open is a
@@ -325,6 +327,7 @@ namespace Game.UI
             var image = go.GetComponent<Image>();
             image.sprite = icon;
             image.preserveAspect = true;
+            image.useSpriteMesh = true;
             var button = go.GetComponent<Button>();
             button.targetGraphic = image;
             if (onClick != null) button.onClick.AddListener(onClick);
@@ -606,6 +609,7 @@ namespace Game.UI
             var iconImage = iconGo.GetComponent<Image>();
             iconImage.sprite = icon;
             iconImage.preserveAspect = true;
+            iconImage.useSpriteMesh = true;
             iconImage.raycastTarget = false;
             iconImage.enabled = icon != null;
 
@@ -640,6 +644,21 @@ namespace Game.UI
 
         /// <summary>The row's own screen title key, so the sheet says "EVENTS" rather than "BtnEtkinlik".
         /// Reuses each screen's existing heading key — no row here needs its own translation.</summary>
+        private static Sprite PortraitOpenerIcon(string name)
+        {
+            switch (name)
+            {
+                case "BtnKaptan": return PortraitUiArt.Get("general-captain-roster-icon");
+                case "BtnGorev": case "BtnHedefler": case "BtnGorevler": return PortraitUiArt.Get("general-goals-icon");
+                case "BtnDepo": return PortraitUiArt.Get("general-warehouse-icon");
+                case "BtnCuzdan": return PortraitUiArt.Get("general-wallet-icon");
+                case "BtnEtkinlik": case "BtnCanliEtkinlikler": return PortraitUiArt.Get("general-live-events-icon");
+                case "BtnLig": return PortraitUiArt.Get("general-trophy-icon");
+                case CardCollectionUI.OpenerButtonName: return PortraitUiArt.Get("empty-state-0");
+                default: return null;
+            }
+        }
+
         private static string MoreRowKey(string name)
         {
             switch (name)

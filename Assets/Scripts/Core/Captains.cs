@@ -31,8 +31,10 @@ namespace Game.Core
     public static class Captains
     {
         /// <summary>How many captains exist. Saves address them by index, so this may grow but must
-        /// never shrink or be reordered — a new captain is APPENDED.</summary>
-        public const int Count = 5;
+        /// never shrink or be reordered — a new captain is APPENDED. The one time the table WAS
+        /// rewritten wholesale, the old indices named different people, so the levels they addressed
+        /// had to be dropped: see <c>SaveData.captainRosterSchema</c>.</summary>
+        public const int Count = 15;
 
         /// <summary>Level 0 is a captain you have never pulled. There is no level-0 captain aboard.</summary>
         public const int NotOwned = 0;
@@ -74,21 +76,46 @@ namespace Game.Core
         /// <summary>
         /// Everyone who can be found, in save order.
         ///
-        /// FIVE, ONE PER GRADE. Ten across five grades meant a grade was a bucket you rolled into and
-        /// then rolled again inside; at five, the grade IS the captain, so the crate's rarity readout
-        /// and the card you actually get are the same fact and the odds sheet stops needing a second
-        /// paragraph. Every grade still has someone in it, so the crate's whole weight table is
-        /// reachable, and all four roles are covered — the Bosun twice, because his is the risk-and-
-        /// repair job and the Mythic trophy is worth most in the hands of the officer who decides
-        /// whether a far voyage comes home at all.
+        /// FIFTEEN ON A PYRAMID: five Common, four Rare, three Epic, two Legendary, one Mythic. It was
+        /// five, one per grade, so that the grade WAS the captain and the odds sheet needed no second
+        /// paragraph. That is gone: a grade is now a bucket you roll into and then roll again inside,
+        /// so a named captain's odds are their grade's weight divided by the members of that grade.
+        /// The sheet has to say so — see <see cref="Odds"/>.
+        ///
+        /// The pyramid is what keeps the trade honest. A flat three-per-grade would have made a Mythic
+        /// as easy to name as a Common; narrowing toward the top means the rarity you see on the card
+        /// still tells you how hard that particular person was to find.
+        ///
+        /// Every grade has someone in it, so the crate's whole weight table stays reachable, and all
+        /// four roles are covered. The Mythic is still a Bosun: his is the risk-and-repair job, and the
+        /// trophy is worth most in the hands of the officer who decides whether a far voyage comes
+        /// home at all.
         /// </summary>
         public static readonly Card[] Roster =
         {
-            new Card { Id = "kemal",  Role = Quartermaster, Rank = Grade.Common    },
-            new Card { Id = "selim",  Role = Gunner,        Rank = Grade.Rare      },
-            new Card { Id = "musa",   Role = Bosun,         Rank = Grade.Epic      },
-            new Card { Id = "derya",  Role = Purser,        Rank = Grade.Legendary },
-            new Card { Id = "ates",   Role = Bosun,         Rank = Grade.Mythic    },
+            // TWO ORDERING RULES, both load-bearing. The first four are one of each role, which
+            // SeaCombatTests reads directly. And the FIRST captain of each grade carries the role that
+            // grade's single captain used to carry — Quartermaster, Gunner, Bosun, Purser, Bosun — so
+            // everything written against OfGrade(grade, 0) still means what it meant at five.
+            new Card { Id = "bekir",  Role = Quartermaster, Rank = Grade.Common    },
+            new Card { Id = "fikri",  Role = Gunner,        Rank = Grade.Common    },
+            new Card { Id = "hasan",  Role = Bosun,         Rank = Grade.Common    },
+            new Card { Id = "riza",   Role = Purser,        Rank = Grade.Common    },
+            new Card { Id = "cemil",  Role = Quartermaster, Rank = Grade.Common    },
+
+            new Card { Id = "sema",   Role = Gunner,        Rank = Grade.Rare      },
+            new Card { Id = "sukru",  Role = Bosun,         Rank = Grade.Rare      },
+            new Card { Id = "necla",  Role = Quartermaster, Rank = Grade.Rare      },
+            new Card { Id = "leyla",  Role = Purser,        Rank = Grade.Rare      },
+
+            new Card { Id = "sedef",  Role = Bosun,         Rank = Grade.Epic      },
+            new Card { Id = "nazmi",  Role = Quartermaster, Rank = Grade.Epic      },
+            new Card { Id = "zeki",   Role = Gunner,        Rank = Grade.Epic      },
+
+            new Card { Id = "hikmet", Role = Purser,        Rank = Grade.Legendary },
+            new Card { Id = "mahmut", Role = Bosun,         Rank = Grade.Legendary },
+
+            new Card { Id = "rasim",  Role = Bosun,         Rank = Grade.Mythic    },
         };
 
         // ------------------------------------------------------------------ tuning

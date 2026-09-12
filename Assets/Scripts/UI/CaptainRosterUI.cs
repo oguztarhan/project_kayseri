@@ -8,15 +8,18 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The captain screen: the crate down the left, the ten captains in two columns on the right.
+    /// The captain screen: the crate across the top, the fifteen captains in one scrolling column
+    /// below it.
     ///
     /// Built in code for the same reason <see cref="GoalsUI"/>, <see cref="ForemanRosterUI"/> and
     /// <see cref="ChapterUI"/> are — the rows come out of <see cref="Captains.Roster"/>, so appending
     /// a captain should cost one entry in that table and nothing here.
     ///
-    /// TEN ROWS IN TWO COLUMNS, not one list of ten. The screen is landscape; ten full-height rows
-    /// down one side come out around seventy pixels each, which is the letterbox problem GoalsUI's
-    /// comment already describes. Five and five gives every row twice the height at no cost.
+    /// ONE COLUMN THAT SCROLLS, not a band divided by the roster. The game is portrait, so width is
+    /// the scarce thing and height is not: a full-width row fits a portrait, a name, a role, five
+    /// stars, a bar and a button, and two columns of that fit none of them. Dividing a fixed band by
+    /// fifteen would have left each row about seventy pixels tall, which is the letterbox problem
+    /// GoalsUI's comment already describes; a fixed row height that scrolls has no such ceiling.
     ///
     /// THE CRATE SHOWS ITS PITY. Both counters are on the card, in words, because a crate that hides
     /// them is a crate the player has to take on faith — and the whole reason the pity exists is that
@@ -41,7 +44,27 @@ namespace Game.UI
         [Tooltip("Harita sayacı — MaviSet/gosterge_grafit.")]
         [SerializeField] private Sprite chipPill;
 
-        [Tooltip("Beş portre, KADRO SIRASIYLA: Kemal, Selim, Musa, Derya, Ateş. " +
+        [Tooltip("Ekranın zemini — KaptanKiti/captain_card_panel. Boşsa kart paneli 'backdrop' " +
+                 "rengiyle boyanır. Kendi koyu fonu olan bir görsel: satırlarda değil, yalnızca " +
+                 "burada kullanılır, yoksa her satır kendi fonunu ve köşe parıltısını tekrarlar.")]
+        [SerializeField] private Sprite backdropArt;
+
+        [Tooltip("Sandık kartının simgesi — KaptanKiti/captain_chest_icon. Boşsa çizilmez.")]
+        [SerializeField] private Sprite chestIcon;
+
+        [Tooltip("Harita sayacının simgesi — KaptanKiti/captain_gem_icon. Boşsa sayaç yalnız yazı.")]
+        [SerializeField] private Sprite gemIcon;
+
+        [Tooltip("Alt çubuktaki açıcı düğmenin simgesi — KaptanKiti/captain_opener_icon. " +
+                 "Boşsa Resources/" + OpenerIconResource + " yüklenir.")]
+        [SerializeField] private Sprite openerIcon;
+
+        [Tooltip("Sandıktaki oran rozeti — KaptanKiti/captain_info_icon. " +
+                 "Boşsa Resources/" + InfoIconResource + " yüklenir.")]
+        [SerializeField] private Sprite infoIcon;
+
+        [Tooltip("On beş portre, KADRO SIRASIYLA: Hasan, Bekir, Fikri, Cemil, Rıza, Şükrü, Necla, " +
+                 "Sema, Sedef, Nazmi, Zeki, Leyla, Mahmut, Hikmet, Rasim. " +
                  "Game.Core.Captains.Roster ile aynı sıra.")]
         [SerializeField] private Sprite[] portraits;
 
@@ -93,9 +116,21 @@ namespace Game.UI
         private static readonly System.Globalization.CultureInfo Culture =
             System.Globalization.CultureInfo.InvariantCulture;
 
+        /// <summary>A row's height in canvas reference pixels — the canvas is 1080x1920. Five rows
+        /// divided the band exactly; fifteen do not fit it at any readable height, so the band scrolls
+        /// and this is what holds a row at the size it already was instead of a fifteenth of a screen.</summary>
+        private const float RowPixels = 221f;
+
+        /// <summary>Gap between two rows, split half above and half below. Was 0.006 of the sheet.</summary>
+        private const float RowGap = 12f;
+
         private CaptainService _captains;
         private LocalizationService _loc;
         private RectTransform _root;
+
+        /// <summary>The scrolling content the rows live in. Its height is the VISIBLE row count times
+        /// <see cref="RowPixels"/>, so a filter shortens the scroll instead of stretching the rows.</summary>
+        private RectTransform _rowsContent;
 
         private Text _titleLabel, _chartsLabel, _collectedLabel, _pityLabel, _lastPullLabel, _sourceLabel;
         private RectTransform _chartsChip;
@@ -179,13 +214,13 @@ namespace Game.UI
             BuildCrate();
             BuildBrowseBar();
 
-            // Tek sütunda beş geniş satır, sayfanın tam genişliğinde. İki sütunluydu, on kaptan
-            // vardı; beşi ikiye bölmek ikinci sütunda iki satır bırakıp yanına boşluk koyuyordu.
-            float rh = (RowsTop - RowsBottom) / Captains.Count;
+            // Tek sütunda geniş satırlar, sayfanın tam genişliğinde — ama artık on beş kaptan var ve
+            // bant beşi alacak kadar yüksek. Satırlar kaydırılan bir yüzeye kurulur; yerleşimlerini
+            // ReflowRows yapar, çünkü sıralama ve filtre zaten her açılışta oraya uğruyor.
+            BuildRowScroll();
 
             for (int c = 0; c < Captains.Count; c++)
-                BuildRow(c, new Vector2(PageLeft, RowsTop - (c + 1) * rh + 0.006f),
-                            new Vector2(PageRight, RowsTop - c * rh - 0.006f));
+                BuildRow(c, Vector2.zero, Vector2.one);
             _inspect = new RosterInspectPanel(_root);
             _odds = new OddsSheetUI(_root);
             // Content into the safe area; the scrim above it keeps covering the notch.
@@ -197,8 +232,10 @@ namespace Game.UI
             Button sort = UiBuild.Btn(_root, "Sirala", string.Empty,
                                       actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                       new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleSort);
+            // Two equal buttons across the full content width. They used to stop at 0.610 and leave a
+            // third of the bar empty, which put the whole row off-centre under a centred title.
             UiBuild.Anchor((RectTransform)sort.transform,
-                           new Vector2(PageLeft, BrowseBottom), new Vector2(0.310f, BrowseTop));
+                           new Vector2(PageLeft, BrowseBottom), new Vector2(BrowseSplitLeft, BrowseTop));
             PillFit.Wrap(sort.GetComponent<Image>());
             _sortText = sort.GetComponentInChildren<Text>();
             Fit(_sortText, 12, 22);
@@ -207,7 +244,7 @@ namespace Game.UI
                                         actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                         new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleFilter);
             UiBuild.Anchor((RectTransform)filter.transform,
-                           new Vector2(0.330f, BrowseBottom), new Vector2(0.610f, BrowseTop));
+                           new Vector2(BrowseSplitRight, BrowseBottom), new Vector2(PageRight, BrowseTop));
             PillFit.Wrap(filter.GetComponent<Image>());
             _filterText = filter.GetComponentInChildren<Text>();
             Fit(_filterText, 12, 22);
@@ -242,8 +279,19 @@ namespace Game.UI
                                         new Vector2(0.87f, RibbonBand + 0.13f)),
                                    "Text", Loc.T("kaptan.baslik"), 38, TextAnchor.MiddleCenter);
 
-            _chartsChip = Chip(_root, "Harita", new Vector2(PageLeft, 0.941f), new Vector2(0.245f, 0.995f));
-            _chartsLabel = UiBuild.Label(Slot(_chartsChip, "Yazi", new Vector2(0.08f, 0f), new Vector2(0.92f, 1f)),
+            _chartsChip = Chip(_root, "Harita", new Vector2(PageLeft, 0.941f),
+                               new Vector2(PageLeft + 0.215f, 0.995f));
+            if (gemIcon != null)
+            {
+                RectTransform gem = Art(_chartsChip, "Elmas", gemIcon,
+                                        new Vector2(0.045f, 0.12f), new Vector2(0.270f, 0.88f));
+                var gemImage = gem.GetComponent<Image>();
+                gemImage.preserveAspect = true;
+                gemImage.raycastTarget = false;
+            }
+            _chartsLabel = UiBuild.Label(Slot(_chartsChip, "Yazi",
+                                         new Vector2(gemIcon != null ? 0.300f : 0.08f, 0f),
+                                         new Vector2(0.92f, 1f)),
                                          "Text", string.Empty, 30, TextAnchor.MiddleCenter);
             _chartsLabel.color = Paper;
 
@@ -253,8 +301,9 @@ namespace Game.UI
             closeImage.type = Image.Type.Simple;
             closeImage.preserveAspect = true;
             // Tam köşede değil: HUD'un ayarlar dişlisi 120 sıralı kanvasta bunun üstünde çiziliyor.
+            // Sağ kenarı harita göstergesinin sol kenarıyla aynı payda: ikisi de sayfa payına yaslı.
             UiBuild.Anchor((RectTransform)close.transform,
-                           new Vector2(0.855f, 0.938f), new Vector2(0.955f, 0.996f));
+                           new Vector2(PageRight - 0.100f, 0.938f), new Vector2(PageRight, 0.996f));
         }
 
         /// <summary>The crate card: what it costs, what the two counters are at, and what came out.</summary>
@@ -265,15 +314,28 @@ namespace Game.UI
 
             // Name and counter on the left, the two open pills on the right, the pity and last-pull
             // lines filling the middle — the same shelf grammar the masters screen uses.
-            UiBuild.Label(Slot(c, "Baslik", new Vector2(0.030f, 0.700f), new Vector2(0.330f, 0.950f)),
+            //
+            // The chest sits left of the title and pushes it right, rather than going in the empty
+            // middle: a crate card whose picture is not beside its name reads as two cards.
+            bool chest = chestIcon != null;
+            if (chest)
+            {
+                RectTransform box = Art(c, "SandikSimge", chestIcon,
+                                        new Vector2(0.030f, 0.690f), new Vector2(0.132f, 0.960f));
+                var boxImage = box.GetComponent<Image>();
+                boxImage.preserveAspect = true;
+                boxImage.raycastTarget = false;
+            }
+            UiBuild.Label(Slot(c, "Baslik", new Vector2(chest ? 0.148f : 0.030f, 0.700f),
+                               new Vector2(0.330f, 0.950f)),
                           "Text", Loc.T("kaptan.sandik"), 32, TextAnchor.MiddleLeft).color = Ink;
 
             // Charts cannot be bought, so this crate is outside the platforms' paid-loot-box rule. The
             // badge is here anyway: the card already shows how far each guarantee is away, and the
             // weights behind it are the half that was still taken on faith.
-            Sprite infoIcon = Resources.Load<Sprite>(InfoIconResource);
-            Button odds = UiBuild.Btn(c, "Oran", infoIcon != null ? string.Empty : "i",
-                                      infoIcon != null ? infoIcon : UiSkin.ButtonGrey,
+            Sprite badge = infoIcon != null ? infoIcon : Resources.Load<Sprite>(InfoIconResource);
+            Button odds = UiBuild.Btn(c, "Oran", badge != null ? string.Empty : "i",
+                                      badge != null ? badge : UiSkin.ButtonGrey,
                                       new Color(0.45f, 0.49f, 0.56f, 1f), 22,
                                       () => { if (_odds != null && _captains != null)
                                                   _odds.ShowCaptainCrate(_captains.CrateTuning); });
@@ -322,7 +384,7 @@ namespace Game.UI
         {
             if (cardPrefab != null) { BuildPrefabRow(captain, aMin, aMax); return; }
 
-            RectTransform c = Art(_root, "Kaptan_" + captain, cardPanel, aMin, aMax);
+            RectTransform c = Art(_rowsContent, "Kaptan_" + captain, cardPanel, aMin, aMax);
             _rowRoot[captain] = c;
             _rowArt[captain] = c.GetComponent<Image>();
             _rowArt[captain].raycastTarget = true;
@@ -449,21 +511,63 @@ namespace Game.UI
             int count = RosterCardQuery.Fill(_cardState, Captains.Count, _sortMode, _filterMode, _visibleOrder);
             for (int c = 0; c < Captains.Count; c++) _rowRoot[c].gameObject.SetActive(false);
 
-            // One full-width column, and the row height comes off the FULL roster rather than off
-            // how many the filter left showing — otherwise a filter down to one captain stretches
-            // that one row over the whole band. This was still the old two-column landscape layout
-            // after Build() had been restacked, so every filter press undid the portrait pass.
-            float rowHeight = (RowsTop - RowsBottom) / Captains.Count;
+            // One full-width column. The row is a FIXED PIXEL height and the content grows to hold
+            // however many the filter left showing — the opposite of the old band, which divided a
+            // fixed band by the roster and would have made a fifteen-captain row 74px tall.
+            _rowsContent.sizeDelta = new Vector2(0f, count * RowPixels);
+
             for (int position = 0; position < count; position++)
             {
                 int captain = _visibleOrder[position];
                 RectTransform card = _rowRoot[captain];
                 UiBuild.Anchor(card,
-                    new Vector2(PageLeft, RowsTop - (position + 1) * rowHeight + 0.006f),
-                    new Vector2(PageRight, RowsTop - position * rowHeight - 0.006f));
+                    new Vector2(0f, 1f - (position + 1) / (float)count),
+                    new Vector2(1f, 1f - position / (float)count));
+                card.offsetMin = new Vector2(0f, RowGap * 0.5f);
+                card.offsetMax = new Vector2(0f, -RowGap * 0.5f);
                 card.gameObject.SetActive(true);
             }
             _emptyText.gameObject.SetActive(count == 0);
+        }
+
+        /// <summary>
+        /// The band the rows scroll inside. Clamped rather than elastic: the list is short enough that
+        /// a rubber-band overshoot reads as the screen coming apart rather than as give.
+        ///
+        /// The mask, the ScrollRect and the viewport are one object on purpose — a ScrollRect whose
+        /// viewport is its own rect is the simplest thing that works, and the row band has no header
+        /// or scrollbar that would need to sit outside the mask.
+        /// </summary>
+        private void BuildRowScroll()
+        {
+            var viewGo = new GameObject("KadroGorunum", typeof(RectTransform), typeof(Image),
+                                        typeof(ScrollRect), typeof(RectMask2D));
+            viewGo.transform.SetParent(_root, false);
+            RectTransform view = (RectTransform)viewGo.transform;
+            UiBuild.Anchor(view, new Vector2(PageLeft, RowsBottom), new Vector2(PageRight, RowsTop));
+
+            // Clear rather than absent: the ScrollRect needs something that takes a drag, and a
+            // transparent Image is the cheapest raycast target that does not paint.
+            var pad = viewGo.GetComponent<Image>();
+            pad.color = Color.clear;
+
+            var contentGo = new GameObject("Icerik", typeof(RectTransform));
+            contentGo.transform.SetParent(view, false);
+            _rowsContent = (RectTransform)contentGo.transform;
+            _rowsContent.anchorMin = new Vector2(0f, 1f);
+            _rowsContent.anchorMax = new Vector2(1f, 1f);
+            _rowsContent.pivot = new Vector2(0.5f, 1f);
+            _rowsContent.offsetMin = Vector2.zero;
+            _rowsContent.offsetMax = Vector2.zero;
+            _rowsContent.sizeDelta = new Vector2(0f, Captains.Count * RowPixels);
+
+            ScrollRect scroll = viewGo.GetComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 55f;
+            scroll.viewport = view;
+            scroll.content = _rowsContent;
         }
 
         /// <summary>
@@ -510,7 +614,9 @@ namespace Game.UI
                                                     : new Color(0.30f, 0.33f, 0.39f, 0.90f);
             }
 
-            RefreshBadge(captain, owned, state.Busy);
+            // The prefab puts the badge and the star pips in the SAME top-right slot, so a visible
+            // badge owns it — otherwise the pip it fails to cover pokes out from behind its cap.
+            bool badged = RefreshBadge(captain, owned, state.Busy);
 
             // Locked entries stay named and visible as collection goals. Ownership is stated on the
             // second line and by the disabled action; hiding the name would turn a goal into a blank.
@@ -526,14 +632,16 @@ namespace Game.UI
             string rank = Loc.T("kaptan.derece." + (int)grade);
             if (_rowRole[captain] != null)
             {
+                // Pips when they are on show, written stars when the badge has taken their slot —
+                // a captain at the helm still has to say how far he is levelled.
                 _rowRole[captain].text = !owned
                     ? string.Format("{0} · {1} · {2}", rank, role, Loc.T("kaptan.bulunmadi"))
-                    : HasStarPips(captain)
+                    : HasStarPips(captain) && !badged
                         ? string.Format("{0} · {1}", rank, role)
                         : string.Format("{0} · {1} · {2}", rank, role, StarText(level));
                 _rowRole[captain].color = owned ? InkSoft : InkFaint;
             }
-            PaintStars(captain, owned ? level : 0, tint);
+            PaintStars(captain, owned ? level : 0, tint, !badged);
 
             int need = state.DuplicatesRequired;
             int have = state.Duplicates;
@@ -560,20 +668,22 @@ namespace Game.UI
         /// all for a captain you own who is simply ashore — that is the quiet state, and a badge on
         /// every row would say nothing.
         /// </summary>
-        private void RefreshBadge(int captain, bool owned, bool onVoyage)
+        /// <summary>True when the badge ended up on show, so the caller knows the slot is taken.</summary>
+        private bool RefreshBadge(int captain, bool owned, bool onVoyage)
         {
-            if (_rowBadge[captain] == null) return;
+            if (_rowBadge[captain] == null) return false;
 
             string word;
             Color fill;
             if (!owned) { word = Loc.T("kaptan.kilitli"); fill = BadgeLocked; }
             else if (onVoyage) { word = Loc.T("kaptan.denizde"); fill = BadgeSea; }
             else if (captain == AtTheHelm()) { word = Loc.T("kaptan.dumende"); fill = BadgeHelm; }
-            else { _rowBadge[captain].SetActive(false); return; }
+            else { _rowBadge[captain].SetActive(false); return false; }
 
             if (_rowBadgeText[captain] != null) _rowBadgeText[captain].text = word;
             if (_rowBadgeFill[captain] != null) _rowBadgeFill[captain].color = fill;
             _rowBadge[captain].SetActive(true);
+            return true;
         }
 
         /// <summary>
@@ -706,7 +816,7 @@ namespace Game.UI
             HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Include);
             if (hud == null) return;
 
-            Sprite icon = Resources.Load<Sprite>(OpenerIconResource);
+            Sprite icon = openerIcon != null ? openerIcon : Resources.Load<Sprite>(OpenerIconResource);
             Button open = hud.AttachBottomButton(3, HudUI.CaptainButtonName,
                                                  icon != null ? icon : UiSkin.ButtonYellow, Show);
             if (open == null) return;
@@ -745,17 +855,35 @@ namespace Game.UI
         /// crate gets a wide band and the rows get the whole width. The masters screen is laid out the
         /// same way for the same reason.
         /// </summary>
-        private const float PageLeft = 0.030f, PageRight = 0.970f;
+        /// <summary>
+        /// The content margin, and it is set by the SHEET rather than by taste. The kit's backdrop is
+        /// a framed panel: at 0.030 the cards sat on top of its blue rim and left a sliver of it
+        /// showing down each side, which reads as a stray bar rather than as a border. 0.062 clears
+        /// the rim, so the frame is either fully seen or not seen at all.
+        /// </summary>
+        private const float PageLeft = 0.062f, PageRight = 0.938f;
+        /// <summary>Where the sort and filter buttons meet, leaving a 0.020 gap between them and an
+        /// equal half of the content width each.</summary>
+        private const float BrowseSplitLeft = (PageLeft + PageRight) * 0.5f - 0.010f;
+        private const float BrowseSplitRight = (PageLeft + PageRight) * 0.5f + 0.010f;
+
         private const float CrateTop = 0.905f, CrateBottom = 0.690f;
         private const float BrowseTop = 0.672f, BrowseBottom = 0.622f;
         private const float RowsTop = 0.606f, RowsBottom = 0.030f;
 
         private void BuildBackdrop()
         {
-            RectTransform sheet = Art(_root, "Zemin", cardPanel,
+            // The kit's own sheet if it is wired, otherwise the shared panel under the backdrop tint.
+            // The kit art carries its own dark ground and corner glow, which is exactly what a single
+            // full-screen sheet wants and exactly what stacked row cards do not — hence one use here
+            // and none on the rows.
+            Sprite art = backdropArt != null ? backdropArt : cardPanel;
+            RectTransform sheet = Art(_root, "Zemin", art,
                                       new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.922f));
             var image = sheet.GetComponent<Image>();
-            image.color = backdrop;
+            image.color = backdropArt != null ? Color.white : backdrop;
+            if (backdropArt != null)
+                image.type = backdropArt.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
             image.raycastTarget = true;
             var eat = sheet.gameObject.AddComponent<Button>();
             eat.transition = Selectable.Transition.None;
@@ -769,7 +897,7 @@ namespace Game.UI
         /// </summary>
         private void BuildPrefabRow(int captain, Vector2 aMin, Vector2 aMax)
         {
-            var go = Instantiate(cardPrefab, _root);
+            var go = Instantiate(cardPrefab, _rowsContent);
             go.name = "Kaptan_" + captain;
             go.SetActive(true);
             var c = go.GetComponent<RectTransform>();
@@ -846,6 +974,29 @@ namespace Game.UI
                 _rowBtn[captain].onClick.AddListener(
                     () => { if (_captains != null && _captains.TryLevelUp(captured)) Ping(); });
             }
+
+            // The authored card ships Yukselt, Durum, Cubuk and Dolgu with no sprite at all, so they
+            // draw as flat sharp-cornered blocks on a rounded card while the crate's own buttons wear
+            // the kit. Same rule the card body already follows in BuildPrefabRow: borrow the screen's
+            // art, and only where the prefab brought none of its own.
+            Adopt(_rowBtn[captain] != null ? _rowBtn[captain].GetComponent<Image>() : null, actionButton);
+            Adopt(_rowBadgeFill[captain], chipPill);
+            Adopt(FindIn<Image>(card, "Cubuk"), barTrack);
+            Adopt(_rowFill[captain], barFill);
+        }
+
+        /// <summary>
+        /// Dresses a prefab image in the screen's art, but only if it brought none of its own — an
+        /// authored card that ships with real art keeps it. Sliced when the sprite carries a border,
+        /// so a pill stretched across a row keeps its round caps instead of smearing them.
+        /// </summary>
+        private static void Adopt(Image target, Sprite art)
+        {
+            if (target == null || art == null || target.sprite != null) return;
+            target.sprite = art;
+            target.type = art.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
+            target.preserveAspect = false;
+            PillFit.Wrap(target);
         }
 
         /// <summary>The first descendant with this exact name carrying a T, or null. Inactive children
@@ -864,14 +1015,15 @@ namespace Game.UI
         /// <summary>True when the wired prefab gave this row real star pips.</summary>
         private bool HasStarPips(int captain) => _rowStar[captain * Captains.MaxLevel] != null;
 
-        /// <summary>Lights the first <paramref name="stars"/> pips and dims the rest. A no-op on a row
-        /// with no pips wired.</summary>
-        private void PaintStars(int captain, int stars, Color tint)
+        /// <summary>Lights the first <paramref name="stars"/> pips and dims the rest, or switches the
+        /// row off entirely when something else has the slot. A no-op on a row with no pips wired.</summary>
+        private void PaintStars(int captain, int stars, Color tint, bool visible)
         {
             for (int i = 0; i < Captains.MaxLevel; i++)
             {
                 Image pip = _rowStar[captain * Captains.MaxLevel + i];
                 if (pip == null) continue;
+                pip.enabled = visible;
                 pip.color = i < stars ? tint : new Color(0.78f, 0.80f, 0.84f, 1f);
             }
         }

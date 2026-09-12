@@ -38,6 +38,17 @@ namespace Game.Tests
                         "the action pill needs a label the screen can write into");
 
             for (int i = 0; i < Foremen.MaxStars; i++) Has<Image>(card, "Yildiz" + i);
+
+            Has<Text>(card, "Istasyon");
+            Assert.That(Has<Image>(card, "Hazir").gameObject.activeSelf, Is.False,
+                        "the upgrade mark ships switched on and would flag every card as ready");
+
+            // The frame's rim must cover the portrait's edges, so it has to draw after it.
+            Image portrait = Has<Image>(card, "Portre");
+            Image frame = Has<Image>(card, "Cerceve");
+            Assert.That(frame.transform.parent, Is.SameAs(portrait.transform.parent));
+            Assert.That(frame.transform.GetSiblingIndex(), Is.GreaterThan(portrait.transform.GetSiblingIndex()),
+                        "Cerceve draws under Portre");
         }
 
         [Test]

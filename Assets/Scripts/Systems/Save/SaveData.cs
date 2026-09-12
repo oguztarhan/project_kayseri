@@ -160,6 +160,17 @@ namespace Game.Systems
         public long charts;
         public int[] captainLevels = new int[Game.Core.Captains.Count];      // 0 = never pulled
         public int[] captainDuplicates = new int[Game.Core.Captains.Count];  // spare cards toward a level
+
+        // The roster was rewritten once — five captains became fifteen different people — and index 0
+        // stopped meaning the captain whose level is parked there. Padding the array (CaptainService.Fit)
+        // keeps the save loadable but would hand the player captains they never pulled, so the two
+        // arrays above are cleared once when this trails SaveMigration.CaptainRosterSchema. Charts,
+        // pity and the lifetime crate count all survive: those were paid for and none of them names a
+        // captain. See SaveMigration.RecastCaptainRoster, which is where the drop actually happens.
+        //
+        // Deliberately NOT a SaveMigration.CurrentVersion bump, on the idleShopSchemaVersion precedent
+        // above — a version change is a wipe, and one roster edit is not worth anyone's empire.
+        public int captainRosterSchema;
         public int crateSinceEpic;         // pulls since an Epic-or-better; drives the short pity
         public int crateSinceLegendary;    // pulls since a Legendary-or-better; the long pity and the ramp
         public int cratesOpened;           // lifetime, for the crate screen's own readout

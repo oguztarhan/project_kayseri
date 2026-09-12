@@ -277,9 +277,9 @@ namespace Game.UI
         //
         // Şeridin tamamı düğme. 112 birim yükseklik tek başına küçük bir hedef; 976 birim genişlik onu
         // parmakla ıskalanmayacak bir şerit hâline getiriyor.
-        private const float FooterHeight = 112f;
-        private const float FooterTop = -2218f;      // kartın alt kenarının 6 birim altı
-        private const float FooterWidth = 976f;
+        private const float FooterHeight = 180f;
+        private const float FooterTop = -1630f;
+        private const float FooterWidth = 870f;
 
         private SupportMenuUI _support;
 
@@ -318,6 +318,7 @@ namespace Game.UI
             img.sprite = languageSkin.Row != null ? languageSkin.Row : UiSkin.ButtonGrey;
             img.type = Image.Type.Sliced;
             img.color = new Color(1f, 1f, 1f, 0.85f);
+            PortraitUiArt.Apply(img, "settings-support-button");
             if (img.sprite != null)
             {
                 // Satır sanatının kenar payı şeridin beşte birine indiriliyor — dil ekranındaki hesabın
@@ -332,10 +333,10 @@ namespace Game.UI
             btn.onClick.AddListener(OnSupport);
 
             FooterText(rt, "Surum", PlayerIdentity.VersionLine(), 30f, TMPro.TextAlignmentOptions.Left,
-                       new Vector2(34f, 0f), new Vector2(-380f, 0f), new Color32(0x6B, 0x76, 0x8C, 0xFF));
+                       new Vector2(140f, 0f), new Vector2(-380f, 0f), Color.white);
             var support = FooterText(rt, "Destek", Loc.T("ayarlar.destek"), 36f, TMPro.TextAlignmentOptions.Right,
                                      new Vector2(FooterWidth - 380f, 0f), new Vector2(-34f, 0f),
-                                     new Color32(0x2A, 0x3A, 0x5C, 0xFF));
+                                     Color.white);
             // Dil değişince kendi kendine güncellensin: bu şerit kodla kuruluyor, prefabdaki satırlar
             // gibi Inspector'dan LocalizedText alamıyor.
             support.gameObject.AddComponent<LocalizedText>().SetKey("ayarlar.destek");
@@ -395,10 +396,19 @@ namespace Game.UI
 
         private Image _testImage;
         private TMPro.TextMeshProUGUI _testLabel;
+        private RectTransform _developerPanel;
 
         private void BuildTestButtons()
         {
             if (panelRoot == null) return;
+            _developerPanel = UiBuild.Flat(panelRoot.transform, "DeveloperTools", new Color(0.02f, 0.04f, 0.08f, 0.98f), Vector2.zero, Vector2.one);
+            var close = UiBuild.Btn(_developerPanel, "CloseDeveloperTools", "KAPAT", UiSkin.ButtonBlue, Color.white, 36,
+                () => _developerPanel.gameObject.SetActive(false));
+            UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.2f, 0.05f), new Vector2(0.8f, 0.12f));
+            var open = UiBuild.Btn(panelRoot.transform, "OpenDeveloperTools", "DEV", UiSkin.ButtonGrey, Color.gray, 26,
+                () => { _developerPanel.SetAsLastSibling(); _developerPanel.gameObject.SetActive(true); });
+            UiBuild.Anchor((RectTransform)open.transform, new Vector2(0.42f, 0.01f), new Vector2(0.58f, 0.045f));
+            _developerPanel.gameObject.SetActive(false);
 
             var test = BuildStrip("TestModu", 170f, out _testImage, out _testLabel);
             test.onClick.AddListener(OnTestMode);
@@ -476,13 +486,15 @@ namespace Game.UI
         private Button BuildStrip(string name, float y, out Image background, out TMPro.TextMeshProUGUI label)
         {
             var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(panelRoot.transform, false);
+            go.transform.SetParent(_developerPanel != null ? _developerPanel : panelRoot.transform, false);
             var rt = (RectTransform)go.transform;
             rt.anchorMin = new Vector2(0.5f, 0f);
             rt.anchorMax = new Vector2(0.5f, 0f);
             rt.pivot = new Vector2(0.5f, 0f);
-            rt.anchoredPosition = new Vector2(0f, y);
-            rt.sizeDelta = new Vector2(560f, 92f);
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(0f, y - 470f);
+            rt.sizeDelta = new Vector2(760f, 92f);
 
             background = go.AddComponent<Image>();
             var btn = go.AddComponent<Button>();

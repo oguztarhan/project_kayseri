@@ -31,6 +31,7 @@ namespace Game.UI
     public sealed class CardCollectionUI : MonoBehaviour
     {
         [SerializeField] private int sortingOrder = 116;
+        [SerializeField] private bool _usePortraitArtwork;
 
         [Header("Görseller")]
         [Tooltip("Kart ve panel gövdesi — MaviSet/panel_beyaz.")]
@@ -108,6 +109,10 @@ namespace Game.UI
         private CardCollectionService _cards;
         private LocalizationService _loc;
         private RectTransform _root;
+        private RectTransform _portraitGrid;
+        private ScrollRect _portraitScroll;
+        private RectTransform _portraitResult;
+        private Text _portraitResultText;
 
         private Text _titleLabel, _packChipLabel, _collectedLabel, _bonusLabel;
         private Text _packCountLabel, _pityLabel, _lastPullLabel, _sourceLabel;
@@ -190,6 +195,7 @@ namespace Game.UI
 
         public void Hide()
         {
+            if (_portraitResult != null) _portraitResult.gameObject.SetActive(false);
             if (_inspect != null) _inspect.Hide();
             if (_odds != null) _odds.Hide();
             if (_root != null) _root.gameObject.SetActive(false);
@@ -239,7 +245,8 @@ namespace Game.UI
             _inspect = new RosterInspectPanel(_root);
             _odds = new OddsSheetUI(_root);
             // Content into the safe area; the scrim above it keeps covering the notch.
-            UiBuild.InsetContent(_root);
+            RectTransform safe = UiBuild.InsetContent(_root);
+            if (_usePortraitArtwork && PortraitUiArt.Get("collection-collection-card-template") != null) ApplyPortraitLayout(safe);
         }
 
         /// <summary>One opaque sheet behind everything, eating its own taps so the scrim's dismiss
@@ -608,6 +615,7 @@ namespace Game.UI
             }
             _lastPullLabel.text = PullLine(receipt);
             _lastPullLabel.color = TintOf(receipt.Rarity);
+            ShowPortraitResult(PullLine(receipt));
         }
 
         private void ClaimDaily()
@@ -629,6 +637,7 @@ namespace Game.UI
             Ping();
             _lastPullLabel.text = Loc.T("gorev.odul_alindi") + "\n" + RewardText(receipt.Kind, receipt.Amount);
             _lastPullLabel.color = Good;
+            ShowPortraitResult(_lastPullLabel.text);
         }
 
         private void ShowOdds()
@@ -640,6 +649,7 @@ namespace Game.UI
         {
             if (!CardCollectionCatalogue.SetExists(set) || set == _selectedSet) return;
             _selectedSet = set;
+            if (_portraitScroll != null) _portraitScroll.verticalNormalizedPosition = 1f;
             if (_inspect != null) _inspect.Hide();
             Refresh();
         }
@@ -738,7 +748,7 @@ namespace Game.UI
             _setBonusLabel.text = bonus + "   ·   " + (set.BonusActive
                 ? Loc.T("koleksiyon.set_aktif")
                 : string.Format(Loc.T("koleksiyon.set_kalan"), set.Remaining));
-            _setBonusLabel.color = set.BonusActive ? Good : Ink;
+            _setBonusLabel.color = set.BonusActive ? Good : _portraitGrid != null ? Paper : Ink;
 
             _setRewardLabel.text = string.Format(Loc.T("koleksiyon.odul"), RewardText(set.RewardKind, set.RewardAmount));
             _claimSetText.text = set.RewardClaimed ? Loc.T("gorev.alindi")
@@ -789,6 +799,14 @@ namespace Game.UI
             Dress(_tileBtn[card], live, ButtonGreen);
 
             _tileNew[card].SetActive(_cards.IsNew(card));
+            if (_portraitGrid != null)
+            {
+                _tileName[card].color = Paper;
+                _tileEffect[card].color = Ink;
+                _tileFace[card].enabled = face != null;
+                _tileStars[card].text = owned ? state.Level + "/" + CardCollection.MaxLevel : Loc.T("gorev.kilitli");
+                _tileStars[card].color = Ink;
+            }
         }
 
         private void ReflowTiles(int[] cards)
@@ -796,6 +814,23 @@ namespace Game.UI
             for (int card = 0; card < _tile.Length; card++) _tile[card].gameObject.SetActive(false);
 
             int shown = RosterCardQuery.Fill(_setState, cards.Length, _sortMode, _filterMode, _visibleOrder);
+
+            if (_portraitGrid != null)
+            {
+                for (int position = 0; position < shown; position++)
+                {
+                    int card = cards[_visibleOrder[position]];
+                    RectTransform tile = _tile[card];
+                    tile.anchorMin = tile.anchorMax = new Vector2(0, 1);
+                    tile.pivot = new Vector2(0, 1);
+                    tile.sizeDelta = new Vector2(400, 600);
+                    tile.anchoredPosition = new Vector2(22 + (position % 2) * 424, -12 - (position / 2) * 624);
+                    tile.gameObject.SetActive(true);
+                }
+                _portraitGrid.sizeDelta = new Vector2(0, Mathf.Max(624, ((shown + 1) / 2) * 624 + 24));
+                _emptyText.gameObject.SetActive(shown == 0);
+                return;
+            }
 
             // Laid out off the FULL grid rather than off how many the filter left, so one match stays
             // a tile rather than stretching over the whole band — the captain screen's lesson.
@@ -1003,6 +1038,166 @@ namespace Game.UI
             return rarityTint != null && r >= 0 && r < rarityTint.Length ? rarityTint[r] : InkSoft;
         }
 
+        private void ApplyPortraitLayout(RectTransform safe)
+        {
+            var page = new GameObject("PortraitPage", typeof(RectTransform));
+            page.transform.SetParent(safe, false);
+            var body = (RectTransform)page.transform;
+            body.sizeDelta = new Vector2(1000, 1900);
+            var children = new Transform[safe.childCount - 1];
+            int index = 0;
+            for (int i = 0; i < safe.childCount; i++) if (safe.GetChild(i) != page.transform) children[index++] = safe.GetChild(i);
+            for (int i = 0; i < children.Length; i++) children[i].SetParent(body, false);
+            page.AddComponent<PortraitPageFit>();
+
+            var background = (RectTransform)body.Find("Zemin");
+            Place(background, 5, 35, 990, 1830);
+            PortraitUiArt.Apply(background.GetComponent<Image>(), "collection-collection-screen-background");
+            var paper = UiBuild.Flat(body, "CollectionContentBacking", new Color(0.035f, 0.16f, 0.30f, 1), Vector2.zero, Vector2.one);
+            Place(paper, 66, 230, 868, 1465);
+            paper.SetSiblingIndex(background.GetSiblingIndex() + 1);
+            paper.GetComponent<Image>().raycastTarget = false;
+
+            Place((RectTransform)body.Find("Serit"), 178, 74, 644, 126);
+            PortraitUiArt.Apply(body.Find("Serit").GetComponent<Image>(), "general-title-plate");
+            UiBuild.Anchor((RectTransform)_titleLabel.transform.parent, new Vector2(0.10f, 0.22f), new Vector2(0.90f, 0.78f));
+            _titleLabel.color = Ink; Fit(_titleLabel, 26, 38);
+            Place((RectTransform)body.Find("Kapat"), 838, 85, 100, 100);
+            PortraitUiArt.Apply(body.Find("Kapat").GetComponent<Image>(), "general-close-button");
+            Place((RectTransform)body.Find("Paketler"), 92, 222, 230, 70);
+            PortraitUiArt.Apply(body.Find("Paketler").GetComponent<Image>(), "general-small-card-panel-transparent");
+            Place((RectTransform)_collectedLabel.transform.parent, 340, 219, 560, 76);
+            Fit(_collectedLabel, 24, 28);
+            Place((RectTransform)_bonusLabel.transform.parent, 94, 299, 812, 64);
+            Fit(_bonusLabel, 22, 26);
+
+            var pack = (RectTransform)body.Find("Paket"); Place(pack, 80, 360, 840, 224);
+            PortraitUiArt.Apply(pack.GetComponent<Image>(), "general-small-card-panel-transparent");
+            PortraitUiArt.Apply(_packIcon, "collection-pack-opening-panel"); _packIcon.enabled = true;
+            UiBuild.Anchor(_packIcon.rectTransform, new Vector2(0.025f, 0.08f), new Vector2(0.35f, 0.94f));
+            UiBuild.Anchor((RectTransform)_packCountLabel.transform.parent, new Vector2(0.37f, 0.73f), new Vector2(0.95f, 0.98f));
+            UiBuild.Anchor((RectTransform)_pityLabel.transform.parent, new Vector2(0.37f, 0.43f), new Vector2(0.82f, 0.74f));
+            UiBuild.Anchor((RectTransform)_openPack.transform, new Vector2(0.37f, 0.08f), new Vector2(0.64f, 0.40f));
+            UiBuild.Anchor((RectTransform)_dailyPack.transform, new Vector2(0.66f, 0.08f), new Vector2(0.96f, 0.40f));
+            UiBuild.Anchor((RectTransform)pack.Find("Oran"), new Vector2(0.85f, 0.43f), new Vector2(0.97f, 0.79f));
+            PortraitUiArt.Apply(pack.Find("Oran").GetComponent<Image>(), "general-info-button");
+            _packCountLabel.color = _pityLabel.color = Paper;
+            _sourceLabel.gameObject.SetActive(false); _lastPullLabel.gameObject.SetActive(false);
+            Fit(_packCountLabel, 28, 32); Fit(_pityLabel, 21, 24);
+            StyleAction(_openPack); StyleAction(_dailyPack);
+
+            for (int s = 0; s < _tab.Length; s++)
+            {
+                Place((RectTransform)_tab[s].transform, 88 + s * 280, 608, 264, 142);
+                PortraitUiArt.Apply(_tab[s].GetComponent<Image>(), "general-small-card-panel-transparent");
+                UiBuild.Anchor((RectTransform)_tabText[s].transform, new Vector2(0.05f, 0.08f), new Vector2(0.95f, 0.46f));
+                var tabIcon = Art((RectTransform)_tab[s].transform, "SetIcon", PortraitUiArt.Get(s == 0 ? "general-reward-chest" : s == 1 ? "general-warehouse-icon" : "general-goals-icon"), new Vector2(0.35f, 0.44f), new Vector2(0.65f, 0.98f));
+                tabIcon.SetAsFirstSibling();
+                _tabText[s].color = Paper; Fit(_tabText[s], 21, 25);
+                // The original icon occupies the upper part; labels stay below it.
+                var art = _tab[s].GetComponent<Image>();
+                art.raycastTarget = true;
+            }
+
+            var setInfo = (RectTransform)body.Find("SetBilgi"); Place(setInfo, 85, 776, 830, 132);
+            setInfo.GetComponent<Image>().sprite = UiSkin.Flat;
+            setInfo.GetComponent<Image>().color = new Color(0.045f, 0.20f, 0.36f, 1);
+            var setIcon = Art(setInfo, "SetArt", PortraitUiArt.Get("collection-set-info-panel"), new Vector2(0.015f, 0.03f), new Vector2(0.18f, 0.97f));
+            setIcon.GetComponent<Image>().useSpriteMesh = true;
+            UiBuild.Anchor((RectTransform)_setDescLabel.transform.parent, new Vector2(0.20f, 0.63f), new Vector2(0.73f, 0.92f));
+            UiBuild.Anchor((RectTransform)_setBonusLabel.transform.parent, new Vector2(0.20f, 0.30f), new Vector2(0.73f, 0.63f));
+            UiBuild.Anchor((RectTransform)_setRewardLabel.transform.parent, new Vector2(0.20f, 0.06f), new Vector2(0.73f, 0.31f));
+            UiBuild.Anchor((RectTransform)_claimSet.transform, new Vector2(0.75f, 0.19f), new Vector2(0.97f, 0.81f));
+            _setDescLabel.color = _setRewardLabel.color = Paper; Fit(_setDescLabel, 21, 23); Fit(_setBonusLabel, 21, 24); Fit(_setRewardLabel, 20, 22);
+            StyleAction(_claimSet);
+
+            Place((RectTransform)body.Find("Sirala"), 90, 930, 350, 78);
+            Place((RectTransform)body.Find("Filtre"), 462, 930, 350, 78);
+            StyleAction(body.Find("Sirala").GetComponent<Button>()); StyleAction(body.Find("Filtre").GetComponent<Button>());
+            var filterArt = Art(body, "BrowseArt", PortraitUiArt.Get("collection-sort-filter-panel"), Vector2.zero, Vector2.one);
+            Place(filterArt, 831, 930, 82, 78); filterArt.GetComponent<Image>().useSpriteMesh = true;
+
+            var viewport = UiBuild.Flat(body, "CardViewport", new Color(0, 0, 0, 0.01f), Vector2.zero, Vector2.one);
+            Place(viewport, 66, 1034, 868, 680);
+            viewport.gameObject.AddComponent<RectMask2D>();
+            _portraitScroll = viewport.gameObject.AddComponent<ScrollRect>();
+            _portraitScroll.horizontal = false; _portraitScroll.vertical = true;
+            _portraitScroll.movementType = ScrollRect.MovementType.Clamped;
+            _portraitScroll.scrollSensitivity = 45;
+            _portraitScroll.viewport = viewport;
+            _portraitGrid = Slot(viewport, "CardContent", new Vector2(0, 1), Vector2.one);
+            _portraitGrid.pivot = new Vector2(0.5f, 1);
+            _portraitScroll.content = _portraitGrid;
+            for (int c = 0; c < _tile.Length; c++)
+            {
+                var tile = _tile[c]; tile.SetParent(_portraitGrid, false);
+                PortraitUiArt.Apply(tile.GetComponent<Image>(), "collection-collection-card-template");
+                _tileStripe[c].enabled = false; _tileFrame[c].enabled = false;
+                UiBuild.Anchor(_tileFace[c].rectTransform, new Vector2(0.17f, 0.41f), new Vector2(0.83f, 0.81f));
+                UiBuild.Anchor((RectTransform)_tileName[c].transform.parent, new Vector2(0.15f, 0.87f), new Vector2(0.86f, 0.97f));
+                UiBuild.Anchor((RectTransform)_tileEffect[c].transform.parent, new Vector2(0.15f, 0.22f), new Vector2(0.87f, 0.30f));
+                UiBuild.Anchor((RectTransform)_tileStars[c].transform.parent, new Vector2(0.20f, 0.38f), new Vector2(0.86f, 0.44f));
+                UiBuild.Anchor((RectTransform)_tileBtn[c].transform, new Vector2(0.13f, 0.045f), new Vector2(0.88f, 0.205f));
+                _tileBtn[c].GetComponent<Image>().enabled = false;
+                Fit(_tileName[c], 25, 29); Fit(_tileEffect[c], 18, 22); Fit(_tileStars[c], 25, 29); Fit(_tileBtnText[c], 25, 30);
+                _tileName[c].alignment = _tileEffect[c].alignment = _tileStars[c].alignment = TextAnchor.MiddleCenter;
+                UiBuild.Anchor((RectTransform)_tileNew[c].transform, new Vector2(0.69f, 0.76f), new Vector2(0.94f, 0.86f));
+                PortraitUiArt.Apply(_tileNew[c].GetComponent<Image>(), "general-notification-badge");
+            }
+            Place((RectTransform)_emptyText.transform.parent, 150, 1300, 700, 160);
+            var empty = Art((RectTransform)_emptyText.transform, "EmptyArt", PortraitUiArt.Get("empty-state-0"), new Vector2(0.4f, 1.0f), new Vector2(0.6f, 1.8f));
+            empty.GetComponent<Image>().useSpriteMesh = true;
+            var hint = UiBuild.Label(Slot(body, "ScrollHint", Vector2.zero, Vector2.one), "Text", "↕", 32, TextAnchor.MiddleCenter);
+            Place((RectTransform)hint.transform.parent, 440, 1723, 120, 60);
+
+            // These are the existing functional sheets, with collection-specific artwork and a phone-width layout.
+            StylePortraitModal(body, "KadroDetayKarartma", "KadroDetay", "collection-card-detail-window");
+            StylePortraitModal(body, "OranKarartma", "OranSayfasi", "collection-pack-odds-window");
+            _portraitResult = UiBuild.Flat(body, "CollectionResult", new Color(0.015f, 0.04f, 0.09f, 0.97f), Vector2.zero, Vector2.one);
+            var resultArt = Art(_portraitResult, "ResultArt", PortraitUiArt.Get("collection-reward-result-screen"), new Vector2(0.13f, 0.40f), new Vector2(0.87f, 0.87f));
+            resultArt.GetComponent<Image>().useSpriteMesh = true;
+            _portraitResultText = UiBuild.Label(Slot(_portraitResult, "Receipt", new Vector2(0.1f, 0.22f), new Vector2(0.9f, 0.39f)), "Text", "", 32, TextAnchor.MiddleCenter);
+            Fit(_portraitResultText, 28, 36);
+            var done = UiBuild.Btn(_portraitResult, "Done", Loc.T("lig.kapat"), UiSkin.ButtonBlue, Color.white, 34, () => _portraitResult.gameObject.SetActive(false));
+            UiBuild.Anchor((RectTransform)done.transform, new Vector2(0.30f, 0.10f), new Vector2(0.70f, 0.19f));
+            StyleAction(done); _portraitResult.gameObject.SetActive(false);
+        }
+
+        private static void Place(RectTransform rect, float x, float y, float w, float h)
+        {
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0, 1);
+            rect.anchoredPosition = new Vector2(x, -y); rect.sizeDelta = new Vector2(w, h);
+            rect.localScale = Vector3.one;
+        }
+
+        private static void StyleAction(Button button)
+        {
+            PortraitUiArt.Apply(button.GetComponent<Image>(), "general-primary-action-button");
+            var label = button.GetComponentInChildren<Text>();
+            if (label != null) { label.color = Ink; Fit(label, 23, 28); }
+        }
+
+        private void StylePortraitModal(RectTransform body, string overlayName, string sheetName, string sprite)
+        {
+            Transform overlay = body.Find(overlayName);
+            if (overlay == null) return;
+            Transform sheet = overlay.Find(sheetName);
+            if (sheet == null) return;
+            UiBuild.Anchor((RectTransform)sheet, new Vector2(0.08f, 0.13f), new Vector2(0.92f, 0.87f));
+            sheet.GetComponent<Image>().sprite = UiSkin.Flat;
+            sheet.GetComponent<Image>().color = new Color(0.91f, 0.96f, 1f, 1);
+            var illustration = Art((RectTransform)sheet, "CollectionIllustration", PortraitUiArt.Get(sprite), new Vector2(0.36f, 1.01f), new Vector2(0.64f, 1.20f));
+            illustration.GetComponent<Image>().useSpriteMesh = true;
+            illustration.SetAsFirstSibling();
+        }
+
+        private void ShowPortraitResult(string text)
+        {
+            if (_portraitResult == null) return;
+            _portraitResultText.text = text;
+            _portraitResult.SetAsLastSibling(); _portraitResult.gameObject.SetActive(true);
+        }
+
         // ---------------------------------------------------------------- pieces
         private static void Ping() => ServiceLocator.Get<HapticService>()?.Medium();
 
@@ -1035,6 +1230,8 @@ namespace Game.UI
             img.preserveAspect = img.type == Image.Type.Simple && sprite != null;
             img.color = Color.white;
             img.raycastTarget = false;
+            if (sprite != null && PortraitUiArt.MeshOf(sprite, out _))
+                go.AddComponent<PortraitSpriteMesh>();
             return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
         }
 

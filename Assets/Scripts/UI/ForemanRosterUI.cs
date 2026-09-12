@@ -56,8 +56,41 @@ namespace Game.UI
                  "arka arkaya — maden(3), depo(3), rafineri(3), liman(3), pazar(3). Game.Core.Foremen." +
                  "Roster ile aynı sıra; kaydırmak kartların altındaki adamı değiştirir.")]
         [SerializeField] private Sprite[] portraits;
-        [Tooltip("Sandık görseli — Ikonlar/ikon_sandik.")]
+        [Tooltip("Sandık görseli — UstaKiti/sandik_acilis. Rafta ve açılış töreninin başlığında.")]
         [SerializeField] private Sprite chestIcon;
+
+        [Header("Usta kiti")]
+        [Tooltip("Ekranın zemini — UstaPanel/panel_ana. Boşsa zemin çizilmez.")]
+        [SerializeField] private Sprite backdropArt;
+        [Tooltip("Zeminin dokuz dilim kenarlarının küçültülme oranı (Image.pixelsPerUnitMultiplier). " +
+                 "Bantların yerleşimi 2'ye göre ölçüldü.")]
+        [SerializeField] private float backdropBorderScale = 2f;
+        [Tooltip("Nadirlik çerçeveleri, Foremen.Rarity sırasıyla: Sıradan, Nadir, Efsanevi — " +
+                 "UstaKiti/cerceve_siradan, cerceve_nadir, cerceve_efsanevi.")]
+        [SerializeField] private Sprite[] rarityFrames;
+        [Tooltip("Dört yıldızlı ustanın çerçevesi, nadirliği ne olursa olsun — UstaKiti/cerceve_destansi.")]
+        [SerializeField] private Sprite fourStarFrame;
+        [Tooltip("Beş yıldızlı ustanın çerçevesi — UstaKiti/cerceve_mitik.")]
+        [SerializeField] private Sprite fiveStarFrame;
+        [Tooltip("Henüz bulunmamış ustanın çerçevesi — UstaKiti/cerceve_kilitli.")]
+        [SerializeField] private Sprite lockedFrame;
+        [Tooltip("AKTİF rozetinin simgesi — UstaKiti/rozet_gorevde.")]
+        [SerializeField] private Sprite activeBadgeIcon;
+        [Tooltip("KİLİTLİ rozetinin simgesi — UstaKiti/rozet_kilit.")]
+        [SerializeField] private Sprite lockedBadgeIcon;
+        [Tooltip("Açılışta ilk kez gelen ustanın rozeti — UstaKiti/rozet_yeni.")]
+        [SerializeField] private Sprite newBadgeIcon;
+        [Tooltip("Yıldız atlamaya hazır kartın işareti — UstaKiti/rozet_yukselt.")]
+        [SerializeField] private Sprite upgradeBadgeIcon;
+        [Tooltip("Sırala ve Filtre düğmelerinin simgeleri — UstaKiti/ikon_sirala, ikon_filtre.")]
+        [SerializeField] private Sprite sortIcon;
+        [SerializeField] private Sprite filterIcon;
+        [Tooltip("Filtre boş kaldığında gösterilen çizim — UstaKiti/bos_liste.")]
+        [SerializeField] private Sprite emptyArt;
+        [Tooltip("Açılışta kapalı kartın yüzü — UstaKiti/sandik_kutu.")]
+        [SerializeField] private Sprite revealTileBack;
+        [Tooltip("Bedava sandık hazırken düğmenin köşesindeki nokta — UstaKiti/nokta.")]
+        [SerializeField] private Sprite readyDot;
 
         [Header("Kart prefabı")]
         [Tooltip("Bir usta kartının hazır hâli; boş bırakılırsa kart koddan çizilir. On beş kopya " +
@@ -114,12 +147,17 @@ namespace Game.UI
         ///
         /// Every band is named here rather than written into each builder so the screen can be
         /// re-proportioned in one place, and so two bands cannot silently overlap.
+        ///
+        /// The margins, the shelf's top and the grid's foot are set by the kit's backdrop sheet rather
+        /// than by taste: its blue rim runs down both sides, its compass band across the top and its tab
+        /// along the bottom, and a card laid over any of them reads as a stray bar. Measured with the
+        /// sheet sliced at a backdropBorderScale of 2.
         /// </summary>
-        private const float PageLeft = 0.030f, PageRight = 0.970f;
+        private const float PageLeft = 0.062f, PageRight = 0.938f;
         private const float HeaderBottom = 0.930f;
-        private const float ShelfTop = 0.915f, ShelfBottom = 0.735f;
-        private const float BrowseTop = 0.715f, BrowseBottom = 0.665f;
-        private const float GridTop = 0.650f, GridBottom = 0.030f;
+        private const float ShelfTop = 0.845f, ShelfBottom = 0.675f;
+        private const float BrowseTop = 0.660f, BrowseBottom = 0.615f;
+        private const float GridTop = 0.600f, GridBottom = 0.060f;
 
         /// <summary>
         /// The decimal separator is the game's, not the handset's. Left to the current culture, a
@@ -157,6 +195,12 @@ namespace Game.UI
         /// <summary>Star pips, flat: master m's i'th pip is at m * Foremen.MaxStars + i. Null
         /// throughout unless the wired prefab carries Yildiz0..4 — see BindPrefabCard.</summary>
         private readonly Image[] _star = new Image[Foremen.Count * Foremen.MaxStars];
+        private readonly Image[] _frame = new Image[Foremen.Count];
+        private readonly Text[] _station = new Text[Foremen.Count];
+        private readonly GameObject[] _readyMark = new GameObject[Foremen.Count];
+        private readonly Text[] _activeLabel = new Text[Foremen.Count];
+        private readonly Text[] _lockLabel = new Text[Foremen.Count];
+        private Image _emptyArt, _freeDot;
         private readonly RectTransform[] _cardRoot = new RectTransform[Foremen.Count];
         private readonly RosterCardState[] _cardState = new RosterCardState[Foremen.Count];
         private readonly int[] _visibleOrder = new int[Foremen.Count];
@@ -180,6 +224,8 @@ namespace Game.UI
         private readonly Image[] _tileArt = new Image[Foremen.Count];
         private readonly Text[] _tileName = new Text[Foremen.Count];
         private readonly Text[] _tileCount = new Text[Foremen.Count];
+        private readonly Image[] _tileNew = new Image[Foremen.Count];
+        private readonly Image[] _tileFace = new Image[Foremen.Count];
         private readonly RectTransform[] _tileRect = new RectTransform[Foremen.Count];
         private readonly int[] _tileSlot = new int[Foremen.Count];
         private readonly bool[] _tileFresh = new bool[Foremen.Count];
@@ -284,6 +330,7 @@ namespace Game.UI
             RectTransform canvas = UiBuild.Canvas(transform, "UstabasiKanvas", sortingOrder);
             _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
 
+            BuildBackdrop();
             BuildHeader();
             BuildChestShelf();
             BuildBrowseBar();
@@ -320,6 +367,7 @@ namespace Game.UI
             PillFit.Wrap(sort.GetComponent<Image>());
             _sortText = sort.GetComponentInChildren<Text>();
             Fit(_sortText, 12, 22);
+            ButtonIcon(sort, sortIcon, _sortText);
 
             Button filter = UiBuild.Btn(_root, "Filtre", string.Empty,
                                         actionButton != null ? actionButton : UiSkin.ButtonGreen,
@@ -329,10 +377,15 @@ namespace Game.UI
             PillFit.Wrap(filter.GetComponent<Image>());
             _filterText = filter.GetComponentInChildren<Text>();
             Fit(_filterText, 12, 22);
+            ButtonIcon(filter, filterIcon, _filterText);
+
+            _emptyArt = Icon(_root, "FiltreBosGorsel", emptyArt, new Vector2(0.35f, 0.46f), new Vector2(0.65f, 0.58f));
+            _emptyArt.enabled = false;
 
             _emptyText = UiBuild.Label(Slot(_root, "FiltreBos", new Vector2(PageLeft, 0.28f), new Vector2(PageRight, 0.46f)),
                                        "Text", Loc.T("kadro.bos"), 28, TextAnchor.MiddleCenter);
-            _emptyText.color = Paper;
+            // Ink on the kit's white sheet; paper only when the screen is still bare scrim behind it.
+            _emptyText.color = backdropArt != null ? Ink : Paper;
             Fit(_emptyText, 16, 28);
             _emptyText.gameObject.SetActive(false);
         }
@@ -395,6 +448,34 @@ namespace Game.UI
                                       out _chestBulk);
             _freeButton = ShelfButton(shelf, "Bedava", new Vector2(0.580f, 0.060f), new Vector2(0.985f, 0.325f),
                                       () => Open(0), out _freeLabel);
+
+            // The kit's red dot on the free pill's shoulder while the free chest waits. The label says
+            // so already, but a word inside a pill does not catch the eye from across the screen.
+            _freeDot = Icon((RectTransform)_freeButton.transform, "Nokta", readyDot,
+                            new Vector2(0.90f, 0.55f), new Vector2(1.04f, 1.10f));
+            _freeDot.enabled = false;
+        }
+
+        /// <summary>
+        /// The kit's panel behind everything, built first so sibling order keeps it at the back. Its
+        /// borders are drawn at 1/<see cref="backdropBorderScale"/> of their pixels — at full size the
+        /// compass band alone would eat the chest shelf.
+        /// </summary>
+        private void BuildBackdrop()
+        {
+            if (backdropArt == null) return;
+            RectTransform sheet = Art(_root, "Zemin", backdropArt,
+                                      new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.925f));
+            sheet.GetComponent<Image>().pixelsPerUnitMultiplier = backdropBorderScale;
+        }
+
+        /// <summary>The kit's icon at a pill's left end, with the label moved off it. Does nothing when
+        /// unwired — the label then keeps its glyph prefix, see <see cref="Refresh"/>.</summary>
+        private static void ButtonIcon(Button button, Sprite icon, Text label)
+        {
+            if (icon == null) return;
+            Icon((RectTransform)button.transform, "Ikon", icon, new Vector2(0.03f, 0.08f), new Vector2(0.23f, 0.92f));
+            UiBuild.Anchor(label.rectTransform, new Vector2(0.24f, 0f), new Vector2(0.95f, 1f));
         }
 
         /// <summary>One pill on the chest shelf. Returns the button and hands back its label.</summary>
@@ -446,6 +527,9 @@ namespace Game.UI
             var closeImage = close.GetComponent<Image>();
             closeImage.type = Image.Type.Simple;
             closeImage.preserveAspect = true;
+            // UiBuild.Btn tints the face with its fallback colour; the kit's cross is pre-coloured and
+            // came out a muddy dark red under it.
+            if (closeIcon != null) closeImage.color = Color.white;
             // Tam köşede değil: HUD'un ayarlar dişlisi 120 sıralı kanvasta, bu ekranın üstünde
             // çiziliyor ve tam köşeye konan kapat düğmesinin üstüne biniyor.
             UiBuild.Anchor((RectTransform)close.transform,
@@ -466,58 +550,65 @@ namespace Game.UI
             inspect.onClick.AddListener(() => ShowDetails(selected));
             if (cardPanel == null) _card[station].color = cardHired;
 
-            // The tier mark. It used to be fixed per slot and set once; a master's tier now moves every
-            // second star, so it is kept and repainted. It is a rule under the name rather than a tab
-            // on the card's edge: the white panel's rim carries its own soft glow, and anything laid
-            // across it reads as a stray rectangle.
-            // The cell is WIDE, not tall: fifteen cards three across a portrait sheet is roughly
-            // 338x238, so the card reads left-to-right — face on the left, everything about him
-            // stacked on the right — rather than as the tall eight-row column it was when there were
-            // eight cards four across a landscape one.
-            _rule[station] = UiBuild.Flat(card, "Sirad", InkFaint,
-                                          new Vector2(0.300f, 0.505f), new Vector2(0.560f, 0.522f))
-                                    .GetComponent<Image>();
+            // The cell is WIDE, not tall: fifteen cards three across a portrait sheet, so the card reads
+            // left-to-right — face in its frame on the left, everything about him stacked on the right.
+            // Same layout MakeRosterCardPrefabs gives the authored card, so the two read alike.
+            // Portrait before frame: the frame's rim has to draw over the portrait's edges.
+            _portrait[station] = Icon(card, "Portre", Portrait(station),
+                                      new Vector2(0.075f, 0.150f), new Vector2(0.385f, 0.800f));
+            _frame[station] = Icon(card, "Cerceve", null, new Vector2(0.010f, 0.020f), new Vector2(0.450f, 0.980f));
 
             // "AKTİF": which of a station's three is actually posted there. A FILLED PILL rather than
-            // bare green text — three cards to a row and fifteen to a screen, the one fact the player
-            // is scanning for is which of the three is working, and a word the same size as every
-            // other word on the card does not answer that from arm's length.
-            _activeMark[station] = Badge(card, "Aktif", Loc.T("usta.aktif"), Green,
-                                         new Vector2(0.015f, 0.855f), new Vector2(0.285f, 0.995f));
+            // bare green text — the one fact the player is scanning fifteen cards for is which of the
+            // three is working, and a word the size of every other word does not answer that.
+            _activeMark[station] = Badge(card, "Aktif", Loc.T("usta.aktif"), Green, activeBadgeIcon,
+                                         new Vector2(0.040f, 0.025f), new Vector2(0.420f, 0.165f));
 
-            // And its opposite. A card you have not found is dimmed all over, but dimming is a
-            // comparison — it only reads next to a bright card, and a new player's screen has none.
-            // The word does not need one.
-            _lockMark[station] = Badge(card, "Kilit", Loc.T("usta.kilitli"), Locked,
-                                       new Vector2(0.015f, 0.855f), new Vector2(0.285f, 0.995f));
+            // And its opposite. Dimming is a comparison — it only reads next to a bright card, and a
+            // new player's screen has none. The word does not need one.
+            _lockMark[station] = Badge(card, "Kilit", Loc.T("usta.kilitli"), Locked, lockedBadgeIcon,
+                                       new Vector2(0.040f, 0.025f), new Vector2(0.420f, 0.165f));
+            _activeLabel[station] = _activeMark[station].GetComponentInChildren<Text>(true);
+            _lockLabel[station] = _lockMark[station].GetComponentInChildren<Text>(true);
 
-            _portrait[station] = Icon(card, "Portre", Portrait(station),
-                                      new Vector2(0.020f, 0.080f), new Vector2(0.280f, 0.840f));
+            Image ready = Icon(card, "Hazir", upgradeBadgeIcon, new Vector2(0.330f, 0.780f), new Vector2(0.450f, 0.980f));
+            ready.gameObject.SetActive(false);
+            _readyMark[station] = ready.gameObject;
 
             _name[station] = UiBuild.Label(
-                Slot(card, "Ad", new Vector2(0.300f, 0.730f), new Vector2(0.975f, 0.960f)),
+                Slot(card, "Ad", new Vector2(0.465f, 0.760f), new Vector2(0.975f, 0.965f)),
                 "Text", string.Empty, 28, TextAnchor.MiddleLeft);
             // "Rıza the Weighbridge" tek satirda karta sigmiyor; en uzun ad ne kadar kuculmesi
             // gerekiyorsa o kadar kuculuyor, tasip komsu karta girmiyor.
             Fit(_name[station], 13, 26);
 
+            _station[station] = UiBuild.Label(
+                Slot(card, "Istasyon", new Vector2(0.465f, 0.630f), new Vector2(0.975f, 0.760f)),
+                "Text", string.Empty, 20, TextAnchor.MiddleLeft);
+            _station[station].color = InkSoft;
+            Fit(_station[station], 11, 20);
+
             _level[station] = UiBuild.Label(
-                Slot(card, "Seviye", new Vector2(0.300f, 0.540f), new Vector2(0.975f, 0.720f)),
+                Slot(card, "Seviye", new Vector2(0.465f, 0.495f), new Vector2(0.975f, 0.625f)),
                 "Text", string.Empty, 24, TextAnchor.MiddleLeft);
 
+            // The tier mark: a rule under the name rather than a tab on the card's edge — the white
+            // panel's rim carries its own soft glow, and anything laid across it reads as a stray bar.
+            _rule[station] = UiBuild.Flat(card, "Sirad", InkFaint,
+                                          new Vector2(0.465f, 0.470f), new Vector2(0.725f, 0.484f))
+                                    .GetComponent<Image>();
+
             _effect[station] = UiBuild.Label(
-                Slot(card, "Etki", new Vector2(0.300f, 0.300f), new Vector2(0.975f, 0.495f)),
+                Slot(card, "Etki", new Vector2(0.465f, 0.295f), new Vector2(0.975f, 0.465f)),
                 "Text", string.Empty, 30, TextAnchor.MiddleLeft);
             Fit(_effect[station], 14, 30);
 
-            // Cards-toward-next-level. The bar is the collection made visible: gems can be bought,
+            // Cards toward the next star. The bar is the collection made visible: gems can be bought,
             // duplicates cannot, so this is the line that actually paces the roster.
-            _fill[station] = Bar(card, new Vector2(0.300f, 0.200f), new Vector2(0.625f, 0.270f));
+            _fill[station] = Bar(card, new Vector2(0.465f, 0.205f), new Vector2(0.700f, 0.265f));
 
-            // Cards toward the next star. No price line any more: gems are spent at the chest, and a
-            // star costs the cards on this bar and nothing else.
             _cards[station] = UiBuild.Label(
-                Slot(card, "Kartlar", new Vector2(0.300f, 0.030f), new Vector2(0.625f, 0.180f)),
+                Slot(card, "Kartlar", new Vector2(0.465f, 0.030f), new Vector2(0.700f, 0.190f)),
                 "Text", string.Empty, 24, TextAnchor.MiddleLeft);
             Fit(_cards[station], 12, 22);
 
@@ -526,10 +617,9 @@ namespace Game.UI
                                            actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                            new Color(0.24f, 0.68f, 0.36f, 1f), 26, () => OnPressed(captured));
             // Sag alt kose: hap sanatinin kendi orani 4:1 ve uclari yatayda dilimleniyor, o yuzden
-            // genis ve alcak duruyor. Kartin tam genisligine yayilamaz — solunda cubuk ve kart sayisi
-            // var.
+            // genis ve alcak duruyor — 2:1'in altinda yumurta gibi cizilir.
             UiBuild.Anchor((RectTransform)_action[station].transform,
-                           new Vector2(0.650f, 0.045f), new Vector2(0.975f, 0.275f));
+                           new Vector2(0.715f, 0.060f), new Vector2(0.975f, 0.230f));
             PillFit.Wrap(_action[station].GetComponent<Image>());
             _actionText[station] = _action[station].GetComponentInChildren<Text>();
         }
@@ -612,6 +702,19 @@ namespace Game.UI
             Transform locked = FindIn<Transform>(card, "Kilit");
             _lockMark[station] = locked != null ? locked.gameObject : null;
 
+            _frame[station] = FindIn<Image>(card, "Cerceve");
+            _station[station] = FindIn<Text>(card, "Istasyon");
+            Image ready = FindIn<Image>(card, "Hazir");
+            _readyMark[station] = ready != null ? ready.gameObject : null;
+
+            // The prefab ships its three marks spriteless, as it ships the portrait: the art belongs to
+            // this screen's Inspector, not to the card.
+            Adopt(ready, upgradeBadgeIcon);
+            if (mark != null) Adopt(FindIn<Image>(mark, "Ikon"), activeBadgeIcon);
+            if (locked != null) Adopt(FindIn<Image>(locked, "Ikon"), lockedBadgeIcon);
+            _activeLabel[station] = mark != null ? mark.GetComponentInChildren<Text>(true) : null;
+            _lockLabel[station] = locked != null ? locked.GetComponentInChildren<Text>(true) : null;
+
             for (int i = 0; i < Foremen.MaxStars; i++)
                 _star[station * Foremen.MaxStars + i] = FindIn<Image>(card, "Yildiz" + i);
 
@@ -623,6 +726,36 @@ namespace Game.UI
                 _action[station].onClick.RemoveAllListeners();
                 _action[station].onClick.AddListener(() => OnPressed(captured));
             }
+
+            // The prefab's pill and bar are flat rectangles with no sprite. Dress paints a live pill
+            // WHITE, which on a spriteless Image is a white box under a white label — the star-up
+            // button vanished at the one moment it mattered. Same rule the captain card follows:
+            // borrow the screen's art where the prefab brought none.
+            AdoptSliced(_action[station] != null ? _action[station].GetComponent<Image>() : null, actionButton);
+            AdoptSliced(FindIn<Image>(card, "Cubuk"), barTrack);
+            AdoptSliced(_fill[station], barFill);
+        }
+
+        /// <summary>Dresses a spriteless prefab pill or bar in the screen's art, sliced when the sprite
+        /// carries a border so the capsule keeps its round caps. Leaves authored art alone.</summary>
+        private static void AdoptSliced(Image target, Sprite art)
+        {
+            if (target == null || art == null || target.sprite != null) return;
+            target.sprite = art;
+            target.type = art.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
+            target.preserveAspect = false;
+            target.color = Color.white;
+            PillFit.Wrap(target);
+        }
+
+        /// <summary>Hands a spriteless prefab image its kit sprite, and hides it when there is none —
+        /// an Image with no sprite draws a white box.</summary>
+        private static void Adopt(Image target, Sprite art)
+        {
+            if (target == null) return;
+            target.sprite = art;
+            target.preserveAspect = true;
+            target.enabled = art != null;
         }
 
         /// <summary>The first descendant with this exact name carrying a T, or null. Inactive children
@@ -665,6 +798,8 @@ namespace Game.UI
                                         "Text", string.Empty, 24, TextAnchor.MiddleCenter);
             _revealHint.color = InkFaint;
 
+            Icon(_reveal, "SandikGorsel", chestIcon, new Vector2(0.04f, 0.835f), new Vector2(0.24f, 0.955f));
+
             // Five across and as many rows as the roster needs. It was a hardcoded 4x2 for eight
             // masters; at fifteen that put seven tiles below the sheet's own bottom edge, off-screen
             // and overlapping — a batch can name every master at once, so the grid has to hold all of
@@ -683,7 +818,13 @@ namespace Game.UI
                 RectTransform tile = Art(_reveal, "Kart_" + t, cardPanel, aMin, aMax);
                 _tileRect[t] = tile;
                 _tile[t] = tile.GetComponent<Image>();
-                _tileArt[t] = Icon(tile, "Portre", null, new Vector2(0.10f, 0.30f), new Vector2(0.90f, 0.94f));
+                // The kit face — the card back, then the frame — in the tile's upper band, so the name
+                // and count below it sit on clear ground instead of across the frame's foot. The
+                // portrait lives inside the face, in the frame's opening: the frame is 2:3 and drawn
+                // aspect-fit, so it stands in the face's middle and the portrait has to as well.
+                _tileFace[t] = Icon(tile, "Yuz", null, new Vector2(0.05f, 0.30f), new Vector2(0.95f, 1.00f));
+                _tileArt[t] = Icon((RectTransform)_tileFace[t].transform, "Portre", null,
+                                   new Vector2(0.28f, 0.18f), new Vector2(0.72f, 0.82f));
                 _tileName[t] = UiBuild.Label(
                     Slot(tile, "Ad", new Vector2(0.05f, 0.155f), new Vector2(0.95f, 0.285f)),
                     "Text", string.Empty, 22, TextAnchor.MiddleCenter);
@@ -693,6 +834,9 @@ namespace Game.UI
                     Slot(tile, "Adet", new Vector2(0.05f, 0.030f), new Vector2(0.95f, 0.150f)),
                     "Text", string.Empty, 30, TextAnchor.MiddleCenter);
                 _tileCount[t].color = Paper;
+
+                _tileNew[t] = Icon(tile, "Yeni", newBadgeIcon, new Vector2(0.70f, 0.74f), new Vector2(0.96f, 0.98f));
+                _tileNew[t].enabled = false;
 
                 tile.gameObject.SetActive(false);
             }
@@ -811,11 +955,25 @@ namespace Game.UI
             => portraits != null && master >= 0 && master < portraits.Length ? portraits[master] : null;
 
         /// <summary>
+        /// The frame a master wears. His RARITY decides it until he is nearly finished; the fourth and
+        /// fifth stars then put him in the Epic and Mythic frames whatever he was drawn as, so the
+        /// last two stars — the expensive ones — show on the card. Not found yet: the plain frame.
+        /// </summary>
+        private Sprite FrameFor(int master, bool owned, int stars)
+        {
+            if (!owned) return lockedFrame;
+            if (stars >= Foremen.MaxStars && fiveStarFrame != null) return fiveStarFrame;
+            if (stars >= Foremen.MaxStars - 1 && fourStarFrame != null) return fourStarFrame;
+            int rarity = (int)Foremen.RankOf(master);
+            return rarityFrames != null && rarity < rarityFrames.Length ? rarityFrames[rarity] : null;
+        }
+
+        /// <summary>
         /// A filled state pill with a word in it, returned switched off. Both badges are the same
         /// shape on purpose: they occupy one corner and are mutually exclusive, so the player learns
         /// one place to look rather than two.
         /// </summary>
-        private RectTransform BadgeRect(RectTransform parent, string name, string text, Color fill,
+        private RectTransform BadgeRect(RectTransform parent, string name, string text, Color fill, Sprite icon,
                                         Vector2 aMin, Vector2 aMax)
         {
             RectTransform pill = Art(parent, name, actionButton, aMin, aMax);
@@ -824,17 +982,19 @@ namespace Game.UI
             img.raycastTarget = false;
             if (actionButton != null) { img.type = Image.Type.Sliced; PillFit.Wrap(img); }
 
-            Text label = UiBuild.Label(Slot(pill, "Text", new Vector2(0.06f, 0.02f), new Vector2(0.94f, 0.98f)),
+            Text label = UiBuild.Label(Slot(pill, "Text", new Vector2(icon != null ? 0.26f : 0.06f, 0.02f),
+                                            new Vector2(0.94f, 0.98f)),
                                        "Text", text, 20, TextAnchor.MiddleCenter);
             label.color = Paper;
             Fit(label, 10, 20);
+            if (icon != null) Icon(pill, "Ikon", icon, new Vector2(0.02f, 0.02f), new Vector2(0.26f, 0.98f));
             pill.gameObject.SetActive(false);
             return pill;
         }
 
-        private GameObject Badge(RectTransform parent, string name, string text, Color fill,
+        private GameObject Badge(RectTransform parent, string name, string text, Color fill, Sprite icon,
                                  Vector2 aMin, Vector2 aMax)
-            => BadgeRect(parent, name, text, fill, aMin, aMax).gameObject;
+            => BadgeRect(parent, name, text, fill, icon, aMin, aMax).gameObject;
 
         /// <summary>A child rect anchored inside the card — the shape UiBuild's helpers want.</summary>
         private static RectTransform Slot(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
@@ -948,9 +1108,10 @@ namespace Game.UI
                 _tileTurned[t] = false;
                 _tileArt[t].sprite = Portrait(s);
                 _tileArt[t].enabled = false;               // face down until it turns
+                _tileNew[t].enabled = false;
                 _tileName[t].text = string.Empty;
                 _tileCount[t].text = string.Empty;
-                _tile[t].color = cardLocked;
+                SetTileFace(t, revealTileBack, cardLocked);
                 _tileRect[t].localScale = Vector3.one;
                 _tileRect[t].gameObject.SetActive(true);
             }
@@ -977,7 +1138,8 @@ namespace Game.UI
             int s = _tileSlot[t];
             _tileArt[t].enabled = _tileArt[t].sprite != null;
             _tileArt[t].color = Color.white;
-            _tile[t].color = TintFor(s);
+            SetTileFace(t, FrameFor(s, true, _foremen.LevelOf(s)), TintFor(s));
+            _tileNew[t].enabled = _tileFresh[t] && newBadgeIcon != null;
             _tileName[t].text = _tileFresh[t] ? Loc.T("usta.yeni") : NameOf(s);
             _tileCount[t].text = "x" + _batch[s];
 
@@ -987,6 +1149,29 @@ namespace Game.UI
                 Confetti();
             }
             else ServiceLocator.Get<HapticService>()?.Light();
+        }
+
+        /// <summary>
+        /// Swaps a reveal tile's face. Kit art goes on the tile's face child, whole, aspect-fit and
+        /// untinted — tinting pre-coloured art only muddies it — and the tile's own panel is cleared
+        /// behind it. Without art the tile falls back to the tinted card panel it always was.
+        /// </summary>
+        private void SetTileFace(int t, Sprite art, Color fallback)
+        {
+            Image tile = _tile[t];
+            Image face = _tileFace[t];
+            if (art != null)
+            {
+                face.sprite = art;
+                face.enabled = true;
+                tile.color = Color.clear;
+                return;
+            }
+            face.enabled = false;
+            tile.sprite = cardPanel != null ? cardPanel : UiSkin.Panel;
+            tile.type = cardPanel != null && cardPanel.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
+            tile.preserveAspect = tile.type == Image.Type.Simple;
+            tile.color = fallback;
         }
 
         private void DismissReveal()
@@ -1056,8 +1241,9 @@ namespace Game.UI
 
             _multiplier.text = string.Format(Culture, "×{0:0.00}", _foremen.IncomeMultiplier);
             _balance.text = (_wallet != null ? _wallet.Gems : 0L).ToString();
-            _sortText.text = "↕ " + Loc.T("kadro.sirala." + (int)_sortMode);
-            _filterText.text = "⌄ " + Loc.T("kadro.filtre." + (int)_filterMode);
+            // The glyph stands in for the kit icon only when the icon is not wired.
+            _sortText.text = (sortIcon != null ? string.Empty : "↕ ") + Loc.T("kadro.sirala." + (int)_sortMode);
+            _filterText.text = (filterIcon != null ? string.Empty : "⌄ ") + Loc.T("kadro.filtre." + (int)_filterMode);
             _emptyText.text = Loc.T("kadro.bos");
 
             RefreshChest();
@@ -1097,6 +1283,7 @@ namespace Game.UI
                 card.gameObject.SetActive(true);
             }
             _emptyText.gameObject.SetActive(count == 0);
+            _emptyArt.enabled = count == 0 && emptyArt != null;
         }
 
         private void RefreshChest()
@@ -1119,6 +1306,7 @@ namespace Game.UI
                 ? Loc.T("usta.bedava")
                 : string.Format("{0}   {1}", Loc.T("usta.bedava"), Countdown(_foremen.FreeChestSecondsLeft));
             Dress(_freeButton, _freeLabel, free);
+            _freeDot.enabled = free && readyDot != null;
         }
 
         /// <summary>
@@ -1146,10 +1334,23 @@ namespace Game.UI
             }
             if (_rule[m] != null) _rule[m].color = owned ? tint : InkFaint;
 
+            if (_frame[m] != null)
+            {
+                _frame[m].sprite = FrameFor(m, owned, stars);
+                _frame[m].enabled = _frame[m].sprite != null;
+            }
+            if (_readyMark[m] != null) _readyMark[m].SetActive(state.CanUpgrade);
+            if (_station[m] != null)
+                _station[m].text = Loc.Id("usta.istasyon", Foremen.StationIds[Foremen.StationOf(m)]);
+
             // One badge or the other, never both and never neither-when-it-matters: posted, or not
             // found. A card you own but have not posted carries no badge, which is the quiet state.
             if (_activeMark[m] != null) _activeMark[m].SetActive(state.Busy);
             if (_lockMark[m] != null) _lockMark[m].SetActive(!owned);
+            // Written here rather than at build: the prefab ships both badges blank, and a language
+            // change comes through here too.
+            if (_activeLabel[m] != null) _activeLabel[m].text = Loc.T("usta.aktif");
+            if (_lockLabel[m] != null) _lockLabel[m].text = Loc.T("usta.kilitli");
 
             if (_name[m] != null)
             {

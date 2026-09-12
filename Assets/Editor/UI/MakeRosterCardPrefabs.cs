@@ -54,34 +54,50 @@ namespace Game.EditorTools
             GameObject root = Card("UI_UstaKarti");
             RectTransform r = (RectTransform)root.transform;
 
-            Image(r, "Portre", new Vector2(0.020f, 0.080f), new Vector2(0.280f, 0.840f), preserveAspect: true);
+            // The face in its frame down the left. The UstaKiti portraits and frames are both 2:3, so
+            // the slot is as tall as the card and as wide as that allows. Portrait FIRST: the frame's
+            // rim has to draw over the portrait's edges, and siblings draw in order.
+            Image(r, "Portre", new Vector2(0.075f, 0.150f), new Vector2(0.385f, 0.800f), preserveAspect: true);
+            Image(r, "Cerceve", new Vector2(0.010f, 0.020f), new Vector2(0.450f, 0.980f), preserveAspect: true);
 
-            // The two state pills share one corner and are mutually exclusive — posted, or not found
-            // yet. The screen writes neither's text; the words are localised and set at runtime.
-            Badge(r, "Aktif", Green, new Vector2(0.015f, 0.855f), new Vector2(0.285f, 0.995f));
-            Badge(r, "Kilit", Slate, new Vector2(0.015f, 0.855f), new Vector2(0.285f, 0.995f));
+            // Ready to star up: the kit's upgrade coin on the frame's shoulder. Ships off; the screen
+            // shows it only while the cards on the bar already cover the next star.
+            Image(r, "Hazir", new Vector2(0.330f, 0.780f), new Vector2(0.450f, 0.980f), preserveAspect: true)
+                .gameObject.SetActive(false);
 
-            Label(r, "Ad", new Vector2(0.300f, 0.730f), new Vector2(0.975f, 0.960f),
+            // The two state pills share the foot of the frame and are mutually exclusive — posted, or
+            // not found yet. The screen writes neither's text; the words are localised at runtime.
+            Badge(r, "Aktif", Green, new Vector2(0.040f, 0.025f), new Vector2(0.420f, 0.165f), icon: true);
+            Badge(r, "Kilit", Slate, new Vector2(0.040f, 0.025f), new Vector2(0.420f, 0.165f), icon: true);
+
+            Label(r, "Ad", new Vector2(0.465f, 0.760f), new Vector2(0.975f, 0.965f),
                   26, TextAnchor.MiddleLeft, Ink);
+
+            // Which station he works. Three masters share each one, and the card was the only place
+            // that did not say which.
+            Label(r, "Istasyon", new Vector2(0.465f, 0.630f), new Vector2(0.975f, 0.760f),
+                  18, TextAnchor.MiddleLeft, InkSoft);
 
             // Five star pips across the middle band. Present here means the rarity label stops
             // spelling the stars out in ★ — see ForemanRosterUI.HasStarPips.
-            Stars(r, Foremen.MaxStars, 0.300f, 0.560f, 0.600f, 0.720f);
+            Stars(r, Foremen.MaxStars, 0.465f, 0.500f, 0.725f, 0.625f);
 
-            Label(r, "Nadirlik", new Vector2(0.612f, 0.545f), new Vector2(0.975f, 0.720f),
-                  20, TextAnchor.MiddleRight, InkSoft);
+            Label(r, "Nadirlik", new Vector2(0.730f, 0.495f), new Vector2(0.975f, 0.625f),
+                  18, TextAnchor.MiddleRight, InkSoft);
 
-            Flat(r, "Sirad", new Vector2(0.300f, 0.505f), new Vector2(0.560f, 0.522f), InkFaint);
+            Flat(r, "Sirad", new Vector2(0.465f, 0.470f), new Vector2(0.725f, 0.484f), InkFaint);
 
-            Label(r, "Beceri", new Vector2(0.300f, 0.300f), new Vector2(0.975f, 0.495f),
-                  30, TextAnchor.MiddleLeft, Ink);
+            Label(r, "Beceri", new Vector2(0.465f, 0.295f), new Vector2(0.975f, 0.465f),
+                  28, TextAnchor.MiddleLeft, Ink);
 
-            Bar(r, new Vector2(0.300f, 0.200f), new Vector2(0.625f, 0.270f));
+            Bar(r, new Vector2(0.465f, 0.205f), new Vector2(0.700f, 0.265f));
 
-            Label(r, "Kartlar", new Vector2(0.300f, 0.030f), new Vector2(0.625f, 0.180f),
-                  22, TextAnchor.MiddleLeft, InkFaint);
+            Label(r, "Kartlar", new Vector2(0.465f, 0.030f), new Vector2(0.700f, 0.190f),
+                  20, TextAnchor.MiddleLeft, InkFaint);
 
-            Pill(r, "Dugme", new Vector2(0.650f, 0.045f), new Vector2(0.975f, 0.275f));
+            // Wide and low: the pill art is a capsule whose caps are a share of its height, and a box
+            // much under 2:1 draws it as an egg.
+            Pill(r, "Dugme", new Vector2(0.715f, 0.060f), new Vector2(0.975f, 0.230f));
             return root;
         }
 
@@ -234,12 +250,19 @@ namespace Game.EditorTools
         /// A state pill: a filled rect named for the state, with a Text child the screen writes into.
         /// Ships switched off — the screen decides which one applies.
         /// </summary>
-        private static void Badge(RectTransform parent, string name, Color fill, Vector2 min, Vector2 max)
+        private static void Badge(RectTransform parent, string name, Color fill, Vector2 min, Vector2 max,
+                                  bool icon = false)
         {
             Image pill = Flat(parent, name, min, max, fill);
-            Text label = Label((RectTransform)pill.transform, "Text", Vector2.zero, Vector2.one,
+            Text label = Label((RectTransform)pill.transform, "Text",
+                               new Vector2(icon ? 0.26f : 0f, 0f), Vector2.one,
                                20, TextAnchor.MiddleCenter, Paper);
             label.text = string.Empty;
+            // "Ikon": the kit's state coin at the pill's left end. Spriteless like the portrait; the
+            // screen hands it the sprite from its own Inspector.
+            if (icon)
+                Image((RectTransform)pill.transform, "Ikon", new Vector2(0.02f, 0.02f), new Vector2(0.26f, 0.98f),
+                      preserveAspect: true);
             pill.gameObject.SetActive(false);
         }
 
