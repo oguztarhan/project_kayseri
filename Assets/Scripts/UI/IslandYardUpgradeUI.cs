@@ -11,10 +11,6 @@ namespace Game.UI
     public sealed class IslandYardUpgradeUI : MonoBehaviour
     {
         [SerializeField] private int sortingOrder = 180;
-        [Tooltip("Açıcının kendi katmanı. Sayfa 180'de kalır; açıcı HUD hizasına iner.")]
-        [SerializeField] private int openerSortingOrder = 103;
-        [SerializeField] private Vector2 openerMin = new Vector2(0.70f, 0.30f);
-        [SerializeField] private Vector2 openerMax = new Vector2(0.97f, 0.355f);
         [SerializeField, Min(0.1f)] private float refreshSeconds = 0.3f;
 
         private static readonly YardUpgrade[] Tracks = { YardUpgrade.DepositSlot, YardUpgrade.QueueSlot,
@@ -24,16 +20,20 @@ namespace Game.UI
         private static readonly string[] TurkishNames = { "Stok kapasitesi", "Müşteri kapasitesi", "İkmal ekibi",
             "Satış ekibi", "Sipariş hazırlama", "Taşıma kapasitesi" };
         private static readonly Color Ink = new Color(0.08f, 0.13f, 0.19f);
+        private static readonly Color Paper = new Color(0.97f, 0.98f, 1f);
+        private static readonly Color LightInk = new Color(0.78f, 0.88f, 1f);
+        private static readonly Color Scrim = new Color(0.015f, 0.035f, 0.08f, 0.90f);
         private static readonly Color Gold = new Color(0.98f, 0.72f, 0.24f);
         private readonly Button[] _buy = new Button[6];
         private readonly Text[] _names = new Text[6], _levels = new Text[6], _prices = new Text[6];
+        private readonly Image[] _rowArt = new Image[6];
+        private readonly Image[] _icons = new Image[6];
         private MarketService _market;
         private WalletService _wallet;
         private Action _persist;
         private RectTransform _sheet;
         private GameObject _overlay;
-        private Button _opener;
-        private Text _title, _cash, _hint, _openerText;
+        private Text _title, _cash, _hint;
         private string _island;
         private float _untilRefresh;
         private bool _configured;
@@ -61,6 +61,13 @@ namespace Game.UI
 
         private void Awake() => Build();
 
+        /// <summary>The HUD's dedicated market button enters the active island's yard.</summary>
+        public void ShowActiveIsland()
+        {
+            EnsureConfigured();
+            if (_market != null) Show(_market.ActiveIsland);
+        }
+
         public void Configure(MarketService market, WalletService wallet, Action persist = null)
         {
             _market = market;
@@ -76,21 +83,25 @@ namespace Game.UI
             _untilRefresh -= Time.unscaledDeltaTime;
             if (_untilRefresh > 0f) return;
             _untilRefresh = refreshSeconds;
-            if (!_configured)
-            {
-                var market = ServiceLocator.Get<MarketService>();
-                var wallet = ServiceLocator.Get<WalletService>();
-                var data = ServiceLocator.Get<SaveData>();
-                var save = ServiceLocator.Get<SaveService>();
-                // Never construct a market or placeholder save to make the panel available.
-                if (market != null && wallet != null && data != null && save != null)
-                    Configure(market, wallet, () => save.Save(data));
-            }
+            EnsureConfigured();
             Refresh();
+        }
+
+        private void EnsureConfigured()
+        {
+            if (_configured) return;
+            var market = ServiceLocator.Get<MarketService>();
+            var wallet = ServiceLocator.Get<WalletService>();
+            var data = ServiceLocator.Get<SaveData>();
+            var save = ServiceLocator.Get<SaveService>();
+            // Never construct a market or placeholder save to make the panel available.
+            if (market != null && wallet != null && data != null && save != null)
+                Configure(market, wallet, () => save.Save(data));
         }
 
         public void Show(string islandKey)
         {
+            EnsureConfigured();
             if (_market == null || _wallet == null || Chapters.Of(islandKey) < 0) return;
             _island = islandKey;
             _overlay.SetActive(true);
@@ -120,8 +131,6 @@ namespace Game.UI
         {
             if (_overlay == null) return;
             bool ready = _market != null && _wallet != null;
-            _opener.interactable = ready && Chapters.Of(_market.ActiveIsland) >= 0;
-            _openerText.text = Tr("YARD UPGRADES", "PAZAR GELİŞTİR");
             if (!IsOpen || !ready) return;
             FollowIsland();
             if (Chapters.Of(_island) < 0) { Hide(); return; }
@@ -156,47 +165,61 @@ namespace Game.UI
             safe.transform.SetParent(canvas, false);
             var area = UiBuild.Anchor((RectTransform)safe.transform, Vector2.zero, Vector2.one);
             safe.AddComponent<SafeArea>();
-            // The opener gets its own canvas at HUD level. It is on screen permanently, and sharing
-            // the sheet's 180 meant it drew over every screen in the 105-115 band — it sat on top of
-            // the Goals claim button and of the More sheet, catching taps meant for them.
-            var openerCanvas = UiBuild.Canvas(transform, "IslandYardAcici", openerSortingOrder);
-            var openerArea = new GameObject("SafeArea", typeof(RectTransform));
-            openerArea.transform.SetParent(openerCanvas, false);
-            UiBuild.Anchor((RectTransform)openerArea.transform, Vector2.zero, Vector2.one);
-            openerArea.AddComponent<SafeArea>();
-
-            _opener = UiBuild.Btn((RectTransform)openerArea.transform, "OpenYardUpgrades", "",
-                UiSkin.ButtonYellow, Gold, 24,
-                () => Show(_market != null ? _market.ActiveIsland : null));
-            UiBuild.Anchor((RectTransform)_opener.transform, openerMin, openerMax);
-            _openerText = _opener.GetComponentInChildren<Text>();
-            _openerText.color = Ink;
-            Fit(_openerText, 24);
-
-            var veil = UiBuild.Flat(area, "YardUpgradeOverlay", new Color(0.02f, 0.04f, 0.08f, 1f), Vector2.zero, Vector2.one);
+            var veil = UiBuild.Flat(area, "YardUpgradeOverlay", Scrim, Vector2.zero, Vector2.one);
             _overlay = veil.gameObject;
-            _sheet = UiBuild.Flat(veil, "YardUpgradeSheet", new Color(0.94f, 0.95f, 0.93f), new Vector2(0.045f, 0.15f), new Vector2(0.955f, 0.85f));
-            _title = Label(_sheet, "Title", 32, new Vector2(0.04f, 0.925f), new Vector2(0.82f, 0.985f), Ink);
-            var close = UiBuild.Btn(_sheet, "Close", "×", UiSkin.Flat, Ink, 32, Hide);
-            close.GetComponentInChildren<Text>().color = Ink;
-            UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.87f, 0.928f), new Vector2(0.97f, 0.98f));
-            _cash = Label(_sheet, "Wallet", 26, new Vector2(0.04f, 0.865f), new Vector2(0.96f, 0.92f), Ink);
-            _hint = Label(_sheet, "AutomaticWork", 21, new Vector2(0.04f, 0.02f), new Vector2(0.96f, 0.075f), Ink);
+            _sheet = UiBuild.Flat(veil, "YardUpgradeSheet", Paper, new Vector2(0.055f, 0.10f), new Vector2(0.945f, 0.90f));
+            Dress(_sheet.GetComponent<Image>(), TycoonUpgradeArt.Panel, Paper);
+
+            RectTransform titlePlate = UiBuild.Flat(_sheet, "TitlePlate", Color.white,
+                new Vector2(0.05f, 0.84f), new Vector2(0.66f, 0.966f));
+            Dress(titlePlate.GetComponent<Image>(), TycoonUpgradeArt.Title, Color.white);
+            titlePlate.GetComponent<Image>().preserveAspect = true;
+            _title = Label(titlePlate, "Title", 30, new Vector2(0.20f, 0.13f), new Vector2(0.80f, 0.87f), Color.white);
+            _title.alignment = TextAnchor.MiddleCenter;
+            var closeArt = TycoonUpgradeArt.Close;
+            var close = UiBuild.Btn(_sheet, "Close", string.Empty, closeArt != null ? closeArt : UiSkin.ButtonGrey,
+                                    Color.white, 32, Hide);
+            UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.91f, 0.895f), new Vector2(0.99f, 0.965f));
+            close.GetComponent<Image>().preserveAspect = true;
+
+            RectTransform wallet = UiBuild.Flat(_sheet, "WalletPlate", Paper, new Vector2(0.66f, 0.865f), new Vector2(0.90f, 0.925f));
+            Dress(wallet.GetComponent<Image>(), TycoonUpgradeArt.Wallet, Paper);
+            wallet.GetComponent<Image>().preserveAspect = true;
+            Art(wallet, "CashIcon", TycoonUpgradeArt.CashIcon,
+                new Vector2(0.03f, 0.05f), new Vector2(0.42f, 0.95f));
+            _cash = Label(wallet, "Wallet", 24, new Vector2(0.43f, 0.10f), new Vector2(0.91f, 0.90f), Color.white);
+            _cash.alignment = TextAnchor.MiddleCenter;
+            _hint = Label(_sheet, "AutomaticWork", 20, new Vector2(0.09f, 0.08f), new Vector2(0.91f, 0.125f), LightInk);
+            _hint.alignment = TextAnchor.MiddleCenter;
             for (int i = 0; i < Tracks.Length; i++)
             {
                 int captured = i;
-                float top = 0.85f - i * 0.127f;
-                var row = UiBuild.Flat(_sheet, "Track_" + Tracks[i], Color.white, new Vector2(0.035f, top - 0.115f), new Vector2(0.965f, top));
-                _names[i] = Label(row, "Name", 28, new Vector2(0.025f, 0.48f), new Vector2(0.64f, 0.94f), Ink);
-                _levels[i] = Label(row, "Level", 21, new Vector2(0.025f, 0.08f), new Vector2(0.64f, 0.48f), Ink);
-                _buy[i] = UiBuild.Btn(row, "Buy_" + Tracks[i], "", UiSkin.ButtonYellow, Gold, 23, () => Purchase(Tracks[captured]));
-                UiBuild.Anchor((RectTransform)_buy[i].transform, new Vector2(0.67f, 0.17f), new Vector2(0.98f, 0.83f));
+                float top = 0.80f - i * 0.112f;
+                var row = UiBuild.Flat(_sheet, "Track_" + Tracks[i], Paper, new Vector2(0.06f, top - 0.098f), new Vector2(0.94f, top));
+                _rowArt[i] = row.GetComponent<Image>();
+                Dress(_rowArt[i], TycoonUpgradeArt.Card, Paper);
+                _icons[i] = Art(row, "Icon", TycoonUpgradeArt.YardIcon(i),
+                    new Vector2(0.025f, 0.12f), new Vector2(0.19f, 0.88f));
+                _names[i] = Label(row, "Name", 27, new Vector2(0.20f, 0.48f), new Vector2(0.67f, 0.94f), Color.white);
+                _levels[i] = Label(row, "Level", 20, new Vector2(0.20f, 0.08f), new Vector2(0.67f, 0.48f), LightInk);
+                Sprite buyArt = TycoonUpgradeArt.Buy;
+                _buy[i] = UiBuild.Btn(row, "Buy_" + Tracks[i], "", buyArt != null ? buyArt : UiSkin.ButtonYellow,
+                                      buyArt != null ? Color.white : Gold, 23, () => Purchase(Tracks[captured]));
+                UiBuild.Anchor((RectTransform)_buy[i].transform, new Vector2(0.68f, 0.12f), new Vector2(0.985f, 0.88f));
                 _prices[i] = _buy[i].GetComponentInChildren<Text>();
                 _prices[i].color = Ink;
                 Fit(_prices[i], 23);
             }
             Hide();
             Refresh();
+        }
+
+        private static void Dress(Image image, Sprite art, Color fallback)
+        {
+            if (image == null) return;
+            image.sprite = art != null ? art : UiSkin.Panel;
+            image.type = image.sprite != null && image.sprite.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
+            image.color = art != null ? Color.white : fallback;
         }
 
         private static Text Label(Transform parent, string name, int size, Vector2 min, Vector2 max, Color color)
@@ -206,6 +229,20 @@ namespace Game.UI
             label.color = color;
             Fit(label, size);
             return label;
+        }
+
+        private static Image Art(Transform parent, string name, Sprite sprite, Vector2 min, Vector2 max)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var rect = (RectTransform)go.transform;
+            UiBuild.Anchor(rect, min, max);
+            var image = go.GetComponent<Image>();
+            image.sprite = sprite;
+            image.color = Color.white;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            return image;
         }
 
         private static void Fit(Text label, int size)

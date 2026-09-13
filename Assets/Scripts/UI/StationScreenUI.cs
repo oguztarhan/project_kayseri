@@ -172,6 +172,7 @@ namespace Game.UI
         {
             KeepOnlyPlayerStations();
             ApplyLandscapeLayout();
+            ApplyTycoonTheme();
             // Down, not up: this script sits on the prefab root and the letterbox is inside Pencere.
             _letterbox = GetComponentInChildren<LetterboxRoot>(true);
             if (sheet != null) { _sheetHome = sheet.anchoredPosition; _scroll = sheet.GetComponent<ScrollRect>(); }
@@ -186,6 +187,59 @@ namespace Game.UI
                 cardTemplate.SetActive(false);
             }
             HideFx();
+        }
+
+        /// <summary>Unifies the authored upgrade screen with the blue, gold and white Tycoon kit.</summary>
+        private void ApplyTycoonTheme()
+        {
+            if (dim != null) dim.color = new Color(0.015f, 0.035f, 0.08f, 0.90f);
+            Dress(sheet != null ? sheet.GetComponent<Image>() : null, TycoonUpgradeArt.Panel);
+            Dress(stageFrame != null ? stageFrame.GetComponent<Image>() : null, TycoonUpgradeArt.Card);
+            Dress(cardTemplate != null ? cardTemplate.GetComponent<Image>() : null, TycoonUpgradeArt.Card);
+            Dress(stripTemplate != null ? stripTemplate.GetComponent<Image>() : null, TycoonUpgradeArt.Card);
+
+            RectTransform title = titleText != null ? titleText.rectTransform.parent as RectTransform : null;
+            Dress(title != null ? title.GetComponent<Image>() : null, TycoonUpgradeArt.Title);
+            RectTransform wallet = goldValue != null ? goldValue.rectTransform.parent as RectTransform : null;
+            Dress(wallet != null ? wallet.GetComponent<Image>() : null, TycoonUpgradeArt.Wallet);
+            if (title != null && title.GetComponent<Image>() != null) title.GetComponent<Image>().preserveAspect = true;
+            if (wallet != null && wallet.GetComponent<Image>() != null) wallet.GetComponent<Image>().preserveAspect = true;
+
+            if (titleText != null) titleText.color = Color.white;
+            if (goldValue != null)
+            {
+                goldValue.color = new Color(0.03f, 0.10f, 0.25f);
+                goldValue.rectTransform.anchorMin = new Vector2(0.44f, 0.08f);
+                goldValue.rectTransform.anchorMax = new Vector2(0.91f, 0.92f);
+                goldValue.rectTransform.offsetMin = Vector2.zero;
+                goldValue.rectTransform.offsetMax = Vector2.zero;
+            }
+            PaintCardText(cardTemplate);
+
+            if (TycoonUpgradeArt.Buy != null) priceGreen = TycoonUpgradeArt.Buy;
+            slotIdleTint = new Color(0.22f, 0.82f, 0.86f, 0.82f);
+        }
+
+        private static void PaintCardText(GameObject card)
+        {
+            if (card == null) return;
+            Color white = Color.white;
+            Color light = new Color(0.78f, 0.88f, 1f);
+            Color navy = new Color(0.03f, 0.10f, 0.25f);
+            foreach (TMP_Text text in card.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (text.name == "Fiyat") text.color = navy;
+                else if (text.name == "Seviye" || text.name == "Detay") text.color = light;
+                else text.color = white;
+            }
+        }
+
+        private static void Dress(Image image, Sprite sprite)
+        {
+            if (image == null || sprite == null) return;
+            image.sprite = sprite;
+            image.type = sprite.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
+            image.color = Color.white;
         }
 
         private void ApplyLandscapeLayout()

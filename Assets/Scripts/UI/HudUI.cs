@@ -29,11 +29,16 @@ namespace Game.UI
         public const string BalloonButtonName = "BtnBalon";
         public const string MoreButtonName = "BtnDahaFazla";
 
+        // The main-menu art is kept in Resources so the existing inspector-authored HUD and the
+        // code-built More sheet can share one sprite set without prefab edits.  The names below are
+        // the stable opener names used by the existing UI screens.
+        private const string MainHudIconRoot = "UI/MainHudButtons/";
+
         /// <summary>The openers compact mode keeps on the rail itself. Everything else it moves into
         /// the More sheet — see <see cref="AttachBottomButton"/>.</summary>
         private static bool IsCompactOpener(string name)
             => name == SailButtonName || name == MasterButtonName || name == CaptainButtonName
-               || name == BalloonButtonName || name == MoreButtonName;
+               || name == BalloonButtonName || name == MoreButtonName || name == "BtnPazarGelistir";
 
         [Header("Dikey tersane sade HUD")]
         [Tooltip("Yalnızca Inspector'daki dört ana eylemi kenar rayında tutar; eski bölüm bildirimi ve yinelenen kısayolları gizler.")]
@@ -117,6 +122,9 @@ namespace Game.UI
                  "dugmelerde 162, sekiz aciciyi iki sutuna sigdiriyor; 172'de uc sutun gerekiyor " +
                  "ve ray adanin uzerine tasiyor.")]
         [SerializeField] private float railPitch = 162f;
+        [Tooltip("Sağ raydaki bütün ana menü butonlarının kare kenar ölçüsü. Koddaki ve prefabdaki " +
+                 "butonlar bu ölçüye eşitlenir.")]
+        [SerializeField] private float railButtonSize = 150f;
         [Tooltip("Çentik ve hareket çubuğundan sonra bırakılan minimum boşluk.")]
         [SerializeField] private float safeAreaMargin = 24f;
 
@@ -211,6 +219,7 @@ namespace Game.UI
             if (boostIndicator != null)
                 _boostSlot = ((RectTransform)boostIndicator.transform).anchoredPosition;
             BindEnabledOp();
+            ApplyMainHudIcons();
 
             if (storeButton != null) storeButton.onClick.AddListener(OnStore);
             if (goldButton != null) goldButton.onClick.AddListener(OnStore);
@@ -255,6 +264,7 @@ namespace Game.UI
             // whether there is anything to open (LadderUI.BuildOpener), and in compact mode that
             // opener now lands in the More sheet.
             BuildLadder();
+            BuildMarketUpgradeOpener();
 
             // The wallet screen is code-built and attaches its opener to the existing rail/More sheet;
             // no scene or prefab edit is needed for the compact HUD to reach it.
@@ -303,8 +313,13 @@ namespace Game.UI
         public Button AttachBottomButton(int order, string name, Sprite icon,
                                          UnityEngine.Events.UnityAction onClick)
         {
-            Sprite portraitIcon = PortraitOpenerIcon(name);
-            if (portraitIcon != null) icon = portraitIcon;
+            Sprite customIcon = MainHudIcon(name);
+            if (customIcon != null) icon = customIcon;
+            else
+            {
+                Sprite portraitIcon = PortraitOpenerIcon(name);
+                if (portraitIcon != null) icon = portraitIcon;
+            }
             // Compact mode keeps the rail down to primaries: sea combat is a primary loop in the
             // five-station game, and the two rosters are the whole of the collection layer. The rest
             // go into the More sheet rather than being dropped — a screen you cannot open is a
@@ -370,6 +385,13 @@ namespace Game.UI
         /// </summary>
         private void LayoutBottomRow()
         {
+            float buttonSize = Mathf.Max(1f, railButtonSize);
+            for (int i = 0; i < _bottomRects.Count; i++)
+            {
+                RectTransform rect = _bottomRects[i];
+                if (rect != null) rect.sizeDelta = new Vector2(buttonSize, buttonSize);
+            }
+
             if (!sideRail)
             {
                 float span = (_bottomRects.Count - 1) * bottomPitch;
@@ -399,17 +421,18 @@ namespace Game.UI
             // off each end so the first and last buttons sit inside the band rather than straddling it.
             float safeTop = (safe.yMax / screenHeight - 0.5f) * height;
             float safeBottom = (safe.yMin / screenHeight - 0.5f) * height;
-            float top = safeTop - railTopReserve - railPitch * 0.5f;
-            float bottom = safeBottom + railPitch * 0.5f;
-            float band = Mathf.Max(railPitch, top - bottom);
+            float pitch = Mathf.Max(railPitch, buttonSize + 12f);
+            float top = safeTop - railTopReserve - pitch * 0.5f;
+            float bottom = safeBottom + pitch * 0.5f;
+            float band = Mathf.Max(pitch, top - bottom);
             float centre = (top + bottom) * 0.5f;
 
-            int perColumn = Mathf.Max(1, Mathf.FloorToInt(band / railPitch) + 1);
+            int perColumn = Mathf.Max(1, Mathf.FloorToInt(band / pitch) + 1);
             int columns = Mathf.CeilToInt(count / (float)perColumn);
             float safeEdgeInset = railOnLeft
                 ? safe.xMin * sheetPerScreenX + railInset
                 : (screenWidth - safe.xMax) * sheetPerScreenX + railInset;
-            _railWidth = safeEdgeInset + (columns - 1) * railPitch + railPitch * 0.5f;
+            _railWidth = safeEdgeInset + (columns - 1) * pitch + pitch * 0.5f;
             float edge = railOnLeft ? 0f : 1f;
             float dir = railOnLeft ? 1f : -1f;
 
@@ -424,12 +447,12 @@ namespace Game.UI
                 // The last column is usually short; centre each column on its own contents so the
                 // rail never ends in a ragged half-column hanging off the bottom.
                 int inColumn = Mathf.Min(perColumn, count - column * perColumn);
-                float columnSpan = (inColumn - 1) * railPitch;
+                float columnSpan = (inColumn - 1) * pitch;
 
                 rect.anchorMin = rect.anchorMax = new Vector2(edge, 0.5f);
                 rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.anchoredPosition = new Vector2(dir * (safeEdgeInset + column * railPitch),
-                                                    centre + columnSpan * 0.5f - row * railPitch);
+                rect.anchoredPosition = new Vector2(dir * (safeEdgeInset + column * pitch),
+                                                    centre + columnSpan * 0.5f - row * pitch);
                 placed++;
             }
 
@@ -659,6 +682,65 @@ namespace Game.UI
             }
         }
 
+        /// <summary>Loads one of the TYCOON STANDARD main-menu icons by opener name.</summary>
+        private static Sprite MainHudIcon(string name)
+        {
+            string asset = MainHudIconAsset(name);
+            return string.IsNullOrEmpty(asset) ? null : Resources.Load<Sprite>(MainHudIconRoot + asset);
+        }
+
+        private static string MainHudIconAsset(string name)
+        {
+            switch (name)
+            {
+                case "BtnUstabasi": return "01-ustalar";
+                case "BtnBedava": return "02-odullu-reklam";
+                case "BtnLig": return "03-lig";
+                case "BtnMaden": return "04-maden-teçhizati";
+                case "BtnKartKoleksiyonu": return "05-kart-koleksiyonu";
+                case "BtnDenizDostlari": return "06-deniz-dostlari";
+                case "BtnCuzdan": return "07-kaynaklar";
+                case "BtnDahaFazla": return "08-daha-fazla";
+                case "BtnMagaza": return "09-shop";
+                case "BtnGunluk": return "10-haftalik-odul";
+                case "BtnYukselt": return "11-upgrade";
+                case "BtnKontrat": return "12-kontrat";
+                case "BtnGorev": return "13-gorevler";
+                case "BtnEtkinlik": return "14-etkinlikler";
+                case "BtnBoost": return "15-iki-x-gelir";
+                case "BtnHarita": return "16-map";
+                case "BtnDenizSavasi": return "17-denize-acil";
+                case "BtnPazarGelistir": return "18-pazar-gelistir";
+                default: return null;
+            }
+        }
+
+        /// <summary>Applies the same generated icon set to inspector-authored HUD buttons.</summary>
+        private void ApplyMainHudIcons()
+        {
+            ApplyMainHudIcon(storeButton, "BtnMagaza");
+            ApplyMainHudIcon(dailyButton, "BtnGunluk");
+            ApplyMainHudIcon(mapButton, "BtnHarita");
+            ApplyMainHudIcon(contractButton, "BtnKontrat");
+            ApplyMainHudIcon(adButton, "BtnBedava");
+            ApplyMainHudIcon(upgradeButton, "BtnYukselt");
+            ApplyMainHudIcon(boostButton, "BtnBoost");
+            ApplyMainHudIcon(settingsButton, "BtnAyarlar");
+        }
+
+        private static void ApplyMainHudIcon(Button button, string openerName)
+        {
+            if (button == null) return;
+            Sprite icon = MainHudIcon(openerName);
+            if (icon == null) return;
+            Image image = button.targetGraphic as Image;
+            if (image == null) image = button.GetComponent<Image>();
+            if (image == null) return;
+            image.sprite = icon;
+            image.preserveAspect = true;
+            image.useSpriteMesh = true;
+        }
+
         private static string MoreRowKey(string name)
         {
             switch (name)
@@ -672,6 +754,7 @@ namespace Game.UI
                 case "BtnKartKoleksiyonu": return "koleksiyon.baslik";
                 case "BtnDenizDostlari": return "dost.baslik";
                 case "BtnCuzdan": return "wallet.open";
+                case "BtnPazarGelistir": return "hud.pazar_gelistir";
                 default: return name;
             }
         }
@@ -919,6 +1002,13 @@ namespace Game.UI
             GameObject systems = GameObject.Find(UiSystemsObject);
             if (systems != null) go.transform.SetParent(systems.transform, false);
             go.AddComponent<LadderUI>();
+        }
+
+        /// <summary>Exposes the market-upgrade screen through the same More sheet as the other
+        /// secondary HUD destinations. The screen itself remains code-built and owns its panel.</summary>
+        private void BuildMarketUpgradeOpener()
+        {
+            AttachBottomButton(8, "BtnPazarGelistir", null, OnMarketUpgrades);
         }
 
         private void Update()
@@ -1232,6 +1322,12 @@ namespace Game.UI
         private void OnUpgrades()
         {
             if (stationScreen != null) stationScreen.Open();
+        }
+
+        private void OnMarketUpgrades()
+        {
+            IslandYardUpgradeUI yard = FindAnyObjectByType<IslandYardUpgradeUI>(FindObjectsInactive.Include);
+            if (yard != null) yard.ShowActiveIsland();
         }
 
         /// <summary>The $/min pill answers for itself: where that money is coming from, stage by stage.</summary>

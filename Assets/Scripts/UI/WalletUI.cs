@@ -29,20 +29,16 @@ namespace Game.UI
         [Tooltip("Only used where there is no HUD rail (the portrait Shipyard scene). Below every " +
                  "screen's sheet, so an open screen covers the button.")]
         [SerializeField] private int standaloneOpenerSortingOrder = 99;
-        [SerializeField] private float rowHeight = 104f;
-        [SerializeField] private float rowSpacing = 10f;
-        [SerializeField] private float iconSize = 72f;
+        [SerializeField, Range(0f, 0.1f)] private float columnGap = 0.035f;
         [SerializeField] private Color scrim = new Color(0f, 0f, 0f, 0.66f);
-        [SerializeField] private Color backdrop = new Color(0.92f, 0.94f, 0.99f, 0.98f);
+        [SerializeField] private Color backdrop = new Color(0.025f, 0.10f, 0.24f, 1f);
         [SerializeField] private Color rowColor = new Color(0.17f, 0.21f, 0.31f, 1f);
-        [SerializeField] private Color groupColor = new Color(0.10f, 0.14f, 0.23f, 1f);
-        [SerializeField] private Color descriptionColor = new Color(0.72f, 0.78f, 0.88f, 1f);
+        [SerializeField] private Color groupColor = new Color(0.56f, 0.86f, 1f, 1f);
+        [SerializeField] private Color balanceColor = new Color(1f, 0.88f, 0.40f, 1f);
 
         [Header("Simgeler")]
-        [Tooltip("İsteğe bağlı elle atanan simgeler. Boş kalan para birimi önce oyunun zaten yüklediği " +
-                 "sanatı (nakit, elmas, deniz kiti, atölye), o da yoksa harf rozetini kullanır. " +
-                 "Savaş enerjisi, maden puanı, maden hurdası, inci ve pet özü için şu an çalışma " +
-                 "zamanında yüklenebilir uygun sanat yok.")]
+        [Tooltip("İsteğe bağlı elle atanan simgeler. Boş kalanlar UI/Wallet altındaki currency-icons " +
+                 "görsellerini kullanır. Görsel bulunamazsa harf rozeti gösterilir.")]
         [SerializeField] private CurrencyIcon[] iconOverrides = new CurrencyIcon[0];
 
         private static readonly CurrencyCategory[] GroupOrder =
@@ -59,7 +55,7 @@ namespace Game.UI
         public const string OpenerButtonName = "BtnCuzdan";
 
         private readonly Text[] _name = new Text[CurrencyCount];
-        private readonly Text[] _description = new Text[CurrencyCount];
+        private readonly Text[] _groupLabels = new Text[GroupOrder.Length];
         private readonly Text[] _value = new Text[CurrencyCount];
         private readonly Text[] _timer = new Text[CurrencyCount];
         private readonly Text[] _badge = new Text[CurrencyCount];
@@ -71,6 +67,7 @@ namespace Game.UI
         private LocalizationService _loc;
         private RectTransform _root;
         private RectTransform _content;
+        private Sprite _cardSprite;
         private Text _title;
         private Text _closeLabel;
         private Text _openerLabel;
@@ -85,7 +82,6 @@ namespace Game.UI
 
         public string DisplayedValue(CurrencyId id) => TextOf(_value, id);
         public string DisplayedName(CurrencyId id) => TextOf(_name, id);
-        public string DisplayedDescription(CurrencyId id) => TextOf(_description, id);
         public string DisplayedTimer(CurrencyId id) => TextOf(_timer, id);
 
         /// <summary>True when the row shows real art rather than the fallback letter badge.</summary>
@@ -175,7 +171,7 @@ namespace Game.UI
                 Fit(_openerLabel, 14, 22);
                 return;
             }
-            Sprite icon = Resources.Load<Sprite>("UI/Buttons/bilgi");
+            Sprite icon = PortraitUiArt.Get("general-wallet-icon");
             _hud.AttachBottomButton(16, OpenerButtonName, icon != null ? icon : UiSkin.ButtonYellow, Show);
         }
 
@@ -188,83 +184,77 @@ namespace Game.UI
             dismiss.onClick.AddListener(Hide);
 
             RectTransform sheet = UiBuild.Flat(_root, "Zemin", backdrop,
-                                               new Vector2(0.035f, 0.035f), new Vector2(0.965f, 0.965f));
+                                               new Vector2(0.025f, 0.025f), new Vector2(0.975f, 0.975f));
+            // Fit the whole sheet, including its contents, to the original panel's proportions.
+            // Stretching only the background would leave text outside the painted frame.
+            Sprite panel = PortraitUiArt.Get("general-large-panel");
+            if (panel != null)
+            {
+                PortraitUiArt.Apply(sheet.GetComponent<Image>(), panel);
+                RectTransform bounds = new GameObject("PanelAlani", typeof(RectTransform)).GetComponent<RectTransform>();
+                bounds.SetParent(_root, false);
+                UiBuild.Anchor(bounds, new Vector2(0.025f, 0.025f), new Vector2(0.975f, 0.975f));
+                sheet.SetParent(bounds, false);
+                UiBuild.Anchor(sheet, Vector2.zero, Vector2.one);
+                AspectRatioFitter fit = sheet.gameObject.AddComponent<AspectRatioFitter>();
+                fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                fit.aspectRatio = panel.rect.width / panel.rect.height;
+            }
+            _cardSprite = PortraitUiArt.Get("general-small-card-panel-transparent");
             // The sheet eats its own taps. Without a handler here a tap on any row walked up to the
             // scrim's dismiss button and closed the wallet — see MiningGearUI.BuildBackdrop.
             sheet.gameObject.AddComponent<Button>().transition = Selectable.Transition.None;
             BuildHeader(sheet);
-            BuildScroll(sheet);
+            BuildContent(sheet);
             RefreshBadges();
             UiBuild.InsetContent(_root);
         }
 
         private void BuildHeader(RectTransform sheet)
         {
-            RectTransform header = UiBuild.Flat(sheet, "Baslik", groupColor,
-                                                new Vector2(0.025f, 0.900f), new Vector2(0.975f, 0.975f));
-            _title = UiBuild.Label(header, "Baslik", Loc.T("wallet.title"), 34, TextAnchor.MiddleLeft);
+            RectTransform header = UiBuild.Flat(sheet, "Baslik", Color.clear,
+                                                new Vector2(0.14f, 0.83f), new Vector2(0.86f, 0.96f));
+            PortraitUiArt.Apply(header.GetComponent<Image>(), "general-title-plate");
+            header.GetComponent<Image>().raycastTarget = false;
+            _title = UiBuild.Label(header, "Baslik", Loc.T("wallet.title"), 46, TextAnchor.MiddleCenter);
             _title.color = Color.white;
-            _title.rectTransform.offsetMin = new Vector2(28f, 0f);
-            _title.rectTransform.offsetMax = new Vector2(-190f, 0f);
+            UiBuild.Anchor(_title.rectTransform, new Vector2(0.20f, 0.15f), new Vector2(0.80f, 0.85f));
+            Fit(_title, 24, 46);
+            Shadow shadow = _title.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0.25f, 0.10f, 0.025f, 0.85f);
+            shadow.effectDistance = new Vector2(0f, -3f);
 
-            Button close = UiBuild.Btn(header, "Kapat", Loc.T("wallet.close"), UiSkin.ButtonYellow,
+            Button close = UiBuild.Btn(sheet, "Kapat", Loc.T("wallet.close"), UiSkin.ButtonYellow,
                                        new Color(0.25f, 0.54f, 0.78f, 1f), 23, Hide);
             _closeLabel = close.GetComponentInChildren<Text>();
             Fit(_closeLabel, 14, 23);
             RectTransform closeRect = (RectTransform)close.transform;
-            closeRect.anchorMin = new Vector2(1f, 0.12f);
-            closeRect.anchorMax = new Vector2(1f, 0.88f);
-            closeRect.pivot = new Vector2(1f, 0.5f);
-            closeRect.sizeDelta = new Vector2(160f, 0f);
-            closeRect.anchoredPosition = new Vector2(-20f, 0f);
+            UiBuild.Anchor(closeRect, new Vector2(0.87f, 0.925f), new Vector2(0.99f, 1.01f));
+            Sprite closeSprite = PortraitUiArt.Get("general-close-button");
+            if (closeSprite != null)
+            {
+                PortraitUiArt.Apply(close.GetComponent<Image>(), closeSprite);
+                _closeLabel.enabled = false;
+            }
         }
 
-        private void BuildScroll(RectTransform sheet)
+        private void BuildContent(RectTransform sheet)
         {
-            // RectMask2D, not Mask: a stencil Mask on a see-through image writes no stencil at all
-            // (the UI shader alpha-clips it away), which left every row invisible in the running
-            // game. RectMask2D clips by rect, costs no extra draw calls, and the clear Image stays
-            // only as the raycast surface that lets a drag in the gaps scroll the list.
+            // A fixed two-column overview: all ten balances are visible without scrolling.
+            // RectMask2D keeps the contents inside the frame without requiring an opaque stencil.
             var viewportGo = new GameObject("Gorunum", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
             viewportGo.transform.SetParent(sheet, false);
             RectTransform viewport = (RectTransform)viewportGo.transform;
-            viewport.anchorMin = new Vector2(0.025f, 0.045f);
-            viewport.anchorMax = new Vector2(0.975f, 0.885f);
+            viewport.anchorMin = new Vector2(0.07f, 0.065f);
+            viewport.anchorMax = new Vector2(0.93f, 0.815f);
             viewport.offsetMin = Vector2.zero;
             viewport.offsetMax = Vector2.zero;
             viewportGo.GetComponent<Image>().color = Color.clear;
 
-            var scrollGo = new GameObject("Kaydir", typeof(ScrollRect));
-            scrollGo.transform.SetParent(viewport, false);
-            RectTransform scrollRect = (RectTransform)scrollGo.transform;
-            UiBuild.Anchor(scrollRect, Vector2.zero, Vector2.one);
-            ScrollRect scroll = scrollGo.GetComponent<ScrollRect>();
-            scroll.horizontal = false;
-            scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 55f;
-
-            var contentGo = new GameObject("Icerik", typeof(RectTransform), typeof(VerticalLayoutGroup),
-                                           typeof(ContentSizeFitter));
-            contentGo.transform.SetParent(scrollRect, false);
+            var contentGo = new GameObject("Icerik", typeof(RectTransform));
+            contentGo.transform.SetParent(viewport, false);
             _content = (RectTransform)contentGo.transform;
-            _content.anchorMin = new Vector2(0f, 1f);
-            _content.anchorMax = new Vector2(1f, 1f);
-            _content.pivot = new Vector2(0.5f, 1f);
-            _content.sizeDelta = new Vector2(0f, 0f);
-            VerticalLayoutGroup layout = contentGo.GetComponent<VerticalLayoutGroup>();
-            layout.spacing = rowSpacing;
-            layout.padding = new RectOffset(0, 0, 0, 20);
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = false;
-            ContentSizeFitter fitter = contentGo.GetComponent<ContentSizeFitter>();
-            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            scroll.content = _content;
-            scroll.viewport = viewport;
-
+            UiBuild.Anchor(_content, Vector2.zero, Vector2.one);
             BuildGroups();
         }
 
@@ -273,48 +263,61 @@ namespace Game.UI
             if (_registry == null || _content == null) return;
             _builtRows = 0;
             _builtGroups = 0;
+            // Main economy + sea on the left, crafting + mining + pets on the right.
+            // Each column contains exactly five cards; category headings use the gap above a card.
+            int leftRow = 0;
+            int rightRow = 0;
             for (int groupIndex = 0; groupIndex < GroupOrder.Length; groupIndex++)
             {
                 CurrencyCategory category = GroupOrder[groupIndex];
-                bool hasEntry = false;
+                bool left = category == CurrencyCategory.MainEconomy || category == CurrencyCategory.Sea;
+                bool first = true;
                 for (int i = 0; i < _registry.Definitions.Count; i++)
                 {
                     CurrencyDefinition definition = _registry.Definitions[i];
                     if (DisplayCategory(definition.Category) != category) continue;
-                    hasEntry = true;
-                    break;
-                }
-                if (!hasEntry) continue;
-
-                Text header = UiBuild.Label(_content, "Grup", Loc.T(GroupKey(category)), 26,
-                                            TextAnchor.MiddleLeft);
-                header.color = new Color(0.11f, 0.17f, 0.27f, 1f);
-                AddHeight(header.gameObject, 56f);
-                _builtGroups++;
-
-                for (int i = 0; i < _registry.Definitions.Count; i++)
-                {
-                    CurrencyDefinition definition = _registry.Definitions[i];
-                    if (DisplayCategory(definition.Category) != category) continue;
-                    BuildRow(definition);
+                    int rowIndex = left ? leftRow++ : rightRow++;
+                    var cell = new GameObject("Hucre_" + definition.Id, typeof(RectTransform)).GetComponent<RectTransform>();
+                    cell.SetParent(_content, false);
+                    float xMin = left ? 0f : 0.5f + columnGap * 0.5f;
+                    float xMax = left ? 0.5f - columnGap * 0.5f : 1f;
+                    UiBuild.Anchor(cell, new Vector2(xMin, 1f - (rowIndex + 1) * 0.2f),
+                                        new Vector2(xMax, 1f - rowIndex * 0.2f));
+                    if (first)
+                    {
+                        Text header = UiBuild.Label(cell, "Grup", Loc.T(GroupKey(category)), 23, TextAnchor.MiddleLeft);
+                        header.color = groupColor;
+                        UiBuild.Anchor(header.rectTransform, new Vector2(0.025f, 0.80f), new Vector2(0.975f, 1f));
+                        Fit(header, 18, 23);
+                        _groupLabels[groupIndex] = header;
+                        _builtGroups++;
+                        first = false;
+                    }
+                    BuildRow(definition, cell);
                 }
             }
         }
 
-        private void BuildRow(CurrencyDefinition definition)
+        private void BuildRow(CurrencyDefinition definition, RectTransform cell)
         {
             int index = (int)definition.Id;
-            RectTransform row = UiBuild.Flat(_content, "Para_" + definition.Id,
+            var bounds = new GameObject("KartAlani", typeof(RectTransform)).GetComponent<RectTransform>();
+            bounds.SetParent(cell, false);
+            UiBuild.Anchor(bounds, new Vector2(0f, 0.025f), new Vector2(1f, 0.79f));
+            RectTransform row = UiBuild.Flat(bounds, "Para_" + definition.Id,
                                              rowColor, Vector2.zero, Vector2.one);
-            AddHeight(row.gameObject, rowHeight);
-            float textLeft = iconSize + 32f;
+            if (_cardSprite != null)
+            {
+                PortraitUiArt.Apply(row.GetComponent<Image>(), _cardSprite);
+                AspectRatioFitter fit = row.gameObject.AddComponent<AspectRatioFitter>();
+                fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                fit.aspectRatio = _cardSprite.rect.width / _cardSprite.rect.height;
+            }
 
             // The badge is always there; real art covers it when the currency has any. A tinted
             // square with the currency's mark keeps the column even when it does not.
             RectTransform badge = UiBuild.Flat(row, "Simge", CategoryTint(definition.Category),
-                                               new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
-            badge.sizeDelta = new Vector2(iconSize, iconSize);
-            badge.anchoredPosition = new Vector2(16f + iconSize * 0.5f, 0f);
+                                               new Vector2(0.04f, 0.19f), new Vector2(0.29f, 0.81f));
             // Up to 40: the fallback font draws ◉ and ✦ small for their size, letters stop at the width.
             Text mark = UiBuild.Label(badge, "Harf", string.Empty, 40, TextAnchor.MiddleCenter);
             mark.color = Color.white;
@@ -332,56 +335,33 @@ namespace Game.UI
             mark.enabled = sprite == null;
             if (sprite != null) badge.GetComponent<Image>().color = Color.clear;
 
-            Text name = UiBuild.Label(row, "Ad", Loc.T(definition.LocalizedNameKey), 24, TextAnchor.LowerLeft);
+            Text name = UiBuild.Label(row, "Ad", Loc.T(definition.LocalizedNameKey), 22, TextAnchor.MiddleLeft);
             name.color = Color.white;
-            name.rectTransform.anchorMin = new Vector2(0f, 0.52f);
-            name.rectTransform.anchorMax = new Vector2(0.62f, 1f);
-            name.rectTransform.offsetMin = new Vector2(textLeft, 0f);
-            name.rectTransform.offsetMax = new Vector2(0f, -8f);
-            Fit(name, 14, 24);
+            UiBuild.Anchor(name.rectTransform, new Vector2(0.32f, 0.64f), new Vector2(0.93f, 0.86f));
+            Fit(name, 17, 22);
 
-            // Regenerating rows keep the lower right for the countdown; the rest let the line run on.
-            Text description = UiBuild.Label(row, "Aciklama", Loc.T(definition.LocalizedDescriptionKey), 17,
-                                             TextAnchor.UpperLeft);
-            description.color = descriptionColor;
-            description.fontStyle = FontStyle.Normal;
-            description.rectTransform.anchorMin = new Vector2(0f, 0f);
-            description.rectTransform.anchorMax = new Vector2(definition.Regenerates ? 0.62f : 0.98f, 0.50f);
-            description.rectTransform.offsetMin = new Vector2(textLeft, 6f);
-            description.rectTransform.offsetMax = new Vector2(-8f, 0f);
-            Fit(description, 11, 17);
+            Text value = UiBuild.Label(row, "Deger", "0", 36, TextAnchor.MiddleLeft);
+            value.color = balanceColor;
+            UiBuild.Anchor(value.rectTransform, new Vector2(0.32f, definition.Regenerates ? 0.35f : 0.24f),
+                                               new Vector2(0.93f, 0.63f));
+            Fit(value, 20, 36);
 
-            Text value = UiBuild.Label(row, "Deger", "0", 25, TextAnchor.LowerRight);
-            value.color = Color.white;
-            value.rectTransform.anchorMin = new Vector2(0.62f, 0.52f);
-            value.rectTransform.anchorMax = new Vector2(0.98f, 1f);
-            value.rectTransform.offsetMin = Vector2.zero;
-            value.rectTransform.offsetMax = new Vector2(-18f, -8f);
-            Fit(value, 14, 25);
-
-            Text timer = UiBuild.Label(row, "Sure", string.Empty, 18, TextAnchor.UpperRight);
-            timer.color = new Color(0.62f, 0.78f, 0.92f, 1f);
-            timer.rectTransform.anchorMin = new Vector2(0.62f, 0f);
-            timer.rectTransform.anchorMax = new Vector2(0.98f, 0.50f);
-            timer.rectTransform.offsetMin = new Vector2(0f, 6f);
-            timer.rectTransform.offsetMax = new Vector2(-18f, 0f);
-            Fit(timer, 12, 18);
+            Text timer = UiBuild.Label(row, "Sure", string.Empty, 17, TextAnchor.MiddleLeft);
+            timer.color = groupColor;
+            UiBuild.Anchor(timer.rectTransform, new Vector2(0.32f, 0.16f), new Vector2(0.93f, 0.34f));
+            Fit(timer, 14, 17);
 
             _badge[index] = mark;
             _art[index] = art;
             _name[index] = name;
-            _description[index] = description;
             _value[index] = value;
             _timer[index] = timer;
             _builtRows++;
         }
 
         /// <summary>
-        /// Art already in the game, in this order: a hand-wired override, then what is loadable at
-        /// runtime — the HUD skin's coin and gem, the sea kit's salvage and chart, the workshop's own
-        /// opener art. Null means the letter badge stays.
-        /// The sea kit is an atlas page (2048² ASTC); it is only touched when the wallet is first
-        /// opened, never at boot.
+        /// Uses an Inspector override first, then the original currency-icons art. The imported
+        /// sprites reference the source textures and trim only transparent padding; no copied PNGs.
         /// </summary>
         private Sprite ResolveIcon(CurrencyId id)
         {
@@ -389,17 +369,7 @@ namespace Game.UI
                 if (iconOverrides[i].currency == id && iconOverrides[i].icon != null)
                     return iconOverrides[i].icon;
 
-            switch (id)
-            {
-                case CurrencyId.Cash: return UiSkin.Coin;
-                case CurrencyId.Gems: return UiSkin.Gem;
-                case CurrencyId.Salvage: return SeaKit.Get("hurda");
-                case CurrencyId.Charts: return SeaKit.Get("harita");
-                case CurrencyId.CraftPoints: return Resources.Load<Sprite>("UI/Buttons/atolye");
-                // Not PetConfig.PearlIcon: it is wired to ikon_altin, the placeholder gold coin, and
-                // in a list beside Cash it reads as a second cash row. The ◉ badge until pearl art lands.
-                default: return null;
-            }
+            return Resources.Load<Sprite>("UI/Wallet/" + id);
         }
 
         private void Refresh()
@@ -412,7 +382,6 @@ namespace Game.UI
                 CurrencyDefinition definition = _registry.Definitions[i];
                 int index = (int)definition.Id;
                 if (_name[index] != null) _name[index].text = Loc.T(definition.LocalizedNameKey);
-                if (_description[index] != null) _description[index].text = Loc.T(definition.LocalizedDescriptionKey);
                 if (!_registry.TryGetSnapshot(definition.Id, out CurrencySnapshot snapshot)) continue;
                 if (_value[index] != null) _value[index].text = Format(snapshot);
                 if (_timer[index] != null) _timer[index].text = RegenerationText(snapshot);
@@ -422,15 +391,8 @@ namespace Game.UI
 
         private void RefreshGroupLabels()
         {
-            if (_content == null) return;
-            int group = 0;
-            for (int i = 0; i < _content.childCount && group < GroupOrder.Length; i++)
-            {
-                Transform child = _content.GetChild(i);
-                if (child.name != "Grup") continue;
-                Text label = child.GetComponentInChildren<Text>();
-                if (label != null) label.text = Loc.T(GroupKey(GroupOrder[group++]));
-            }
+            for (int i = 0; i < _groupLabels.Length; i++)
+                if (_groupLabels[i] != null) _groupLabels[i].text = Loc.T(GroupKey(GroupOrder[i]));
         }
 
         private string Format(CurrencySnapshot snapshot)
@@ -531,14 +493,6 @@ namespace Game.UI
             label.resizeTextMaxSize = max;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
-        }
-
-        private static void AddHeight(GameObject go, float height)
-        {
-            LayoutElement element = go.AddComponent<LayoutElement>();
-            element.minHeight = height;
-            element.preferredHeight = height;
-            element.flexibleHeight = 0f;
         }
 
         private void OnSourceChanged()

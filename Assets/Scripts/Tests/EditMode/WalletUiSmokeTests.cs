@@ -88,7 +88,7 @@ namespace Game.Tests
         }
 
         [Test]
-        public void EveryRowShowsItsDescriptionAndOnlyRegeneratingRowsCountDown()
+        public void EveryRowShowsItsNameAndOnlyRegeneratingRowsCountDown()
         {
             var data = new SaveData();
             var wallet = new WalletService(data.wallet);
@@ -104,8 +104,8 @@ namespace Game.Tests
             for (int i = 0; i < _registry.Definitions.Count; i++)
             {
                 CurrencyDefinition d = _registry.Definitions[i];
-                Assert.That(ui.DisplayedDescription(d.Id), Is.EqualTo(Loc.T(d.LocalizedDescriptionKey)), d.Id.ToString());
-                Assert.That(ui.DisplayedDescription(d.Id), Is.Not.Empty.And.Not.EqualTo(d.LocalizedDescriptionKey));
+                Assert.That(ui.DisplayedName(d.Id), Is.EqualTo(Loc.T(d.LocalizedNameKey)), d.Id.ToString());
+                Assert.That(ui.DisplayedName(d.Id), Is.Not.Empty.And.Not.EqualTo(d.LocalizedNameKey));
                 if (!d.Regenerates)
                     Assert.That(ui.DisplayedTimer(d.Id), Is.Empty, d.Id + " does not regenerate");
             }
@@ -212,6 +212,8 @@ namespace Game.Tests
             Transform viewport = Find(_host.transform, "Gorunum");
             Assert.That(viewport.GetComponent<RectMask2D>(), Is.Not.Null);
             Assert.That(viewport.GetComponent<Mask>(), Is.Null, "a stencil Mask over a clear image draws nothing");
+            Assert.That(_host.GetComponentInChildren<ScrollRect>(true), Is.Null,
+                        "all balances must fit without scrolling");
         }
 
         /// <summary>
@@ -293,10 +295,15 @@ namespace Game.Tests
                         safe.anchorMin = new Vector2(0f, tall ? 0.02f : 0f);
                         safe.anchorMax = new Vector2(1f, tall ? 0.965f : 1f);
                         LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+                        Canvas.ForceUpdateCanvases();
 
                         string where = languages[l] + " " + aspects[a].x + ":" + aspects[a].y;
                         foreach (CurrencyId id in System.Enum.GetValues(typeof(CurrencyId)))
+                        {
                             AssertRowFits(Find(_host.transform, "Para_" + id), where + " " + id);
+                            AssertInside((RectTransform)Find(_host.transform, "Gorunum"),
+                                         (RectTransform)Find(_host.transform, "Para_" + id), where + " " + id);
+                        }
                     }
                 }
             }
@@ -310,16 +317,30 @@ namespace Game.Tests
         {
             RectTransform name = (RectTransform)row.Find("Ad");
             RectTransform value = (RectTransform)row.Find("Deger");
-            RectTransform description = (RectTransform)row.Find("Aciklama");
             RectTransform timer = (RectTransform)row.Find("Sure");
             Assert.That(Overlaps(name, value), Is.False, where + ": name runs into the value");
-            Assert.That(Overlaps(name, description), Is.False, where + ": name runs into the description");
-            Assert.That(Overlaps(description, timer) && timer.GetComponent<Text>().text.Length > 0, Is.False,
-                        where + ": description runs into the countdown");
+            Assert.That(Overlaps(value, timer) && timer.GetComponent<Text>().text.Length > 0,
+                        Is.False, where + ": value runs into the countdown");
 
             Text[] labels = row.GetComponentsInChildren<Text>(true);
             for (int i = 0; i < labels.Length; i++)
                 if (labels[i].enabled && labels[i].text.Length > 0) AssertFits(labels[i], where);
+        }
+
+        private static void AssertInside(RectTransform viewport, RectTransform row, string where)
+        {
+            var outer = new Vector3[4];
+            var inner = new Vector3[4];
+            viewport.GetWorldCorners(outer);
+            row.GetWorldCorners(inner);
+            Assert.That(inner[0].x, Is.GreaterThanOrEqualTo(outer[0].x - 0.5f), where + " left clipped");
+            Assert.That(inner[0].y, Is.GreaterThanOrEqualTo(outer[0].y - 0.5f), where + " bottom clipped");
+            Assert.That(inner[2].x, Is.LessThanOrEqualTo(outer[2].x + 0.5f), where + " right clipped");
+            Assert.That(inner[2].y, Is.LessThanOrEqualTo(outer[2].y + 0.5f), where + " top clipped");
+            Image image = row.GetComponent<Image>();
+            Assert.That(row.rect.width / row.rect.height,
+                        Is.EqualTo(image.sprite.rect.width / image.sprite.rect.height).Within(0.001f),
+                        where + " card shape changed");
         }
 
         /// <summary>Fits at the smallest size best-fit may choose: every word on one line, and the
