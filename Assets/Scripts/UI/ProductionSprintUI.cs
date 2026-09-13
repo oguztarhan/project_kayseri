@@ -5,40 +5,49 @@ using UnityEngine.UI;
 
 namespace Game.UI
 {
-    /// <summary>Code-built action and personal-milestone screen for Production Sprint.</summary>
+    /// <summary>
+    /// The Production Sprint: the actions that score (with how far each has been pushed) on one tab,
+    /// the personal score milestones and their rewards on the other.
+    ///
+    /// DRAWN FROM <see cref="EtkinlikKit"/>, the events family's shared pieces — sheet, ribbon, tabs,
+    /// navy rows, capsules — and a claim shows <see cref="EtkinlikOdulUI"/>, the events family's own
+    /// reward card, not the shared <see cref="RewardRevealUI"/>.
+    ///
+    /// THE ROWS AND TABS SIT STRAIGHT ON THE SHEET (<c>Zemin/Sekme0</c>, <c>Zemin/Satir0/OduluAl</c>):
+    /// that is the shape the UI smoke test walks, and five rows fit the sheet without a scroll list.
+    /// </summary>
     public sealed class ProductionSprintUI : MonoBehaviour
     {
         [SerializeField] private int sortingOrder = 113;
-        [SerializeField] private Sprite cardPanel;
-        [SerializeField] private Sprite ribbon;
-        [SerializeField] private Sprite actionButton;
-        [SerializeField] private Sprite closeIcon;
-        [SerializeField] private Sprite gemIcon;
+        [SerializeField] private Color scrim = new Color(0.03f, 0.05f, 0.10f, 1f);
 
         private const int Rows = ProductionSprint.MilestoneCount;
+        private const int TabCount = 2;
 
-        private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
-        private static readonly Color Soft = new Color(0.34f, 0.40f, 0.50f, 1f);
-        private static readonly Color Blue = new Color(0.18f, 0.58f, 0.88f, 1f);
-        private static readonly Color Gold = new Color(0.95f, 0.67f, 0.18f, 1f);
-        private static readonly Color Green = new Color(0.25f, 0.72f, 0.42f, 1f);
-        private static readonly Color Disabled = new Color(0.48f, 0.52f, 0.58f, 1f);
+        /// <summary>Five rows between the tabs and the sheet's bottom rail.</summary>
+        private const float RowTop = 0.615f, RowBottom = 0.075f, RowGap = 0.005f;
+
+        /// <summary>The navy card at 1/1.6 border — the events board's row.</summary>
+        private const float BorderScale = 1.6f;
+
+        private static readonly string[] TabKeys = { "sprint.gorevler", "sprint.kilometre" };
 
         private ProductionSprintService _sprint;
         private LocalizationService _loc;
-        private RectTransform _root;
-        private Text _title;
-        private Text _clock;
-        private Text _score;
-        private readonly Button[] _tabs = new Button[2];
-        private readonly Text[] _tabLabels = new Text[2];
+        private RectTransform _root, _empty;
+        private Text _title, _clock, _score, _emptyLabel;
+        private readonly Button[] _tabs = new Button[TabCount];
+        private readonly Text[] _tabLabels = new Text[TabCount];
         private readonly RectTransform[] _rows = new RectTransform[Rows];
+        private readonly Image[] _rowIcons = new Image[Rows];
         private readonly Text[] _rowTitles = new Text[Rows];
-        private readonly Text[] _rowDetails = new Text[Rows];
-        private readonly RectTransform[] _fills = new RectTransform[Rows];
+        private readonly Text[] _rowCounts = new Text[Rows];
+        private readonly Image[] _fills = new Image[Rows];
+        private readonly EtkinlikOdulSatiri[] _rowRewards = new EtkinlikOdulSatiri[Rows];
+        private readonly Text[] _rowEarned = new Text[Rows];
         private readonly Button[] _claimButtons = new Button[Rows];
         private readonly Text[] _claimLabels = new Text[Rows];
-        private RewardRevealUI _reveal;
+        private EtkinlikOdulUI _popup;
         private int _tab;
         private float _tick;
 
@@ -68,6 +77,7 @@ namespace Game.UI
 
         public void Hide()
         {
+            if (_popup != null) _popup.Hide();
             if (_root != null) _root.gameObject.SetActive(false);
         }
 
@@ -80,87 +90,69 @@ namespace Game.UI
             Refresh();
         }
 
+        // ------------------------------------------------------------------ build
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "UretimSprintiKanvas", sortingOrder);
-            _root = UiBuild.Flat(canvas, "Karartma", new Color(0.03f, 0.05f, 0.10f, 1f),
-                Vector2.zero, Vector2.one);
+            _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
             Button dismiss = _root.gameObject.AddComponent<Button>();
             dismiss.transition = Selectable.Transition.None;
             dismiss.onClick.AddListener(Hide);
 
-            RectTransform sheet = Art(_root, "Zemin", cardPanel,
-                new Vector2(0.02f, 0.02f), new Vector2(0.98f, 0.86f));
-            sheet.GetComponent<Image>().color = new Color(0.90f, 0.95f, 0.98f, 1f);
-            sheet.GetComponent<Image>().raycastTarget = true;
-            sheet.gameObject.AddComponent<Button>().transition = Selectable.Transition.None;
+            RectTransform sheet = EtkinlikKit.Sheet(_root).rectTransform;
+            _title = EtkinlikKit.Header(_root, Loc.T("sprint.baslik"), Hide);
 
-            RectTransform band = Art(_root, "Serit", ribbon,
-                new Vector2(0.28f, 0.87f), new Vector2(0.72f, 0.985f));
-            _title = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.86f)),
-                "Text", Loc.T("sprint.baslik"), 36, TextAnchor.MiddleCenter);
+            _clock = EtkinlikKit.Label(sheet, "Saat", new Vector2(0.090f, 0.705f), new Vector2(0.560f, 0.765f),
+                                       string.Empty, 24, TextAnchor.MiddleLeft, EtkinlikKit.InkSoft, 12);
+            _score = EtkinlikKit.Chip(sheet, "Puan", new Vector2(0.600f, 0.705f), new Vector2(0.910f, 0.765f));
 
-            Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
-                closeIcon != null ? closeIcon : UiSkin.ButtonGrey, Color.white, 32, Hide);
-            UiBuild.Anchor((RectTransform)close.transform,
-                new Vector2(0.88f, 0.89f), new Vector2(0.95f, 0.97f));
-
-            _clock = UiBuild.Label(Slot(sheet, "Saat", new Vector2(0.05f, 0.90f), new Vector2(0.60f, 0.98f)),
-                "Text", string.Empty, 24, TextAnchor.MiddleLeft);
-            _clock.color = Soft;
-            _score = UiBuild.Label(Slot(sheet, "Puan", new Vector2(0.60f, 0.90f), new Vector2(0.95f, 0.98f)),
-                "Text", string.Empty, 28, TextAnchor.MiddleRight);
-            _score.color = Ink;
-
-            string[] keys = { "sprint.gorevler", "sprint.kilometre" };
-            for (int i = 0; i < _tabs.Length; i++)
+            const float left = 0.090f, right = 0.910f, gap = 0.008f;
+            float w = (right - left) / TabCount;
+            for (int i = 0; i < TabCount; i++)
             {
                 int captured = i;
-                _tabs[i] = UiBuild.Btn(sheet, "Sekme" + i, Loc.T(keys[i]), UiSkin.ButtonBlue, Blue, 25,
-                    () => { _tab = captured; Refresh(); });
-                UiBuild.Anchor((RectTransform)_tabs[i].transform,
-                    new Vector2(0.05f + i * 0.46f, 0.81f), new Vector2(0.49f + i * 0.46f, 0.89f));
-                _tabLabels[i] = _tabs[i].GetComponentInChildren<Text>();
+                _tabs[i] = EtkinlikKit.Tab(sheet, "Sekme" + i,
+                                           new Vector2(left + i * w + gap, 0.628f), new Vector2(left + (i + 1) * w - gap, 0.694f),
+                                           () => { _tab = captured; Refresh(); }, out _tabLabels[i]);
             }
 
-            const float top = 0.79f;
-            const float bottom = 0.05f;
-            float height = (top - bottom) / Rows;
+            float height = (RowTop - RowBottom) / Rows;
             for (int i = 0; i < Rows; i++)
-                BuildRow(sheet, i,
-                    new Vector2(0.05f, top - (i + 1) * height + 0.007f),
-                    new Vector2(0.95f, top - i * height - 0.007f));
+                BuildRow(sheet, i, new Vector2(0.085f, RowTop - (i + 1) * height + RowGap),
+                                   new Vector2(0.915f, RowTop - i * height - RowGap));
 
-            _reveal = RewardRevealUI.Create(_root, cardPanel, gemIcon);
+            _empty = EtkinlikKit.Empty(sheet, Loc.T("sprint.yok"), out _emptyLabel);
+            _popup = EtkinlikOdulUI.Create(_root);
             // Content into the safe area; the scrim above it keeps covering the notch.
             UiBuild.InsetContent(_root);
         }
 
+        /// <summary>
+        /// One navy row: an icon, the name over its count, a green bar, and under it either the points an
+        /// action is worth (tasks) or the reward (milestones) — with the claim capsule on milestones only.
+        /// </summary>
         private void BuildRow(RectTransform parent, int index, Vector2 min, Vector2 max)
         {
-            RectTransform row = Art(parent, "Satir" + index, cardPanel, min, max);
-            row.GetComponent<Image>().color = Color.white;
+            RectTransform row = EtkinlikKit.Card(parent, "Satir" + index, min, max, BorderScale).rectTransform;
             _rows[index] = row;
 
-            _rowTitles[index] = UiBuild.Label(
-                Slot(row, "Baslik", new Vector2(0.025f, 0.52f), new Vector2(0.70f, 0.94f)),
-                "Text", string.Empty, 23, TextAnchor.MiddleLeft);
-            _rowTitles[index].color = Ink;
-            _rowDetails[index] = UiBuild.Label(
-                Slot(row, "Detay", new Vector2(0.025f, 0.12f), new Vector2(0.70f, 0.52f)),
-                "Text", string.Empty, 19, TextAnchor.MiddleLeft);
-            _rowDetails[index].color = Soft;
+            _rowIcons[index] = EkranKit.Icon(row, "Simge", null, new Vector2(0.030f, 0.24f), new Vector2(0.150f, 0.76f));
+            _rowTitles[index] = EtkinlikKit.Label(row, "Baslik", new Vector2(0.175f, 0.54f), new Vector2(0.500f, 0.78f),
+                                                  string.Empty, 26, TextAnchor.MiddleLeft, EkranKit.Paper, 14);
+            _rowCounts[index] = EtkinlikKit.Label(row, "Sayi", new Vector2(0.500f, 0.54f), new Vector2(0.660f, 0.78f),
+                                                  string.Empty, 22, TextAnchor.MiddleRight, EkranKit.PaperSoft, 11);
+            _fills[index] = EtkinlikKit.Bar(row, "Ilerleme", new Vector2(0.175f, 0.40f), new Vector2(0.660f, 0.53f), "cubuk_yesil");
+            _rowRewards[index] = EtkinlikOdulSatiri.Create(row, "Detay", new Vector2(0.175f, 0.20f), new Vector2(0.660f, 0.39f),
+                                                          22, EkranKit.PaperSoft, TextAnchor.MiddleLeft);
 
-            UiBuild.Bar(row, "Ilerleme", new Color(0.78f, 0.82f, 0.88f, 1f), Green,
-                new Vector2(0.025f, 0.05f), new Vector2(0.68f, 0.13f), out _fills[index]);
+            // A task row has no claim, so the claim's place carries what that action has scored so far —
+            // otherwise the right third of the card is empty.
+            _rowEarned[index] = EtkinlikKit.Label(row, "Kazanilan", new Vector2(0.690f, 0.27f), new Vector2(0.955f, 0.73f),
+                                                  string.Empty, 32, TextAnchor.MiddleCenter, EkranKit.Paper, 16);
 
             int captured = index;
-            _claimButtons[index] = UiBuild.Btn(row, "OduluAl", Loc.T("gorev.al"),
-                actionButton != null ? actionButton : UiSkin.ButtonGreen, Green, 20,
-                () => Claim(captured));
-            UiBuild.Anchor((RectTransform)_claimButtons[index].transform,
-                new Vector2(0.73f, 0.20f), new Vector2(0.965f, 0.80f));
-            _claimLabels[index] = _claimButtons[index].GetComponentInChildren<Text>();
+            _claimButtons[index] = EtkinlikKit.Capsule(row, "OduluAl", new Vector2(0.690f, 0.27f), new Vector2(0.955f, 0.73f),
+                                                       () => Claim(captured), out _claimLabels[index]);
         }
 
         private void Claim(int index)
@@ -168,26 +160,36 @@ namespace Game.UI
             if (_sprint == null || _tab != 1) return;
             ProductionSprint.Reward reward = _sprint.MilestoneAt(index).Reward;
             if (_sprint.ClaimMilestone(index))
-            {
-                _reveal?.Present(RewardText(reward), reward.Gems > 0L);
-            }
+                _popup.Present(reward.Gems, reward.Cards, 0L, CashText(reward.CashMinutes));
             Refresh();
         }
 
+        // ---------------------------------------------------------------- refresh
         private void Refresh()
         {
             if (_root == null || !_root.gameObject.activeSelf) return;
 
             _title.text = Loc.T("sprint.baslik");
-            _tabLabels[0].text = Loc.T("sprint.gorevler");
-            _tabLabels[1].text = Loc.T("sprint.kilometre");
-            for (int i = 0; i < _tabs.Length; i++)
-                _tabs[i].GetComponent<Image>().color = i == _tab ? Gold : Blue;
-
             bool available = _sprint != null && _sprint.Available;
-            _score.text = Loc.T("sprint.puan") + "  " + (available ? _sprint.Score.ToString() : "0");
-            if (!available) _clock.text = Loc.T("sprint.yok");
-            else if (_sprint.Phase == LiveEvents.Phase.Active)
+
+            EtkinlikKit.SetActive(_empty, !available);
+            EtkinlikKit.SetActive(_clock.transform.parent, available);
+            EtkinlikKit.SetActive(_score.transform.parent.parent, available);
+            for (int i = 0; i < TabCount; i++)
+            {
+                EtkinlikKit.SetActive(_tabs[i], available);
+                _tabLabels[i].text = EtkinlikKit.OneLine(Loc.T(TabKeys[i]));
+                EtkinlikKit.SetTab(_tabs[i], i == _tab);
+            }
+            if (!available)
+            {
+                _emptyLabel.text = Loc.T("sprint.yok");
+                for (int i = 0; i < Rows; i++) EtkinlikKit.SetActive(_rows[i], false);
+                return;
+            }
+
+            _score.text = _sprint.Score + " " + Loc.T("sprint.puan");
+            if (_sprint.Phase == LiveEvents.Phase.Active)
                 _clock.text = Loc.T("etkinlik.kalan") + " " + HudUI.LongClock(_sprint.SecondsLeft);
             else if (_sprint.Phase == LiveEvents.Phase.Upcoming)
                 _clock.text = Loc.T("etkinlik.yakinda");
@@ -196,8 +198,8 @@ namespace Game.UI
 
             for (int i = 0; i < Rows; i++)
             {
-                bool visible = available && (_tab == 0 ? i < ProductionSprint.RuleCount : true);
-                _rows[i].gameObject.SetActive(visible);
+                bool visible = _tab == 0 ? i < ProductionSprint.RuleCount : true;
+                EtkinlikKit.SetActive(_rows[i], visible);
                 if (!visible) continue;
                 if (_tab == 0) RefreshRule(i);
                 else RefreshMilestone(i);
@@ -208,44 +210,54 @@ namespace Game.UI
         {
             ProductionSprint.ScoringRule rule = _sprint.RuleAt(index);
             long progress = _sprint.RuleProgress(index);
-            _rowTitles[index].text = MetricName(rule.Metric) + "  " + progress + "/" + rule.ActionLimit;
-            _rowDetails[index].text = "+" + rule.PointsPerAction + " " + Loc.T("sprint.eylem_puani");
-            SetFill(index, progress, rule.ActionLimit);
-            _claimButtons[index].gameObject.SetActive(false);
+
+            SetIcon(index, EkranKit.Get("etkinlik_ikon"), progress < rule.ActionLimit);
+            _rowTitles[index].text = MetricName(rule.Metric);
+            _rowCounts[index].text = progress + " / " + rule.ActionLimit;
+            EtkinlikKit.Progress(_fills[index], Ratio(progress, rule.ActionLimit));
+            _rowRewards[index].Set("+" + rule.PointsPerAction + " " + Loc.T("sprint.eylem_puani"), 0L, 0, 0L, null);
+            EtkinlikKit.SetActive(_claimButtons[index], false);
+            EtkinlikKit.SetActive(_rowEarned[index].transform.parent, true);
+            _rowEarned[index].text = (progress * rule.PointsPerAction) + " " + Loc.T("sprint.puan");
         }
 
         private void RefreshMilestone(int index)
         {
             ProductionSprint.Milestone milestone = _sprint.MilestoneAt(index);
             long score = _sprint.Score;
-            _rowTitles[index].text = milestone.Score + " " + Loc.T("sprint.puan");
-            _rowDetails[index].text = RewardText(milestone.Reward);
-            SetFill(index, score, milestone.Score);
-
             bool claimed = _sprint.MilestoneClaimed(index);
-            _claimButtons[index].gameObject.SetActive(true);
-            _claimButtons[index].interactable = _sprint.CanClaimMilestone(index);
-            _claimButtons[index].GetComponent<Image>().color = _claimButtons[index].interactable ? Green : Disabled;
-            _claimLabels[index].text = claimed ? Loc.T("gorev.alindi") : Loc.T("gorev.al");
+            bool can = _sprint.CanClaimMilestone(index);
+
+            SetIcon(index, EtkinlikKit.Chest(index < 3 ? index : 3), !claimed);
+            _rowTitles[index].text = milestone.Score + " " + Loc.T("sprint.puan");
+            _rowCounts[index].text = (score < milestone.Score ? score : milestone.Score) + " / " + milestone.Score;
+            EtkinlikKit.Progress(_fills[index], Ratio(score, milestone.Score));
+            _rowRewards[index].Set(null, milestone.Reward.Gems, milestone.Reward.Cards, 0L, CashText(milestone.Reward.CashMinutes));
+
+            EtkinlikKit.SetActive(_rowEarned[index].transform.parent, false);
+            EtkinlikKit.SetActive(_claimButtons[index], true);
+            _claimLabels[index].text = EtkinlikKit.OneLine(claimed ? Loc.T("gorev.alindi") : Loc.T("gorev.al"));
+            EtkinlikKit.SetFace(_claimButtons[index], _claimLabels[index],
+                                can ? EtkinlikKit.Face.Claim : EtkinlikKit.Face.Dead, can);
         }
 
-        private void SetFill(int index, long progress, long target)
+        // ------------------------------------------------------------------ pieces
+        private void SetIcon(int index, Sprite sprite, bool bright)
         {
-            float ratio = target <= 0L ? 1f : Mathf.Clamp01((float)(progress / (double)target));
-            _fills[index].anchorMax = new Vector2(ratio, 1f);
+            Image icon = _rowIcons[index];
+            if (icon.sprite != sprite)
+            {
+                icon.sprite = sprite;
+                icon.enabled = sprite != null;
+            }
+            icon.color = bright ? Color.white : EtkinlikKit.Faded;
         }
 
-        private static string RewardText(in ProductionSprint.Reward reward)
-        {
-            string text = string.Empty;
-            if (reward.Gems > 0L) text += CurrencyText.Gain(CurrencyId.Gems, reward.Gems);
-            if (reward.Cards > 0) text += Space(text) + "+" + reward.Cards + " " + Loc.T("ustabasi.kart");
-            if (reward.CashMinutes > 0d)
-                text += Space(text) + "+" + reward.CashMinutes.ToString("0.#") + " " + Loc.T("sprint.nakit_dakika");
-            return text;
-        }
+        private static float Ratio(long progress, long target)
+            => target <= 0L ? 1f : Mathf.Clamp01((float)(progress / (double)target));
 
-        private static string Space(string text) => text.Length > 0 ? "    " : string.Empty;
+        private static string CashText(double minutes)
+            => minutes > 0d ? "+" + minutes.ToString("0.#") + " " + Loc.T("sprint.nakit_dakika") : null;
 
         private static string MetricName(int metric)
         {
@@ -259,26 +271,6 @@ namespace Game.UI
                 case Goals.ForemanLevels: return Loc.T("gorev.metrik.ustabasi");
                 default: return string.Empty;
             }
-        }
-
-        private static RectTransform Art(RectTransform parent, string name, Sprite sprite,
-            Vector2 min, Vector2 max)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            Image image = go.GetComponent<Image>();
-            image.sprite = sprite != null ? sprite : UiSkin.Panel;
-            image.type = image.sprite != null && image.sprite.border.sqrMagnitude > 0f
-                ? Image.Type.Sliced : Image.Type.Simple;
-            image.raycastTarget = false;
-            return UiBuild.Anchor((RectTransform)go.transform, min, max);
-        }
-
-        private static RectTransform Slot(RectTransform parent, string name, Vector2 min, Vector2 max)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            return UiBuild.Anchor((RectTransform)go.transform, min, max);
         }
     }
 }

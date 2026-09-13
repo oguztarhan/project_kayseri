@@ -11,7 +11,7 @@ Sprite:
     serializedVersion: 2
     x: 1232
     y: 94
-    width: 407
+    width: 381
     height: 459
   m_Offset: {x: 0, y: 0}
   m_Border: {x: 0, y: 0, z: 0, w: 0}
@@ -102,18 +102,18 @@ Sprite:
         format: 0
         dimension: 0
       m_DataSize: 80
-      _typelessdata: 713d02c048e1124000000000713d024048e1124000000000713d02c048e112c000000000713d024048e112c0000000000000000000000000000000000000000000000000000000000000000000000000
+      _typelessdata: 0ad7f3bf48e11240000000000ad7f33f48e11240000000000ad7f3bf48e112c0000000000ad7f33f48e112c0000000000000000000000000000000000000000000000000000000000000000000000000
     m_Bindpose: []
     textureRect:
       serializedVersion: 2
       x: 1232
       y: 94
-      width: 407
+      width: 381
       height: 459
     textureRectOffset: {x: 0, y: 0}
     atlasRectOffset: {x: -1, y: -1}
     settingsRaw: 0
-    uvTransform: {x: 100, y: 1435.5, z: 100, w: 323.5}
+    uvTransform: {x: 100, y: 1422.5, z: 100, w: 323.5}
     downscaleMultiplier: 1
   m_AtlasRD:
     serializedVersion: 3
@@ -193,18 +193,18 @@ Sprite:
         format: 0
         dimension: 0
       m_DataSize: 80
-      _typelessdata: 713d02c048e1124000000000713d024048e1124000000000713d02c048e112c000000000713d024048e112c0000000000000000000000000000000000000000000000000000000000000000000000000
+      _typelessdata: 0ad7f3bf48e11240000000000ad7f33f48e11240000000000ad7f3bf48e112c0000000000ad7f33f48e112c0000000000000000000000000000000000000000000000000000000000000000000000000
     m_Bindpose: []
     textureRect:
       serializedVersion: 2
       x: 1232
       y: 94
-      width: 407
+      width: 381
       height: 459
     textureRectOffset: {x: 0, y: 0}
     atlasRectOffset: {x: -1, y: -1}
     settingsRaw: 0
-    uvTransform: {x: 100, y: 1435.5, z: 100, w: 323.5}
+    uvTransform: {x: 100, y: 1422.5, z: 100, w: 323.5}
     downscaleMultiplier: 1
   m_PhysicsShape: []
   m_Bones: []

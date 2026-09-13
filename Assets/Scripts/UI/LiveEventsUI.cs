@@ -23,6 +23,10 @@ namespace Game.UI
     /// taps. <see cref="LiveEventService.MarkClaimed"/> never checks the window either way, so an
     /// earned slot stays claimable forever whatever this screen draws.
     ///
+    /// DRAWN FROM <see cref="EkranKit"/> ONLY. A row's state is said three ways that agree — its icon
+    /// (flag and bell running, chest owed, lock to come), its capsule face (green, orange, pale) and
+    /// the word on it — and never by tinting the pre-coloured art.
+    ///
     /// The once-a-second Update only drives the countdowns, and only while the board is open.
     /// </summary>
     public sealed class LiveEventsUI : MonoBehaviour
@@ -30,26 +34,8 @@ namespace Game.UI
         /// <summary>Above the captains' 108, below the workshop's 110.</summary>
         [SerializeField] private int sortingOrder = 109;
 
-        [Header("Görseller")]
-        [Tooltip("Satır gövdesi — MaviSet/panel_beyaz.")]
-        [SerializeField] private Sprite cardPanel;
-        [Tooltip("Başlık şeridi — MaviSet/serit_mavi.")]
-        [SerializeField] private Sprite ribbon;
-        [Tooltip("Kapat düğmesi — MaviSet/btn_kapat_yeni.")]
-        [SerializeField] private Sprite closeIcon;
-        [Tooltip("Durum rozeti — MaviSet/gosterge_grafit.")]
-        [SerializeField] private Sprite chipPill;
-
         [Header("Renkler")]
         [SerializeField] private Color scrim = new Color(0.04f, 0.05f, 0.08f, 0.92f);
-        [Tooltip("Kartların üstünde durduğu zemin. Panel sanatı bağlıysa onu boyar.")]
-        [SerializeField] private Color backdrop = new Color(0.15f, 0.18f, 0.26f, 1f);
-        [Tooltip("Süren etkinliğin rozeti.")]
-        [SerializeField] private Color liveTint = new Color(0.36f, 0.82f, 0.45f, 1f);
-        [Tooltip("Henüz açılmamış etkinliğin rozeti.")]
-        [SerializeField] private Color soonTint = new Color(0.55f, 0.62f, 0.74f, 1f);
-        [Tooltip("Bitmiş ama ödülü duran etkinliğin rozeti.")]
-        [SerializeField] private Color owedTint = new Color(0.98f, 0.74f, 0.24f, 1f);
 
         /// <summary>The rail button's icon. Missing until the art lands — see Docs/ASSETS.md.</summary>
         private const string OpenerIconResource = "UI/Buttons/etkinlik";
@@ -58,9 +44,25 @@ namespace Game.UI
         /// the rows becoming a list of stripes, and the ones left off are the furthest away.</summary>
         private const int MaxCards = 6;
 
-        private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
+        /// <summary>
+        /// Six rows make a card about 170 units tall against the navy card's 240 px of art, whose top
+        /// and bottom borders alone are 151 of them — drawn at 1:1 the navy well would be a sliver.
+        /// Halving-and-a-bit the border keeps the frame a frame and the well tall enough for two lines;
+        /// a nine-slice scales its corners evenly, so nothing is squashed, only drawn finer.
+        /// </summary>
+        private const float CardBorderScale = 1.6f;
+
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
-        private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
+
+        /// <summary>
+        /// The state word's band on the green and pale capsules: inside the caps, and short enough that
+        /// with <see cref="Fit"/>'s Truncate a second line only fits at a size where the whole word
+        /// already fits on one — so "ĐANG DIỄN RA" shrinks onto a line instead of breaking in half.
+        /// </summary>
+        private static readonly Vector2 CapsBandMin = new Vector2(0.13f, 0.24f);
+        private static readonly Vector2 CapsBandMax = new Vector2(0.87f, 0.76f);
+
+        private enum Face { Live, Soon, Owed }
 
         private LiveEventService _events;
         private FoundryFestivalService _festival;
@@ -75,14 +77,19 @@ namespace Game.UI
         private RectTransform _root;
 
         private Text _titleLabel, _emptyLabel;
+        private RectTransform _empty;
         private TMP_Text _openerCount;
         private GameObject _openerChip;
+
+        private Sprite _iconLive, _iconSoon, _iconOwed;
+        private Sprite _faceLive, _faceSoon, _faceOwed;
 
         private readonly RectTransform[] _cardRoot = new RectTransform[MaxCards];
         private readonly Text[] _cardName = new Text[MaxCards];
         private readonly Text[] _cardState = new Text[MaxCards];
         private readonly Text[] _cardClock = new Text[MaxCards];
-        private readonly Image[] _cardBadge = new Image[MaxCards];
+        private readonly Image[] _cardIcon = new Image[MaxCards];
+        private readonly Image[] _cardChip = new Image[MaxCards];
 
         /// <summary>Which event each card is showing, as an index into the service. -1 = card unused.</summary>
         private readonly int[] _cardEvent = new int[MaxCards];
@@ -146,6 +153,7 @@ namespace Game.UI
         private void OnLanguageChanged()
         {
             if (_titleLabel != null) _titleLabel.text = Loc.T("etkinlik.baslik");
+            if (_emptyLabel != null) _emptyLabel.text = Loc.T("etkinlik.yok");
             Refresh();
             RefreshOpener();
         }
@@ -173,6 +181,13 @@ namespace Game.UI
         // ------------------------------------------------------------------ build
         private void Build()
         {
+            _iconLive = EkranKit.Get("etkinlik_ikon");
+            _iconSoon = EkranKit.Get("kilit");
+            _iconOwed = EkranKit.Get("sandik");
+            _faceLive = LigKit.Get("al_butonu");
+            _faceSoon = EkranKit.Get("btn_bos");
+            _faceOwed = EkranKit.Get("btn_turuncu");
+
             RectTransform canvas = UiBuild.Canvas(transform, "EtkinlikKanvas", sortingOrder);
             _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
             var dismiss = _root.gameObject.AddComponent<Button>();
@@ -182,82 +197,99 @@ namespace Game.UI
             BuildBackdrop();
             BuildHeader();
 
-            const float top = 0.800f, bottom = 0.040f;
+            const float top = 0.668f, bottom = 0.105f, gap = 0.004f;
             float ch = (top - bottom) / MaxCards;
             for (int i = 0; i < MaxCards; i++)
-                BuildCard(i, new Vector2(0.060f, top - (i + 1) * ch + 0.008f),
-                             new Vector2(0.940f, top - i * ch - 0.008f));
+                BuildCard(i, new Vector2(0.110f, top - (i + 1) * ch + gap),
+                             new Vector2(0.890f, top - i * ch - gap));
 
-            // The line that stands in for an empty board. A screen that opens on nothing and explains
-            // nothing is read as a broken screen, and with no schedule authored yet this is the state
-            // the build actually ships in.
-            _emptyLabel = UiBuild.Label(Slot(_root, "Bos", new Vector2(0.10f, 0.380f), new Vector2(0.90f, 0.480f)),
-                                        "Text", Loc.T("etkinlik.yok"), 34, TextAnchor.MiddleCenter);
-            _emptyLabel.color = InkSoft;
+            BuildEmpty();
             // Content into the safe area; the scrim above it keeps covering the notch.
             UiBuild.InsetContent(_root);
         }
 
-        /// <summary>The sheet everything else sits on — see ChapterUI.BuildBackdrop for why it exists.
-        /// Built first so sibling order puts it behind every card, and it eats its own taps so the
-        /// scrim's dismiss cannot fire through it.</summary>
+        /// <summary>
+        /// The league sheet, eating its own taps so the scrim's dismiss cannot fire through it. Across
+        /// 0.03–0.97 for the reason <see cref="LadderUI"/> records: that width keeps the crest unstretched.
+        /// </summary>
         private void BuildBackdrop()
         {
-            RectTransform sheet = Art(_root, "Zemin", cardPanel,
-                                      new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.842f));
-            var image = sheet.GetComponent<Image>();
-            image.color = backdrop;
-            image.raycastTarget = true;
+            Image sheet = EkranKit.Sliced(_root, "Zemin", LigKit.Board,
+                                          new Vector2(0.030f, 0.050f), new Vector2(0.970f, 0.870f), false);
+            sheet.raycastTarget = true;
             var eat = sheet.gameObject.AddComponent<Button>();
             eat.transition = Selectable.Transition.None;
         }
 
+        /// <summary>The ribbon under the crest and the close disc on the corner, at the league board's
+        /// offsets from its top edge — the same header the contract and mining gear screens wear.</summary>
         private void BuildHeader()
         {
-            RectTransform band = Art(_root, "Serit", ribbon,
-                                     new Vector2(0.360f, 0.850f), new Vector2(0.640f, 0.992f));
-            _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, 0.547f), new Vector2(0.87f, 0.807f)),
+            Image band = EkranKit.Sliced(_root, "Serit", LigKit.Get("serit"),
+                                         new Vector2(0.215f, 0.698f), new Vector2(0.785f, 0.790f), true);
+            _titleLabel = UiBuild.Label(Slot(band.rectTransform, "Yazi", new Vector2(0.20f, 0.18f), new Vector2(0.80f, 0.82f)),
                                         "Text", Loc.T("etkinlik.baslik"), 38, TextAnchor.MiddleCenter);
+            _titleLabel.color = EkranKit.Paper;
+            Fit(_titleLabel, 18, 38);
 
-            Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
-                                       closeIcon != null ? closeIcon : UiSkin.ButtonGrey,
-                                       new Color(0.10f, 0.11f, 0.16f, 1f), 34, Hide);
-            var closeImage = close.GetComponent<Image>();
-            closeImage.type = Image.Type.Simple;
-            closeImage.preserveAspect = true;
-            UiBuild.Anchor((RectTransform)close.transform,
-                           new Vector2(0.878f, 0.873f), new Vector2(0.938f, 0.970f));
+            EkranKit.Close(_root, new Vector2(0.838f, 0.789f), new Vector2(0.952f, 0.877f), Hide);
         }
 
+        /// <summary>
+        /// One row: the navy card, its state icon in the left of the well, name over clock, and the
+        /// state capsule on the right. The card is the tap target and the way into whatever the event
+        /// actually is; a kind with no screen yet does nothing when tapped rather than opening an empty
+        /// one. Parented straight to the scrim, so it lands at <c>Karartma/Guvenli/Kart{i}</c>.
+        /// </summary>
         private void BuildCard(int i, Vector2 aMin, Vector2 aMax)
         {
-            RectTransform card = Art(_root, "Kart" + i, cardPanel, aMin, aMax);
+            Image frame = EkranKit.Sliced(_root, "Kart" + i, EkranKit.Get("kart_lacivert"), aMin, aMax, false);
+            frame.pixelsPerUnitMultiplier = CardBorderScale;
+            frame.raycastTarget = true;
+            RectTransform card = frame.rectTransform;
             _cardRoot[i] = card;
             _cardEvent[i] = -1;
 
-            // The card is the way into whatever the event actually is. A kind with no screen yet does
-            // nothing when tapped rather than opening an empty one.
-            card.GetComponent<Image>().raycastTarget = true;
             int captured = i;
             var open = card.gameObject.AddComponent<Button>();
             open.transition = Selectable.Transition.None;
+            open.targetGraphic = frame;
             open.onClick.AddListener(() => OpenCard(captured));
 
-            _cardName[i] = UiBuild.Label(Slot(card, "Ad", new Vector2(0.040f, 0.480f), new Vector2(0.640f, 0.920f)),
-                                         "Text", string.Empty, 34, TextAnchor.MiddleLeft);
-            _cardName[i].color = Ink;
+            _cardIcon[i] = EkranKit.Icon(card, "Simge", _iconSoon, new Vector2(0.050f, 0.20f), new Vector2(0.175f, 0.80f));
 
-            _cardClock[i] = UiBuild.Label(Slot(card, "Saat", new Vector2(0.040f, 0.090f), new Vector2(0.640f, 0.470f)),
-                                          "Text", string.Empty, 28, TextAnchor.MiddleLeft);
-            _cardClock[i].color = InkSoft;
+            _cardName[i] = UiBuild.Label(Slot(card, "Ad", new Vector2(0.200f, 0.49f), new Vector2(0.665f, 0.80f)),
+                                         "Text", string.Empty, 32, TextAnchor.MiddleLeft);
+            _cardName[i].color = EkranKit.Paper;
+            Fit(_cardName[i], 16, 32);
 
-            RectTransform badge = Chip(card, "Rozet", new Vector2(0.680f, 0.280f), new Vector2(0.960f, 0.720f));
-            _cardBadge[i] = badge.GetComponent<Image>();
-            _cardState[i] = UiBuild.Label(Slot(badge, "Yazi", new Vector2(0.06f, 0f), new Vector2(0.94f, 1f)),
-                                          "Text", string.Empty, 26, TextAnchor.MiddleCenter);
-            _cardState[i].color = Paper;
+            _cardClock[i] = UiBuild.Label(Slot(card, "Saat", new Vector2(0.200f, 0.20f), new Vector2(0.665f, 0.49f)),
+                                          "Text", string.Empty, 24, TextAnchor.MiddleLeft);
+            _cardClock[i].color = EkranKit.PaperSoft;
+            Fit(_cardClock[i], 12, 24);
+
+            _cardChip[i] = EkranKit.Sliced(card, "Rozet", _faceSoon, new Vector2(0.685f, 0.25f), new Vector2(0.945f, 0.75f), true);
+            _cardState[i] = UiBuild.Label(Slot(_cardChip[i].rectTransform, "Yazi", CapsBandMin, CapsBandMax),
+                                          "Text", string.Empty, 24, TextAnchor.MiddleCenter);
+            _cardState[i].color = EkranKit.Ink;   // the pale face it is built with; SetFace changes both together
+            Fit(_cardState[i], 12, 24);
 
             card.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// What stands in for an empty board. A screen that opens on nothing and explains nothing is
+        /// read as a broken screen, and with no schedule authored yet this is the state the build
+        /// actually ships in — so it gets the kit's own events icon, not a lone line of grey.
+        /// </summary>
+        private void BuildEmpty()
+        {
+            _empty = Slot(_root, "Bos", new Vector2(0.10f, 0.300f), new Vector2(0.90f, 0.560f));
+            EkranKit.Icon(_empty, "Simge", _iconLive, new Vector2(0.30f, 0.40f), new Vector2(0.70f, 1.00f));
+            _emptyLabel = UiBuild.Label(Slot(_empty, "Yazi", new Vector2(0f, 0f), new Vector2(1f, 0.34f)),
+                                        "Text", Loc.T("etkinlik.yok"), 34, TextAnchor.MiddleCenter);
+            _emptyLabel.color = InkSoft;
+            Fit(_emptyLabel, 18, 34);
         }
 
         private void BuildOpener()
@@ -304,8 +336,8 @@ namespace Game.UI
                 if (on) RefreshCard(i);
             }
 
-            if (_emptyLabel != null && _emptyLabel.gameObject.activeSelf != (used == 0))
-                _emptyLabel.gameObject.SetActive(used == 0);
+            if (_empty != null && _empty.gameObject.activeSelf != (used == 0))
+                _empty.gameObject.SetActive(used == 0);
         }
 
         /// <summary>Fills the free cards with every visible event in <paramref name="phase"/>.</summary>
@@ -330,10 +362,10 @@ namespace Game.UI
 
             if (_cardName[i] != null) _cardName[i].text = Loc.Id("etkinlik", d.Id);
 
+            SetFace(i, owed ? Face.Owed : live ? Face.Live : Face.Soon);
             if (_cardState[i] != null)
                 _cardState[i].text = Loc.T(owed ? "etkinlik.odul"
                                                 : live ? "etkinlik.suruyor" : "etkinlik.yakinda");
-            if (_cardBadge[i] != null) _cardBadge[i].color = owed ? owedTint : live ? liveTint : soonTint;
 
             if (_cardClock[i] == null) return;
             if (owed)
@@ -350,6 +382,39 @@ namespace Game.UI
             long seconds = live ? _events.SecondsLeft(d.Id) : _events.SecondsUntilStart(d.Id);
             _cardClock[i].text = Loc.T(live ? "etkinlik.kalan" : "etkinlik.basliyor")
                                  + " " + HudUI.LongClock(seconds);
+        }
+
+        /// <summary>
+        /// Icon, capsule face and label ink for a state. Only written when the face actually changes —
+        /// this runs once a second, and re-assigning a sprite dirties the canvas every time.
+        /// </summary>
+        private void SetFace(int i, Face face)
+        {
+            Sprite icon = face == Face.Owed ? _iconOwed : face == Face.Live ? _iconLive : _iconSoon;
+            Sprite chip = face == Face.Owed ? _faceOwed : face == Face.Live ? _faceLive : _faceSoon;
+
+            Image iconImage = _cardIcon[i];
+            if (iconImage != null && icon != null && iconImage.sprite != icon)
+            {
+                iconImage.sprite = icon;
+                iconImage.enabled = true;
+            }
+
+            Image chipImage = _cardChip[i];
+            if (chipImage == null || chip == null || chipImage.sprite == chip) return;
+            chipImage.sprite = chip;
+            var fit = chipImage.GetComponent<PillFit>();
+            if (fit != null) fit.Fit();
+
+            // The orange capsule's writing space is its cream inlay; the green and pale ones are
+            // writable to their caps.
+            Text label = _cardState[i];
+            if (label == null) return;
+            bool inlay = face == Face.Owed;
+            UiBuild.Anchor((RectTransform)label.transform.parent,
+                           inlay ? EkranKit.InlayMin : CapsBandMin,
+                           inlay ? EkranKit.InlayMax : CapsBandMax);
+            label.color = face == Face.Live ? EkranKit.Paper : EkranKit.Ink;
         }
 
         /// <summary>
@@ -421,36 +486,28 @@ namespace Game.UI
         }
 
         // ------------------------------------------------------------------ pieces
-        // The same handful ChapterUI and GoalsUI use, kept local for the same reason theirs are.
-
-        private static RectTransform Art(RectTransform parent, string name, Sprite sprite,
-                                         Vector2 aMin, Vector2 aMax)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>();
-            img.sprite = sprite != null ? sprite : UiSkin.Panel;
-            img.type = sprite != null && sprite.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
-            img.preserveAspect = img.type == Image.Type.Simple;
-            img.color = Color.white;
-            img.raycastTarget = false;
-            return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
-        }
-
-        private RectTransform Chip(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
-        {
-            Sprite art = chipPill != null ? chipPill : cardPanel;
-            RectTransform rt = Art(parent, name, art, aMin, aMax);
-            var img = rt.GetComponent<Image>();
-            if (art != null) { img.type = Image.Type.Sliced; img.preserveAspect = false; PillFit.Wrap(img); }
-            return rt;
-        }
-
         private static RectTransform Slot(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
+        }
+
+        /// <summary>
+        /// Shrink-to-fit so a long translation stays inside its band.
+        ///
+        /// TRUNCATE, NOT <see cref="UiBuild.Label"/>'s OVERFLOW. Best fit only shrinks against a rect
+        /// the text is not allowed to spill out of vertically; left on Overflow it keeps the largest
+        /// size, wraps, and draws the second line over whatever is under the band — the state capsules'
+        /// rims, on the first build of this screen.
+        /// </summary>
+        private static void Fit(Text label, int min, int max)
+        {
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = min;
+            label.resizeTextMaxSize = max;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
         }
     }
 }

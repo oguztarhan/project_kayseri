@@ -9,9 +9,9 @@ Sprite:
   m_Name: card-state-4
   m_Rect:
     serializedVersion: 2
-    x: 1365
+    x: 1362
     y: 111
-    width: 341
+    width: 320
     height: 488
   m_Offset: {x: 0, y: 0}
   m_Border: {x: 0, y: 0, z: 0, w: 0}
@@ -102,18 +102,18 @@ Sprite:
         format: 0
         dimension: 0
       m_DataSize: 80
-      _typelessdata: 713ddabff6281c4000000000713dda3ff6281c4000000000713ddabff6281cc000000000713dda3ff6281cc0000000000000000000000000000000000000000000000000000000000000000000000000
+      _typelessdata: cdccccbff6281c4000000000cdcccc3ff6281c4000000000cdccccbff6281cc000000000cdcccc3ff6281cc0000000000000000000000000000000000000000000000000000000000000000000000000
     m_Bindpose: []
     textureRect:
       serializedVersion: 2
-      x: 1365
+      x: 1362
       y: 111
-      width: 341
+      width: 320
       height: 488
     textureRectOffset: {x: 0, y: 0}
     atlasRectOffset: {x: -1, y: -1}
     settingsRaw: 0
-    uvTransform: {x: 100, y: 1535.5, z: 100, w: 355}
+    uvTransform: {x: 100, y: 1522, z: 100, w: 355}
     downscaleMultiplier: 1
   m_AtlasRD:
     serializedVersion: 3
@@ -193,18 +193,18 @@ Sprite:
         format: 0
         dimension: 0
       m_DataSize: 80
-      _typelessdata: 713ddabff6281c4000000000713dda3ff6281c4000000000713ddabff6281cc000000000713dda3ff6281cc0000000000000000000000000000000000000000000000000000000000000000000000000
+      _typelessdata: cdccccbff6281c4000000000cdcccc3ff6281c4000000000cdccccbff6281cc000000000cdcccc3ff6281cc0000000000000000000000000000000000000000000000000000000000000000000000000
     m_Bindpose: []
     textureRect:
       serializedVersion: 2
-      x: 1365
+      x: 1362
       y: 111
-      width: 341
+      width: 320
       height: 488
     textureRectOffset: {x: 0, y: 0}
     atlasRectOffset: {x: -1, y: -1}
     settingsRaw: 0
-    uvTransform: {x: 100, y: 1535.5, z: 100, w: 355}
+    uvTransform: {x: 100, y: 1522, z: 100, w: 355}
     downscaleMultiplier: 1
   m_PhysicsShape: []
   m_Bones: []

@@ -16,6 +16,10 @@ namespace Game.UI
     /// <see cref="MiningGearService.TryCraft"/>) — so there is nothing left waiting between visits
     /// and nothing here needs to be more than a readout plus a button.
     ///
+    /// DRAWN FROM <see cref="EkranKit"/> ONLY: the league sheet, ribbon and green capsule, the
+    /// mining-point pill, the bolted equipment slot, the orange action capsule. No design set has a
+    /// pickaxe, helmet, bag or lantern icon, so a slot says its name and grade inside its own well.
+    ///
     /// Refreshed on open and on <see cref="MiningGearService.Changed"/>; the once-a-second Update
     /// only drives the next-point countdown, and only while the screen is open.
     /// </summary>
@@ -23,41 +27,49 @@ namespace Game.UI
     {
         [SerializeField] private int sortingOrder = 111;
 
-        [Header("Görseller")]
-        [Tooltip("Kart gövdesi — MaviSet/panel_beyaz.")]
-        [SerializeField] private Sprite cardPanel;
-        [Tooltip("ÜRET düğmesi — MaviSet/btn_hap_kalin.")]
-        [SerializeField] private Sprite actionButton;
-        [Tooltip("Kapat düğmesi — MaviSet/btn_kapat_yeni.")]
-        [SerializeField] private Sprite closeIcon;
-        [Tooltip("Puan hapı — MaviSet/gosterge_grafit.")]
-        [SerializeField] private Sprite chipPill;
-        [Tooltip("Yuva simgeleri: kazma, miğfer, çanta, fener — bu sırayla (Game.Core.MiningGear " +
-                 "slot sabitleri). Boş bırakılan bir yuva yalnızca adını gösterir.")]
-        [SerializeField] private Sprite[] slotIcons = new Sprite[MiningGear.SlotCount];
-
         [Header("Renkler")]
         [SerializeField] private Color scrim = new Color(0f, 0f, 0f, 0.62f);
-        [SerializeField] private Color backdrop = new Color(0.92f, 0.94f, 0.99f, 0.98f);
 
         private const string OpenerIconResource = "UI/Buttons/maden";
         private const string OpenerButtonName = "BtnMaden";
 
-        /// <summary>The grade ladder's ink — the same five the workshop and the sea wear.</summary>
+        /// <summary>
+        /// The grade ladder's ink, lifted for the slot's navy well — the workshop's five at the same
+        /// hues, but the common grey and the rare blue at their old values all but vanish on navy.
+        /// </summary>
         private static readonly Color[] GradeTint =
         {
-            new Color(0.48f, 0.54f, 0.62f, 1f),
-            new Color(0.26f, 0.60f, 0.92f, 1f),
-            new Color(0.62f, 0.38f, 0.92f, 1f),
-            new Color(0.96f, 0.66f, 0.18f, 1f),
-            new Color(0.94f, 0.28f, 0.42f, 1f),
+            new Color(0.80f, 0.85f, 0.92f, 1f),
+            new Color(0.45f, 0.76f, 1f, 1f),
+            new Color(0.78f, 0.60f, 1f, 1f),
+            new Color(1f, 0.76f, 0.30f, 1f),
+            new Color(1f, 0.48f, 0.60f, 1f),
         };
 
-        private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
-        private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
-        private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
-        private static readonly Color Good = new Color(0.24f, 0.68f, 0.36f, 1f);
+        private static readonly Color InkFaint = new Color(0.50f, 0.56f, 0.65f, 1f);
+        private static readonly Color Good = new Color(0.20f, 0.60f, 0.30f, 1f);
+
+        /// <summary>
+        /// A slot that is not the targeted one sits a shade back. The art is pre-coloured, so this is
+        /// a gentle multiply, not a recolour — enough to point at the selected frame, not so much it
+        /// reads as locked.
+        /// </summary>
+        private static readonly Color SlotResting = new Color(0.78f, 0.82f, 0.90f, 1f);
+        private static readonly Vector3 SlotPicked = new Vector3(1.05f, 1.05f, 1f);
+
+        /// <summary>The equipment slot art's own aspect (300×286) and its dark well, as fractions.</summary>
+        private const float SlotAspect = 300f / 286f;
+        private static readonly Vector2 WellMin = new Vector2(0.164f, 0.172f);
+        private static readonly Vector2 WellMax = new Vector2(0.836f, 0.853f);
+
+        /// <summary>
+        /// The pale field of the mining-point pill. The left cap is the pickaxe badge and
+        /// <see cref="PillFit"/> scales it with the box's height, so the field starts where that cap
+        /// ends — at the heights used here a little over a third of the way across.
+        /// </summary>
+        private static readonly Vector2 PillFieldMin = new Vector2(0.40f, 0.26f);
+        private static readonly Vector2 PillFieldMax = new Vector2(0.90f, 0.74f);
 
         private MiningGearService _mining;
         private LocalizationService _loc;
@@ -66,11 +78,10 @@ namespace Game.UI
         private Text _titleLabel, _pointsLabel, _bonusLabel, _craftLabel, _nextPointLabel, _resultLabel;
         private Text _targetLabel, _targetCostLabel;
         private Button _craftBtn, _targetBtn;
+        private Sprite _craftFace, _targetFace, _deadFace;
         private int _selectedSlot;
 
         private readonly RectTransform[] _slotCard = new RectTransform[MiningGear.SlotCount];
-        private readonly Image[] _slotStripe = new Image[MiningGear.SlotCount];
-        private readonly Image[] _slotIcon = new Image[MiningGear.SlotCount];
         private readonly Text[] _slotName = new Text[MiningGear.SlotCount];
         private readonly Text[] _slotGrade = new Text[MiningGear.SlotCount];
 
@@ -131,6 +142,10 @@ namespace Game.UI
         // ------------------------------------------------------------------ build
         private void Build()
         {
+            _craftFace = EkranKit.Get("btn_turuncu");
+            _deadFace = EkranKit.Get("btn_bos");
+            _targetFace = LigKit.Get("al_butonu");
+
             RectTransform canvas = UiBuild.Canvas(transform, "MadenKanvas", sortingOrder);
             _root = UiBuild.Flat(canvas, "Karartma", UiBuild.Opaque(scrim), Vector2.zero, Vector2.one);
             var dismiss = _root.gameObject.AddComponent<Button>();
@@ -144,130 +159,130 @@ namespace Game.UI
             UiBuild.InsetContent(_root);
         }
 
-        /// <summary>One opaque sheet behind everything, eating taps so they never reach the dismiss
-        /// scrim under it — see CraftingUI.BuildBackdrop for why.</summary>
+        /// <summary>
+        /// The league sheet, eating taps so they never reach the dismiss scrim under it. Across
+        /// 0.03–0.97 for the reason <see cref="LadderUI"/> records: that width is what keeps the
+        /// star crest in its top-centre slice unstretched.
+        /// </summary>
         private void BuildBackdrop()
         {
-            RectTransform sheet = Art(_root, "Zemin", cardPanel, new Vector2(0.06f, 0.140f), new Vector2(0.94f, 0.820f));
-            var image = sheet.GetComponent<Image>();
-            image.color = backdrop;
-            image.raycastTarget = true;
+            Image sheet = EkranKit.Sliced(_root, "Zemin", LigKit.Board,
+                                          new Vector2(0.030f, 0.050f), new Vector2(0.970f, 0.870f), false);
+            sheet.raycastTarget = true;
             var eat = sheet.gameObject.AddComponent<Button>();
             eat.transition = Selectable.Transition.None;
         }
 
+        /// <summary>
+        /// The ribbon across the rail under the crest and the close disc on the sheet's corner, both
+        /// at the league board's offsets from its top edge, then the points pill and the bonus.
+        /// </summary>
         private void BuildHeader()
         {
-            _titleLabel = UiBuild.Label(Zone(_root, "Baslik", new Vector2(0.10f, 0.752f), new Vector2(0.82f, 0.808f)),
-                                        "Text", Loc.T("madenci.baslik"), 36, TextAnchor.MiddleLeft);
-            _titleLabel.color = Ink;
+            Image band = EkranKit.Sliced(_root, "Serit", LigKit.Get("serit"),
+                                         new Vector2(0.215f, 0.698f), new Vector2(0.785f, 0.790f), true);
+            _titleLabel = UiBuild.Label(Zone(band.rectTransform, "Yazi", new Vector2(0.20f, 0.18f), new Vector2(0.80f, 0.82f)),
+                                        "Text", Loc.T("madenci.baslik"), 36, TextAnchor.MiddleCenter);
+            _titleLabel.color = EkranKit.Paper;
+            Fit(_titleLabel, 18, 36);
+            _titleLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
 
-            Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
-                                       closeIcon != null ? closeIcon : UiSkin.ButtonGrey,
-                                       new Color(0.30f, 0.34f, 0.42f, 1f), 34, Hide);
-            var closeImage = close.GetComponent<Image>();
-            closeImage.type = Image.Type.Simple;
-            closeImage.preserveAspect = true;
-            UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.858f, 0.755f), new Vector2(0.920f, 0.808f));
+            EkranKit.Close(_root, new Vector2(0.838f, 0.789f), new Vector2(0.952f, 0.877f), Hide);
 
-            RectTransform chip = Chip(_root, "Puan", new Vector2(0.10f, 0.690f), new Vector2(0.42f, 0.745f));
-            _pointsLabel = UiBuild.Label(Zone(chip, "Yazi", new Vector2(0.08f, 0f), new Vector2(0.92f, 1f)),
-                                         "Text", string.Empty, 26, TextAnchor.MiddleCenter);
-            _pointsLabel.color = Paper;
+            Image pill = EkranKit.Sliced(_root, "Puan", EkranKit.Get("hap_puan"),
+                                         new Vector2(0.110f, 0.636f), new Vector2(0.500f, 0.688f), true);
+            _pointsLabel = UiBuild.Label(Zone(pill.rectTransform, "Yazi", PillFieldMin, PillFieldMax),
+                                         "Text", string.Empty, 28, TextAnchor.MiddleCenter);
+            _pointsLabel.color = EkranKit.Ink;
+            Fit(_pointsLabel, 14, 28);
 
-            _bonusLabel = UiBuild.Label(Zone(_root, "Bonus", new Vector2(0.45f, 0.690f), new Vector2(0.90f, 0.745f)),
-                                        "Text", string.Empty, 26, TextAnchor.MiddleRight);
+            _bonusLabel = UiBuild.Label(Zone(_root, "Bonus", new Vector2(0.52f, 0.636f), new Vector2(0.888f, 0.688f)),
+                                        "Text", string.Empty, 28, TextAnchor.MiddleRight);
             _bonusLabel.color = Good;
+            Fit(_bonusLabel, 14, 28);
         }
 
-        /// <summary>The four worn slots, laid out as a 2x2 grid: pickaxe, helmet, bag, lantern, in
-        /// <see cref="MiningGear"/>'s own slot order.</summary>
+        /// <summary>
+        /// The four worn slots as a 2x2 grid — pickaxe, helmet, bag, lantern, in
+        /// <see cref="MiningGear"/>'s own slot order. Each cell holds a frame locked to the art's
+        /// aspect: the bolted corners would smear under a nine-slice, and a stretched frame would
+        /// throw the well off the fractions its labels are seated on.
+        /// </summary>
         private void BuildSlots()
         {
-            const float gridTop = 0.660f, gridBottom = 0.385f, gridLeft = 0.10f, gridRight = 0.90f;
-            const float pad = 0.015f;
+            Sprite frame = EkranKit.Get("yuva");
+            // Narrower than the content edges: a frame is only as wide as its row is tall allows, so
+            // full-width cells left a gutter between the columns wider than the frames' own bolts.
+            const float gridTop = 0.625f, gridBottom = 0.345f, gridLeft = 0.160f, gridRight = 0.840f;
+            const float gapX = 0.010f, gapY = 0.005f;
             float colW = (gridRight - gridLeft) / 2f;
             float rowH = (gridTop - gridBottom) / 2f;
 
             for (int i = 0; i < MiningGear.SlotCount; i++)
             {
                 int col = i % 2, row = i / 2;
-                Vector2 aMin = new Vector2(gridLeft + col * colW + pad, gridTop - (row + 1) * rowH + pad);
-                Vector2 aMax = new Vector2(gridLeft + (col + 1) * colW - pad, gridTop - row * rowH - pad);
+                Vector2 aMin = new Vector2(gridLeft + col * colW + gapX, gridTop - (row + 1) * rowH + gapY);
+                Vector2 aMax = new Vector2(gridLeft + (col + 1) * colW - gapX, gridTop - row * rowH - gapY);
+                RectTransform cell = Zone(_root, "Hucre" + i, aMin, aMax);
 
-                RectTransform card = Art(_root, "Yuva" + i, cardPanel, aMin, aMax);
-                _slotCard[i] = card;
+                Image card = EkranKit.Sliced(cell, "Yuva" + i, frame, Vector2.zero, Vector2.one, false);
+                card.type = Image.Type.Simple;
+                card.raycastTarget = true;
+                var fitter = card.gameObject.AddComponent<AspectRatioFitter>();
+                fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                fitter.aspectRatio = SlotAspect;
+                _slotCard[i] = card.rectTransform;
 
                 var select = card.gameObject.AddComponent<Button>();
                 select.transition = Selectable.Transition.None;
-                select.targetGraphic = card.GetComponent<Image>();
-                if (select.targetGraphic != null) select.targetGraphic.raycastTarget = true;
+                select.targetGraphic = card;
                 int picked = i;
                 select.onClick.AddListener(() => SelectSlot(picked));
 
-                _slotStripe[i] = Stripe(card, new Vector2(0f, 0f), new Vector2(0.05f, 1f));
-                _slotStripe[i].color = GradeTint[0];
+                RectTransform well = Zone(card.rectTransform, "Kuyu", WellMin, WellMax);
+                _slotName[i] = UiBuild.Label(Zone(well, "Ad", new Vector2(0.08f, 0.50f), new Vector2(0.92f, 0.86f)),
+                                             "Text", Loc.T("madenci.yuva." + i), 32, TextAnchor.MiddleCenter);
+                _slotName[i].color = EkranKit.Paper;
+                Fit(_slotName[i], 16, 32);
 
-                RectTransform iconZone = Zone(card, "Simge", new Vector2(0.10f, 0.32f), new Vector2(0.38f, 0.90f));
-                var iconGo = new GameObject("Img", typeof(RectTransform), typeof(Image));
-                iconGo.transform.SetParent(iconZone, false);
-                _slotIcon[i] = iconGo.GetComponent<Image>();
-                _slotIcon[i].preserveAspect = true;
-                _slotIcon[i].raycastTarget = false;
-                _slotIcon[i].enabled = false;
-                if (slotIcons != null && i < slotIcons.Length && slotIcons[i] != null)
-                {
-                    _slotIcon[i].sprite = slotIcons[i];
-                    _slotIcon[i].enabled = true;
-                }
-                UiBuild.Anchor((RectTransform)iconGo.transform, Vector2.zero, Vector2.one);
-
-                _slotName[i] = UiBuild.Label(Zone(card, "Ad", new Vector2(0.42f, 0.52f), new Vector2(0.95f, 0.90f)),
-                                             "Text", Loc.T("madenci.yuva." + i), 22, TextAnchor.MiddleLeft);
-                _slotName[i].color = Ink;
-                Fit(_slotName[i], 12, 22);
-
-                _slotGrade[i] = UiBuild.Label(Zone(card, "Derece", new Vector2(0.10f, 0.08f), new Vector2(0.95f, 0.38f)),
-                                              "Text", string.Empty, 22, TextAnchor.MiddleLeft);
-                Fit(_slotGrade[i], 12, 22);
+                _slotGrade[i] = UiBuild.Label(Zone(well, "Derece", new Vector2(0.08f, 0.16f), new Vector2(0.92f, 0.46f)),
+                                              "Text", string.Empty, 26, TextAnchor.MiddleCenter);
+                Fit(_slotGrade[i], 14, 26);
             }
         }
 
         private void BuildFooter()
         {
-            _craftBtn = UiBuild.Btn(_root, "Uret", string.Empty,
-                                    actionButton != null ? actionButton : UiSkin.ButtonGreen,
-                                    Good, 30, OnCraft);
-            UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0.10f, 0.215f), new Vector2(0.47f, 0.300f));
-            PillFit.Wrap(_craftBtn.GetComponent<Image>());
-            _craftLabel = _craftBtn.GetComponentInChildren<Text>();
-            // The price names its currency now — "3 MINING POINTS", not "3 PTS" — so it takes a line of
-            // its own, kept inside the pill's round end caps.
-            UiBuild.Anchor(_craftLabel.rectTransform, new Vector2(0.14f, 0.12f), new Vector2(0.86f, 0.88f));
-            Fit(_craftLabel, 14, 28);
+            // One line on the cream inlay — "CRAFT · 3 MINING POINTS" — shrinking for a long language;
+            // the inlay is too short a band for the price to take a second line.
+            _craftBtn = EkranKit.Capsule(_root, "Uret", _craftFace,
+                                         new Vector2(0.170f, 0.263f), new Vector2(0.830f, 0.330f), OnCraft);
+            _craftLabel = UiBuild.Label(Zone(_craftBtn.transform as RectTransform, "Yazi", EkranKit.InlayMin, EkranKit.InlayMax),
+                                        "Text", string.Empty, 30, TextAnchor.MiddleCenter);
+            _craftLabel.color = EkranKit.Ink;
+            Fit(_craftLabel, 14, 30);
             _craftLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            UiBuild.Anchor(_craftLabel.rectTransform, new Vector2(0.02f, 0f), new Vector2(0.98f, 1f));
 
-            _targetBtn = UiBuild.Btn(_root, "HedefliUret", string.Empty,
-                                     actionButton != null ? actionButton : UiSkin.ButtonGreen,
-                                     new Color(0.20f, 0.50f, 0.82f, 1f), 24, OnTargetedCraft);
-            UiBuild.Anchor((RectTransform)_targetBtn.transform, new Vector2(0.53f, 0.215f), new Vector2(0.90f, 0.300f));
-            PillFit.Wrap(_targetBtn.GetComponent<Image>());
-            _targetLabel = _targetBtn.GetComponentInChildren<Text>();
+            _targetBtn = EkranKit.Capsule(_root, "HedefliUret", _targetFace,
+                                          new Vector2(0.240f, 0.200f), new Vector2(0.760f, 0.252f), OnTargetedCraft);
+            _targetLabel = UiBuild.Label(Zone(_targetBtn.transform as RectTransform, "Yazi", EkranKit.CapsMin, EkranKit.CapsMax),
+                                         "Text", string.Empty, 28, TextAnchor.MiddleCenter);
+            Fit(_targetLabel, 14, 28);
 
-            _targetCostLabel = UiBuild.Label(Zone(_root, "HedefMaliyet", new Vector2(0.10f, 0.165f), new Vector2(0.90f, 0.210f)),
-                                             "Text", string.Empty, 18, TextAnchor.MiddleCenter);
+            _targetCostLabel = UiBuild.Label(Zone(_root, "HedefMaliyet", new Vector2(0.110f, 0.168f), new Vector2(0.888f, 0.196f)),
+                                             "Text", string.Empty, 22, TextAnchor.MiddleCenter);
             _targetCostLabel.color = InkSoft;
-            Fit(_targetCostLabel, 11, 18);
+            Fit(_targetCostLabel, 12, 22);
 
-            _nextPointLabel = UiBuild.Label(Zone(_root, "SonrakiPuan", new Vector2(0.10f, 0.120f), new Vector2(0.90f, 0.158f)),
-                                            "Text", string.Empty, 20, TextAnchor.MiddleCenter);
+            _nextPointLabel = UiBuild.Label(Zone(_root, "SonrakiPuan", new Vector2(0.110f, 0.142f), new Vector2(0.888f, 0.168f)),
+                                            "Text", string.Empty, 22, TextAnchor.MiddleCenter);
             _nextPointLabel.color = InkFaint;
-            Fit(_nextPointLabel, 12, 20);
+            Fit(_nextPointLabel, 12, 22);
 
-            _resultLabel = UiBuild.Label(Zone(_root, "Sonuc", new Vector2(0.10f, 0.045f), new Vector2(0.90f, 0.112f)),
-                                         "Text", string.Empty, 22, TextAnchor.UpperCenter);
-            _resultLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            Fit(_resultLabel, 12, 22);
+            _resultLabel = UiBuild.Label(Zone(_root, "Sonuc", new Vector2(0.110f, 0.100f), new Vector2(0.888f, 0.142f)),
+                                         "Text", string.Empty, 24, TextAnchor.MiddleCenter);
+            Fit(_resultLabel, 12, 24);
         }
 
         // ---------------------------------------------------------------- opener
@@ -331,12 +346,14 @@ namespace Game.UI
             ShowResult(result);
         }
 
+        /// <summary>
+        /// The sheet is near-white, so a result takes the grade's hue only as far as it still reads
+        /// there: the lifted navy-well tints are too pale for it, and an equip is written in green.
+        /// </summary>
         private void ShowResult(in MiningGearService.CraftResult result)
         {
             _resultLabel.text = ResultText(result);
-            _resultLabel.color = result.Equipped
-                ? GradeTint[Mathf.Clamp(result.Grade, 0, GradeTint.Length - 1)]
-                : InkSoft;
+            _resultLabel.color = result.Equipped ? Good : InkSoft;
         }
 
         /// <summary>What was made, then a receipt of every balance the craft moved, each by name:
@@ -365,36 +382,35 @@ namespace Game.UI
 
             for (int i = 0; i < MiningGear.SlotCount; i++)
             {
-                int grade = _mining.WornGrade(i);
+                bool picked = i == _selectedSlot;
                 Image cardImage = _slotCard[i].GetComponent<Image>();
-                if (cardImage != null) cardImage.color = i == _selectedSlot
-                    ? new Color(0.84f, 0.92f, 1f, 1f)
-                    : Color.white;
+                if (cardImage != null) cardImage.color = picked ? Color.white : SlotResting;
+                _slotCard[i].localScale = picked ? SlotPicked : Vector3.one;
+
+                int grade = _mining.WornGrade(i);
                 if (grade >= 0)
                 {
-                    Color tint = GradeTint[Mathf.Clamp(grade, 0, GradeTint.Length - 1)];
-                    _slotStripe[i].color = tint;
                     _slotGrade[i].text = Loc.T("kaptan.derece." + grade);
-                    _slotGrade[i].color = tint;
-                    _slotIcon[i].color = Color.white;
+                    _slotGrade[i].color = GradeTint[Mathf.Clamp(grade, 0, GradeTint.Length - 1)];
                 }
                 else
                 {
-                    _slotStripe[i].color = new Color(GradeTint[0].r, GradeTint[0].g, GradeTint[0].b, 0.35f);
                     _slotGrade[i].text = Loc.T("deniz.bos");
-                    _slotGrade[i].color = InkFaint;
-                    _slotIcon[i].color = new Color(1f, 1f, 1f, 0.45f);
+                    _slotGrade[i].color = new Color(EkranKit.PaperSoft.r, EkranKit.PaperSoft.g, EkranKit.PaperSoft.b, 0.6f);
                 }
             }
 
-            _craftLabel.text = Loc.T("madenci.uret") + "\n" + CurrencyText.Amount(CurrencyId.MiningPoints, _mining.CraftCost);
-            _craftBtn.interactable = _mining.CanCraft;
+            bool canCraft = _mining.CanCraft;
+            _craftLabel.text = Loc.T("madenci.uret") + "  ·  " + CurrencyText.Amount(CurrencyId.MiningPoints, _mining.CraftCost);
+            EkranKit.SetFace(_craftBtn, _craftFace, _deadFace, canCraft);
 
             long scrapCost = _mining.TargetedScrapCost(_selectedSlot);
+            bool canTarget = _mining.CanTargetedCraft(_selectedSlot);
             _targetLabel.text = string.Format(Loc.T("madenci.hedef.uret"), Loc.T("madenci.yuva." + _selectedSlot));
+            _targetLabel.color = canTarget ? EkranKit.Paper : EkranKit.Ink;
             _targetCostLabel.text = string.Format(Loc.T("madenci.hedef.maliyet"),
                                                    _mining.CraftCost, scrapCost, _mining.Points, _mining.Scrap);
-            _targetBtn.interactable = _mining.CanTargetedCraft(_selectedSlot);
+            EkranKit.SetFace(_targetBtn, _targetFace, _deadFace, canTarget);
 
             RefreshNextPoint();
         }
@@ -417,44 +433,6 @@ namespace Game.UI
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
-        }
-
-        private static RectTransform Art(RectTransform parent, string name, Sprite sprite,
-                                         Vector2 aMin, Vector2 aMax)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>();
-            img.sprite = sprite != null ? sprite : UiSkin.Panel;
-            img.type = sprite != null && sprite.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
-            img.preserveAspect = img.type == Image.Type.Simple;
-            img.color = Color.white;
-            img.raycastTarget = false;
-            return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
-        }
-
-        private RectTransform Chip(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>();
-            img.sprite = chipPill != null ? chipPill : UiSkin.Pill;
-            img.type = Image.Type.Sliced;
-            img.color = img.sprite != null ? Color.white : new Color(0.16f, 0.20f, 0.28f, 0.95f);
-            img.raycastTarget = false;
-            return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
-        }
-
-        private static Image Stripe(RectTransform parent, Vector2 aMin, Vector2 aMax)
-        {
-            var go = new GameObject("Cizgi", typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>();
-            img.sprite = UiSkin.Flat;
-            img.type = Image.Type.Sliced;
-            img.raycastTarget = false;
-            UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
-            return img;
         }
 
         /// <summary>Shrink-to-fit so a long translation stays on its row.</summary>

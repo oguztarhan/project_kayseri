@@ -41,10 +41,6 @@ namespace Game.UI
                  "gösterilirken ve gemi yokken bu kapanır.")]
         [SerializeField] private GameObject cardRoot;
         [SerializeField] private Image cardImage;
-        [Tooltip("Kontrat sürerken kullanılan kart görseli.")]
-        [SerializeField] private Sprite cardRunning;
-        [Tooltip("Hedef tutunca kullanılan yeşil kart görseli.")]
-        [SerializeField] private Sprite cardDone;
         [SerializeField] private GameObject doneBadge;
         [Tooltip("İşlenen / hedef.")]
         [SerializeField] private TMP_Text targetText;
@@ -69,17 +65,11 @@ namespace Game.UI
 
         [Header("Teklif kartları (kod ile kurulur)")]
         [Tooltip("KOLAY / NORMAL / ZOR başlıklarının rengi. Zorluk kartın kendi rengiyle değil " +
-                 "başlığıyla okunur — üç kart da aynı beyaz kart sanatını kullanıyor, o yüzden bu " +
-                 "renkler beyaz üstünde okunacak kadar koyu.")]
-        [SerializeField] private Color easyTint = new Color(0.13f, 0.60f, 0.29f);
-        [SerializeField] private Color normalTint = new Color(0.83f, 0.52f, 0.05f);
-        [SerializeField] private Color hardTint = new Color(0.78f, 0.20f, 0.16f);
-        [Tooltip("Teklif kartının gövdesi — MaviSet/panel_beyaz.")]
-        [SerializeField] private Sprite offerPanel;
-        [Tooltip("Kabul düğmesi, zorluk sırasıyla kolay/normal/zor — MaviSet/btn_hap_mavi, " +
-                 "btn_hap_sari, btn_hap_kirmizi. Kartın tamamı zaten basılabiliyor; bu şerit " +
-                 "nereye basılacağını söylüyor.")]
-        [SerializeField] private Sprite[] acceptButtons;
+                 "başlığıyla okunur — üç kart da aynı lacivert kart sanatını kullanıyor, o yüzden bu " +
+                 "renkler lacivert üstünde okunacak kadar açık.")]
+        [SerializeField] private Color easyTint = new Color(0.42f, 0.90f, 0.52f);
+        [SerializeField] private Color normalTint = new Color(1.00f, 0.79f, 0.27f);
+        [SerializeField] private Color hardTint = new Color(1.00f, 0.47f, 0.42f);
 
         [Tooltip("Sayaç akarken ekranın yenilenme aralığı (saniye).")]
         [SerializeField] private float refreshInterval = 0.1f;
@@ -255,7 +245,6 @@ namespace Game.UI
 
         private void RefreshCard(bool done)
         {
-            if (cardImage != null) cardImage.sprite = done ? cardDone : cardRunning;
             if (doneBadge != null) doneBadge.SetActive(done);
             if (timerChip != null) timerChip.SetActive(!done);
             if (rewardRow != null) rewardRow.SetActive(!done);
@@ -297,35 +286,25 @@ namespace Game.UI
         {
             if (runningCard == null || runningCard.parent == null) return;
 
-            var go = new GameObject("HizUyarisi", typeof(RectTransform), typeof(Image), typeof(Button));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(runningCard.parent, false);
+            // The orange action capsule, capped near its own proportion — the strip used to be 8:1, which
+            // the caps survive but the cream inlay does not: stretched that far it reads as a text field.
+            // 96 tall is the gap the prefab leaves between the running card and the next slot, less a
+            // 22-unit clearance either side.
+            const float height = 96f;
+            Button btn = EkranKit.Capsule(runningCard.parent, "HizUyarisi", EkranKit.Get("btn_turuncu"),
+                                          Vector2.zero, Vector2.zero, OnPacePrompt);
+            var rt = (RectTransform)btn.transform;
             rt.anchorMin = runningCard.anchorMin;
             rt.anchorMax = runningCard.anchorMax;
             rt.pivot = runningCard.pivot;
-            float height = 96f;
-            rt.sizeDelta = new Vector2(runningCard.sizeDelta.x * 0.86f, height);
+            rt.sizeDelta = new Vector2(Mathf.Min(runningCard.sizeDelta.x * 0.86f, height * 5.2f), height);
             rt.anchoredPosition = runningCard.anchoredPosition
                                 - new Vector2(0f, runningCard.rect.height * 0.5f + height * 0.5f + 22f);
 
-            Sprite pill = acceptButtons != null && acceptButtons.Length > ContractService.NormalTier
-                        ? acceptButtons[ContractService.NormalTier] : null;
-            var img = go.GetComponent<Image>();
-            img.sprite = pill != null ? pill : UiSkin.Flat;
-            img.type = Image.Type.Sliced;
-            img.color = pill != null ? Color.white : (Color)new Color32(0xE8, 0xA3, 0x17, 0xFF);
-            if (pill != null) PillFit.Wrap(img);
-
-            var btn = go.GetComponent<Button>();
-            btn.targetGraphic = img;
-            btn.onClick.AddListener(OnPacePrompt);
-
-            TMP_Text label = Text(rt, "Yazi", 28, TextAlignmentOptions.Center,
-                                  new Vector2(0.05f, 0.12f), new Vector2(0.95f, 0.88f));
+            TMP_Text label = Text(rt, "Yazi", 24, TextAlignmentOptions.Center, EkranKit.InlayMin, EkranKit.InlayMax);
             label.text = Loc.T("kontrat.geride");
-            label.color = new Color32(0x1B, 0x22, 0x3A, 0xFF);
 
-            _pacePrompt = go;
+            _pacePrompt = btn.gameObject;
             _pacePrompt.SetActive(false);
         }
 
@@ -401,35 +380,23 @@ namespace Game.UI
             var chipRt = timerChip != null ? timerChip.transform as RectTransform : null;
             if (chipRt == null || chipRt.parent == null) return;
 
-            var go = new GameObject("ReklamIkiKat", typeof(RectTransform), typeof(Image), typeof(Button));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(chipRt.parent, false);
+            // The orange action capsule, sized off the chip's WIDTH at the art's own 2.77:1 so the cream
+            // inlay the label sits on keeps its shape. Off the height it came out 332 wide in a 280-wide
+            // slot and ran over the card's right rim.
+            Button btn = EkranKit.Capsule(chipRt.parent, "ReklamIkiKat", EkranKit.Get("btn_turuncu"),
+                                          Vector2.zero, Vector2.zero, OnDoubleClaim);
+            var rt = (RectTransform)btn.transform;
             rt.anchorMin = chipRt.anchorMin;
             rt.anchorMax = chipRt.anchorMax;
             rt.pivot = chipRt.pivot;
-            rt.sizeDelta = new Vector2(chipRt.sizeDelta.x, chipRt.sizeDelta.y * 0.8f);
+            float width = chipRt.sizeDelta.x;
+            rt.sizeDelta = new Vector2(width, width / 2.77f);
             rt.anchoredPosition = chipRt.anchoredPosition;
 
-            // The amber accept pill this screen already owns — the colour the game's ad buttons wear,
-            // and art that is already in the atlas rather than a flat rectangle pretending to be a button.
-            Sprite pill = acceptButtons != null && acceptButtons.Length > ContractService.NormalTier
-                        ? acceptButtons[ContractService.NormalTier] : null;
-            var img = go.GetComponent<Image>();
-            img.sprite = pill != null ? pill : UiSkin.Flat;
-            img.type = Image.Type.Sliced;
-            img.color = pill != null ? Color.white : (Color)new Color32(0xE8, 0xA3, 0x17, 0xFF);
-            if (pill != null) PillFit.Wrap(img);
-
-            var btn = go.GetComponent<Button>();
-            btn.targetGraphic = img;
-            btn.onClick.AddListener(OnDoubleClaim);
-
-            _adPillLabel = Text(rt, "Yazi", 26, TextAlignmentOptions.Center,
-                                new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.88f));
+            _adPillLabel = Text(rt, "Yazi", 26, TextAlignmentOptions.Center, EkranKit.InlayMin, EkranKit.InlayMax);
             _adPillLabel.text = Loc.T("kontrat.odul_iki_kat");
-            _adPillLabel.color = new Color32(0x1B, 0x22, 0x3A, 0xFF);   // dark ink, as on the amber tier
 
-            _adPill = go;
+            _adPill = btn.gameObject;
             _adPill.SetActive(false);
         }
 
@@ -558,146 +525,103 @@ namespace Game.UI
             Stretch(root, Vector2.zero, Vector2.one);
             root.SetAsLastSibling();
 
-            bool landscape = Screen.width > Screen.height;
-            TMP_Text title = Text(root, "Baslik", 38, TextAlignmentOptions.Center,
-                                  landscape ? new Vector2(0.30f, 0.79f) : new Vector2(0.06f, 0.82f),
-                                  landscape ? new Vector2(0.70f, 0.88f) : new Vector2(0.94f, 0.89f));
+            // Fractions of the 976 x 1575 sheet in UI_Kontrat. Its top 287 units are the crest and the
+            // league ribbon laid across it (centred 242 down, as LadderUI lays the same pair), so the
+            // subtitle starts 350 down and the rows below it; the bottom 103 are the frame.
+            TMP_Text title = Text(root, "Baslik", 40, TextAlignmentOptions.Center,
+                                  new Vector2(0.08f, 0.733f), new Vector2(0.92f, 0.778f));
             title.text = Loc.T("kontrat.teklifler");
 
+            // Three rows of the navy card, top down — in landscape too. Each row is 868 x 300 units,
+            // the card's own 2.9:1, with a 24-unit gap; the three portrait columns landscape used to get
+            // would have stood the art on end. What landscape changes is how far in the rows start.
+            bool landscape = Screen.width > Screen.height;
+            float left = landscape ? 0.20f : 0.055f;
             Color[] tints = { easyTint, normalTint, hardTint };
             string[] keys = { "kontrat.kolay", "kontrat.normal", "kontrat.zor" };
             for (int i = 0; i < ContractService.TierCount; i++)
             {
-                if (landscape)
-                {
-                    float left = 0.035f + i * 0.3225f;
-                    // Alt kenar 0,16'daydı ve panelin altında bir avuç boş beyaz kalıyordu — pencere
-                    // yatayda kısa, kartlar da onunla birlikte kısalmalı değil, uzamalı.
-                    BuildOfferCard(root, i, keys[i], tints[i], left, left + 0.2875f, 0.075f, 0.755f);
-                }
-                else
-                {
-                    float top = 0.78f - i * 0.235f;
-                    BuildOfferCard(root, i, keys[i], tints[i], top - 0.205f, top);
-                }
+                float top = 0.7206f - i * 0.2057f;
+                BuildOfferCard(root, i, keys[i], tints[i], left, 1f - left, top - 0.1905f, top);
             }
 
             _offersRoot.SetActive(false);
         }
 
-        private void BuildOfferCard(RectTransform parent, int tier, string tierKey, Color tint,
-                                    float yMin, float yMax)
-            => BuildOfferCard(parent, tier, tierKey, tint, 0.06f, 0.94f, yMin, yMax);
-
+        /// <summary>
+        /// One offer: the navy card, a column of what the job is and pays on the left, and its two
+        /// controls stacked on the right — the pale swap capsule over the orange accept capsule.
+        ///
+        /// EVERY BAND IS TALLER THAN ITS TYPE. The white card this replaced gave the difficulty and the
+        /// pay bands about 24 units each for 30- and 40-point type; auto-size cannot go below its
+        /// floor, and a line that still does not fit under Ellipsis is dropped whole — which is why
+        /// EASY / NORMAL / HARD and the cash never showed. Here each band clears a line of its type.
+        ///
+        /// EVERYTHING STAYS IN THE NAVY WELL, which is 0.19–0.81 of the card's height; outside it is the
+        /// bright rim, where the first build put the difficulty and the meta row.
+        ///
+        /// The capsules are placed at their art's own proportion (btn_bos 4.4:1, btn_turuncu 2.77:1) on
+        /// a card 868 by 300 units; both come out 0.335 of the card wide, so they share a column.
+        /// </summary>
         private void BuildOfferCard(RectTransform parent, int tier, string tierKey, Color tint,
                                     float xMin, float xMax, float yMin, float yMax)
         {
-            var go = new GameObject("Teklif" + tier, typeof(RectTransform), typeof(Image), typeof(Button));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
-            Stretch(rt, new Vector2(xMin, yMin), new Vector2(xMax, yMax));
+            Image img = EkranKit.Sliced(parent, "Teklif" + tier, EkranKit.Get("kart_lacivert"),
+                                        new Vector2(xMin, yMin), new Vector2(xMax, yMax), false);
+            img.raycastTarget = true;
+            var rt = img.rectTransform;
 
-            var img = go.GetComponent<Image>();
-            Sprite body = offerPanel != null ? offerPanel : cardRunning;
-            img.sprite = body != null ? body : UiSkin.Panel;
-            img.type = Image.Type.Sliced;
-            img.color = body != null ? Color.white : new Color(0.15f, 0.19f, 0.27f, 0.95f);
-
+            // The whole card still signs, as before; the accept capsule says where to press.
             int captured = tier;
-            var btn = go.GetComponent<Button>();
+            var btn = img.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
             btn.targetGraphic = img;
             btn.onClick.AddListener(() => OnAccept(captured));
 
-            // Everything on one centre line, band by band: difficulty, pay, the job, the three-item meta
-            // row, then the button. Left-aligned in a card this narrow the four bands each started at a
-            // different place and the card read as a form; centred they read as one card.
-            _offerTier[tier] = Text(rt, "Zorluk", 30, TextAlignmentOptions.Center,
-                                    new Vector2(0.06f, 0.815f), new Vector2(0.94f, 0.945f));
+            _offerTier[tier] = Text(rt, "Zorluk", 28, TextAlignmentOptions.MidlineLeft,
+                                    new Vector2(0.085f, 0.655f), new Vector2(0.58f, 0.80f));
             _offerTier[tier].text = Loc.T(tierKey);
             _offerTier[tier].color = tint;
 
-            // The swap sits in the card's top-right corner, over the empty end of the difficulty band —
-            // the label is centred and one word, so the corner is free. It is a Button of its own on top
-            // of the card's Button: the raycast goes to the topmost graphic, so pressing it never signs.
-            var swapGo = new GameObject("Degistir", typeof(RectTransform), typeof(Image), typeof(Button));
-            var swapRt = (RectTransform)swapGo.transform;
-            swapRt.SetParent(rt, false);
-            Stretch(swapRt, new Vector2(0.66f, 0.845f), new Vector2(0.95f, 0.935f));
-            var swapImg = swapGo.GetComponent<Image>();
-            swapImg.sprite = UiSkin.Flat;
-            swapImg.type = Image.Type.Sliced;
-            swapImg.color = new Color(tint.r, tint.g, tint.b, 0.12f);
-            var swapBtn = swapGo.GetComponent<Button>();
-            swapBtn.targetGraphic = swapImg;
-            swapBtn.onClick.AddListener(() => OnSwap(captured));
-            TMP_Text swapLabel = Text(swapRt, "Yazi", 20, TextAlignmentOptions.Center,
-                                      new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.96f));
+            _offerPay[tier] = Text(rt, "Odul", 36, TextAlignmentOptions.MidlineLeft,
+                                   new Vector2(0.085f, 0.47f), new Vector2(0.58f, 0.655f));
+            _offerPay[tier].color = EkranKit.Paper;
+
+            _offerTask[tier] = Text(rt, "Is", 24, TextAlignmentOptions.MidlineLeft,
+                                    new Vector2(0.085f, 0.335f), new Vector2(0.58f, 0.47f));
+            _offerTask[tier].color = EkranKit.Paper;
+
+            // Clock, gems and foreman cards share the bottom band. The cards were the whole reason a
+            // contract is worth running and the card never said so — a player comparing three jobs
+            // could only see the cash.
+            _offerTime[tier] = Text(rt, "Sure", 22, TextAlignmentOptions.MidlineLeft,
+                                    new Vector2(0.085f, 0.195f), new Vector2(0.24f, 0.335f));
+            _offerTime[tier].color = EkranKit.PaperSoft;
+
+            _offerGems[tier] = Text(rt, "Elmas", 22, TextAlignmentOptions.MidlineLeft,
+                                    new Vector2(0.24f, 0.195f), new Vector2(0.36f, 0.335f));
+            _offerGems[tier].color = new Color(0.45f, 0.82f, 1f);
+
+            _offerCards[tier] = Text(rt, "Kart", 22, TextAlignmentOptions.MidlineLeft,
+                                     new Vector2(0.36f, 0.195f), new Vector2(0.58f, 0.335f));
+            _offerCards[tier].color = new Color(0.80f, 0.66f, 1f);
+
+            // The swap is a Button of its own on top of the card's Button: the raycast goes to the
+            // topmost graphic, so pressing it never signs.
+            Button swap = EkranKit.Capsule(rt, "Degistir", EkranKit.Get("btn_bos"),
+                                           new Vector2(0.60f, 0.57f), new Vector2(0.934f, 0.79f),
+                                           () => OnSwap(captured));
+            TMP_Text swapLabel = Text((RectTransform)swap.transform, "Yazi", 24, TextAlignmentOptions.Center,
+                                      EkranKit.CapsMin, EkranKit.CapsMax);
             swapLabel.text = Loc.T("kontrat.degistir");
-            swapLabel.color = tint;
-            _offerSwap[tier] = swapGo;
+            _offerSwap[tier] = swap.gameObject;
 
-            // The rule under the difficulty carries the tier colour across the whole card, which is
-            // what the tinted header plate used to do — without washing the white panel out.
-            Image rule = Plate(rt, "Cizgi", new Vector2(0.30f, 0.788f), new Vector2(0.70f, 0.803f), tint);
-            rule.raycastTarget = false;
-
-            _offerPay[tier] = Text(rt, "Odul", 40, TextAlignmentOptions.Center,
-                                   new Vector2(0.06f, 0.610f), new Vector2(0.94f, 0.770f));
-
-            _offerTask[tier] = Text(rt, "Is", 32, TextAlignmentOptions.Center,
-                                    new Vector2(0.06f, 0.430f), new Vector2(0.94f, 0.590f));
-
-            // Clock, gems and foreman cards share the band in equal thirds. The cards were the whole
-            // reason a contract is worth running and the card never said so — a player comparing three
-            // jobs could only see the cash. Three columns instead of two costs each of them a few points
-            // of type, which is why this row is smaller than the job line above it.
-            _offerTime[tier] = Text(rt, "Sure", 24, TextAlignmentOptions.Center,
-                                    new Vector2(0.05f, 0.275f), new Vector2(0.35f, 0.410f));
-            _offerTime[tier].color = Dim(_offerTime[tier].color, 0.6f);
-
-            _offerGems[tier] = Text(rt, "Elmas", 24, TextAlignmentOptions.Center,
-                                    new Vector2(0.35f, 0.275f), new Vector2(0.65f, 0.410f));
-            _offerGems[tier].color = new Color(0.16f, 0.45f, 0.78f);
-
-            _offerCards[tier] = Text(rt, "Kart", 24, TextAlignmentOptions.Center,
-                                     new Vector2(0.65f, 0.275f), new Vector2(0.95f, 0.410f));
-            _offerCards[tier].color = new Color(0.42f, 0.27f, 0.62f);
-
-            Sprite pill = acceptButtons != null && tier < acceptButtons.Length ? acceptButtons[tier] : null;
-            Image action = Plate(rt, "KabulSeridi", new Vector2(0.075f, 0.065f),
-                                 new Vector2(0.925f, 0.235f), new Color(tint.r, tint.g, tint.b, 0.15f));
-            action.raycastTarget = false;
-            if (pill != null)
-            {
-                action.sprite = pill;
-                action.color = Color.white;
-                // Hap sanatının uçları yarım daire ve yalnız yatayda dilimleniyor; şerit sanattan
-                // alçak olduğu için dilim payı da onunla birlikte küçülmeli.
-                PillFit.Wrap(action);
-            }
-            TMP_Text take = Text(rt, "Kabul", 27, TextAlignmentOptions.Center,
-                                 new Vector2(0.10f, 0.075f), new Vector2(0.90f, 0.225f));
+            // Not a Button: a second press target on the card would only duplicate the card's own.
+            Image accept = EkranKit.Sliced(rt, "Kabul", EkranKit.Get("btn_turuncu"),
+                                           new Vector2(0.60f, 0.20f), new Vector2(0.935f, 0.55f), true);
+            TMP_Text take = Text(accept.rectTransform, "Yazi", 26, TextAlignmentOptions.Center,
+                                 EkranKit.InlayMin, EkranKit.InlayMax);
             take.text = Loc.T("kontrat.kabul");
-            // Dark ink on the amber pill, paper on the blue and the red. Read off the art's own name
-            // rather than off the tier, so swapping which colour a tier gets cannot leave its label
-            // unreadable. Sampling the texture would be exact, but sprite atlases are not readable at
-            // runtime and the branch would only ever take the fallback.
-            take.color = pill == null ? tint
-                       : pill.name.IndexOf("sari") >= 0 ? (Color)new Color32(0x1B, 0x22, 0x3A, 0xFF)
-                       : (Color)new Color32(0xFA, 0xFC, 0xFF, 0xFF);
-        }
-
-        private static Image Plate(RectTransform parent, string name, Vector2 aMin, Vector2 aMax, Color color)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
-            Stretch(rt, aMin, aMax);
-            var image = go.GetComponent<Image>();
-            image.sprite = UiSkin.Flat;
-            image.type = Image.Type.Sliced;
-            image.color = color;
-            return image;
         }
 
         private void BuildStatus()
@@ -711,8 +635,15 @@ namespace Game.UI
             Stretch(root, Vector2.zero, Vector2.one);
             root.SetAsLastSibling();
 
-            _statusText = Text(root, "Yazi", 46, TextAlignmentOptions.Center,
-                               new Vector2(0.08f, 0.40f), new Vector2(0.92f, 0.62f));
+            // On the navy card, at the offer rows' own 868 x 300 and centred in the space under the
+            // ribbon, so the empty pier reads as a state of the same screen rather than one line of type
+            // floating on a bare sheet.
+            Image card = EkranKit.Sliced(root, "Kart", EkranKit.Get("kart_lacivert"),
+                                         new Vector2(0.055f, 0.330f), new Vector2(0.945f, 0.5205f), false);
+            _statusText = Text(card.rectTransform, "Yazi", 46, TextAlignmentOptions.Center,
+                               new Vector2(0.08f, 0.21f), new Vector2(0.92f, 0.79f));
+            _statusText.color = EkranKit.Paper;
+            _statusText.textWrappingMode = TextWrappingModes.Normal;   // two lines: the word, then the clock
             _statusRoot.SetActive(false);
         }
 
@@ -759,17 +690,14 @@ namespace Game.UI
             t.fontSizeMin = Mathf.Max(18f, size * 0.68f);
             t.fontSizeMax = size;
             t.alignment = align;
-            // The card art is near-white, so the ink is the authored card's own dark navy rather than the
-            // white every other floating label in this game uses. Taken off the card instead of hardcoded,
-            // so re-skinning the screen does not leave this half of it behind.
-            t.color = targetText != null ? targetText.color : new Color32(30, 43, 71, 255);
+            // Navy by default: the sheet, the cream inlay and the pale capsule are all near-white. Labels
+            // on the navy card set their own paper ink.
+            t.color = EkranKit.Ink;
             t.raycastTarget = false;      // the card under it is the tap target
             t.textWrappingMode = TextWrappingModes.NoWrap;
             t.overflowMode = TextOverflowModes.Ellipsis;
             return t;
         }
-
-        private static Color Dim(Color c, float alpha) => new Color(c.r, c.g, c.b, alpha);
 
         private static void Stretch(RectTransform rt, Vector2 aMin, Vector2 aMax)
         {

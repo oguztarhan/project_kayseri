@@ -8,10 +8,11 @@ namespace Game.UI
     /// <summary>
     /// The league screen's design kit: the 17-piece set in <c>Assets/UI DESİGNS/leaderboard ui</c>,
     /// trimmed, split and downscaled by <c>Tools/ui/lig_tasarim_kiti.ps1</c> into
-    /// <c>Art/UI/LigKiti</c> and packed into one page by <c>Resources/UI/Lig/LigKiti</c>. Only
-    /// <see cref="LadderUI"/> builds from it, which is why this holds no more than that screen asks
-    /// for — the sea kit's <see cref="SeaKit"/> is the same shape because the two screens have the
-    /// same problem, not because either is a base for the other.
+    /// <c>Art/UI/LigKiti</c> and packed into one page by <c>Resources/UI/Lig/LigKiti</c>.
+    /// <see cref="LadderUI"/> builds from it, and <see cref="EkranKit"/> lends its sheet, ribbon,
+    /// green capsule and gem to the contract, mining gear and events screens rather than packing a
+    /// second copy of each — the sea kit's <see cref="SeaKit"/> is the same shape because the screens
+    /// have the same problem, not because either is a base for the other.
     ///
     /// LOADED THROUGH THE ATLAS, NOT FROM RESOURCES, for the reason <see cref="SeaKit"/> records:
     /// the kit sits outside Resources so the build carries the packed page only, never the page and

@@ -17,7 +17,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &624053988603556479
 RectTransform:
   m_ObjectHideFlags: 0
@@ -345,6 +345,7 @@ GameObject:
   - component: {fileID: 8817329332323602723}
   - component: {fileID: 4435104177951321315}
   - component: {fileID: 9078522589815372903}
+  - component: {fileID: 6265288870194039929}
   m_Layer: 5
   m_Name: BtnBedava
   m_TagString: Untagged
@@ -399,7 +400,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: d3d039ae89997774ea4b139f1dc8fe25, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 8b6bf3273471d93408f1be2585d7eef9, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -453,6 +454,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &6265288870194039929
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1093810821391570091}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &1224983620907177256
 GameObject:
   m_ObjectHideFlags: 0
@@ -470,7 +483,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7009121803023451284
 RectTransform:
   m_ObjectHideFlags: 0
@@ -595,7 +608,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 59ca70d7f563583479a57078facb3bca, type: 3}
+  m_Sprite: {fileID: 21300000, guid: a390b163437dc9f46afd46e06b192152, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -661,6 +674,7 @@ GameObject:
   - component: {fileID: 4994392602095807202}
   - component: {fileID: 4560577573175076888}
   - component: {fileID: 8317470900481914434}
+  - component: {fileID: 3694205737705589206}
   m_Layer: 0
   m_Name: BtnHarita
   m_TagString: Untagged
@@ -715,7 +729,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: bc6d6ae7e1b4e8b4eb2708917d86cc4e, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 739557088080a7040ab9b7dd288ef099, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -769,6 +783,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &3694205737705589206
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1413091522792344444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &1523960458622261387
 GameObject:
   m_ObjectHideFlags: 0
@@ -918,6 +944,7 @@ GameObject:
   - component: {fileID: 7064247100236875055}
   - component: {fileID: 5960114925561788993}
   - component: {fileID: 5463706685346437783}
+  - component: {fileID: 1833587958488565809}
   m_Layer: 0
   m_Name: PillElmas
   m_TagString: Untagged
@@ -1029,6 +1056,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1833587958488565809
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1992288138614122952}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &2513222716168324524
 GameObject:
   m_ObjectHideFlags: 0
@@ -1041,6 +1080,7 @@ GameObject:
   - component: {fileID: 9223223155704551521}
   - component: {fileID: 420440025133902457}
   - component: {fileID: 3443428803239149448}
+  - component: {fileID: 6966224887846954735}
   m_Layer: 0
   m_Name: BtnAyarlar
   m_TagString: Untagged
@@ -1095,7 +1135,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 3cbb3296039267e439926e36ddfd1d6e, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 8daac18246da43642a0c7ba8e47139c8, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -1149,6 +1189,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &6966224887846954735
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2513222716168324524}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &2739408526774961995
 GameObject:
   m_ObjectHideFlags: 0
@@ -1198,6 +1250,7 @@ GameObject:
   - component: {fileID: 4639483987563095951}
   - component: {fileID: 7044988402676844523}
   - component: {fileID: 209599231393896814}
+  - component: {fileID: 5443041754410842710}
   m_Layer: 0
   m_Name: BtnTeklif
   m_TagString: Untagged
@@ -1253,7 +1306,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8bd5100343c730940bb1f66e83047ec0, type: 3}
+  m_Sprite: {fileID: 21300000, guid: e8508c5b53b1a1042824b18ca712b201, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -1307,6 +1360,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &5443041754410842710
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2857910757213471619}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &3033496743029127219
 GameObject:
   m_ObjectHideFlags: 0
@@ -1521,6 +1586,7 @@ GameObject:
   - component: {fileID: 8447723688868208741}
   - component: {fileID: 1273261310821938474}
   - component: {fileID: 2188336910348940341}
+  - component: {fileID: 4839824134515796476}
   m_Layer: 0
   m_Name: BtnGunluk
   m_TagString: Untagged
@@ -1575,7 +1641,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 72c6f03c4dd080540944038c8f5094ac, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d0b9e82e53a6997429f6f815613823ac, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -1629,6 +1695,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &4839824134515796476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3707321832550102922}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &3950838102545840699
 GameObject:
   m_ObjectHideFlags: 0
@@ -1749,6 +1827,7 @@ GameObject:
   - component: {fileID: 4068784355204961074}
   - component: {fileID: 8645570391395531310}
   - component: {fileID: 83218880010614195}
+  - component: {fileID: 882644733523833886}
   m_Layer: 0
   m_Name: PillAltin
   m_TagString: Untagged
@@ -1860,6 +1939,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &882644733523833886
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3960602322173910393}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &4075804457615012845
 GameObject:
   m_ObjectHideFlags: 0
@@ -1872,6 +1963,7 @@ GameObject:
   - component: {fileID: 5722048416354965868}
   - component: {fileID: 3422039328439777248}
   - component: {fileID: 8797148836068495766}
+  - component: {fileID: 4496686113622756284}
   m_Layer: 0
   m_Name: BtnYukselt
   m_TagString: Untagged
@@ -1926,7 +2018,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 9a651855f16d8af48a59d6454e9c9be6, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 41a45f0b20ed0604a97f338027ba9fc5, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -1980,6 +2072,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &4496686113622756284
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4075804457615012845}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &5336138683054144596
 GameObject:
   m_ObjectHideFlags: 0
@@ -1997,7 +2101,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &4119757575986495272
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2325,6 +2429,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9926a4f0b6037304488f4f9711ca0ec7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.HudUI
+  compactShipyardHud: 1
   goldValue: {fileID: 291868371051772653}
   gemsValue: {fileID: 8832452208745934293}
   rateValue: {fileID: 7766570725324934674}
@@ -2341,6 +2446,11 @@ MonoBehaviour:
   contractButton: {fileID: 2038465044303331199}
   contractTimerValue: {fileID: 7246902634116294962}
   adButton: {fileID: 9078522589815372903}
+  balloonIcon: {fileID: 0}
+  balloonCashMinutes: 5
+  balloonCashFloor: 100
+  balloonDiamondChance: 0.1
+  balloonDiamondAmount: 10
   boostIndicator: {fileID: 5822438389756131003}
   boostValue: {fileID: 8398530136616297070}
   shieldIndicator: {fileID: 6521390068616323707}
@@ -2351,6 +2461,12 @@ MonoBehaviour:
   - {fileID: 757886399648465747}
   - {fileID: 6473718541971702952}
   bottomPitch: 195
+  sideRail: 1
+  railOnLeft: 1
+  railInset: 105
+  railTopReserve: 400
+  railPitch: 162
+  safeAreaMargin: 24
   upgradeButton: {fileID: 8797148836068495766}
   boostButton: {fileID: 5556939763442564306}
   boostButtonImage: {fileID: 661646733631015625}
@@ -2367,6 +2483,9 @@ MonoBehaviour:
   counterPunch: 0.16
   counterPunchSeconds: 0.28
   gemRollSpeed: 5.5
+  moreScrimColor: {r: 0.04, g: 0.05, b: 0.08, a: 0.92}
+  moreSheetColor: {r: 0.15, g: 0.18, b: 0.26, a: 1}
+  moreRowColor: {r: 0.22, g: 0.26, b: 0.36, a: 1}
 --- !u!114 &155517441795628633
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2388,7 +2507,7 @@ MonoBehaviour:
   pipOn: {fileID: 21300000, guid: 5d5f19413de43274a9c6f368d6227e46, type: 3}
   pipOff: {fileID: 21300000, guid: 692c1467bea57064ea33e3176a0119fd, type: 3}
   worldPin: {fileID: 21300000, guid: 217103a8ee5834c4ca5e803a13a2c28c, type: 3}
-  tapHand: {fileID: 0}
+  tapHand: {fileID: 21300000, guid: cabfe808cb8b7324a8e2073e0f0aa400, type: 3}
   font: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
   narratorWelcome: {fileID: 21300000, guid: f1138cd686d94f088df5098c7b847dc9, type: 3}
   narratorFirstEntry: {fileID: 21300000, guid: 58bf8233ec774d488d0d35d608589d4f, type: 3}
@@ -2641,7 +2760,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 28.7
+  m_fontSize: 27.4
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -2698,6 +2817,7 @@ GameObject:
   - component: {fileID: 3198902228162460009}
   - component: {fileID: 6118275882921260665}
   - component: {fileID: 6158537227682836556}
+  - component: {fileID: 8166390767796499385}
   m_Layer: 0
   m_Name: BtnMagaza
   m_TagString: Untagged
@@ -2752,7 +2872,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: b61e7899a16e4a441a443836907f7e32, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 1d2a86f4bdd65c24db83375b74df811e, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -2806,6 +2926,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &8166390767796499385
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6490130986959889641}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &6521390068616323707
 GameObject:
   m_ObjectHideFlags: 0
@@ -2975,7 +3107,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1612377754407772663
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3045,6 +3177,7 @@ GameObject:
   - component: {fileID: 2302895783644185397}
   - component: {fileID: 4367476897491207874}
   - component: {fileID: 2038465044303331199}
+  - component: {fileID: 3910770858964157311}
   m_Layer: 5
   m_Name: BtnKontrat
   m_TagString: Untagged
@@ -3100,7 +3233,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: d0abe64e5aec3d24c96def9ee73ac337, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 26afb82c230348a4da109be87f2b5fb4, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -3154,6 +3287,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &3910770858964157311
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8226470438692590780}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
 --- !u!1 &8450307175196535968
 GameObject:
   m_ObjectHideFlags: 0
@@ -3186,10 +3331,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 5466201657630565366}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0.38, y: 0.2}
+  m_AnchorMax: {x: 0.87, y: 0.82}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -156, y: -70}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2610253273307263118
 CanvasRenderer:
@@ -3228,8 +3373,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4283708179
+  m_fontColor: {r: 0.07450981, g: 0.2, b: 0.32941177, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -3250,8 +3395,8 @@ MonoBehaviour:
   m_fontSizeBase: 44
   m_fontWeight: 400
   m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_fontSizeMin: 24
+  m_fontSizeMax: 40
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
@@ -3460,10 +3605,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 2127016224982742091}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 60, y: 0}
-  m_SizeDelta: {x: -168, y: -70}
+  m_AnchorMin: {x: 0.38, y: 0.2}
+  m_AnchorMax: {x: 0.87, y: 0.82}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2231121899277666772
 CanvasRenderer:
@@ -3502,8 +3647,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4283708179
+  m_fontColor: {r: 0.07450981, g: 0.2, b: 0.32941177, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -3524,8 +3669,8 @@ MonoBehaviour:
   m_fontSizeBase: 44
   m_fontWeight: 400
   m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
+  m_fontSizeMin: 24
+  m_fontSizeMax: 40
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
