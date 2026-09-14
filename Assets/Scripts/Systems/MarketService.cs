@@ -78,6 +78,57 @@ namespace Game.Systems
 
         private readonly Dictionary<string, Yard> _yards = new Dictionary<string, Yard>();
         private readonly List<Yard> _order = new List<Yard>();   // stable iteration without allocating
+        private MiningShopService _miningShop;
+
+        public MiningShopService MiningShop => _miningShop;
+        public event Action<MiningShopSimulation.Sale> MiningShopSold;
+
+        /// <summary>
+        /// Explicit package-2 entry point. Selects one saved business; does not infer unlocks or remap ore stock.
+        /// Existing GameBootstrap.Market.Tick is its only clock. No scene/animation should advance it.
+        /// </summary>
+        public MiningShopService OpenMiningShop(MiningShopCampaign campaign, string businessId,
+            MiningShopSimulation.Tuning tuning, SaveService save = null)
+        {
+            if (_data == null || _wallet == null) throw new InvalidOperationException("Load save and wallet before the mining shop.");
+            if (campaign == null || !campaign.TryGet(businessId, out _))
+                throw new ArgumentException("Mining shop requires an authored business ID.");
+            if (_miningShop != null)
+            {
+                if (_miningShop.View.BusinessId == businessId) return _miningShop;
+                throw new InvalidOperationException("Cross-business switching belongs to the later progression package.");
+            }
+            tuning.Validate();
+            MiningShopState state = null;
+            if (_data.miningShopBusinesses == null) _data.miningShopBusinesses = new List<MiningShopState>();
+            for (int i = 0; i < _data.miningShopBusinesses.Count; i++)
+            {
+                var candidate = _data.miningShopBusinesses[i];
+                if (candidate == null || candidate.BusinessId != businessId) continue;
+                if (state != null) throw new InvalidOperationException("Duplicate mining-shop business records.");
+                state = candidate;
+            }
+            bool created = state == null;
+            if (created) state = new MiningShopState { BusinessId = businessId };
+            var shop = new MiningShopService(state, tuning, _wallet, save, _data, PayMiningShopSale);
+            if (created) _data.miningShopBusinesses.Add(state);
+            _data.activeMiningShopBusinessId = businessId;
+            // Offline earnings are intentionally not inferred from this new foreground-only slice.
+            // Do not leave the legacy ore rate behind to pay unrelated coins on the next launch.
+            _data.incomeRatePerSec = 0d;
+            _accum = 0f;
+            _miningShop = shop;
+            save?.Save(_data);
+            return shop;
+        }
+
+        private void PayMiningShopSale(MiningShopSimulation.Sale sale)
+        {
+            // Core has removed the service item and advanced its receipt sequence before notifications.
+            // Wallet and shop live in the same save snapshot; reload cannot replay an already sold item.
+            _wallet.AddCash(new BigDouble(sale.Cash));
+            MiningShopSold?.Invoke(sale);
+        }
 
         private string _activeIsland;    // the one whose trucks are really driving; null in the market scene
         private string _simulatedYard;   // the one being acted out on screen; null when nobody is in the hall
@@ -213,6 +264,7 @@ namespace Game.Systems
         /// </summary>
         public double Deliver(string islandKey, string productId, double bars)
         {
+            if (_data != null && !string.IsNullOrEmpty(_data.activeMiningShopBusinessId)) return 0d;
             if (bars <= 0d || string.IsNullOrEmpty(islandKey)) return 0d;
             Yard y = Get(islandKey);
             MarketProductStock p = ProductRow(y);
@@ -432,6 +484,13 @@ namespace Game.Systems
         public void Tick(float deltaTime)
         {
             if (_data == null || _wallet == null) return;
+            if (!string.IsNullOrEmpty(_data.activeMiningShopBusinessId))
+            {
+                // Fail closed until this saved business is rebound. Never resume the ore payout by accident.
+                _data.incomeRatePerSec = 0d;
+                _miningShop?.Advance(deltaTime);
+                return;
+            }
             _accum += deltaTime;
             if (_accum < TickSeconds) return;
             double seconds = _accum;
@@ -590,6 +649,7 @@ namespace Game.Systems
         public void SettleOffline(long elapsedSeconds)
         {
             if (elapsedSeconds <= 0L || _data == null) return;
+            if (!string.IsNullOrEmpty(_data.activeMiningShopBusinessId)) return;
             for (int i = 0; i < _order.Count; i++)
             {
                 Yard y = _order[i];

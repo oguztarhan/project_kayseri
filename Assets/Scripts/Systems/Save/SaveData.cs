@@ -15,6 +15,9 @@ namespace Game.Systems
         // enters the portrait presentation without changing any legacy progression collection.
         public bool UsePortraitShipyard = true;
         public ShipyardProgression shipyard = new ShipyardProgression();
+        // Additive mining-shop records. Legacy ore stock/chapters and captain equipment retain their IDs.
+        public string activeMiningShopBusinessId = "";
+        public List<MiningShopState> miningShopBusinesses = new List<MiningShopState>();
         public int version = SaveMigration.CurrentVersion;  // stamped on write; a mismatch on load
                                                             // wipes the run — see SaveMigration
         // One-time, non-destructive retirement of prestige. Existing investors become this frozen

@@ -441,6 +441,8 @@ namespace Game.Gameplay
                  "dökümhanede 'strong', depo ve limanda 'stout', çarşı ve kasabada 'normal'.\n\n" +
                  "Boş bırakılırsa yukarıdaki tek workerPrefab kullanılır ve istasyonlarda kimse durmaz.")]
         [SerializeField] private GameObject[] workerPrefabs;
+        /// <summary>The people pack this island's walkers are dressed from. Read-only for other views.</summary>
+        public GameObject[] WorkerPrefabs => workerPrefabs;
         [SerializeField] private GameObject smokePuffPrefab;
         [SerializeField] private float workerScale = 2.2f;
         [SerializeField] private int maxWorkers = 8;

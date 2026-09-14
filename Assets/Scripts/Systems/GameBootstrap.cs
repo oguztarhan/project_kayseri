@@ -60,6 +60,14 @@ namespace Game.Systems
         [SerializeField] private string mainSceneName = "Main";
         [Tooltip("Portrait shipyard presentation. The saved UsePortraitShipyard switch chooses this or Main.")]
         [SerializeField] private string portraitSceneName = "Shipyard";
+        [Tooltip("Maden dükkânı Main ekranında oynanır: yeni ve eski kayıtlar Main'e açılır, ilk işletme açılır. " +
+                 "Kapalıyken açılış bugünkü gibidir.")]
+        [SerializeField] private bool miningShopOnMain = true;
+        [Tooltip("İşletme sırası. Boş bırakılırsa varsayılan 7/6/9 bölümle ÇALIŞIR.")]
+        [SerializeField] private MiningShopCampaignConfig miningShopCampaign;
+        [Tooltip("Kazma tezgâhı süreleri ve fiyatı. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
+        [SerializeField] private MiningShopConfig miningShopConfig;
+        [SerializeField] private string miningShopBusinessId = "mining-shop.island-01-01";
         [SerializeField] private bool loadMainOnStart = true;
         [Tooltip("Boşsa Main tek karede yüklenir ve açılış görseli görünmez.")]
         [SerializeField] private LoadingScreen loadingScreen;
@@ -228,6 +236,11 @@ namespace Game.Systems
             // captain whose level is parked there. Only a save off disk can be carrying the old
             // numbering. No save-version bump: this update must preserve progression.
             if (hadSave && SaveMigration.RecastCaptainRoster(Data)) Save.Save(Data);
+
+            // The mining shop is played on Main, for a fresh install as much as an existing save. Turned
+            // through the supported switch so the shipyard payload is kept, and before the portrait
+            // services below decide whether to register.
+            if (miningShopOnMain && ShipyardFeatureSwitch.Set(Data, false)) Save.Save(Data);
             ServiceLocator.Register(Data);
 
             Clock = new GameClock(ticksPerSecond);
@@ -463,6 +476,9 @@ namespace Game.Systems
             Offline = new OfflineReport();
             ServiceLocator.Register(Offline);
             GrantOffline();
+            // After the grant: the absence that ended with this launch is still paid once from the legacy
+            // rate. Opening the shop zeroes that rate, so no later launch pays it again.
+            if (miningShopOnMain) OpenMiningShop();
 
             // Prices the first ship's offers off the rate the last session persisted, so a returning
             // empire is not offered a $500 job while the live income meter is still reading zero.
@@ -518,6 +534,19 @@ namespace Game.Systems
             // yards themselves forward through the same absence — no cash, just stock — so an
             // unstaffed market is found buried on the next launch and a maxed one is found clear.
             Market?.SettleOffline(elapsed);
+        }
+
+        private void OpenMiningShop()
+        {
+            MiningShopCampaignConfig campaign = miningShopCampaign != null
+                ? miningShopCampaign : ScriptableObject.CreateInstance<MiningShopCampaignConfig>();
+            MiningShopConfig shop = miningShopConfig != null
+                ? miningShopConfig : ScriptableObject.CreateInstance<MiningShopConfig>();
+            // A record the shop refuses (corrupt or duplicated) is left exactly as it is on disk: the game
+            // starts without the shop rather than resetting someone's business.
+            try { Market.OpenMiningShop(campaign.CreateCampaign(), miningShopBusinessId, shop.ToTuning(), Save); }
+            catch (ArgumentException e) { Debug.LogError("[MiningShop] not opened: " + e.Message); }
+            catch (InvalidOperationException e) { Debug.LogError("[MiningShop] not opened: " + e.Message); }
         }
 
         private void Start()
