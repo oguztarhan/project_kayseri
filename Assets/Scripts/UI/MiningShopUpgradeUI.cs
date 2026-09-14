@@ -8,17 +8,28 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The pickaxe bench's compact panel: tap the bench, buy speed or value. Spends only through
-    /// <see cref="MiningShopService.TryBuyUpgrade"/>. Also turns the opening island shot onto the shop once
-    /// the island camera has framed itself.
+    /// The benches' compact panel: tap a built bench to buy its speed or value, tap an offered line's locked pad to
+    /// build that bench. Spends only through <see cref="MiningShopBusinessService"/>. Also turns the opening island
+    /// shot onto the shop once the island camera has framed itself.
     /// </summary>
     [RequireComponent(typeof(MiningShopView))]
     public sealed class MiningShopUpgradeUI : MonoBehaviour
     {
         [Tooltip("Badges 90, juice 95, HUD 100.")]
         [SerializeField] private int sortingOrder = 96;
-        [Tooltip("Opening camera distance from the shop, along the island camera's own view direction.")]
-        [SerializeField] private float shopViewDistance = 650f;
+        [Tooltip("Slack around the shop when the opening camera fits it to the screen. 1 = edge to edge.")]
+        [SerializeField, Min(1f)] private float shopFitMargin = 1.15f;
+        [Tooltip("Shop raised on screen by this share of the view height, clear of the bench panel below it.")]
+        [SerializeField] private float shopScreenLift = 0.08f;
+        [Tooltip("Downward tilt of the shop shot. Steeper than the island shot so the market roof does not hide the loop.")]
+        [SerializeField, Range(40f, 89f)] private float shopPitch = 72f;
+        [Tooltip("Screen width the HUD's left button rail covers. The shop is fitted into the width between the rails.")]
+        [SerializeField, Range(0f, 0.4f)] private float hudLeftFraction = 0.15f;
+        [Tooltip("Screen width the HUD's right-hand buttons cover.")]
+        [SerializeField, Range(0f, 0.4f)] private float hudRightFraction = 0.12f;
+        [Tooltip("World size of the small Craft / Stock / Sell signs. Kept secondary to the people and goods.")]
+        [SerializeField] private float signScale = 0.22f;
+        [SerializeField] private Color signColor = Color.white;
         [SerializeField] private float tapSlopPixels = 24f;
         [SerializeField] private float refreshSeconds = 0.25f;
         [SerializeField] private Vector2 panelMin = new Vector2(0.06f, 0.17f);
@@ -27,8 +38,17 @@ namespace Game.UI
         [SerializeField] private Color buyColor = new Color(0.22f, 0.62f, 0.3f);
         [SerializeField] private Color closeColor = new Color(0.35f, 0.35f, 0.38f);
 
+        /// <summary>Panel titles in MiningShopCampaign.ProductIdAt order.</summary>
+        private static readonly string[] TitleKeys =
+        {
+            "maden_dukkani.kazma_tezgahi", "maden_dukkani.kask_tezgahi",
+            "maden_dukkani.fener_tezgahi", "maden_dukkani.canta_tezgahi"
+        };
+
         private MiningShopView _view;
-        private MiningShopService _shop;
+        private MiningShopBusinessService _shop;
+        private int _product;
+        private Text _title;
         private WalletService _wallet;
         private OperationCameraBoot _boot;
         private CameraController _cameraController;
@@ -48,7 +68,7 @@ namespace Game.UI
         private void Start()
         {
             MarketService market = ServiceLocator.Get<MarketService>();
-            _shop = market != null ? market.MiningShop : null;
+            _shop = market != null ? market.MiningShopBusiness : null;
             _wallet = ServiceLocator.Get<WalletService>();
             if (_shop == null || _wallet == null) { enabled = false; return; }
 
@@ -85,19 +105,64 @@ namespace Game.UI
         {
             if (_view.TableCollider == null || _camera == null) return;
             if (_boot != null && !_boot.Framed) return;
-            Quaternion rot = _camera.transform.rotation;
-            Vector3 pos = _view.Focus - rot * Vector3.forward * shopViewDistance;
-            if (_cameraController != null) _cameraController.FrameTo(pos, rot, shopViewDistance);
+            Bounds shop = _view.ShopBounds;
+            Quaternion rot = Quaternion.Euler(shopPitch, _camera.transform.eulerAngles.y, 0f);
+            float vTan = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            float hTan = vTan * Mathf.Max(0.1f, _camera.aspect);
+            // Portrait runs out of width first, and the HUD rails take some of it; ground depth is
+            // foreshortened by the pitch.
+            float usable = Mathf.Max(0.2f, 1f - hudLeftFraction - hudRightFraction);
+            float pitchDepth = Mathf.Abs((rot * Vector3.forward).y);
+            float dist = Mathf.Max(shop.extents.x / (hTan * usable), shop.extents.z * pitchDepth / vTan) * shopFitMargin;
+            // Camera left moves the shop right: centre it between the rails, then lift it clear of the panel.
+            Vector3 pos = shop.center - rot * Vector3.forward * dist
+                        - rot * Vector3.right * ((hudLeftFraction - hudRightFraction) * dist * hTan)
+                        - rot * Vector3.up * (shopScreenLift * 2f * dist * vTan);
+            if (_cameraController != null) _cameraController.FrameTo(pos, rot, dist);
             else _camera.transform.SetPositionAndRotation(pos, rot);
             _framed = true;
+            BuildSigns(rot);
+        }
+
+        /// <summary>
+        /// One static world-space canvas of station names, turned to the shop camera. From a phone's distance a
+        /// table, a pallet and a counter are just shapes; the names are what make the loop readable.
+        /// </summary>
+        private void BuildSigns(Quaternion facing)
+        {
+            var go = new GameObject("MiningShopSigns", typeof(RectTransform), typeof(Canvas));
+            go.transform.SetParent(transform, false);
+            go.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+            var canvas = (RectTransform)go.transform;
+            // Craft and Sell sit above heads. Stock stays low (at the shop pitch a tall sign over the rack lands on the
+            // table behind it) and on the rack's outer side, away from the carrier's route out of it.
+            Sign(canvas, "Shop_Pickaxe_Work", new Vector3(0f, 95f, 0f), "maden_dukkani.uret", facing);
+            Sign(canvas, "Shop_Pickaxe_Output", new Vector3(24f, 22f, 0f), "maden_dukkani.stok", facing);
+            Sign(canvas, "Shop_Market_Shelf", new Vector3(0f, 55f, 0f), "maden_dukkani.sat", facing);
+        }
+
+        private void Sign(RectTransform canvas, string anchor, Vector3 offset, string key, Quaternion facing)
+        {
+            Transform at = _view.transform.Find(anchor);
+            if (at == null) return;
+            Text label = UiBuild.Label(canvas, "Sign", Loc.T(key), 48, TextAnchor.MiddleCenter);
+            label.color = signColor;
+            label.gameObject.AddComponent<Outline>().effectDistance = new Vector2(3f, -3f);
+            RectTransform rt = label.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(700f, 80f);
+            rt.SetPositionAndRotation(at.position + offset, facing);
+            rt.localScale = Vector3.one * signScale;
         }
 
         private void TapWorld(Vector2 screen)
         {
             if (_camera == null || _view.TableCollider == null) return;
             if (!Physics.Raycast(_camera.ScreenPointToRay(screen), out RaycastHit hit, _camera.farClipPlane)) return;
-            if (hit.collider != _view.TableCollider) return;
-            bool open = !_panel.gameObject.activeSelf;
+            if (!_view.TryGetProduct(hit.collider, out int product, out _)) return;
+            // Tapping the bench whose panel is already open closes it; any other bench switches to that one.
+            bool open = !(_panel.gameObject.activeSelf && product == _product);
+            _product = product;
             _panel.gameObject.SetActive(open);
             if (open) Refresh();
         }
@@ -107,42 +172,67 @@ namespace Game.UI
             RectTransform canvas = UiBuild.Canvas(transform, "MiningShopCanvas", sortingOrder);
             _panel = UiBuild.Box(canvas, "BenchPanel", panelColor, panelMin, panelMax);
 
-            Text title = UiBuild.Label(_panel, "Title", Loc.T("maden_dukkani.kazma_tezgahi"), 44, TextAnchor.MiddleLeft);
-            UiBuild.Anchor(title.rectTransform, new Vector2(0.05f, 0.72f), new Vector2(0.8f, 0.95f));
+            _title = UiBuild.Label(_panel, "Title", Loc.T(TitleKeys[0]), 44, TextAnchor.MiddleLeft);
+            UiBuild.Anchor(_title.rectTransform, new Vector2(0.05f, 0.72f), new Vector2(0.8f, 0.95f));
             _summary = UiBuild.Label(_panel, "Summary", string.Empty, 32, TextAnchor.MiddleLeft);
             UiBuild.Anchor(_summary.rectTransform, new Vector2(0.05f, 0.5f), new Vector2(0.95f, 0.7f));
 
-            Button close = UiBuild.Btn(_panel, "Close", "X", null, closeColor, 40, () => _panel.gameObject.SetActive(false));
+            // Skinned sprites: with a skin wired, Btn leaves the image white, and a white label on the flat
+            // fallback sprite disappears.
+            Button close = UiBuild.Btn(_panel, "Close", "X", UiSkin.ButtonGrey, closeColor, 40, () => _panel.gameObject.SetActive(false));
             UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.86f, 0.74f), new Vector2(0.97f, 0.95f));
 
-            _speed = UiBuild.Btn(_panel, "Speed", string.Empty, null, buyColor, 32, () => Buy(true));
+            _speed = UiBuild.Btn(_panel, "Speed", string.Empty, UiSkin.ButtonGreen, buyColor, 32, () => Buy(true));
             UiBuild.Anchor((RectTransform)_speed.transform, new Vector2(0.04f, 0.07f), new Vector2(0.49f, 0.45f));
             _speedText = _speed.GetComponentInChildren<Text>();
-            _value = UiBuild.Btn(_panel, "Value", string.Empty, null, buyColor, 32, () => Buy(false));
+            _value = UiBuild.Btn(_panel, "Value", string.Empty, UiSkin.ButtonGreen, buyColor, 32, () => Buy(false));
             UiBuild.Anchor((RectTransform)_value.transform, new Vector2(0.51f, 0.07f), new Vector2(0.96f, 0.45f));
             _valueText = _value.GetComponentInChildren<Text>();
 
             _panel.gameObject.SetActive(false);
         }
 
+        /// <summary>A built bench buys the chosen upgrade; an offered, unbuilt bench is built.</summary>
         private void Buy(bool speed)
         {
-            _shop.TryBuyUpgrade(speed);
+            if (_shop.View.ProductAt(_product).TableBuilt) _shop.TryBuyUpgrade(_product, speed);
+            else _shop.TryBuildTable(_product);
             Refresh();
         }
 
         private void Refresh()
         {
-            MiningShopSimulation.Snapshot v = _shop.View;
-            _summary.text = string.Format(Loc.T("maden_dukkani.ozet"), _shop.CraftSeconds.ToString("0.0"),
-                NumberFormatter.Format(new BigDouble(_shop.UnitPrice)), v.Sold);
-            Track(_speed, _speedText, "maden_dukkani.hiz", v.SpeedLevel, _shop.UpgradeCost(true), v.PendingSeconds);
-            Track(_value, _valueText, "maden_dukkani.deger", v.ValueLevel, _shop.UpgradeCost(false), v.PendingSeconds);
+            MiningShopBusinessSimulation.Snapshot v = _shop.View;
+            MiningShopBusinessSimulation.ProductSnapshot product = v.ProductAt(_product);
+            _title.text = Loc.T(TitleKeys[_product]);
+            _summary.text = string.Format(Loc.T("maden_dukkani.ozet"), _shop.CraftSeconds(_product).ToString("0.0"),
+                NumberFormatter.Format(new BigDouble(_shop.UnitPrice(_product))), product.Sold);
+
+            if (product.TableBuilt)
+            {
+                _value.gameObject.SetActive(true);
+                Track(_speed, _speedText, string.Format(Loc.T("maden_dukkani.hiz"), product.SpeedLevel),
+                      _shop.UpgradeCost(_product, true), v.PendingSeconds);
+                Track(_value, _valueText, string.Format(Loc.T("maden_dukkani.deger"), product.ValueLevel),
+                      _shop.UpgradeCost(_product, false), v.PendingSeconds);
+                return;
+            }
+
+            // An offered bench not yet built: one build button, usable only for the next bench in order.
+            _value.gameObject.SetActive(false);
+            string build = Loc.T("maden_dukkani.tezgah_kur");
+            bool next = _product > 0 && _product < v.AvailableProductCount && v.ProductAt(_product - 1).TableBuilt;
+            if (!next)
+            {
+                _speedText.text = build;
+                _speed.interactable = false;
+                return;
+            }
+            Track(_speed, _speedText, build, _shop.TableCost(_product), v.PendingSeconds);
         }
 
-        private void Track(Button button, Text label, string key, int level, double cost, double pending)
+        private void Track(Button button, Text label, string name, double cost, double pending)
         {
-            string name = string.Format(Loc.T(key), level);
             if (cost <= 0d)
             {
                 label.text = name + "\n" + Loc.T("maden_dukkani.maks");

@@ -467,6 +467,10 @@ MonoBehaviour:
   adsConfig: {fileID: 11400000, guid: 50a22a07e7c8b4bf5a06fc25ae3f2915, type: 2}
   mainSceneName: Main
   portraitSceneName: Shipyard
+  miningShopOnMain: 1
+  miningShopCampaign: {fileID: 0}
+  miningShopConfig: {fileID: 0}
+  miningShopBusinessId: mining-shop.island-01-01
   loadMainOnStart: 1
   loadingScreen: {fileID: 310829363}
   notificationTestSpacingSeconds: 0

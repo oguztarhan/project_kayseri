@@ -544,7 +544,9 @@ namespace Game.Systems
                 ? miningShopConfig : ScriptableObject.CreateInstance<MiningShopConfig>();
             // A record the shop refuses (corrupt or duplicated) is left exactly as it is on disk: the game
             // starts without the shop rather than resetting someone's business.
-            try { Market.OpenMiningShop(campaign.CreateCampaign(), miningShopBusinessId, shop.ToTuning(), Save); }
+            // The four-product business. An existing pickaxe-only record is copied into its first line once, by
+            // the business model itself; the flat record is never cleared.
+            try { Market.OpenMiningShopBusiness(campaign.CreateCampaign(), miningShopBusinessId, shop.ToBusinessTuning(), Save); }
             catch (ArgumentException e) { Debug.LogError("[MiningShop] not opened: " + e.Message); }
             catch (InvalidOperationException e) { Debug.LogError("[MiningShop] not opened: " + e.Message); }
         }

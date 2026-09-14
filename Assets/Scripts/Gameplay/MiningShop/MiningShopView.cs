@@ -5,11 +5,13 @@ using UnityEngine;
 namespace Game.Gameplay
 {
     /// <summary>
-    /// The pickaxe business drawn on Main: bench, rack, carrier, shelf and customers.
+    /// The mining-gear business drawn on Main: one table and rack per product line (pickaxe, helmet, lantern, bag),
+    /// one shared carrier, one shared shelf and one customer queue.
     ///
-    /// Everything shown is read from <see cref="MarketService.MiningShop"/>'s snapshot every frame, and the
+    /// Everything shown is read from <see cref="MarketService.MiningShopBusiness"/>'s snapshot every frame, and the
     /// only event it listens to is the sale receipt, to send the served customer away. It never advances the
-    /// business, moves goods or pays: bodies follow the numbers, the numbers never wait for bodies.
+    /// business, moves goods or pays: bodies follow the numbers, the numbers never wait for bodies. A line the island
+    /// does not offer draws nothing; an offered line not yet built shows only its locked pad.
     ///
     /// Anchors are this object's empty children, found by name the way CoalOperation finds its stations.
     /// People come from CoalOperation's people pack; props from Resources/Market.
@@ -18,152 +20,267 @@ namespace Game.Gameplay
     {
         [SerializeField] private float personHeight = 55f;
         [SerializeField] private float pickaxeLength = 18f;
+        [Tooltip("Size of a carried item relative to one on a bench or rack.")]
+        [SerializeField, Range(0.3f, 1f)] private float carryScale = 0.75f;
+        [Tooltip("Size of an item on the shared shelf, where four products share the width.")]
+        [SerializeField, Range(0.3f, 1f)] private float shelfItemScale = 0.55f;
         [Tooltip("Longest side of each prop, world units. The source models have unrelated scales and pivots.")]
         [SerializeField] private float benchSize = 45f;
         [SerializeField] private float rackSize = 20f;
         [SerializeField] private float shelfSize = 60f;
+        [Tooltip("Helmet, lantern and bag tables share the islet's two narrow strips, so they are smaller than the pickaxe's.")]
+        [SerializeField] private float extraBenchScale = 0.7f;
         [Tooltip("Customers' walking pace, world units per second. View only; sales timing is the simulation's.")]
         [SerializeField] private float customerSpeed = 45f;
         [SerializeField, Min(2)] private int customerPool = 10;
-        [Tooltip("Most pickaxes drawn on a rack, shelf or carrier. The business may hold more; only the drawing stops.")]
+        [Tooltip("Most items drawn on a rack, shelf slot or carrier. The business may hold more; only the drawing stops.")]
         [SerializeField, Min(1)] private int stackShown = 4;
-        [SerializeField] private string routePath = "MiningShop_Routes/Carry_Pickaxe_to_Market";
         [Tooltip("Where a new customer appears, relative to the last queue slot.")]
         [SerializeField] private Vector3 customerEntryOffset = new Vector3(0f, 0f, 60f);
         [Tooltip("Where a served customer walks off to, relative to the serving slot.")]
         [SerializeField] private Vector3 customerExitOffset = new Vector3(100f, 0f, 0f);
         [SerializeField] private Color handleColor = new Color(0.45f, 0.28f, 0.14f);
         [SerializeField] private Color headColor = new Color(0.62f, 0.66f, 0.7f);
+        [SerializeField] private Color helmetColor = new Color(0.98f, 0.76f, 0.12f);
+        [SerializeField] private Color lanternColor = new Color(1f, 0.92f, 0.55f);
+        [SerializeField] private Color bagColor = new Color(0.36f, 0.22f, 0.12f);
+        [SerializeField] private Color padColor = new Color(0.85f, 0.85f, 0.8f);
+
+        /// <summary>Anchor and route names per product, in MiningShopCampaign.ProductIdAt order.</summary>
+        private static readonly string[] Names = { "Pickaxe", "Helmet", "Lantern", "Bag" };
 
         private sealed class Walker
         {
             public Transform body;
             public PersonAnimator anim;
-            public Transform held;
+            public Transform[] held;
+            public int heldProduct = -1;
             public Vector3 target;
             public Vector3 face;
             public bool leaving;
         }
 
+        private sealed class Line
+        {
+            public Transform work, output;
+            public GameObject table, rack, pad;
+            public Walker worker;
+            public Transform craft;
+            public Transform[] rackItems, shelfItems, cargo;
+            public Vector3[] route;
+            public float routeLength;
+            public Collider tableCollider, padCollider;
+        }
+
         private MarketService _market;
-        private MiningShopService _shop;
-        private Transform _work, _worker, _output, _shelf;
+        private MiningShopBusinessService _shop;
+        private Transform _shelf;
         private Transform[] _queue;
-        private Vector3[] _route;
-        private float _routeLength;
-        private Material _handleMat, _headMat;
-        private Transform _craftItem;
-        private Transform[] _rackItems, _shelfItems, _cargoItems;
+        private readonly Line[] _lines = new Line[MiningShopCampaign.ProductCount];
+        private Material _handleMat, _headMat, _helmetMat, _lanternMat, _bagMat, _padMat;
         private Walker _carrier;
+        private int _carrierLine;
         private Walker[] _customers;
         private int[] _waiting;
         private int _waitingCount;
         private int _serving = -1;
 
-        /// <summary>The bench's tap target. Null until the shop is built.</summary>
-        public Collider TableCollider { get; private set; }
+        /// <summary>The pickaxe bench's tap target, which the camera waits for. Null until the shop is built.</summary>
+        public Collider TableCollider => _lines[0] != null ? _lines[0].tableCollider : null;
 
-        /// <summary>Middle of the shop, for the camera.</summary>
-        public Vector3 Focus { get; private set; }
+        /// <summary>Everything the offered lines use — benches to the customers' entry — for the camera to fit.</summary>
+        public Bounds ShopBounds { get; private set; }
+
+        /// <summary>Which product a tapped collider belongs to, and whether it was that line's locked pad.</summary>
+        public bool TryGetProduct(Collider hit, out int product, out bool pad)
+        {
+            for (int i = 0; i < _lines.Length; i++)
+            {
+                Line line = _lines[i];
+                if (line == null || hit == null) continue;
+                if (hit == line.tableCollider || hit == line.padCollider)
+                {
+                    product = i;
+                    pad = hit == line.padCollider;
+                    return true;
+                }
+            }
+            product = -1;
+            pad = false;
+            return false;
+        }
 
         private void Awake()
         {
-            _work = transform.Find("Shop_Pickaxe_Work");
-            _worker = transform.Find("Shop_Pickaxe_Worker");
-            _output = transform.Find("Shop_Pickaxe_Output");
             _shelf = transform.Find("Shop_Market_Shelf");
             int slots = 0;
             while (transform.Find("Shop_Customer_Queue_0" + (slots + 1)) != null) slots++;
             _queue = new Transform[slots];
             for (int i = 0; i < slots; i++) _queue[i] = transform.Find("Shop_Customer_Queue_0" + (i + 1));
-
-            GameObject route = GameObject.Find(routePath);
-            if (route != null && route.transform.childCount >= 2)
-            {
-                _route = new Vector3[route.transform.childCount];
-                for (int i = 0; i < _route.Length; i++)
-                {
-                    _route[i] = route.transform.GetChild(i).position;
-                    if (i > 0) _routeLength += Vector3.Distance(_route[i - 1], _route[i]);
-                }
-            }
         }
 
         private void Start()
         {
             _market = ServiceLocator.Get<MarketService>();
-            _shop = _market != null ? _market.MiningShop : null;
+            _shop = _market != null ? _market.MiningShopBusiness : null;
             var op = FindAnyObjectByType<CoalOperation>();
             GameObject[] people = op != null ? op.WorkerPrefabs : null;
-            // Shop not opened this launch, or the scene is missing its anchors: draw nothing.
-            if (_shop == null || _work == null || _worker == null || _output == null || _shelf == null ||
-                _queue.Length == 0 || _route == null || people == null || people.Length == 0)
+            // Shop not opened this launch, or the scene is missing its shared anchors: draw nothing.
+            if (_shop == null || _shelf == null || _queue.Length == 0 || people == null || people.Length == 0 ||
+                transform.Find("Shop_Pickaxe_Work") == null || GameObject.Find(RoutePath(0)) == null)
             {
                 enabled = false;
                 return;
             }
 
-            GameObject bench = Place(Resources.Load<GameObject>("Market/Props/bench"), _work, benchSize);
-            Renderer benchRenderer = bench != null ? bench.GetComponentInChildren<Renderer>() : null;
-            if (benchRenderer == null) { enabled = false; return; }
-            TableCollider = TapTarget(bench);
-            GameObject rack = Place(Resources.Load<GameObject>("Market/Props/crate"), _output, rackSize);
             GameObject shelf = Place(Resources.Load<GameObject>("Market/Models/SM_Market_Shelf"), _shelf, shelfSize);
+            GameObject pallet = Resources.Load<GameObject>("Market/Props/pallet");
+            Renderer source = shelf != null ? shelf.GetComponentInChildren<Renderer>() : null;
+            if (source == null || pallet == null) { enabled = false; return; }
 
-            // ponytail: primitive pickaxe in two shared materials; swap for a modelled mesh when one is chosen.
-            _handleMat = Tinted(benchRenderer.sharedMaterial, handleColor);
-            _headMat = Tinted(benchRenderer.sharedMaterial, headColor);
+            // ponytail: primitive goods and tables in shared tinted materials; swap for modelled meshes when chosen.
+            _handleMat = Tinted(source.sharedMaterial, handleColor);
+            _headMat = Tinted(source.sharedMaterial, headColor);
+            _helmetMat = Tinted(source.sharedMaterial, helmetColor);
+            _lanternMat = Tinted(source.sharedMaterial, lanternColor);
+            _bagMat = Tinted(source.sharedMaterial, bagColor);
+            _padMat = Tinted(source.sharedMaterial, padColor);
 
-            _craftItem = Pickaxe(_work, new Vector3(0f, TopAbove(bench, _work), 0f));
-            _rackItems = Stack(_output, TopAbove(rack, _output), false);
-            _shelfItems = Stack(_shelf, TopAbove(shelf, _shelf), true);
-
-            Walker worker = Person(people, 0, _worker.position);
-            worker.body.rotation = _worker.rotation;
-            _carrier = Person(people, 1, _route[0]);
-            _cargoItems = new Transform[stackShown];
-            for (int i = 0; i < stackShown; i++)
-                _cargoItems[i] = Pickaxe(_carrier.body, Carried(i));
+            _carrier = Person(people, 1, Vector3.zero);
+            float shelfTop = TopAbove(shelf, _shelf);
+            MiningShopBusinessSimulation.Snapshot v = _shop.View;
+            var bounds = new Bounds(_shelf.position, Vector3.zero);
+            for (int p = 0; p < _lines.Length; p++)
+            {
+                Line line = BuildLine(p, people, pallet, shelfTop);
+                _lines[p] = line;
+                if (line == null || p >= v.AvailableProductCount) continue;
+                bounds.Encapsulate(line.work.position + Vector3.up * personHeight);
+                bounds.Encapsulate(line.output.position);
+            }
+            if (_lines[0] == null) { enabled = false; return; }
+            _carrier.body.position = _lines[0].route[0];
 
             _customers = new Walker[customerPool];
             _waiting = new int[customerPool];
             for (int i = 0; i < customerPool; i++)
             {
                 Walker w = Person(people, 2 + i, Slot(0));
-                w.held = Pickaxe(w.body, Carried(0));
+                w.held = new Transform[MiningShopCampaign.ProductCount];
+                for (int p = 0; p < w.held.Length; p++) w.held[p] = Carried(p, w.body, 0);
                 w.body.gameObject.SetActive(false);
                 _customers[i] = w;
             }
 
-            Focus = Vector3.Lerp(_work.position, _queue[0].position, 0.5f);
-            _market.MiningShopSold += OnSold;
+            for (int i = 0; i < _queue.Length; i++) bounds.Encapsulate(_queue[i].position);
+            bounds.Encapsulate(_queue[_queue.Length - 1].position + customerEntryOffset);
+            ShopBounds = bounds;
+            _market.MiningShopBusinessSold += OnSold;
         }
+
+        /// <summary>One product's table, rack, locked pad, goods and route. Null when its anchors are not authored.</summary>
+        private Line BuildLine(int p, GameObject[] people, GameObject pallet, float shelfTop)
+        {
+            Transform work = transform.Find("Shop_" + Names[p] + "_Work");
+            Transform output = transform.Find("Shop_" + Names[p] + "_Output");
+            GameObject routeRoot = GameObject.Find(RoutePath(p));
+            if (work == null || output == null || routeRoot == null || routeRoot.transform.childCount < 2) return null;
+
+            var line = new Line { work = work, output = output };
+            float size = p == 0 ? 1f : extraBenchScale;
+            line.table = Table(work, benchSize * size);
+            line.tableCollider = TapTarget(line.table);
+            line.rack = Place(pallet, output, rackSize * size);
+            line.craft = Item(p, work, new Vector3(0f, TopAbove(line.table, work), 0f));
+            float rackTop = TopAbove(line.rack, output);
+            line.rackItems = new Transform[stackShown];
+            line.shelfItems = new Transform[stackShown];
+            line.cargo = new Transform[stackShown];
+            // Four products share the shelf's width: each gets a quarter, its items stacked upwards.
+            float column = (p - (MiningShopCampaign.ProductCount - 1) * 0.5f) * shelfSize / MiningShopCampaign.ProductCount;
+            for (int i = 0; i < stackShown; i++)
+            {
+                line.rackItems[i] = Item(p, output, new Vector3(0f, rackTop + i * ItemHeight(p), 0f));
+                line.shelfItems[i] = Item(p, _shelf, new Vector3(column, shelfTop + i * ItemHeight(p) * shelfItemScale, 0f));
+                line.shelfItems[i].localScale = Vector3.one * shelfItemScale;
+                line.cargo[i] = Carried(p, _carrier.body, i);
+            }
+
+            Transform padAnchor = transform.Find("Shop_" + Names[p] + "_LockedPad");
+            if (padAnchor != null && p > 0)
+            {
+                line.pad = new GameObject("LockedPad");
+                line.pad.transform.SetParent(padAnchor, false);
+                Part(PrimitiveType.Cube, line.pad.transform, _padMat, new Vector3(0f, 1f, 0f),
+                     new Vector3(benchSize * size, 2f, benchSize * size * 0.6f));
+                line.padCollider = TapTarget(line.pad);
+            }
+
+            Transform workerAnchor = transform.Find("Shop_" + Names[p] + "_Worker");
+            if (workerAnchor != null)
+            {
+                line.worker = Person(people, 0, workerAnchor.position);
+                line.worker.body.rotation = workerAnchor.rotation;
+            }
+
+            Transform r = routeRoot.transform;
+            line.route = new Vector3[r.childCount];
+            for (int i = 0; i < line.route.Length; i++)
+            {
+                line.route[i] = r.GetChild(i).position;
+                if (i > 0) line.routeLength += Vector3.Distance(line.route[i - 1], line.route[i]);
+            }
+            return line;
+        }
+
+        private static string RoutePath(int p) => "MiningShop_Routes/Carry_" + Names[p] + "_to_Market";
 
         private void OnDestroy()
         {
-            if (_market != null) _market.MiningShopSold -= OnSold;
-            if (_handleMat != null) Destroy(_handleMat);
-            if (_headMat != null) Destroy(_headMat);
+            if (_market != null) _market.MiningShopBusinessSold -= OnSold;
+            DestroyMaterial(_handleMat); DestroyMaterial(_headMat); DestroyMaterial(_helmetMat);
+            DestroyMaterial(_lanternMat); DestroyMaterial(_bagMat); DestroyMaterial(_padMat);
+        }
+
+        private static void DestroyMaterial(Material m)
+        {
+            if (m != null) Destroy(m);
         }
 
         private void Update()
         {
-            MiningShopSimulation.Snapshot v = _shop.View;
+            MiningShopBusinessSimulation.Snapshot v = _shop.View;
+            for (int p = 0; p < _lines.Length; p++)
+            {
+                Line line = _lines[p];
+                if (line == null) continue;
+                MiningShopBusinessSimulation.ProductSnapshot product = v.ProductAt(p);
+                bool offered = p < v.AvailableProductCount;
+                bool built = offered && product.TableBuilt;
+                line.table.SetActive(built);
+                line.rack.SetActive(built);
+                if (line.worker != null) line.worker.body.gameObject.SetActive(built);
+                if (line.pad != null) line.pad.SetActive(offered && !built);
 
-            _craftItem.gameObject.SetActive(v.Crafting);
-            float craft = v.Crafting ? 1f - Frac(v.CraftRemaining, v.CraftDuration) : 0f;
-            _craftItem.localScale = Vector3.one * Mathf.Lerp(0.3f, 1f, craft);
-
-            // PickupReserved is still physically on the rack until loading completes.
-            Show(_rackItems, v.OutputStock + v.PickupReserved);
-            Show(_shelfItems, v.ShelfStock);
+                line.craft.gameObject.SetActive(built && product.Crafting);
+                float craft = product.Crafting ? 1f - Frac(product.CraftRemaining, product.CraftDuration) : 0f;
+                line.craft.localScale = Vector3.one * Mathf.Lerp(0.3f, 1f, craft);
+                // PickupReserved is still physically on the rack until loading completes.
+                Show(line.rackItems, built ? product.OutputStock + product.PickupReserved : 0);
+                Show(line.shelfItems, built ? product.ShelfStock : 0);
+                Show(line.cargo, p == v.CarrierProductIndex ? v.CarrierCount : 0);
+            }
             DrawCarrier(v);
             Reconcile(v);
             WalkCustomers(Time.deltaTime);
         }
 
-        private void DrawCarrier(in MiningShopSimulation.Snapshot v)
+        private void DrawCarrier(in MiningShopBusinessSimulation.Snapshot v)
         {
+            // One carrier walks the route of whichever line it is serving; between jobs it waits where it last was.
+            if (v.CarrierProductIndex >= 0 && v.CarrierProductIndex < _lines.Length && _lines[v.CarrierProductIndex] != null)
+                _carrierLine = v.CarrierProductIndex;
+            Line line = _lines[_carrierLine];
             float t = 0f;
             bool walking = false;
             switch (v.Carrier)
@@ -176,7 +293,7 @@ namespace Game.Gameplay
                 case MiningShopSimulation.CarrierPhase.WaitingForSpace:
                     t = 1f; break;
             }
-            Vector3 pos = OnRoute(t * _routeLength, out Vector3 dir);
+            Vector3 pos = OnRoute(line, t * line.routeLength, out Vector3 dir);
             if (v.Carrier == MiningShopSimulation.CarrierPhase.Returning) dir = -dir;
             _carrier.body.position = pos;
             if (walking && dir.sqrMagnitude > 1e-4f) _carrier.body.rotation = Quaternion.LookRotation(dir);
@@ -184,17 +301,16 @@ namespace Game.Gameplay
             {
                 _carrier.anim.SetMoving(walking);
                 // Feet under the body: stride rate follows the pace the simulation's clock sets.
-                float pace = walking ? _routeLength / Mathf.Max(0.1f, (float)v.CarrierDuration) : 0f;
+                float pace = walking ? line.routeLength / Mathf.Max(0.1f, (float)v.CarrierDuration) : 0f;
                 _carrier.anim.SetSpeed(walking ? pace / (personHeight * 0.8f) : 1f);
             }
-            Show(_cargoItems, v.Cargo);
         }
 
         /// <summary>
-        /// Keeps one body per waiting customer and one for the customer being served. The sale receipt
-        /// (OnSold) is what sends the served one away; everything else follows the counts.
+        /// Keeps one body per waiting customer (all lines together, one queue) and one for the customer being
+        /// served, holding the product actually being sold. The sale receipt (OnSold) sends the served one away.
         /// </summary>
-        private void Reconcile(in MiningShopSimulation.Snapshot v)
+        private void Reconcile(in MiningShopBusinessSimulation.Snapshot v)
         {
             if (v.Serving && _serving < 0)
             {
@@ -204,7 +320,7 @@ namespace Game.Gameplay
                     Walker w = _customers[_serving];
                     w.target = Slot(0);
                     w.face = _shelf.position - Slot(0);
-                    w.held.gameObject.SetActive(true);
+                    Hold(w, v.ServiceProductIndex);
                 }
             }
             else if (!v.Serving && _serving >= 0)
@@ -213,13 +329,14 @@ namespace Game.Gameplay
                 _serving = -1;
             }
 
-            while (_waitingCount < v.WaitingCustomers)
+            int waiting = v.WaitingCustomerCount;
+            while (_waitingCount < waiting)
             {
                 int c = Spawn();
                 if (c < 0) break;
                 _waiting[_waitingCount++] = c;
             }
-            while (_waitingCount > v.WaitingCustomers) Hide(_customers[_waiting[--_waitingCount]]);
+            while (_waitingCount > waiting) Hide(_customers[_waiting[--_waitingCount]]);
 
             for (int i = 0; i < _waitingCount; i++)
             {
@@ -229,7 +346,7 @@ namespace Game.Gameplay
             }
         }
 
-        private void OnSold(MiningShopSimulation.Sale sale)
+        private void OnSold(MiningShopBusinessSimulation.Sale sale)
         {
             if (_serving < 0) return;
             Walker w = _customers[_serving];
@@ -273,7 +390,7 @@ namespace Game.Gameplay
                 Walker w = _customers[i];
                 if (w.body.gameObject.activeSelf) continue;
                 w.leaving = false;
-                w.held.gameObject.SetActive(false);
+                Hold(w, -1);
                 w.body.position = _queue[_queue.Length - 1].position + customerEntryOffset;
                 w.target = w.body.position;
                 w.body.gameObject.SetActive(true);
@@ -290,10 +407,17 @@ namespace Game.Gameplay
             return front;
         }
 
+        private static void Hold(Walker w, int product)
+        {
+            if (w.heldProduct >= 0) w.held[w.heldProduct].gameObject.SetActive(false);
+            w.heldProduct = product >= 0 && product < w.held.Length ? product : -1;
+            if (w.heldProduct >= 0) w.held[w.heldProduct].gameObject.SetActive(true);
+        }
+
         private static void Hide(Walker w)
         {
             w.leaving = false;
-            w.held.gameObject.SetActive(false);
+            Hold(w, -1);
             w.body.gameObject.SetActive(false);
         }
 
@@ -308,56 +432,88 @@ namespace Game.Gameplay
             return last + (last - _queue[n - 2].position) * (i - n + 1);
         }
 
-        private Vector3 OnRoute(float distance, out Vector3 dir)
+        private static Vector3 OnRoute(Line line, float distance, out Vector3 dir)
         {
-            for (int i = 1; i < _route.Length; i++)
+            Vector3[] route = line.route;
+            for (int i = 1; i < route.Length; i++)
             {
-                Vector3 seg = _route[i] - _route[i - 1];
+                Vector3 seg = route[i] - route[i - 1];
                 float len = seg.magnitude;
                 dir = len > 1e-4f ? seg / len : Vector3.forward;
-                if (distance <= len || i == _route.Length - 1)
-                    return _route[i - 1] + dir * Mathf.Clamp(distance, 0f, len);
+                if (distance <= len || i == route.Length - 1)
+                    return route[i - 1] + dir * Mathf.Clamp(distance, 0f, len);
                 distance -= len;
             }
             dir = Vector3.forward;
-            return _route[0];
+            return route[0];
         }
 
         private static float Frac(double remaining, double duration)
             => duration > 0d ? Mathf.Clamp01((float)(remaining / duration)) : 0f;
 
-        private void Show(Transform[] items, int count)
+        private static void Show(Transform[] items, int count)
         {
             for (int i = 0; i < items.Length; i++) items[i].gameObject.SetActive(i < count);
         }
 
-        private Vector3 Carried(int i)
-            => new Vector3(0f, personHeight * 0.55f + i * pickaxeLength * 0.16f, personHeight * 0.22f);
+        private float ItemHeight(int p) => p == 0 ? pickaxeLength * 0.16f : pickaxeLength * 0.5f;
 
-        private Transform[] Stack(Transform at, float height, bool sideBySide)
+        /// <summary>
+        /// An item carried at the walker's side. The pickaxe goes over the shoulder, head up and tilted out (lying flat
+        /// it stuck out towards the steep shop camera like a pole); the others are held upright.
+        /// </summary>
+        private Transform Carried(int p, Transform walker, int i)
         {
-            var items = new Transform[stackShown];
-            for (int i = 0; i < stackShown; i++)
-            {
-                Vector3 local = sideBySide
-                    ? new Vector3((i - (stackShown - 1) * 0.5f) * pickaxeLength * 0.45f, height, 0f)
-                    : new Vector3(0f, height + i * pickaxeLength * 0.16f, 0f);
-                items[i] = Pickaxe(at, local);
-            }
-            return items;
+            Transform item = Item(p, walker, new Vector3(personHeight * 0.22f + i * pickaxeLength * 0.2f, personHeight * 0.3f, 0f));
+            item.localRotation = p == 0 ? Quaternion.Euler(0f, 0f, -30f) : Quaternion.identity;
+            item.localScale = Vector3.one * carryScale;
+            return item;
         }
 
-        /// <summary>A pickaxe lying flat, hidden until something shows it.</summary>
-        private Transform Pickaxe(Transform parent, Vector3 localPosition)
+        /// <summary>One product item built from primitives, hidden until something shows it.</summary>
+        private Transform Item(int p, Transform parent, Vector3 localPosition)
         {
-            var root = new GameObject("Pickaxe").transform;
+            var root = new GameObject(Names[p]).transform;
             root.SetParent(parent, false);
             root.localPosition = localPosition;
-            root.localRotation = Quaternion.Euler(0f, 0f, 90f);
             float l = pickaxeLength;
-            Part(PrimitiveType.Cylinder, root, _handleMat, new Vector3(0f, l * 0.5f, 0f), new Vector3(l * 0.14f, l * 0.5f, l * 0.14f));
-            Part(PrimitiveType.Cube, root, _headMat, new Vector3(0f, l, 0f), new Vector3(l * 0.8f, l * 0.18f, l * 0.2f));
+            switch (p)
+            {
+                case 0:
+                    // Lying flat on benches and racks; Carried stands it up.
+                    root.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                    Part(PrimitiveType.Cylinder, root, _handleMat, new Vector3(0f, l * 0.5f, 0f), new Vector3(l * 0.18f, l * 0.5f, l * 0.18f));
+                    Part(PrimitiveType.Cube, root, _headMat, new Vector3(0f, l, 0f), new Vector3(l * 0.9f, l * 0.24f, l * 0.26f));
+                    break;
+                case 1:
+                    Part(PrimitiveType.Sphere, root, _helmetMat, new Vector3(0f, l * 0.2f, 0f), new Vector3(l * 0.6f, l * 0.4f, l * 0.6f));
+                    Part(PrimitiveType.Cylinder, root, _helmetMat, new Vector3(0f, l * 0.05f, 0f), new Vector3(l * 0.8f, l * 0.03f, l * 0.8f));
+                    break;
+                case 2:
+                    Part(PrimitiveType.Cylinder, root, _lanternMat, new Vector3(0f, l * 0.22f, 0f), new Vector3(l * 0.3f, l * 0.22f, l * 0.3f));
+                    Part(PrimitiveType.Cube, root, _headMat, new Vector3(0f, l * 0.48f, 0f), new Vector3(l * 0.38f, l * 0.08f, l * 0.38f));
+                    break;
+                default:
+                    Part(PrimitiveType.Cube, root, _bagMat, new Vector3(0f, l * 0.22f, 0f), new Vector3(l * 0.55f, l * 0.44f, l * 0.3f));
+                    Part(PrimitiveType.Cube, root, _handleMat, new Vector3(0f, l * 0.5f, 0f), new Vector3(l * 0.4f, l * 0.06f, l * 0.08f));
+                    break;
+            }
             root.gameObject.SetActive(false);
+            return root;
+        }
+
+        /// <summary>A plain work table, <paramref name="size"/> wide, standing on the anchor.</summary>
+        private GameObject Table(Transform at, float size)
+        {
+            var root = new GameObject("Table");
+            root.transform.SetParent(at, false);
+            float w = size, d = size * 0.6f, h = size * 0.45f, top = size * 0.1f, leg = size * 0.1f;
+            Part(PrimitiveType.Cube, root.transform, _handleMat, new Vector3(0f, h - top * 0.5f, 0f), new Vector3(w, top, d));
+            for (int x = -1; x <= 1; x += 2)
+                for (int z = -1; z <= 1; z += 2)
+                    Part(PrimitiveType.Cube, root.transform, _handleMat,
+                         new Vector3(x * (w - leg) * 0.5f, (h - top) * 0.5f, z * (d - leg) * 0.5f),
+                         new Vector3(leg, h - top, leg));
             return root;
         }
 
@@ -435,7 +591,7 @@ namespace Game.Gameplay
             Vector3 scale = prop.transform.lossyScale;
             box.center = prop.transform.InverseTransformPoint(b.center);
             // Generous: a bench is a small thing to hit with a thumb.
-            box.size = new Vector3(b.size.x / scale.x, b.size.y / scale.y, b.size.z / scale.z) * 1.6f;
+            box.size = new Vector3(b.size.x / scale.x, Mathf.Max(b.size.y, 10f) / scale.y, b.size.z / scale.z) * 1.6f;
             return box;
         }
 

@@ -151,6 +151,12 @@ namespace Game.UI
 
         [SerializeField] private float refreshInterval = 0.25f;
 
+        [Header("Maden dükkânı")]
+        [Tooltip("Cash, gem and rate numbers. The pill art is dark, so the numbers must be light to be read.")]
+        [SerializeField] private Color counterTextColor = Color.white;
+        [Tooltip("Seconds of shop sale receipts the rate pill adds up while the mining shop owns Main.")]
+        [SerializeField, Min(1f)] private float shopRateWindow = 60f;
+
         [Header("Sayaç vuruşu")]
         [Tooltip("Para geldiğinde sayının ne kadar büyüdüğü. Hapın kendisi değil, içindeki sayı zıplar — "
                  + "hapa dokunma yaylanması yazıyor, ikisi aynı ölçeği paylaşamaz.")]
@@ -173,6 +179,12 @@ namespace Game.UI
         private WorldIslands _world;
         private CoalOperation _op;
         private float _timer;
+        private MarketService _market;
+        // ponytail: fixed ring of recent shop receipts. One sale per service (2 s at least) is ~30 a minute, so 64
+        // covers the window; widen it if service gets faster.
+        private readonly float[] _saleTimes = new float[64];
+        private readonly double[] _saleCash = new double[64];
+        private int _saleHead, _saleCount;
         private double _shownCash;        // eased display value behind the real balance
         private bool _haveShownCash;
         private double _shownGems;        // same easing for gems — they used to snap
@@ -213,6 +225,18 @@ namespace Game.UI
             _freeRewards = ServiceLocator.Get<FreeRewardService>();
             _balloon = ServiceLocator.Get<BalloonRewardService>();
             _ad = ServiceLocator.Get<IAdService>();
+            _market = ServiceLocator.Get<MarketService>();
+            if (_market != null) _market.MiningShopBusinessSold += OnShopSold;
+            if (goldValue != null) goldValue.color = counterTextColor;
+            if (gemsValue != null) gemsValue.color = counterTextColor;
+            if (rateValue != null) rateValue.color = counterTextColor;
+            if (rateValue != null && _market != null && _market.MiningShopBusiness != null)
+            {
+                // "12 SOLD · $240/min" is several times longer than the "$0/min" the pill was sized for.
+                rateValue.fontSizeMax = rateValue.fontSize;
+                rateValue.fontSizeMin = rateValue.fontSize * 0.5f;
+                rateValue.enableAutoSizing = true;
+            }
             _world = FindAnyObjectByType<WorldIslands>();
             if (shieldIndicator != null)
                 _shieldSlot = ((RectTransform)shieldIndicator.transform).anchoredPosition;
@@ -283,6 +307,7 @@ namespace Game.UI
         private void OnDestroy()
         {
             if (_wallet != null) _wallet.GemsChanged -= RefreshGems;
+            if (_market != null) _market.MiningShopBusinessSold -= OnShopSold;
         }
 
         /// <summary>Inspector'daki siranin anahtarlari buradan basliyor; koddan eklenen acicilar
@@ -1126,9 +1151,36 @@ namespace Game.UI
             return _op != null ? _op.CashPerMinute : 0d;
         }
 
+        /// <summary>A shop receipt, remembered only for the rate pill. MarketService has already paid the wallet.</summary>
+        private void OnShopSold(MiningShopBusinessSimulation.Sale sale)
+        {
+            _saleTimes[_saleHead] = Time.time;
+            _saleCash[_saleHead] = sale.Cash;
+            _saleHead = (_saleHead + 1) % _saleTimes.Length;
+            if (_saleCount < _saleTimes.Length) _saleCount++;
+        }
+
+        /// <summary>
+        /// The rate pill while the mining shop owns Main: items sold (the business's own counts) and what the
+        /// receipts of the last <see cref="shopRateWindow"/> seconds came to, per minute. The ore meter it replaces
+        /// read zero forever once the shop took over the economy.
+        /// </summary>
+        private string ShopStatus(in MiningShopBusinessSimulation.Snapshot view)
+        {
+            long sold = 0;
+            for (int p = 0; p < view.AvailableProductCount; p++) sold += view.ProductAt(p).Sold;
+            double recent = 0d;
+            float since = Time.time - shopRateWindow;
+            for (int i = 0; i < _saleCount; i++) if (_saleTimes[i] >= since) recent += _saleCash[i];
+            return string.Format(Loc.T("maden_dukkani.hud_durum"), sold,
+                                 "$" + NumberFormatter.Format(new BigDouble(recent * 60d / shopRateWindow)));
+        }
+
         private void Refresh()
         {
-            if (rateValue != null && _op != null)
+            if (rateValue != null && _market != null && _market.MiningShopBusiness != null)
+                rateValue.text = ShopStatus(_market.MiningShopBusiness.View);
+            else if (rateValue != null && _op != null)
                 rateValue.text = string.Format(Loc.T("ortak.dakika_basina"),
                                                "$" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)));
             if (contractTimerValue != null && _contract != null) contractTimerValue.text = ContractChip();

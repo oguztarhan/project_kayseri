@@ -856,6 +856,8 @@ namespace Game.Gameplay
         // vehicle per route. More bodies made the five-step focus ladder read as traffic.
         [SerializeField, Min(1)] private int visibleVehiclesPerRoute = 1;
         private TrainAgent _train1, _train2, _train3, _train4;   // 1: coal mine · 2: "ghost_mine (1)" · 3: "ghost_mine"+GH rails · 4: "ghostx_mine4"+south line
+        // True while the mining shop owns Main's economy: the haulage stays built but is off the map and stopped.
+        private bool _haulageOff;
 
         // ═══════════════════════════════════════════════════════════════════════════════════════════
         //  TRUCKS — the two road legs
@@ -1585,6 +1587,11 @@ namespace Game.Gameplay
             StripRoadToFootpath();
             ApplyFleetStates();
             for (int u = 0; u < _unlocked.Length; u++) if (_unlocked[u]) ApplyUnlock(u);
+            // The mining shop is Main's one economy (GameBootstrap.miningShopOnMain). Its market refuses ore
+            // deliveries, so porters would only walk loads nobody takes. The art and every saved level stay.
+            _haulageOff = _marketService != null &&
+                          (_marketService.MiningShop != null || _marketService.MiningShopBusiness != null);
+            if (_haulageOff) HideHaulage();
             ApplyStationScale();     // show the levels already bought, without the purchase pop
             // The controller's own Awake ran before LoadLevels, so it saw a level-0 island.
             // Re-read now that the save is in: a returning player opens on the districts they
@@ -1643,13 +1650,16 @@ namespace Game.Gameplay
             // no services, no rake, no fleet — still ticks from Update, and this line then threw a
             // NullReferenceException every single frame while the rest of the scene carried on looking
             // fine. That storm hides whatever actually went wrong upstream, which is the real cost.
-            if (_train1 != null) TrainTick(_train1, dt);
-            if (_train2 != null && _train2.active) TrainTick(_train2, dt);
-            if (_train3 != null && _train3.active) TrainTick(_train3, dt);
-            if (_train4 != null && _train4.active) TrainTick(_train4, dt);
-            MeasureTruckArcs();
-            if (_agents != null)
-                for (int i = 0; i < _agents.Length; i++) if (_agents[i].active) TruckTick(_agents[i], dt);
+            if (!_haulageOff)
+            {
+                if (_train1 != null) TrainTick(_train1, dt);
+                if (_train2 != null && _train2.active) TrainTick(_train2, dt);
+                if (_train3 != null && _train3.active) TrainTick(_train3, dt);
+                if (_train4 != null && _train4.active) TrainTick(_train4, dt);
+                MeasureTruckArcs();
+                if (_agents != null)
+                    for (int i = 0; i < _agents.Length; i++) if (_agents[i].active) TruckTick(_agents[i], dt);
+            }
             Smelt(dt);
             TickFlowMeters(dt);
             UpdateHeaps();
@@ -2633,6 +2643,17 @@ namespace Game.Gameplay
             for (int i = 0; i < a.wagons.Length; i++) a.wagons[i].gameObject.SetActive(false);
         }
 
+        /// <summary>Every rake and truck (and the porter wearing it) off the map. Tick skips them from here on.</summary>
+        private void HideHaulage()
+        {
+            if (_train1 != null) SetTrainVisible(_train1, false);
+            if (_train2 != null) SetTrainVisible(_train2, false);
+            if (_train3 != null) SetTrainVisible(_train3, false);
+            if (_train4 != null) SetTrainVisible(_train4, false);
+            if (_agents != null)
+                for (int i = 0; i < _agents.Length; i++) _agents[i].body.gameObject.SetActive(false);
+        }
+
         private void SetWagonOre(TrainAgent a, bool on)
         {
             for (int i = 0; i < a.wagonOre.Length; i++) Show(a.wagonOre[i], on && i < VisibleWagons);
@@ -2910,7 +2931,7 @@ namespace Game.Gameplay
         /// <summary>Active trucks drive; the next locked truck sits ghosted in the parking bay; the rest hide.</summary>
         private void ApplyFleetStates()
         {
-            if (_agents == null) return;
+            if (_agents == null || _haulageOff) return;
             for (int i = 0; i < _agents.Length; i++)
             {
                 TruckAgent a = _agents[i];

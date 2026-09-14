@@ -185,6 +185,14 @@ namespace Game.UI
         private CoalOperation _op;
         private Canvas _hudCanvas;
         private CanvasGroup _hudFade;
+        private MarketService _market;
+
+        /// <summary>
+        /// The mining shop owns Main. The ore tour and its tips describe the old chain: shown now they would
+        /// cover the shop's panel and point at stations the player cannot use. They wait instead; the saved
+        /// step is never written here, so the tour resumes wherever it was if the shop is ever switched off.
+        /// </summary>
+        private bool ShopActive => _market != null && (_market.MiningShop != null || _market.MiningShopBusiness != null);
 
         // ------------------------------------------------------------------ ekran
         private RectTransform _root;
@@ -237,11 +245,12 @@ namespace Game.UI
             _hud = GetComponent<HudUI>();
             _hudCanvas = GetComponent<Canvas>();
             _world = FindAnyObjectByType<WorldIslands>();
+            _market = ServiceLocator.Get<MarketService>();
         }
 
         private void Update()
         {
-            if (_running) return;
+            if (_running || ShopActive) return;
 
             if (_op == null || !_op.enabled) BindOp();
 

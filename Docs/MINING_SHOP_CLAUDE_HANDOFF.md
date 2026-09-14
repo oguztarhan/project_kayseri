@@ -417,8 +417,363 @@ checked numerically only.
 3. **Panel and HUD overlap not seen.** Needs a device or Game-view look by the user.
 4. **Primitive pickaxe** (two shared tinted materials). A modelled mesh (e.g. KENNY `tool-pickaxe.fbx`) needs a
    serialized reference the user would wire.
-5. `Captures/` (six verification PNGs at the repo root, untracked) could not be removed from here; safe to delete.
+5. **Correction (2026-09-14):** an earlier note in this session called `Captures/` safe to delete. That was wrong.
+   `Captures/` is an existing tracked folder of ≈220 project images that are not disposable. Only the untracked
+   `round*`, `mining_shop_*` and `legacy_factory_area` PNGs were written by these checks; if anything is cleaned up,
+   it is those files alone.
 6. Earlier in this session the scene save also carried pre-existing UI prefab-override values and TMP atlas glyphs
    (section 8), still untouched.
 
 Next owner: Codex to review package 2. No push.
+
+## 12. Package 2 correction pass (Codex review, 2026-09-14)
+
+### Changes
+
+| File | Change |
+| --- | --- |
+| `Gameplay/CoalOperation.cs` | `_haulageOff` = shop open. After unlocks are applied, `HideHaulage()` switches off every rake (engine + wagons, train porters included) and every truck body (road porters included); `Tick` skips train/truck ticks, so no `Deliver` call and no refused load; `ApplyFleetStates` returns early. Island art, stations, crew, heaps, contract ship and all saved levels untouched |
+| `Gameplay/MiningShop/MiningShopView.cs` | `ShopBounds` (bench, worker head, rack, shelf, queue, customer entry) replaces the single focus point |
+| `UI/MiningShopUpgradeUI.cs` | Camera fits `ShopBounds` into the width between the HUD rails (`hudLeftFraction 0.15`, `hudRightFraction 0.12`, `shopFitMargin 1.15`, `shopScreenLift 0.08`) at the island camera's own pitch; buttons use `UiSkin.ButtonGreen/ButtonGrey` (with a skin wired, `UiBuild.Btn` leaves a flat white image and the white label disappeared) |
+| `Scenes/Main.unity` (Unity tools) | Loop moved off the far side of the market onto the open plaza front so the roof no longer hides it: Work (-282,-1400), Worker (-258,-1400, facing the bench), Output (-282,-1445), Upgrade (-258,-1445), Shelf (-362,-1472), Queue_01..06 (-395,-1472) → (-533,-1422), route P00 (-282,-1445) → P01 (-282,-1474) → P02 (-335,-1474) = **82.0 units**. `customerExitOffset` (-5,0,54): served customers walk into the market door. Panel rect x 0.16–0.97, y 0.05–0.28 |
+
+No MarketService, SaveData, simulation, HUD, tutorial or save-version change. The shop remains the only clock and payer.
+
+### Verification
+
+- Compile after each edit: 0 errors. Console in Play: only the Unity Remote/adb error and URP memoryless-depth info.
+- `run_tests` EditMode job `4b9ab21e32174bfc80db8baa94b76172`: **118/118 passed** (MiningShop ×3, MarketService,
+  SaveService, SaveMigration, ShipyardFoundation, LocalizationTable).
+- Save isolation: the live save had been rewritten at 18:48–18:49 by an Editor Play session outside these tests
+  (it held the shop at 2 sold, cash 21.77M). That state was backed up with new SHA-256s, used only as copies, and
+  restored afterwards; `shasum -c` OK.
+
+| Scenario | Observed |
+| --- | --- |
+| Fresh save | `Main`, shop open, `_haulageOff` true: rake engine inactive, wagons 0/1, trucks 0/2, active `_Porter` objects 0. Sold 2, cash 0 → 40 |
+| Copy of the live save | v7, `tutorialStep` 100, shop resumed (sold 3 → 11), haulage off, 0 porters, legacy yards coal/copper stock 0 unchanged |
+| No second payer | cash +100 while earned +100 (60 → 160); across Stop/Play cash +60 while earned +60 (160 → 220); legacy rate 0 |
+| Five stages on screen (portrait 0.563, projected) | bench 0.77,0.60 · worker 0.83,0.60 · rack 0.78,0.55 · shelf 0.60,0.52 · queue head 0.52,0.52 · queue tail 0.20,0.57 — all between the rails and above the panel |
+| Real Game-view capture (`ScreenCapture`, 1080×1920, HUD + open panel) | `Captures/round4_existing_hud_panel.png`: panel clear of the left rail, right rail and top bar; labels `SPEED LV. 1 / $40`, `VALUE LV. 1 / $40`, `10.0S · $20 · 11 SOLD` readable; loop bench → rack → carrier → shelf → customers visible together |
+
+Earlier captures for comparison: `Captures/round2_hud_panel.png` (before: panel under the left rail, blank buttons,
+legacy tutorial overlay), `Captures/round3_loop_moment.png` (camera render after the move).
+
+### Still open (outside my files)
+
+1. **Legacy onboarding on fresh saves.** `TutorialUI` starts whenever `tutorialStep < StepDone`; its dimmer and
+   Foreman Max card cover the lower screen including the bench panel, and it narrates the old ore chain. Needs a
+   decision (skip, or rewrite for the shop) by whoever owns TutorialUI/SaveData.
+2. **HUD reads the legacy economy.** The rate pill shows `$0/min` (legacy meter) and the cash/gem pill text is dark on
+   dark. HUD is not package 2's.
+3. **Scale.** People are ~5% of screen height at this fit; enlarging needs a narrower loop or a closer camera that
+   lets the queue tail leave the screen.
+4. The fresh-save framing after the rail fit was checked by the same code path, not re-captured (the fresh-save
+   capture is covered by the tutorial overlay).
+
+## 13. Package 2 legibility pass (Codex blocking finding, 2026-09-14)
+
+Finding: in `round4` the roof and the yellow props hid the loop; projected viewport coordinates were not proof of
+visibility. Kept: HUD-safe panel and legacy-haulage suppression (still `_Porter` count 0 in this pass).
+
+### Changes
+
+| File | Change |
+| --- | --- |
+| `Gameplay/MiningShop/MiningShopView.cs` | Work table is now a plain dark-wood primitive table (`Table()`): every yellow market prop tried (bench, anvil) read as part of the building. Rack is `Resources/Market/Props/pallet` so goods sit visibly on top. Carried pickaxes over the shoulder: upright, tilted 30°, `carryScale 0.75` (flat they stuck out like a pole; full-size upright read as a pillar). Pickaxe primitives thicker; iron head colour |
+| `UI/MiningShopUpgradeUI.cs` | Shop-specific camera `shopPitch 72` (island shot is 58); three small world-space signs **Craft / Stock / Sell** on one static canvas facing that camera, `signScale 0.22`, outlined, placed so moving goods and HUD buttons do not clip them |
+| `Resources/Diller/metinler.txt` | `maden_dukkani.uret`, `.stok`, `.sat` in all 11 languages |
+| `Scenes/Main.unity` (Unity tools) | Work/Worker (-282/-258, -1418); Output (-282,-1447); Shelf (-395,-1474); Queue_01..06 (-440,-1474) → (-535,-1378) along the front and up the open west strip; route P00 (-282,-1447) → P01 (-300,-1470) → P02 (-355,-1474) = **84.4 units**. View: `benchSize 44`, `rackSize 28`, `shelfSize 70`, `pickaxeLength 32`, head colour (0.30,0.32,0.36), `customerExitOffset` (35,0,58). UI: `shopFitMargin 1.0`, `hudRightFraction 0.2` |
+
+### Evidence
+
+Final real Game-view capture: **`Captures/round11_loop_hud_panel.png`** (1080×1920, `ScreenCapture`, HUD + open panel),
+taken by a frame callback only when the simulation reported the carrier `ToMarket` at 0.55 of the leg with
+cargo 1 (state at capture: crafting, rack 0, shelf 0, 6 waiting, sold 53). In the frame: CRAFT over the brown table
+with the worker beside it → STOCK beside the pallet → the carrier between rack and shelf with a pickaxe on his
+shoulder → SELL over the shelf → the queue along the front and west side. Panel, left rail, right buttons and top bar
+do not overlap the loop or each other.
+
+Honest limits: with one crafter feeding one carrier, the rack and shelf are empty almost all the time (the drawn
+counts follow the simulation exactly, so no display stock is faked); the goods visible in the frame are the one being
+carried and the one being crafted. People and pickaxes are still small (about 5% of screen height). Intermediate
+attempts `round5`–`round10` in `Captures/` show the prop, sign and carry iterations.
+
+Compile after every edit: 0 errors; Play console: only the environmental Unity Remote/adb error and URP
+memoryless-depth info.
+
+Tests after the pass: `run_tests` EditMode job `9df7e9e83c594fcea8bac2a0b26a9110` — **118/118 passed**, including
+`LocalizationTableTests` over the three new rows. Play checks ran on a copy of the 18:49 live save; the live
+`save.dat`/`.bak`/`.yedek` were restored afterwards and `shasum -c` reported OK for all three. No MarketService,
+SaveData, simulation, HUD, tutorial or save-version change. Package 3 not started.
+
+## 14. Package 3 four-product core — Unity verification (2026-09-14)
+
+Scope: source-test milestone only. Edit Mode throughout (no Play), no scene or view change, no live save files
+touched, no Codex source edited.
+
+- `refresh_unity` force + compile request; Editor returned idle, not compiling, not playing.
+- Import check by reflection: `Game.Core.MiningShopBusinessSimulation`, `MiningShopBusinessState`,
+  `MiningShopProductLineState`, `MiningShopState` (Game.Core), `Game.Data.MiningShopConfig` (Game.Data),
+  `Game.Tests.MiningShopBusinessSimulationTests` (Game.Tests.EditMode) all load.
+- Console, read without clearing: **0 errors**. Warnings: 84 entries — 83 compiler warning lines that repeat across
+  the Editor's recent compiles (CS0618/CS0414/CS0108 in AdRewardUI, DailyRewardUI, FirstSaleFx, UpgradeReadyMarkers,
+  TutorialUI, LanguageMenuUI, RatingPromptUI, SaleFx, StationScreenUI, PortContractMarker, MobileDepthWater,
+  StationForemenTests, Editor/PortraitGameplayCleanup) plus one MCP-for-Unity WebSocket notice. A MiningShop filter
+  returns **0** errors or warnings. After the run: 0 errors (only the "Saving results to TestResults.xml" log).
+
+`run_tests` EditMode, job `ea0615d7466c4753955fbdaeabc7a69a`: **100 total, 100 passed, 0 failed, 0 skipped, 2.88 s.**
+
+| Class | Expected | Passed |
+| --- | --- | --- |
+| `Game.Tests.MiningShopBusinessSimulationTests` | 10 | 10 |
+| `Game.Tests.MiningShopSimulationTests` | 15 | 15 |
+| `Game.Tests.MiningShopServiceTests` | 13 | 13 |
+| `Game.Tests.MiningShopCampaignTests` | 14 | 14 |
+| `Game.Tests.MarketServiceTests` | — | 27 |
+| `Game.Tests.SaveMigrationTests` | — | 11 |
+| `Game.Tests.SaveServiceTests` | — | 2 |
+| `Game.Tests.EditMode.LocalizationTableTests` | — | 8 |
+
+New cases observed passing: four built lines share one carrier and one seller without starving the bag; Inspector
+defaults match the four-product contract; legacy pickaxe record becomes line 0 without changing old fields; product
+order/times/prices/table costs; reload keeps built tables, cargo and receipt identity without replaying sales; shared
+seller capacity does not multiply with tables; tables unlock only in order and only when the island allows; two
+products keep their own goods and prices through one receipt stream; unavailable/corrupt product records rejected
+without clearing the save; per-product upgrade keeps its craft fraction and leaves other products unchanged.
+
+Not claimed: no Play-mode, visual, startup-registration or device check — the live Main loop still runs the package 1
+pickaxe simulation, as the Codex handoff states. `ShipyardFoundationTests` was not in this requested set. Package 4
+scene work not started; waiting for Codex review.
+
+## 15. Package 3 final service addition — Unity verification (2026-09-14): 3 FAILURES
+
+Scope unchanged: Edit Mode only, no Play, no scene/view edits, no live save files, no Codex source edited.
+
+- `refresh_unity` force + compile; Editor idle, not playing. Reflection: `Game.Systems.MiningShopBusinessService`,
+  `Game.Core.MiningShopBusinessSimulation`, `Game.Tests.MiningShopBusinessServiceTests`,
+  `Game.Tests.MiningShopBusinessSimulationTests` load; `MarketService.OpenMiningShopBusiness` exists.
+- Console (not cleared): **0 errors**; MiningShop filter **0** errors/warnings. Warnings list: 66 entries — repeated
+  pre-existing CS0618/CS0414/CS0108 lines outside MiningShop, one MCP WebSocket notice, two PerformanceTesting
+  prebuild/cleanup lines from the test run.
+
+`run_tests` EditMode job `d3fee3b8d8bb4251a8cb9e5d3e4a4a54` (MiningShopBusinessSimulation, MiningShopBusinessService,
+MiningShopSimulation, MiningShopService, MiningShopCampaign, MarketService, SaveService, SaveMigration,
+LocalizationTable): **104 total, 101 passed, 3 failed.** Re-run of `MiningShopBusinessServiceTests` alone (job
+`da2258c058f941589a2cc0a2187af69c`): **4 total, 1 passed, 3 failed** — same three. The other 100 are the set that
+passed 100/100 in section 14 (the tool returns no per-class breakdown for a failed job).
+
+| Failing test | Unity message |
+| --- | --- |
+| `BusinessAndPickaxeOnlyServicesCannotRunTogether` | `Expected: <System.InvalidOperationException>  But was: null` |
+| `MarketCreditsEachProductReceiptOnceThroughTheSharedBusinessPayer` | `Expected: 840.0d  But was: 839.99999999999989d` |
+| `TablesSpendOnceInOrderAndPersistInTheBusinessRecord` | `Expected: 8300.0d  But was: 8299.9999999999982d` |
+
+Passing: `EncryptedSaveRestoresBuiltLinesWithoutReplayingReceipts`.
+
+Read-only observations for Codex (not verified by a fix, not edited):
+1. Mutual exclusion: `OpenMiningShopBusiness` refuses when `_miningShop != null` (MarketService line ~146), but
+   `OpenMiningShop` (line ~99) checks only `_miningShop`, not an already-bound business — consistent with the first
+   `Assert.Throws` (open business, then pickaxe-only) receiving no exception. The stack trace was not returned, so
+   which of the two `Assert.Throws` failed is inferred, not observed.
+2. The two money failures are exact `Is.EqualTo` on `WalletService.Cash.ToDouble()` after `BigDouble` arithmetic
+   (10000 − 300 − 1400; receipts summing to 840). The results differ in the last binary digits only, so either the
+   assertions need a tolerance or the wallet path needs exact-integer handling — Codex's call.
+
+Package 3 is not verified. No package 4 work started.
+
+## 16. Package 3 correction — Unity re-verification (2026-09-14): PASSED
+
+Codex correction (read on disk, not edited): `MarketService.OpenMiningShop` now throws when a four-product business
+is already bound; the two wallet assertions in `MiningShopBusinessServiceTests` use `.Within(1e-6)`. Edit Mode only,
+no Play, no code/scene/save edits by Claude.
+
+- `refresh_unity` force + compile; Editor idle, not compiling, not playing; `MiningShopBusinessService` loads.
+- Console (not cleared): **0 errors**; MiningShop filter **0** errors/warnings. After both runs: 0 errors (only the
+  "Saving results to TestResults.xml" log). Pre-existing warnings outside MiningShop unchanged from section 15.
+
+`run_tests` EditMode, full requested set, job `76f58437b8c94eef858bef1169020258`: **104 total, 104 passed, 0 failed,
+0 skipped, 2.88 s.**
+
+| Class | Expected | Passed |
+| --- | --- | --- |
+| `Game.Tests.MiningShopBusinessSimulationTests` | 10 | 10 |
+| `Game.Tests.MiningShopBusinessServiceTests` | 4 | 4 |
+| `Game.Tests.MiningShopSimulationTests` | 15 | 15 |
+| `Game.Tests.MiningShopServiceTests` | 13 | 13 |
+| `Game.Tests.MiningShopCampaignTests` | 14 | 14 |
+| `Game.Tests.MarketServiceTests` | — | 27 |
+| `Game.Tests.SaveMigrationTests` | — | 11 |
+| `Game.Tests.SaveServiceTests` | — | 2 |
+| `Game.Tests.EditMode.LocalizationTableTests` | — | 8 |
+
+Separate re-run of `MiningShopBusinessServiceTests` alone, job `8beed394ef5a4edd9d9007f183008e04`: **4/4 passed**,
+including `BusinessAndPickaxeOnlyServicesCannotRunTogether`,
+`MarketCreditsEachProductReceiptOnceThroughTheSharedBusinessPayer`,
+`TablesSpendOnceInOrderAndPersistInTheBusinessRecord` and `EncryptedSaveRestoresBuiltLinesWithoutReplayingReceipts`.
+
+Scope of the claim: EditMode logic and service settlement only. Main still runs the package 1/2 pickaxe loop;
+no Play-mode, visual, startup or device check of the four-product business. Package 4 not started; waiting for
+Codex review and handoff.
+
+## 17. Package 4 — Main on the four-product business (2026-09-14): BLOCKED on old-save migration
+
+### Changes (Claude-owned files only)
+
+| File | Change |
+| --- | --- |
+| `Systems/GameBootstrap.cs` | `OpenMiningShop()` now calls `Market.OpenMiningShopBusiness(campaign, miningShopBusinessId, config.ToBusinessTuning(), Save)`; default business still `mining-shop.island-01-01` (1 product available). Refusal still logged, record untouched |
+| `Gameplay/CoalOperation.cs` | `_haulageOff` true when either `MiningShop` or `MiningShopBusiness` is open |
+| `Gameplay/MiningShop/MiningShopView.cs` | Rewritten over `MiningShopBusinessService.View`: one `Line` per product (table, pallet rack, craft item, rack/shelf/cargo items, locked pad, route, optional worker). A line not offered draws nothing; offered + unbuilt shows only its pad; built shows table/rack/goods. One shared carrier walks the route of `CarrierProductIndex` and shows `CarrierCount` of that product; one shared queue from `WaitingCustomerCount`; the served customer holds the `ServiceProductIndex` item; `MiningShopBusinessSold` sends them away. Shelf split into four product columns (`shelfItemScale 0.55`). Primitive helmet/lantern/bag items. No stock or payout invented |
+| `UI/MiningShopUpgradeUI.cs` | Tap any built bench → that product's panel (title, `CraftSeconds/UnitPrice/Sold`, speed/value via `TryBuyUpgrade(index, speed)`); tap a locked pad → one `BUILD BENCH $cost` button via `TryBuildTable(index)`, enabled only for the next bench in order when affordable and no pending time |
+| `Resources/Diller/metinler.txt` | `maden_dukkani.kask_tezgahi`, `fener_tezgahi`, `canta_tezgahi`, `tezgah_kur` in all 11 languages |
+| `Scenes/Main.unity` (Unity tools) | New anchors `Shop_Helmet/Lantern/Bag_Work`, `_Output`, `_LockedPad`: helmet (-292,-1386)/(-268,-1386), lantern (-292,-1356)/(-268,-1356) in the east strip; bag (-524,-1356)/(-500,-1356) in the west strip. Routes `Carry_Helmet_to_Market` 158.2, `Carry_Lantern_to_Market` 190.7, `Carry_Bag_to_Market` 174.2 units. Queue re-laid inside the octagonal plaza (Q01 (-440,-1474) … Q06 (-534,-1387)); `customerEntryOffset` (-10,0,8). Pickaxe line, signs, panel rect and camera unchanged |
+
+### API/view assumptions recorded
+
+- `ProductSnapshot` is a live view over the line record, not a copy: values read before a mutation change after it
+  (a "before" read of `SpeedLevel` showed 2 after the purchase). Views read it fresh each frame, which is fine; any
+  before/after comparison must copy the numbers first.
+- When the carrier returns to `Idle`, `CarrierProductIndex` becomes −1; the view keeps it where its last route
+  started, so the next pickup at a different rack starts with a short jump.
+- All four routes share `TravelSeconds`, so the carrier walks the longer helmet/lantern/bag routes faster (stride
+  rate follows).
+- `extraBenchScale 0.7`: the islet is an octagon (top vertices (-509,-1451) (-401,-1489) (-293,-1451) (-249,-1360)
+  (-293,-1269) (-401,-1231) (-509,-1269) (-554,-1360)) mostly covered by the market roof; the three extra lines are
+  squeezed into the two side strips. They have no worker (no room).
+
+### Verification
+
+Compile after edits: 0 errors. Tests: `run_tests` EditMode job `c54b3d39934a4efda2684b5e4e723dc5` — **132/132 passed**
+(MiningShopBusinessSimulation 10, MiningShopBusinessService 4, MiningShopSimulation 15, MiningShopService 13,
+MiningShopCampaign 14, MarketService 27, SaveService 2, SaveMigration 11, ShipyardFoundation 28, LocalizationTable 8).
+Post-run console: 0 errors.
+
+Save isolation: the live save still matched the 18:49 backup (`shasum -c` OK) before testing; every Play used a
+moved-aside fresh save or a copy; the live `save.dat`/`.bak`/`.yedek` were restored afterwards and `shasum -c`
+reported OK for all three.
+
+| Scenario | Observed |
+| --- | --- |
+| Fresh 1-1 (no save) | `MiningShopBusiness` open, `MiningShop` null; `mining-shop.island-01-01`, available 1, built 1; helmet/lantern/bag tables and pads 0 active; `_haulageOff` true, 0 porters. Sales 20 each (sold 3 → earned 60). Panel speed button `SPEED LV. 1 / $40`: cash 60 → 20 (one spend), craft 10.000 → 9.091 s, craft fraction 0.7884 preserved; later cash 40 = earned 80 − 40. Capture `Captures/p4_fresh_1-1_hud_panel.png` shows the pickaxe loop only (plus the known legacy tutorial overlay) |
+| **Existing pickaxe save (copy of 18:49 live save)** | **FAILS.** Console `[MiningShop] not opened: Mining-shop business save has invalid shared jobs; refusing to reset it.` `MiningShopBusiness` null, view disabled, `_haulageOff` false → 3 legacy porters visible, no shop income. Flat record untouched (sold 2, earned 40), cash 21.77M. Cause (read-only): `SaveService`/JsonUtility deserializes `MiningShopState.Business` (a `[Serializable]` class field, `MiningShopState.cs` line 37) as a non-null empty object — Lines 0, available 1 — for a record saved before package 3. `MiningShopBusinessSimulation.EnsureBusinessState` returns early on `owner.Business != null` (line 499), so the one-time pickaxe copy never runs and `ValidateState` throws. Codex-owned; reported, not edited |
+| 1-4 test path (fresh isolated save; Bootstrap `miningShopBusinessId` temporarily `mining-shop.island-01-04`) | Available 4, built 1; helmet/lantern/bag pads visible, tables hidden (`p4_1-4_pads_unbuilt.png`). Isolated test cash +6,700. Panel: lantern before helmet → button disabled, wallet unchanged; helmet 6740 → 6440; lantern → 5040; bag → 40; built 4. At `Time.timeScale` 6 (reset to 1 afterwards) the one carrier carried helmet, pickaxe, lantern, bag in turn (`CarrierCount` 1) and the one seller served each (`p4_1-4_carry_0..3.png`, `p4_1-4_serve_0..3.png`); cash equalled the summed line earnings at every capture (550, 610, 760, 1,120) |
+
+Bootstrap revert: `miningShopBusinessId` set back to `mining-shop.island-01-01` and saved. The file is **not**
+byte-identical to before: the save serialized the package-2 fields for the first time (`miningShopOnMain: 1`,
+`miningShopCampaign/Config: {fileID: 0}`, `miningShopBusinessId: mining-shop.island-01-01`) — the same values the
+code defaults already supplied, so startup behaviour is unchanged. Left as is (no hand edit).
+
+### Honest limits / open
+
+1. **Blocker:** old-save migration above. Until fixed, shipping this switches every existing player who already had
+   the pickaxe shop to "shop not opened". Do not ship package 4 before Codex's fix and a re-run of the old-save check.
+2. 1-4 legibility is weak: the extra lines are small and crowded beside the pickaxe line and the queue; the pickaxe
+   Craft/Stock signs sit over the helmet line; the fresh-save captures are dimmed by the legacy tutorial.
+3. Helmet/lantern/bag have no worker; items are primitives.
+4. No new package-4 EditMode test was added; verification is the Play scenarios above.
+
+Next: Codex fixes migration → Claude re-runs the old-save copy check. No package 5 work started. No push.
+
+## 18. Package 4 re-verification after Codex's migration fix (2026-09-14): PASSED
+
+Codex fix read on disk (not edited): `EnsureBusinessState` returns an existing business only when
+`Business != null && Lines != null && Lines.Count > 0`; otherwise it copies the flat pickaxe record once. New test
+`MiningShopBusinessServiceTests.PreBusinessFlatPickaxeRecordMigratesAfterSaveServiceRoundTrip`.
+
+- `refresh_unity` force + compile: **0 errors**, MiningShop filter 0 errors/warnings.
+- `run_tests` EditMode job `c88c82f609374b69a72e87d8a3fe3d04` (MiningShopBusinessSimulation, MiningShopBusinessService,
+  MiningShopSimulation, MiningShopService, MiningShopCampaign, MarketService, SaveService, SaveMigration,
+  ShipyardFoundation, LocalizationTable): **133 total, 133 passed, 0 failed, 0 skipped, 3.27 s** (section 17's 132 plus
+  the new migration test).
+
+Process note: the first Play attempt after the fix ran with neither `Bootstrap` nor `Main` loaded (no GameBootstrap,
+no services) because the Bootstrap scene I had opened additively for the 1-4 check was still listed, unloaded, in
+the hierarchy. That run proved nothing and wrote nothing (save copy hashes unchanged). The entry was removed
+(`close_scene remove_scene`), hierarchy confirmed to be `Main` only, and the checks below were run again.
+
+| Scenario (isolated save) | Observed |
+| --- | --- |
+| Existing pickaxe-only save (copy of the 18:49 live save: flat sold 2, produced 3, earned 40, carrier ToMarket cargo 1, cash 21.77M, v7) | No console error. `MiningShopBusiness` open, `MiningShop` null, 1 business row, available 1, built 1; helmet/lantern/bag unbuilt. Line 0 continued from the copied state: at t = 10 s receipts 3, sold 3, produced 4, earned 60. Flat record unchanged (sold 2 / produced 3 / earned 40 / ToMarket / cargo 1). `_haulageOff` true, 0 porters, view enabled. Offline grant none (rate 0) |
+| No duplicate payment after migration | cash 21,766,793.53 @ earned 60 → 21,766,913.53 @ earned 180: **+120 cash for +120 earned**; receipts 9 = sold 9; flat record still sold 2 |
+| Resumed old-save capture | `Captures/p4_oldsave_resumed_hud.png` (1080×1920, HUD): pickaxe loop only, served customer leaving with a pickaxe, no tutorial (step already done) |
+| Fresh 1-1 (no save) | Business open, available 1, helmet/lantern/bag tables and pads 0 active, haulage off, 0 porters. First sale at t ≈ 23 s: sold 1, earned 20, cash 20, receipts 1. Capture `Captures/p4b_fresh_1-1_hud.png`: pickaxe loop with the carrier mid-route; legacy tutorial overlay present (tutorialStep 0) |
+
+Live save restored from the 18:49 backup; `shasum -c` OK for `save.dat`, `.bak`, `.yedek`. Editor left in Edit Mode,
+`Time.timeScale` 1, only `Main` loaded.
+
+### Package 4 visual limitations (for choosing the next focused package)
+
+1. **1-4 crowding.** With all four lines built the three extra benches (scale 0.7, no workers) squeeze into the two
+   narrow strips beside the market roof; the helmet line sits under the pickaxe's CRAFT/STOCK signs; the queue and
+   bag route share the west strip. Readable as "four lines exist", not as four clear loops.
+2. **Carrier routes differ in length (82–191 units) with one `TravelSeconds`,** so the carrier visibly speeds up on
+   the helmet/lantern/bag routes; after `Returning` it waits at the last line's start, so switching lines begins with
+   a short jump.
+3. **Signs are pickaxe-only** (Craft/Stock/Sell); no product labels on the other lines.
+4. **Primitive goods and tables** for all four products; no workers for helmet/lantern/bag.
+5. **Legacy tutorial** dims and covers the bench panel on every fresh save.
+6. **HUD still shows legacy values** (`$0/min`, dark-on-dark cash text).
+7. **People and goods are small** (~5% of screen height) at the current fit.
+8. `Bootstrap.unity` carries the four serialized package-2 fields at default values (section 17).
+
+Candidate next focused packages: (a) a larger or relocated stage for 1-2…1-4 so each line gets its own readable
+table→rack→route; (b) tutorial/HUD alignment with the shop economy; (c) modelled product meshes and per-line workers.
+No package 5 work started. No push.
+
+## 19. Package 4.1 — fresh-player readability (2026-09-14)
+
+Ownership used: tutorial presentation, HUD, localization. No change to Core, MiningShopBusinessService, MarketService,
+campaign/progression, save/migration, GameBootstrap, scene layout, tuning or art.
+
+### Changes
+
+| File | Change |
+| --- | --- |
+| `UI/TutorialUI.cs` | Caches `MarketService` in `Start`; `Update` returns early while `MiningShop` or `MiningShopBusiness` is open (`ShopActive`). The ore tour never starts and its one-shot tips (`TipTick`) never fire while the shop owns Main. `SaveData.tutorialStep` is never written here, so the tour resumes where it was if the shop is ever switched off |
+| `UI/HudUI.cs` | `[SerializeField] counterTextColor` (white) applied in `Start` to the cash, gem and rate labels (dark-on-dark before). While `MiningShopBusiness` is open the rate pill shows `maden_dukkani.hud_durum` = "{sold} SOLD · ${recent}/min": sold = Σ `View.ProductAt(p).Sold` over available lines; recent = sum of `MiningShopBusinessSold` receipt `Cash` in the last `shopRateWindow` (60 s, `Time.time`) × 60 / window. Receipts are only recorded (fixed 64-entry ring, no allocation per sale); nothing ticks or pays. The label auto-sizes (max = authored 36, min = 18) only in shop mode. Legacy ore `$ /min` path unchanged when the shop is off. Unsubscribes in `OnDestroy` |
+| `Resources/Diller/metinler.txt` | `maden_dukkani.hud_durum` in all 11 languages |
+
+### API / UI assumptions
+
+- `MarketService.MiningShopBusiness` is non-null from Bootstrap `Awake`, before Main's `Start`, so `TutorialUI` and
+  `HudUI` read a settled value once; neither handles the shop opening mid-session (it does not today).
+- `MiningShopBusinessSold` fires after the wallet was credited (Codex contract), so the HUD cash roll and the rate
+  pill agree on the same receipt.
+- The rate window uses scaled `Time.time`, matching `Market.Tick`'s scaled `deltaTime`; it starts empty after a load
+  (receipts before this session are not replayed), so a returning save shows its lifetime sold count with a
+  this-session rate.
+- `ProductSnapshot` is read live each refresh (4 Hz); the pill allocates one string per refresh, as the legacy pill did.
+- Tapping the rate pill still opens the legacy ore income breakdown (`OnRate`); not changed in this package.
+- Contract offers are still sized from `IncomePerMinute()` (ore meter, now 0); not changed.
+
+### Verification (isolated saves; Play started from Bootstrap)
+
+Compile after each edit: 0 errors. Tests: `run_tests` EditMode job `4314f9307da541a7b8c4df1dea0a7583` — **133/133**
+(MiningShop ×5, MarketService, SaveService, SaveMigration, ShipyardFoundation incl. `CompactHudMovesLegacyExtraOpenersIntoMoreSheet`,
+LocalizationTable); job `c5c46a8c12f74542acf7b42ca36e67a5` — `LadderUiSmokeTests` + `PetRosterUiSmokeTests` (the other
+tests touching HudUI) **14/14**.
+
+| Scenario | Observed |
+| --- | --- |
+| Fresh 1-1, start | Tutorial `IsShowing` false, `_running` false, `tutorialStep` 0 (unchanged). HUD cash '0', gems '0', rate '0 SOLD · $0/min', all white |
+| First sale | t = 22.3 s: sold 1, earned 20, cash 20; HUD gold '20', rate '1 SOLD · $20/min'; tutorial still hidden, step 0. Capture `Captures/p41_fresh_first_sale.png` |
+| Speed upgrade via panel | Button 'SPEED LV. 1 / $40' interactable; cash 40 → 0 (one spend); speed 1 → 2; craft 10.000 → 9.091 s; craft fraction 0.7887 → 0.7887; HUD '2 SOLD · $40/min'. Capture `Captures/p41_fresh_panel_after_upgrade.png` (panel clear of both rails, no tutorial) |
+| Pill overflow | Before auto-size the status text measured 287 px in a 222 px label and spilled past the pill (visible in the two captures above). After: auto-size on, font 29.2, text width 222 = label width |
+| **Final fresh Main** | `Captures/p41_final_fresh_main.png`: sold 2, cash 40, gold '40', rate '2 SOLD · $40/min' inside its pill, no tutorial, Craft/Stock/Sell loop and carrier mid-route clear of the rails |
+| Returning migrated pickaxe save (copy of 18:49 save) | Business open, sold 3 / earned 60 / receipts 3 (flat record still 2 / 40); `tutorialStep` 100, tutorial and tips not showing; HUD gold '21.77M' white, rate '3 SOLD · $20/min'; `_haulageOff` true, 0 porters |
+| Returning save, later | t = 39.3 s: sold 4 → 6, earned 80 → 120 (+40), **cash +40.00** (no duplicate), receipts 6; HUD '6 SOLD · $80/min'; tutorial hidden, step 100; 0 porters; flat record sold 2. Capture `Captures/p41_returning_hud.png`: cash '21.77M' and gems '80' legible, status inside its pill, pickaxe loop clear of the rails |
+
+Live save restored from the 18:49 backup after all runs; `shasum -c` OK for `save.dat`, `.bak`, `.yedek`. Editor left in
+Edit Mode with only `Main` loaded.
+
+### Remaining UI limits (not in this package)
+
+1. Rate pill tap still opens the legacy ore breakdown.
+2. Contract offers are sized from the ore meter (0 while the shop is active).
+3. The ore tutorial is paused, not replaced: a fresh player gets no shop onboarding yet.
+4. The status pill's font auto-shrinks as the numbers grow (29 px at "2 SOLD · $40/min"); very large counts will get
+   small before the pill needs a wider art slot.
+5. Package 4 visual limits (section 18) otherwise unchanged.
+
+No package 5 work. No push.

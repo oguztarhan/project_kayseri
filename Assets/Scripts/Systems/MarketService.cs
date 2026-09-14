@@ -79,9 +79,12 @@ namespace Game.Systems
         private readonly Dictionary<string, Yard> _yards = new Dictionary<string, Yard>();
         private readonly List<Yard> _order = new List<Yard>();   // stable iteration without allocating
         private MiningShopService _miningShop;
+        private MiningShopBusinessService _miningBusiness;
 
         public MiningShopService MiningShop => _miningShop;
+        public MiningShopBusinessService MiningShopBusiness => _miningBusiness;
         public event Action<MiningShopSimulation.Sale> MiningShopSold;
+        public event Action<MiningShopBusinessSimulation.Sale> MiningShopBusinessSold;
 
         /// <summary>
         /// Explicit package-2 entry point. Selects one saved business; does not infer unlocks or remap ore stock.
@@ -93,6 +96,8 @@ namespace Game.Systems
             if (_data == null || _wallet == null) throw new InvalidOperationException("Load save and wallet before the mining shop.");
             if (campaign == null || !campaign.TryGet(businessId, out _))
                 throw new ArgumentException("Mining shop requires an authored business ID.");
+            if (_miningBusiness != null)
+                throw new InvalidOperationException("The four-product shop is already bound for this session.");
             if (_miningShop != null)
             {
                 if (_miningShop.View.BusinessId == businessId) return _miningShop;
@@ -128,6 +133,51 @@ namespace Game.Systems
             // Wallet and shop live in the same save snapshot; reload cannot replay an already sold item.
             _wallet.AddCash(new BigDouble(sale.Cash));
             MiningShopSold?.Invoke(sale);
+        }
+
+        /// <summary>
+        /// Explicit multi-table entry point. It shares the save record and foreground-only market ownership with the
+        /// verified pickaxe slice, but cannot run beside that slice in one MarketService instance.
+        /// </summary>
+        public MiningShopBusinessService OpenMiningShopBusiness(MiningShopCampaign campaign, string businessId,
+            MiningShopBusinessSimulation.Tuning tuning, SaveService save = null)
+        {
+            if (_data == null || _wallet == null) throw new InvalidOperationException("Load save and wallet before the mining shop.");
+            if (campaign == null || !campaign.TryGet(businessId, out MiningShopCampaign.Island island))
+                throw new ArgumentException("Mining shop requires an authored business ID.");
+            if (_miningShop != null) throw new InvalidOperationException("The pickaxe-only shop is already bound for this session.");
+            if (_miningBusiness != null)
+            {
+                if (_miningBusiness.View.BusinessId == businessId) return _miningBusiness;
+                throw new InvalidOperationException("Cross-business switching belongs to the progression package.");
+            }
+            tuning.Validate();
+            MiningShopState state = null;
+            if (_data.miningShopBusinesses == null) _data.miningShopBusinesses = new List<MiningShopState>();
+            for (int i = 0; i < _data.miningShopBusinesses.Count; i++)
+            {
+                MiningShopState candidate = _data.miningShopBusinesses[i];
+                if (candidate == null || candidate.BusinessId != businessId) continue;
+                if (state != null) throw new InvalidOperationException("Duplicate mining-shop business records.");
+                state = candidate;
+            }
+            bool created = state == null;
+            if (created) state = new MiningShopState { BusinessId = businessId };
+            var business = new MiningShopBusinessService(state, island.AvailableProductCount, tuning, _wallet, save, _data,
+                PayMiningShopBusinessSale);
+            if (created) _data.miningShopBusinesses.Add(state);
+            _data.activeMiningShopBusinessId = businessId;
+            _data.incomeRatePerSec = 0d;
+            _accum = 0f;
+            _miningBusiness = business;
+            save?.Save(_data);
+            return business;
+        }
+
+        private void PayMiningShopBusinessSale(MiningShopBusinessSimulation.Sale sale)
+        {
+            _wallet.AddCash(new BigDouble(sale.Cash));
+            MiningShopBusinessSold?.Invoke(sale);
         }
 
         private string _activeIsland;    // the one whose trucks are really driving; null in the market scene
@@ -489,6 +539,7 @@ namespace Game.Systems
                 // Fail closed until this saved business is rebound. Never resume the ore payout by accident.
                 _data.incomeRatePerSec = 0d;
                 _miningShop?.Advance(deltaTime);
+                _miningBusiness?.Advance(deltaTime);
                 return;
             }
             _accum += deltaTime;

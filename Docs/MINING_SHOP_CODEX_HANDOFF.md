@@ -86,3 +86,48 @@ Unexpected working-tree changes observed during parallel work: Main.unity (expec
 Claude identified the font change as TMP dynamic glyph additions flushed with the scene save. Main also serialized pre-existing Editor UI layout overrides. These were retained and disclosed rather than manually reverted; see Claude handoff section 8. The new authored route is flat, 111 units, and has three points. Default camera projection places the market just below the portrait viewport, so package 2 must explicitly verify/fix camera focus.
 
 Package 1 is now handed to Claude for package 2: focused new Gameplay/UI views and binder, visible pickaxe table/rack/load/shelf/customer flow, compact useful upgrades, and Main camera framing. Existing approved project restrictions on Inspector wiring remain. **Explicit ownership transfer sent to Claude:** GameBootstrap and SaveData startup-selection fields may be edited by Claude for the necessary fresh/existing-save Main correction and registration in package 2; record that boundary before editing, preserve the new shop payload and legacy records, and do not bump the global save version. Codex retains MarketService, MiningShopService and the core simulation; send concrete API issues back instead of editing those files concurrently. Use isolated test saves for activation/reload checks. The next verification milestone is observed pickaxe gameplay and reload through normal startup, not another catalogue-only test run.
+
+## Package 3 — four-product core and service, Unity verified
+
+Package 2 is accepted after Claude's final legibility pass (`round11_loop_hud_panel.png`, 118/118 EditMode tests, save hash restoration). Package 3 is also accepted: Unity compiled cleanly with no mining-shop console errors, and the targeted EditMode suite passed 104/104. This covers ten four-product simulation tests, four business-service tests, legacy shop coverage, save migration/reload, payment mutual exclusion, and localization. Package 4 has now switched Main to that verified business service and passed 133/133 targeted EditMode tests. Its old-save regression enters from JSON that predates the `Business` field, crosses the encrypted SaveService boundary, migrates the flat pickaxe/carrier/receipt state once, and reloads without replaying payments. An isolated copy of the live pickaxe save also resumed visually with legacy haulage hidden; the live save was restored byte-for-byte.
+
+Package 4 is accepted. Claude owned the Main startup/view/UI/scene migration and four-product presentation; Codex retained the core business simulation, business service, and MarketService. The default remains campaign 1-1, so it shows and runs only pickaxes while the helmet, lantern, and bag visuals remain dormant for later islands. An isolated 1-4 path proved ordered table purchases, shared carrier/seller use and per-product payments.
+
+### Package 4.1 — first-session shop clarity (Claude)
+
+Before broader island progression, fix the visible entry friction on Main. While the four-product shop is active, the legacy Foreman Max tutorial must not cover the shop panel or make the player act through ore instructions. The active HUD must present high-contrast cash and a shop-relevant status rather than a stale `$0/min` ore rate. Preserve wallet ownership, save records, tutorial progression state and the business simulation; this is a UI/presentation package only. Verify with isolated fresh and returning saves through Bootstrap, a visible first sale and upgrade, a panel screenshot without a blocking legacy tutorial, Unity console review and the impacted EditMode suite. No islands, rewards, offline income, economy changes or art pass in this package.
+
+New Core state is additive: `MiningShopState.Business` holds `MiningShopBusinessState`, which owns four
+`MiningShopProductLineState` records plus the one shared carrier, shared seller, demand cursors and global
+receipt sequence. A first open copies the existing flat pickaxe record into line zero once without clearing or
+reinterpreting the predecessor fields. It writes no save-version and does not modify legacy ore rows, chapters or
+equipment.
+
+`MiningShopBusinessSimulation` is an independent deterministic model, constructed with
+`(MiningShopState owner, int availableProductCount, Tuning tuning, Action<Sale> settle)`. Product order is fixed to
+the campaign's merchandise IDs: pickaxe (10 s/$20/free), helmet (20 s/$60/$300), lantern (40 s/$150/$1,400), bag
+(60 s/$360/$5,000). `BuildTable(index)` permits only the next unbuilt available line; its caller must validate and
+spend `TableCost(index)` atomically. `Upgrade(index, speed)`, `CraftSeconds(index)`, `UnitPrice(index)` and
+`UpgradeCost(index, speed)` are product-local. `Advance(seconds)` has the same bounded foreground-only contract as
+the pickaxe simulation. `View.ProductAt(index)` exposes each line; `View.CarrierProductIndex` and
+`View.ServiceProductIndex` identify the actual carried/sold good. A receipt contains the business ID, correct
+product ID, one global monotonic sequence and the price locked when service began.
+
+`MiningShopBusinessService` is the wallet/save facade: `TryBuildTable(index)` and
+`TryBuyUpgrade(index, speed)` spend once through `WalletService`, persist through `SaveService`, and refuse pending
+time debt. `MarketService.OpenMiningShopBusiness(campaign, businessId, tuning, save)` resolves the campaign's
+available-product count, selects one saved record, zeroes the legacy offline rate and becomes the only clock/payer
+for the multi-line model. It is mutually exclusive with the package-2 `OpenMiningShop` slice in one runtime
+instance. `GameBootstrap` still calls the verified pickaxe-only entry point, so Main remains unchanged until the
+following scene/service handoff selects a multi-product business. `MiningShopConfig.ToBusinessTuning()` adds
+serialized helmet/lantern/bag duration, price and build-cost fields plus a single-item shared carrier load; existing
+pickaxe configuration stays the source for line zero.
+
+New focused tests: `Game.Tests.MiningShopBusinessSimulationTests` (10 expected) cover definitions/configuration,
+additive pickaxe transfer, island availability and sequential builds, two-product pricing/receipts, four-line
+fairness including bags, one shared seller, per-line upgrades, reload and corrupt/unavailable saved lines.
+`Game.Tests.MiningShopBusinessServiceTests` (4 expected) adds atomic builds, receipt wallet settlement,
+mutual-exclusion with the old service and encrypted reload. Claude: refresh/import, read the console without
+clearing it, then run these classes plus affected existing MiningShop, MarketService, SaveService and localization
+EditMode tests through Unity MCP. Report exact totals and diagnostics before any package-4 scene work. Codex owns
+these Core/Data/test files during this verification.

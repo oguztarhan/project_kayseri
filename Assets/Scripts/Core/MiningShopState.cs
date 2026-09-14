@@ -31,5 +31,9 @@ namespace Game.Core
         public long Produced;
         public long Sold;
         public double Earned;
+
+        // Added for the four-product business. Older pickaxe records leave this null and are copied
+        // into a product-line record only when the multi-line simulation is explicitly opened.
+        public MiningShopBusinessState Business;
     }
 }
