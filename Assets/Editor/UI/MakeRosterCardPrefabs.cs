@@ -45,59 +45,67 @@ namespace Game.EditorTools
 
         // ------------------------------------------------------------------ master
         /// <summary>
-        /// One master card. The cell is WIDE — fifteen cards three across a portrait sheet — so the
-        /// face sits left and everything about him stacks right. Child names are the contract
-        /// ForemanRosterUI.BindPrefabCard reads; renaming one silently drops that piece from the card.
+        /// One master card, TALL: three across a portrait sheet that scrolls, so a cell is about
+        /// 300 x 525 reference pixels. The face in its frame fills the top at the kit's own 2:3, and
+        /// everything about him stacks underneath at a size that reads.
+        ///
+        /// It used to be wide — face left, words right — for a grid that divided a fixed band by five
+        /// rows. That left each card 315 x 207 and every label on it clipped. Child names are the
+        /// contract ForemanRosterUI.BindPrefabCard reads; renaming one silently drops that piece.
+        ///
+        /// The anchors assume the cell's shape: ForemanRosterUI.CardPixels and its column count.
         /// </summary>
         private static GameObject BuildMasterCard()
         {
             GameObject root = Card("UI_UstaKarti");
             RectTransform r = (RectTransform)root.transform;
 
-            // The face in its frame down the left. The UstaKiti portraits and frames are both 2:3, so
-            // the slot is as tall as the card and as wide as that allows. Portrait FIRST: the frame's
-            // rim has to draw over the portrait's edges, and siblings draw in order.
-            Image(r, "Portre", new Vector2(0.075f, 0.150f), new Vector2(0.385f, 0.800f), preserveAspect: true);
-            Image(r, "Cerceve", new Vector2(0.010f, 0.020f), new Vector2(0.450f, 0.980f), preserveAspect: true);
+            // The face in its frame across the top. The slot is 0.71 of the width by 0.585 of the
+            // height — about 213 x 307 in a 300 x 525 cell, the frame art's own 0.70 aspect, so
+            // preserveAspect leaves the portrait's inset lined up with the frame's window. Portrait
+            // FIRST: the frame's rim has to draw over the portrait's edges, and siblings draw in order.
+            Image(r, "Portre", new Vector2(0.250f, 0.479f), new Vector2(0.750f, 0.875f), preserveAspect: true);
+            Image(r, "Cerceve", new Vector2(0.145f, 0.400f), new Vector2(0.855f, 0.985f), preserveAspect: true);
 
             // Ready to star up: the kit's upgrade coin on the frame's shoulder. Ships off; the screen
             // shows it only while the cards on the bar already cover the next star.
-            Image(r, "Hazir", new Vector2(0.330f, 0.780f), new Vector2(0.450f, 0.980f), preserveAspect: true)
+            Image(r, "Hazir", new Vector2(0.700f, 0.870f), new Vector2(0.880f, 0.990f), preserveAspect: true)
                 .gameObject.SetActive(false);
 
             // The two state pills share the foot of the frame and are mutually exclusive — posted, or
             // not found yet. The screen writes neither's text; the words are localised at runtime.
-            Badge(r, "Aktif", Green, new Vector2(0.040f, 0.025f), new Vector2(0.420f, 0.165f), icon: true);
-            Badge(r, "Kilit", Slate, new Vector2(0.040f, 0.025f), new Vector2(0.420f, 0.165f), icon: true);
+            Badge(r, "Aktif", Green, new Vector2(0.200f, 0.395f), new Vector2(0.800f, 0.465f), icon: true);
+            Badge(r, "Kilit", Slate, new Vector2(0.200f, 0.395f), new Vector2(0.800f, 0.465f), icon: true);
 
-            Label(r, "Ad", new Vector2(0.465f, 0.760f), new Vector2(0.975f, 0.965f),
-                  26, TextAnchor.MiddleLeft, Ink);
+            Label(r, "Ad", new Vector2(0.050f, 0.320f), new Vector2(0.950f, 0.390f),
+                  28, TextAnchor.MiddleCenter, Ink);
 
-            // Which station he works. Three masters share each one, and the card was the only place
-            // that did not say which.
-            Label(r, "Istasyon", new Vector2(0.465f, 0.630f), new Vector2(0.975f, 0.760f),
-                  18, TextAnchor.MiddleLeft, InkSoft);
+            // Which station he works, and his rarity, on one line. Three masters share each station,
+            // and the card was the only place that did not say which.
+            // Everything below the name keeps 0.10 off each side: the white card's rim carries a soft
+            // glow about that wide, and text laid on it reads as touching the edge.
+            Label(r, "Istasyon", new Vector2(0.100f, 0.272f), new Vector2(0.500f, 0.318f),
+                  20, TextAnchor.MiddleLeft, InkSoft);
+            Label(r, "Nadirlik", new Vector2(0.500f, 0.272f), new Vector2(0.900f, 0.318f),
+                  20, TextAnchor.MiddleRight, InkSoft);
 
-            // Five star pips across the middle band. Present here means the rarity label stops
-            // spelling the stars out in ★ — see ForemanRosterUI.HasStarPips.
-            Stars(r, Foremen.MaxStars, 0.465f, 0.500f, 0.725f, 0.625f);
+            // Five star pips on the left, the headline skill on the right. Pips present here means the
+            // rarity label stops spelling the stars out in ★ — see ForemanRosterUI.HasStarPips.
+            Stars(r, Foremen.MaxStars, 0.100f, 0.214f, 0.520f, 0.264f);
+            Label(r, "Beceri", new Vector2(0.540f, 0.206f), new Vector2(0.900f, 0.272f),
+                  30, TextAnchor.MiddleRight, Ink);
 
-            Label(r, "Nadirlik", new Vector2(0.730f, 0.495f), new Vector2(0.975f, 0.625f),
-                  18, TextAnchor.MiddleRight, InkSoft);
+            Flat(r, "Sirad", new Vector2(0.100f, 0.197f), new Vector2(0.900f, 0.201f), InkFaint);
 
-            Flat(r, "Sirad", new Vector2(0.465f, 0.470f), new Vector2(0.725f, 0.484f), InkFaint);
-
-            Label(r, "Beceri", new Vector2(0.465f, 0.295f), new Vector2(0.975f, 0.465f),
-                  28, TextAnchor.MiddleLeft, Ink);
-
-            Bar(r, new Vector2(0.465f, 0.205f), new Vector2(0.700f, 0.265f));
-
-            Label(r, "Kartlar", new Vector2(0.465f, 0.030f), new Vector2(0.700f, 0.190f),
-                  20, TextAnchor.MiddleLeft, InkFaint);
+            // The bar and its count share a line, so the action pill below can take the full width.
+            Bar(r, new Vector2(0.100f, 0.150f), new Vector2(0.480f, 0.180f));
+            Label(r, "Kartlar", new Vector2(0.500f, 0.130f), new Vector2(0.900f, 0.200f),
+                  20, TextAnchor.MiddleRight, InkFaint);
 
             // Wide and low: the pill art is a capsule whose caps are a share of its height, and a box
-            // much under 2:1 draws it as an egg.
-            Pill(r, "Dugme", new Vector2(0.715f, 0.060f), new Vector2(0.975f, 0.230f));
+            // much under 2:1 draws it as an egg. 0.80 x 0.095 of the cell is about 240 x 50 — at
+            // half that width "YILDIZ EKLE" ran out past the caps.
+            Pill(r, "Dugme", new Vector2(0.100f, 0.030f), new Vector2(0.900f, 0.125f));
             return root;
         }
 
@@ -277,7 +285,8 @@ namespace Game.EditorTools
             var b = go.GetComponent<Button>();
             b.targetGraphic = img;
 
-            Text label = Label((RectTransform)go.transform, "Text", Vector2.zero, Vector2.one,
+            // Kept off the capsule's round ends, or a long word spills past them onto the card.
+            Text label = Label((RectTransform)go.transform, "Text", new Vector2(0.12f, 0.08f), new Vector2(0.88f, 0.92f),
                                22, TextAnchor.MiddleCenter, Paper);
             label.text = string.Empty;
         }

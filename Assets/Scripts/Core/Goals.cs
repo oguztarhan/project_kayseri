@@ -52,11 +52,11 @@ namespace Game.Core
         /// </summary>
         public static readonly Task[] DailyPool =
         {
-            new Task { Metric = Upgrades,      Target = 5,  Gems = 25, Cards = 0 },
-            new Task { Metric = Upgrades,      Target = 15, Gems = 45, Cards = 1 },
-            new Task { Metric = Contracts,     Target = 1,  Gems = 40, Cards = 1 },
-            new Task { Metric = Repairs,       Target = 2,  Gems = 30, Cards = 0 },
-            new Task { Metric = ForemanLevels, Target = 1,  Gems = 35, Cards = 0 },
+            new Task { Metric = Upgrades,      Target = 5,  Gems = 15, Cards = 0 },
+            new Task { Metric = Upgrades,      Target = 15, Gems = 25, Cards = 1 },
+            new Task { Metric = Contracts,     Target = 1,  Gems = 25, Cards = 1 },
+            new Task { Metric = Repairs,       Target = 2,  Gems = 15, Cards = 0 },
+            new Task { Metric = ForemanLevels, Target = 1,  Gems = 20, Cards = 0 },
         };
 
         public struct WeeklyTask
@@ -95,10 +95,10 @@ namespace Game.Core
         /// <summary>Stable IDs make reordering the visible track safe for existing saves.</summary>
         public static readonly WeeklyMilestone[] WeeklyMilestones =
         {
-            new WeeklyMilestone { Id = "weekly_25",  Points = 25,  Gems = 35,  Cards = 0, Packs = 0 },
-            new WeeklyMilestone { Id = "weekly_50",  Points = 50,  Gems = 60,  Cards = 1, Packs = 1 },
-            new WeeklyMilestone { Id = "weekly_75",  Points = 75,  Gems = 90,  Cards = 1, Packs = 1 },
-            new WeeklyMilestone { Id = "weekly_100", Points = 100, Gems = 150, Cards = 3, Packs = 3 },
+            new WeeklyMilestone { Id = "weekly_25",  Points = 25,  Gems = 25,  Cards = 0, Packs = 0 },
+            new WeeklyMilestone { Id = "weekly_50",  Points = 50,  Gems = 40,  Cards = 1, Packs = 1 },
+            new WeeklyMilestone { Id = "weekly_75",  Points = 75,  Gems = 55,  Cards = 1, Packs = 1 },
+            new WeeklyMilestone { Id = "weekly_100", Points = 100, Gems = 90,  Cards = 3, Packs = 3 },
         };
 
         /// <summary>
@@ -166,17 +166,17 @@ namespace Game.Core
         /// </summary>
         public static readonly Achievement[] Ladder =
         {
-            new Achievement { Metric = BarsSold,      GemsPerTier = 20, CardsPerTier = 1, PacksPerTier = 2,
+            new Achievement { Metric = BarsSold,      GemsPerTier = 12, CardsPerTier = 1, PacksPerTier = 2,
                               Tiers = new[] { 100L, 1000L, 10000L, 100000L, 1000000L, 25000000L } },
-            new Achievement { Metric = Upgrades,      GemsPerTier = 15, CardsPerTier = 1, PacksPerTier = 2,
+            new Achievement { Metric = Upgrades,      GemsPerTier = 10, CardsPerTier = 1, PacksPerTier = 2,
                               Tiers = new[] { 10L, 50L, 200L, 750L, 2500L, 8000L } },
-            new Achievement { Metric = Contracts,     GemsPerTier = 25, CardsPerTier = 2, PacksPerTier = 2,
+            new Achievement { Metric = Contracts,     GemsPerTier = 15, CardsPerTier = 2, PacksPerTier = 2,
                               Tiers = new[] { 1L, 10L, 50L, 150L, 400L, 1000L } },
-            new Achievement { Metric = Repairs,       GemsPerTier = 15, CardsPerTier = 1, PacksPerTier = 2,
+            new Achievement { Metric = Repairs,       GemsPerTier = 10, CardsPerTier = 1, PacksPerTier = 2,
                               Tiers = new[] { 5L, 25L, 100L, 300L, 800L, 2000L } },
-            new Achievement { Metric = Islands,       GemsPerTier = 60, CardsPerTier = 3, PacksPerTier = 2,
+            new Achievement { Metric = Islands,       GemsPerTier = 5,  CardsPerTier = 3, PacksPerTier = 2,
                               Tiers = new[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L } },
-            new Achievement { Metric = ForemanLevels, GemsPerTier = 30, CardsPerTier = 0, PacksPerTier = 2,
+            new Achievement { Metric = ForemanLevels, GemsPerTier = 12, CardsPerTier = 0, PacksPerTier = 2,
                               Tiers = new[] { 1L, 8L, 25L, 50L, 80L } },
         };
 

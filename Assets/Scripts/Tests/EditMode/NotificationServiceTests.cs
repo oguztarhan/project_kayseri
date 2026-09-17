@@ -18,7 +18,7 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void RepairNotificationCarriesItsOwnIslandTarget()
+        public void RepairNotificationHasNoDeepLink()
         {
             var data = new SaveData();
             var time = new TimeService();
@@ -32,7 +32,7 @@ namespace Game.Tests.EditMode
             var sink = new Sink();
             new NotificationService(data, null, time, sink).ScheduleAway();
 
-            Assert.That(sink.Requests.Exists(n => n.Id == "repair:coal" && n.Target == "island:coal"), Is.True);
+            Assert.That(sink.Requests.Exists(n => n.Id == "repair:coal" && n.Target == string.Empty), Is.True);
         }
 
         [Test]

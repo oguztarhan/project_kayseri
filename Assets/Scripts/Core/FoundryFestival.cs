@@ -139,39 +139,40 @@ namespace Game.Core
                 // player can always do; contracts and repairs pace themselves; a foreman star-up shows
                 // up three times in seven days, which is roughly what the free chests pay for.
                 //
-                // 735 gems over 21 tasks is deliberately one week of dailies (3 x ~35 x 7) — the
-                // festival's tasks are a second checklist of the same weight, and the chests below are
-                // what makes the week worth more than an ordinary one.
+                // Gems retuned 2026-09-17 to the free budget's festival slot: the whole week pays at most
+                // 280 (RewardBudgetTests). It was 1,405 — four times a week of dailies, because the chests
+                // paid on top of a task list already sized like one. Every task keeps 5 gems so no claim
+                // button pays nothing; points and cards are unchanged, so the chests open as before.
                 Tasks = new[]
                 {
                     // day 1
-                    new Task { Metric = Goals.Upgrades,      Target = 5,  Points = 10, Gems = 20 },
-                    new Task { Metric = Goals.Contracts,     Target = 1,  Points = 10, Gems = 20 },
-                    new Task { Metric = Goals.Repairs,       Target = 2,  Points = 10, Gems = 20 },
+                    new Task { Metric = Goals.Upgrades,      Target = 5,  Points = 10, Gems = 5 },
+                    new Task { Metric = Goals.Contracts,     Target = 1,  Points = 10, Gems = 5 },
+                    new Task { Metric = Goals.Repairs,       Target = 2,  Points = 10, Gems = 5 },
                     // day 2
-                    new Task { Metric = Goals.Upgrades,      Target = 8,  Points = 10, Gems = 25 },
-                    new Task { Metric = Goals.Contracts,     Target = 1,  Points = 10, Gems = 25 },
-                    new Task { Metric = Goals.ForemanLevels, Target = 1,  Points = 15, Gems = 25, Cards = 1 },
+                    new Task { Metric = Goals.Upgrades,      Target = 8,  Points = 10, Gems = 5 },
+                    new Task { Metric = Goals.Contracts,     Target = 1,  Points = 10, Gems = 5 },
+                    new Task { Metric = Goals.ForemanLevels, Target = 1,  Points = 15, Gems = 5, Cards = 1 },
                     // day 3
-                    new Task { Metric = Goals.Upgrades,      Target = 10, Points = 10, Gems = 30 },
-                    new Task { Metric = Goals.Repairs,       Target = 3,  Points = 10, Gems = 30 },
-                    new Task { Metric = Goals.Contracts,     Target = 2,  Points = 15, Gems = 30, Cards = 1 },
+                    new Task { Metric = Goals.Upgrades,      Target = 10, Points = 10, Gems = 5 },
+                    new Task { Metric = Goals.Repairs,       Target = 3,  Points = 10, Gems = 5 },
+                    new Task { Metric = Goals.Contracts,     Target = 2,  Points = 15, Gems = 5, Cards = 1 },
                     // day 4
-                    new Task { Metric = Goals.Upgrades,      Target = 12, Points = 15, Gems = 35 },
-                    new Task { Metric = Goals.ForemanLevels, Target = 1,  Points = 15, Gems = 35, Cards = 1 },
-                    new Task { Metric = Goals.Contracts,     Target = 2,  Points = 15, Gems = 35 },
+                    new Task { Metric = Goals.Upgrades,      Target = 12, Points = 15, Gems = 5 },
+                    new Task { Metric = Goals.ForemanLevels, Target = 1,  Points = 15, Gems = 5, Cards = 1 },
+                    new Task { Metric = Goals.Contracts,     Target = 2,  Points = 15, Gems = 5 },
                     // day 5
-                    new Task { Metric = Goals.Upgrades,      Target = 15, Points = 15, Gems = 40 },
-                    new Task { Metric = Goals.Repairs,       Target = 4,  Points = 15, Gems = 40 },
-                    new Task { Metric = Goals.Contracts,     Target = 2,  Points = 15, Gems = 40, Cards = 1 },
+                    new Task { Metric = Goals.Upgrades,      Target = 15, Points = 15, Gems = 5 },
+                    new Task { Metric = Goals.Repairs,       Target = 4,  Points = 15, Gems = 5 },
+                    new Task { Metric = Goals.Contracts,     Target = 2,  Points = 15, Gems = 5, Cards = 1 },
                     // day 6
-                    new Task { Metric = Goals.Upgrades,      Target = 18, Points = 15, Gems = 45 },
-                    new Task { Metric = Goals.Contracts,     Target = 3,  Points = 20, Gems = 45 },
-                    new Task { Metric = Goals.ForemanLevels, Target = 2,  Points = 20, Gems = 45, Cards = 1 },
+                    new Task { Metric = Goals.Upgrades,      Target = 18, Points = 15, Gems = 5 },
+                    new Task { Metric = Goals.Contracts,     Target = 3,  Points = 20, Gems = 5 },
+                    new Task { Metric = Goals.ForemanLevels, Target = 2,  Points = 20, Gems = 5, Cards = 1 },
                     // day 7
-                    new Task { Metric = Goals.Upgrades,      Target = 20, Points = 20, Gems = 50 },
-                    new Task { Metric = Goals.Repairs,       Target = 5,  Points = 20, Gems = 50 },
-                    new Task { Metric = Goals.Contracts,     Target = 3,  Points = 20, Gems = 50, Cards = 2 },
+                    new Task { Metric = Goals.Upgrades,      Target = 20, Points = 20, Gems = 5 },
+                    new Task { Metric = Goals.Repairs,       Target = 5,  Points = 20, Gems = 5 },
+                    new Task { Metric = Goals.Contracts,     Target = 3,  Points = 20, Gems = 5, Cards = 2 },
                 },
 
                 // 305 points are on the table and the last chest opens at 260, so a day and a half can
@@ -184,11 +185,11 @@ namespace Game.Core
                 // affects sailing — a closed loop, exactly as Voyages.ChartRate intends.
                 Milestones = new[]
                 {
-                    new Milestone { Points = 40,  Gems = 60,  Cards = 2 },
-                    new Milestone { Points = 95,  Gems = 90,  Cards = 3 },
-                    new Milestone { Points = 155, Gems = 120, Charts = 60 },
-                    new Milestone { Points = 210, Gems = 150, Cards = 4, BoostMult = 2d, BoostSeconds = 1800d },
-                    new Milestone { Points = 260, Gems = 250, Cards = 6, Charts = 120 },
+                    new Milestone { Points = 40,  Gems = 15,  Cards = 2 },
+                    new Milestone { Points = 95,  Gems = 25,  Cards = 3 },
+                    new Milestone { Points = 155, Gems = 35,  Charts = 60 },
+                    new Milestone { Points = 210, Gems = 40,  Cards = 4, BoostMult = 2d, BoostSeconds = 1800d },
+                    new Milestone { Points = 260, Gems = 60,  Cards = 6, Charts = 120 },
                 },
             };
         }

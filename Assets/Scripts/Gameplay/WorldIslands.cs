@@ -13,7 +13,7 @@ namespace Game.Gameplay
     /// prestige-scaled cap), so buying
     /// the next island never abandons the previous ones. The summed rate also feeds
     /// <see cref="SaveData.incomeRatePerSec"/> so offline earnings cover the whole empire.
-    /// UI-free by design (assembly order): <c>IslandMapUI</c> drives Travel/TryBuy and re-frames the camera.
+    /// The game has one island and no way to buy or switch islands; the island map that did both was removed.
     /// </summary>
     public sealed class WorldIslands : MonoBehaviour
     {
@@ -24,7 +24,6 @@ namespace Game.Gameplay
             public string displayName;
             public string rootName;       // island root object in the scene
             public string tilesRootName;  // "" = tiles at scene root (the coal original)
-            public double unlockCost;
             public double capPerMin;         // fully-upgraded $/min — and the ceiling it earns against
             public Color oreColor = Color.white;
         }
@@ -32,11 +31,9 @@ namespace Game.Gameplay
         [SerializeField] private Entry[] islands;   // leave empty in the Inspector to use the default 8-ore ladder
 
         private CoalOperation[] _ops;
-        private WalletService _wallet;
         private MarketService _market;
         private TimeService _time;
         private SaveService _save;
-        private ChapterService _chapters;
         private SaveData _data;
         private int _active;
 
@@ -65,7 +62,6 @@ namespace Game.Gameplay
         public string IslandName(int i) => Has(i) ? islands[i].displayName : string.Empty;
         public string IslandKey(int i) => Has(i) ? islands[i].key : string.Empty;
         public string RootName(int i) => Has(i) ? islands[i].rootName : string.Empty;
-        public double UnlockCost(int i) => Has(i) ? islands[i].unlockCost : 0d;
         public double CapPerMin(int i) => Has(i) ? islands[i].capPerMin : 0d;
         public Color OreColor(int i) => Has(i) ? islands[i].oreColor : Color.white;
 
@@ -121,17 +117,6 @@ namespace Game.Gameplay
         // _ops is built in Awake alongside the ladder, so it needs its own guard rather than Has().
         public CoalOperation Operation(int i) => _ops != null && i >= 0 && i < _ops.Length ? _ops[i] : null;
         public bool IsOwned(int i) => i == 0 || (Has(i) && _data != null && _data.unlockedIslands.Contains(islands[i].key));
-        /// <summary>
-        /// Whether the next island may be purchased. The destination stays visible on the map, but
-        /// its button is held until the previous island's chapter objectives are complete.
-        /// Chapter state is derived from the same saved upgrades, so this adds no migration field.
-        /// </summary>
-        public bool CanBuy(int i)
-        {
-            if (!Has(i) || i <= 0 || IsOwned(i) || !IsOwned(i - 1)) return false;
-            if (_chapters == null) _chapters = ServiceLocator.Get<ChapterService>();
-            return _chapters == null || IslandDevelopment.CanUnlockNext(i, true, _chapters.Complete(i - 1));
-        }
         public bool IsMaxed(int i)
         {
             var op = Operation(i);
@@ -159,7 +144,6 @@ namespace Game.Gameplay
             _market = ServiceLocator.Get<MarketService>();
             _time = ServiceLocator.Get<TimeService>();
             _save = ServiceLocator.Get<SaveService>();
-            _chapters = ServiceLocator.Get<ChapterService>();
 
             // match each entry to its operation component (they all live on this controller object)
             _ops = new CoalOperation[islands.Length];
@@ -186,40 +170,6 @@ namespace Game.Gameplay
             // exactly one island alive: Awake runs before every Start, so inactive operations never boot
             for (int i = 0; i < islands.Length; i++) SetIslandLive(i, i == _active);
             if (_market != null) _market.SetActiveIsland(islands[_active].key);
-        }
-
-        /// <summary>Buy an island (world-map purchase). Does not travel — the map UI does that next.</summary>
-        public bool TryBuy(int i)
-        {
-            if (!CanBuy(i)) return false;
-            if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
-            if (_wallet == null || !_wallet.TrySpendCash(new BigDouble(islands[i].unlockCost))) return false;
-            _data.unlockedIslands.Add(islands[i].key);
-            ServiceLocator.Get<GoalService>()?.Record(Game.Core.Goals.Islands);
-            return true;
-        }
-
-        /// <summary>Switch the live island. Returns the now-active operation (null if the switch was refused).</summary>
-        public CoalOperation Travel(int i)
-        {
-            if (i < 0 || i >= islands.Length || i == _active || !IsOwned(i)) return null;
-            SetIslandLive(_active, false);
-            _active = i;
-            SetIslandLive(i, true);
-            SaveLevel("worldactive", i);
-            // Entering an island, not opening the store, starts its independent two-day window.
-            if (_time == null) _time = ServiceLocator.Get<TimeService>();
-            if (_save == null) _save = ServiceLocator.Get<SaveService>();
-            if (_time != null)
-                StarterOfferState.EnsureStarted(_data, islands[i].key, _time.NowUnix());
-            // Persist both the travel target and the offer stamp together. Otherwise killing the app
-            // immediately after arrival could restart the 48-hour clock on the next launch.
-            if (_save != null) _save.Save(_data);
-            // Which island's trucks are really driving. Every other yard is fed by the rate its own
-            // trucks last managed, so telling the ledger this is what stops it double-counting the one
-            // island that is delivering for real.
-            if (_market != null) _market.SetActiveIsland(islands[i].key);
-            return _ops[i];
         }
 
         private void SetIslandLive(int i, bool on)
@@ -257,17 +207,8 @@ namespace Game.Gameplay
             return null;
         }
 
-        private void SaveLevel(string id, int level)
-        {
-            if (_data == null || _data.islandLevels == null) return;
-            StationLevel e = FindLevel(id);
-            if (e == null) { e = new StationLevel { id = id }; _data.islandLevels.Add(e); }
-            e.level = level;
-        }
-
         /// <summary>
-        /// Every island moves by this step: what it earns, what its upgrades cost, and what it
-        /// costs to unlock. Value and cost moving together is what holds the tempo flat — they
+        /// Every island moves by this step: what it earns and what its upgrades cost. Value and cost moving together is what holds the tempo flat — they
         /// used to be ×3.2 and ×4, so each island took 25% longer than the last and by the
         /// twentieth that had compounded to 73×. Nothing on a weekly content cadence survives that.
         /// </summary>
@@ -284,23 +225,8 @@ namespace Game.Gameplay
         private const double CoalMaxPerMin = Game.Core.EconomyCurve.MaxedCoalPerMin;
 
         /// <summary>
-        /// Unlock prices through the onboarding ramp, solved against the pacing targets by
-        /// Kayseri/Economy/Solve Ladder. The ramp is deliberately steep at the start — Copper
-        /// on day one, not after thirty hours — and settles to a flat week per island, at which
-        /// point it is simply ×<see cref="TierStep"/> and needs no more hand-picked numbers.
-        /// </summary>
-        private static readonly double[] RampUnlock =
-        { 0d, 1.45e6d, 59.21e6d, 438.39e6d, 2.24e9d, 10.83e9d, 50.53e9d, 181.5e9d };
-
-        private static double UnlockCostFor(int n)
-            => n <= 0 ? 0d
-             : n < RampUnlock.Length ? RampUnlock[n]
-             : RampUnlock[RampUnlock.Length - 1] * System.Math.Pow(TierStep, n - RampUnlock.Length + 1);
-
-        /// <summary>
         /// What the island earns fully upgraded, and the ceiling it earns against — the same
-        /// number on purpose. The map's progress bar reads rate against this, so it reaches
-        /// 100% exactly when an island is finished. Keep in step with each island's
+        /// number on purpose. Keep in step with each island's
         /// <c>incomeCapPerMin</c> in the scene.
         /// </summary>
         private static double CapPerMinFor(int n) => CoalMaxPerMin * System.Math.Pow(TierStep, n);
@@ -324,10 +250,7 @@ namespace Game.Gameplay
                 E("coal", "SANAYİ ADASI", ShipyardRootName, "", new Color(0.32f, 0.38f, 0.46f)),
             };
             for (int n = 0; n < authored.Length; n++)
-            {
-                authored[n].unlockCost = UnlockCostFor(n);
                 authored[n].capPerMin = CapPerMinFor(n);
-            }
             return authored;
         }
 

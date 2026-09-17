@@ -95,7 +95,9 @@ namespace Game.Tests
             Assert.That(rig.Festival.ClaimTask(0), Is.False);
             Assert.That(rig.Festival.ClaimFreeTier(0), Is.True);
             Assert.That(rig.Festival.ClaimFreeTier(0), Is.False);
-            Assert.That(rig.Data.wallet.gems - before, Is.EqualTo(45));
+            HarborFestival.Tuning shipped = HarborFestival.Tuning.Default;
+            Assert.That(rig.Data.wallet.gems - before,
+                        Is.EqualTo(shipped.Tasks[0].Reward.Gems + shipped.Tiers[0].Free.Gems));
         }
 
         [Test]
@@ -170,6 +172,28 @@ namespace Game.Tests
 
             Assert.That(festival.Available, Is.False);
             Assert.That(festival.PendingCount(), Is.Zero);
+        }
+
+        /// <summary>
+        /// No store id means no purchase flow: the track is unavailable, can never be owned, and a
+        /// premium claim is refused however many tokens are earned.
+        /// </summary>
+        [Test]
+        public void PremiumTrackIsUnavailableWithoutAStoreId()
+        {
+            Rig rig = Running();
+            rig.Festival.TaskProgress(0);
+            rig.Goals.Record(Goals.Upgrades, 10);
+
+            Assert.That(string.IsNullOrEmpty(HarborFestival.Tuning.Default.PremiumSku), Is.True,
+                        "Harbor's shipped premium sku is empty on purpose until the purchase flow exists.");
+            Assert.That(rig.Festival.PremiumAvailable, Is.False);
+            Assert.That(rig.Festival.PremiumOwned, Is.False);
+            Assert.That(rig.Festival.ClaimPremiumTier(0), Is.False);
+
+            HarborFestival.Tuning withSku = HarborFestival.Tuning.Default;
+            withSku.PremiumSku = "harbor_premium_test";
+            Assert.That(Running(withSku).Festival.PremiumAvailable, Is.True);
         }
     }
 }

@@ -37,10 +37,9 @@ namespace Game.Core
             /// Sized against what the rest of the economy already pays, rather than against the
             /// reference game's numbers, which are not ours to copy.
             ///
-            /// A whole Production Sprint's milestone ladder pays 210 gems and 6 cards, and the master
-            /// set costs about 14,400 gems. A season here tops out at 150 gems, so a player who wins
-            /// every three-day season for a month collects roughly 1,500 — about a tenth of the set,
-            /// which puts the league beside the sprint rather than ahead of it.
+            /// Retuned 2026-09-17 against the free gem budget (RewardBudgetTests): a season tops out at
+            /// 100 gems, and the budget counts a typical 4th-20th finish at about 25 a season — the
+            /// league is a small, steady share of the week, not a second festival.
             ///
             /// The tail pays on purpose. 21st-30th is still 10 gems, so a season the player was never
             /// going to win is a reason to come back rather than a reason to stop looking. Cards stop
@@ -51,10 +50,10 @@ namespace Game.Core
             {
                 Brackets = new[]
                 {
-                    new Reward { Gems = 150L, Cards = 3 },   // 1st
-                    new Reward { Gems = 100L, Cards = 2 },   // 2nd
-                    new Reward { Gems =  75L, Cards = 2 },   // 3rd
-                    new Reward { Gems =  40L, Cards = 1 },   // 4-10
+                    new Reward { Gems = 100L, Cards = 3 },   // 1st
+                    new Reward { Gems =  70L, Cards = 2 },   // 2nd
+                    new Reward { Gems =  50L, Cards = 2 },   // 3rd
+                    new Reward { Gems =  35L, Cards = 1 },   // 4-10
                     new Reward { Gems =  20L, Cards = 0 },   // 11-20
                     new Reward { Gems =  10L, Cards = 0 },   // 21-30
                 },
@@ -98,6 +97,56 @@ namespace Game.Core
         {
             Reward reward = RewardFor(tier, tuning);
             return reward.Gems > 0L || reward.Cards > 0;
+        }
+
+        // ----------------------------------------------------------------------------- points
+        /// <summary>One counted action: which goal metric, what it scores, and the most of it a
+        /// season will count.</summary>
+        public struct ScoringRule
+        {
+            public int Metric;
+            public int PointsPerAction;
+            public long SeasonCap;
+        }
+
+        /// <summary>
+        /// What a season is ranked on (decided 2026-09-17, replacing raw bars sold).
+        ///
+        /// COUNTS, NEVER OUTPUT. Bars and cash inflate x3.2 per ore tier, so a bar-based score ranked
+        /// how far along a player was rather than how much they played — and the two-island band
+        /// still spans a whole tier. An upgrade, a contract, a repair and a foreman level mean the same
+        /// thing on coal and on diamond, which is the reason the daily goals count them too.
+        ///
+        /// CAPPED PER SEASON, so no one metric can be ground without limit and a season has a known
+        /// ceiling (<see cref="MaxSeasonPoints"/>) the generated cohort is sized against. Upgrades pay
+        /// least per action because they are by far the most frequent.
+        /// </summary>
+        public static readonly ScoringRule[] Scoring =
+        {
+            new ScoringRule { Metric = Goals.Upgrades,      PointsPerAction = 1,  SeasonCap = 250L },
+            new ScoringRule { Metric = Goals.Contracts,     PointsPerAction = 10, SeasonCap = 30L },
+            new ScoringRule { Metric = Goals.Repairs,       PointsPerAction = 6,  SeasonCap = 30L },
+            new ScoringRule { Metric = Goals.ForemanLevels, PointsPerAction = 15, SeasonCap = 10L },
+        };
+
+        /// <summary>What a rule scores for <paramref name="actions"/> taken this season: capped, and
+        /// never negative — a counter that went backwards is no actions, not a debt.</summary>
+        public static long PointsFor(in ScoringRule rule, long actions)
+        {
+            if (actions <= 0L || rule.PointsPerAction <= 0) return 0L;
+            if (rule.SeasonCap >= 0L && actions > rule.SeasonCap) actions = rule.SeasonCap;
+            return actions * rule.PointsPerAction;
+        }
+
+        /// <summary>The most a season can score: every rule at its cap.</summary>
+        public static long MaxSeasonPoints
+        {
+            get
+            {
+                long total = 0L;
+                for (int i = 0; i < Scoring.Length; i++) total += PointsFor(Scoring[i], Scoring[i].SeasonCap);
+                return total;
+            }
         }
     }
 }

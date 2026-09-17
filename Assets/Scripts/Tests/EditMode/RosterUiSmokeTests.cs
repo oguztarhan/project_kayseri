@@ -185,9 +185,16 @@ namespace Game.Tests
             var bands = new[] { "Serit", "Carpan", "Kese", "Kapat", "Sandik", "Sirala", "Filtre" };
             AssertOnSheet(ui.transform, bands);
             AssertNoOverlap(ui.transform, "Sandik", "Sirala");
-            AssertNoOverlap(ui.transform, "Sandik", "Kart_0");
-            AssertNoOverlap(ui.transform, "Sirala", "Kart_0");
+            // The cards live inside the scrolling band now, so their anchors are fractions of the
+            // content rather than of the sheet — the band is what must clear the shelf and the bar.
+            AssertOnSheet(ui.transform, new[] { "KadroGorunum" });
+            AssertNoOverlap(ui.transform, "Sandik", "KadroGorunum");
+            AssertNoOverlap(ui.transform, "Sirala", "KadroGorunum");
+            AssertNoOverlap(ui.transform, "Filtre", "Sirala");
             AssertNoOverlap(ui.transform, "Serit", "Sandik");
+            AssertNoOverlap(ui.transform, "Serit", "Carpan");
+            AssertNoOverlap(ui.transform, "Serit", "Kese");
+            AssertNoOverlap(ui.transform, "Kese", "Kapat");
             AssertCardsTile(ui.transform, "Kart_", Foremen.Count);
         }
 
@@ -204,8 +211,9 @@ namespace Game.Tests
 
             AssertOnSheet(ui.transform, new[] { "Serit", "Harita", "Kapat", "Sandik", "Sirala", "Filtre" });
             AssertNoOverlap(ui.transform, "Sandik", "Sirala");
-            AssertNoOverlap(ui.transform, "Sandik", "Kaptan_0");
-            AssertNoOverlap(ui.transform, "Sirala", "Kaptan_0");
+            AssertOnSheet(ui.transform, new[] { "KadroGorunum" });
+            AssertNoOverlap(ui.transform, "Sandik", "KadroGorunum");
+            AssertNoOverlap(ui.transform, "Sirala", "KadroGorunum");
             AssertCardsTile(ui.transform, "Kaptan_", Captains.Count);
         }
 

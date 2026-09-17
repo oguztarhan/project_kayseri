@@ -355,9 +355,11 @@ namespace Game.Systems
     /// The league's whole persisted state — deliberately small, because most of what a ladder appears
     /// to hold is DERIVED rather than stored.
     ///
-    /// The running season's score is <c>lifetime[BarsSold] - baseline</c>, both of which are already
-    /// in the save, so the score survives an app kill without being written twice and can never drift
-    /// from the counter it is measured off. What genuinely has to be kept is here:
+    /// The running season's score is derived from lifetime counters and the baselines taken when the
+    /// season opened — capped <c>Ladder.Scoring</c> points since 2026-09-17, or
+    /// <c>lifetime[BarsSold] - baseline</c> for a season opened by an older build — so the score
+    /// survives an app kill without being written twice and can never drift from the counters it is
+    /// measured off. What genuinely has to be kept is here:
     ///
     /// <see cref="bestScore"/> exists for one reason — a season that closes while the app is shut. The
     /// delta would then include bars sold AFTER the window ended, and would settle a closed season
@@ -374,6 +376,9 @@ namespace Game.Systems
         public long baseline;             // lifetime[BarsSold] when this season opened
         public long bestScore;            // the best seen WHILE the season was open (see the class note)
         public long bestAchievedUnix;     // when bestScore was first reached — the ranking tie-break
+        public bool points;               // this season scores Ladder.Scoring points; false = a pre-points season, scored in bars
+        public long[] baselines = new long[Game.Core.Goals.MetricCount];   // lifetime[metric] when this season opened, for points
+        public bool pointsHelpSeen;       // the "how points are earned" card has been closed once; presentation only
         public List<string> settledSeasons = new List<string>();
         public List<LadderInboxRow> inbox = new List<LadderInboxRow>();
     }

@@ -49,6 +49,10 @@ namespace Game.UI
                  "burada kullanılır, yoksa her satır kendi fonunu ve köşe parıltısını tekrarlar.")]
         [SerializeField] private Sprite backdropArt;
 
+        [Tooltip("Zemin çerçevesinin kalınlığını böler. 1'de sanatın 146 piksellik kenarı olduğu gibi " +
+                 "çizilir ve mavi çerçeve kartların arasından taşar; 2 onu ince bir kenara indirir.")]
+        [SerializeField] private float backdropBorderScale = 2f;
+
         [Tooltip("Sandık kartının simgesi — KaptanKiti/captain_chest_icon. Boşsa çizilmez.")]
         [SerializeField] private Sprite chestIcon;
 
@@ -112,7 +116,7 @@ namespace Game.UI
         private static readonly Color BadgeLocked = new Color(0.34f, 0.38f, 0.45f, 1f);
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
 
-        private const float RibbonBand = 0.677f;
+        private const float RibbonBand = 0.560f;
         private static readonly System.Globalization.CultureInfo Culture =
             System.Globalization.CultureInfo.InvariantCulture;
 
@@ -251,7 +255,8 @@ namespace Game.UI
 
             _emptyText = UiBuild.Label(Slot(_root, "FiltreBos", new Vector2(PageLeft, 0.24f), new Vector2(PageRight, 0.42f)),
                                        "Text", Loc.T("kadro.bos"), 28, TextAnchor.MiddleCenter);
-            _emptyText.color = Paper;
+            // Ink on the kit's white sheet; paper only when the screen is still bare scrim behind it.
+            _emptyText.color = backdropArt != null ? Ink : Paper;
             Fit(_emptyText, 16, 28);
             _emptyText.gameObject.SetActive(false);
         }
@@ -275,12 +280,17 @@ namespace Game.UI
             // sheet left of centre, which reads as a crooked title beside the Zemin behind it.
             RectTransform band = Art(_root, "Serit", ribbon,
                                      new Vector2(0.310f, 0.928f), new Vector2(0.690f, 0.998f));
-            _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
-                                        new Vector2(0.87f, RibbonBand + 0.13f)),
+            // Legacy Text draws its capitals high in the line box, so a label centred on the ribbon's
+            // flat middle (0.64 of its height) put the title on the ribbon's top edge.
+            _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.20f, RibbonBand - 0.18f),
+                                        new Vector2(0.80f, RibbonBand + 0.18f)),
                                    "Text", Loc.T("kaptan.baslik"), 38, TextAnchor.MiddleCenter);
+            Fit(_titleLabel, 20, 38);
 
-            _chartsChip = Chip(_root, "Harita", new Vector2(PageLeft, 0.941f),
-                               new Vector2(PageLeft + 0.215f, 0.995f));
+            // Header chips hang off the sheet's outer edge, not the content margin — same line as the
+            // masters screen's multiplier chip, so the two rosters share one header.
+            _chartsChip = Chip(_root, "Harita", new Vector2(HeaderLeft, 0.941f),
+                               new Vector2(0.290f, 0.995f));
             if (gemIcon != null)
             {
                 RectTransform gem = Art(_chartsChip, "Elmas", gemIcon,
@@ -291,19 +301,23 @@ namespace Game.UI
             }
             _chartsLabel = UiBuild.Label(Slot(_chartsChip, "Yazi",
                                          new Vector2(gemIcon != null ? 0.300f : 0.08f, 0f),
-                                         new Vector2(0.92f, 1f)),
+                                         new Vector2(0.84f, 1f)),   // clear of the pill's right cap
                                          "Text", string.Empty, 30, TextAnchor.MiddleCenter);
             _chartsLabel.color = Paper;
+            Fit(_chartsLabel, 16, 30);
 
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
                                        closeIcon != null ? closeIcon : UiSkin.ButtonGrey, track, 34, Hide);
             var closeImage = close.GetComponent<Image>();
             closeImage.type = Image.Type.Simple;
             closeImage.preserveAspect = true;
+            // UiBuild.Btn tints the face with its fallback colour; the kit's cross is pre-coloured and
+            // came out nearly black under the dark track tint.
+            if (closeIcon != null) closeImage.color = Color.white;
             // Tam köşede değil: HUD'un ayarlar dişlisi 120 sıralı kanvasta bunun üstünde çiziliyor.
-            // Sağ kenarı harita göstergesinin sol kenarıyla aynı payda: ikisi de sayfa payına yaslı.
+            // Sağ kenarı sol göstergenin sol kenarıyla aynı payda, ustalar ekranıyla aynı yerde.
             UiBuild.Anchor((RectTransform)close.transform,
-                           new Vector2(PageRight - 0.100f, 0.938f), new Vector2(PageRight, 0.996f));
+                           new Vector2(0.845f, 0.940f), new Vector2(1f - HeaderLeft, 0.998f));
         }
 
         /// <summary>The crate card: what it costs, what the two counters are at, and what came out.</summary>
@@ -312,8 +326,9 @@ namespace Game.UI
             RectTransform c = Art(_root, "Sandik", cardPanel,
                                   new Vector2(PageLeft, CrateBottom), new Vector2(PageRight, CrateTop));
 
-            // Name and counter on the left, the two open pills on the right, the pity and last-pull
-            // lines filling the middle — the same shelf grammar the masters screen uses.
+            // Two columns. Everything the card SAYS stacks down the left — name, count, pity, last
+            // pull — and everything it DOES stacks down the right, the two open pills. The pity text
+            // used to be a narrow third column wedged between them, wrapping every other word.
             //
             // The chest sits left of the title and pushes it right, rather than going in the empty
             // middle: a crate card whose picture is not beside its name reads as two cards.
@@ -321,14 +336,16 @@ namespace Game.UI
             if (chest)
             {
                 RectTransform box = Art(c, "SandikSimge", chestIcon,
-                                        new Vector2(0.030f, 0.690f), new Vector2(0.132f, 0.960f));
+                                        new Vector2(0.035f, 0.735f), new Vector2(0.160f, 0.955f));
                 var boxImage = box.GetComponent<Image>();
                 boxImage.preserveAspect = true;
                 boxImage.raycastTarget = false;
             }
-            UiBuild.Label(Slot(c, "Baslik", new Vector2(chest ? 0.148f : 0.030f, 0.700f),
-                               new Vector2(0.330f, 0.950f)),
-                          "Text", Loc.T("kaptan.sandik"), 32, TextAnchor.MiddleLeft).color = Ink;
+            Text title = UiBuild.Label(Slot(c, "Baslik", new Vector2(chest ? 0.175f : 0.035f, 0.745f),
+                                            new Vector2(0.480f, 0.945f)),
+                                       "Text", Loc.T("kaptan.sandik"), 34, TextAnchor.MiddleLeft);
+            title.color = Ink;
+            Fit(title, 18, 34);
 
             // Charts cannot be bought, so this crate is outside the platforms' paid-loot-box rule. The
             // badge is here anyway: the card already shows how far each guarantee is away, and the
@@ -339,17 +356,25 @@ namespace Game.UI
                                       new Color(0.45f, 0.49f, 0.56f, 1f), 22,
                                       () => { if (_odds != null && _captains != null)
                                                   _odds.ShowCaptainCrate(_captains.CrateTuning); });
+            var oddsImage = odds.GetComponent<Image>();
+            if (badge != null)
+            {
+                oddsImage.type = Image.Type.Simple;
+                oddsImage.preserveAspect = true;
+                oddsImage.color = Color.white;
+            }
             UiBuild.Anchor((RectTransform)odds.transform,
-                           new Vector2(0.342f, 0.720f), new Vector2(0.412f, 0.935f));
+                           new Vector2(0.500f, 0.765f), new Vector2(0.580f, 0.935f));
 
-            _collectedLabel = UiBuild.Label(Slot(c, "Toplandi", new Vector2(0.030f, 0.440f), new Vector2(0.412f, 0.680f)),
-                                            "Text", string.Empty, 24, TextAnchor.MiddleLeft);
+            _collectedLabel = UiBuild.Label(Slot(c, "Toplandi", new Vector2(0.035f, 0.615f), new Vector2(0.590f, 0.725f)),
+                                            "Text", string.Empty, 26, TextAnchor.MiddleLeft);
             _collectedLabel.color = InkSoft;
+            Fit(_collectedLabel, 14, 26);
 
             _openOne = UiBuild.Btn(c, "AcBir", string.Empty,
                                    actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                    new Color(0.24f, 0.68f, 0.36f, 1f), 26, () => Open(1));
-            UiBuild.Anchor((RectTransform)_openOne.transform, new Vector2(0.640f, 0.560f), new Vector2(0.970f, 0.930f));
+            UiBuild.Anchor((RectTransform)_openOne.transform, new Vector2(0.620f, 0.580f), new Vector2(0.965f, 0.910f));
             PillFit.Wrap(_openOne.GetComponent<Image>());
             _openOneText = _openOne.GetComponentInChildren<Text>();
             UiBuild.Anchor(_openOneText.rectTransform, new Vector2(0.14f, 0.12f), new Vector2(0.86f, 0.88f));
@@ -359,22 +384,27 @@ namespace Game.UI
                                     actionButton != null ? actionButton : UiSkin.ButtonYellow,
                                     new Color(0.94f, 0.68f, 0.20f, 1f), 26,
                                     () => Open(_captains != null ? _captains.CrateTuning.BulkCount : 10));
-            UiBuild.Anchor((RectTransform)_openBulk.transform, new Vector2(0.640f, 0.090f), new Vector2(0.970f, 0.460f));
+            UiBuild.Anchor((RectTransform)_openBulk.transform, new Vector2(0.620f, 0.200f), new Vector2(0.965f, 0.530f));
             PillFit.Wrap(_openBulk.GetComponent<Image>());
             _openBulkText = _openBulk.GetComponentInChildren<Text>();
             UiBuild.Anchor(_openBulkText.rectTransform, new Vector2(0.14f, 0.12f), new Vector2(0.86f, 0.88f));
             Fit(_openBulkText, 14, 26);
 
-            _pityLabel = UiBuild.Label(Slot(c, "Teselli", new Vector2(0.435f, 0.520f), new Vector2(0.615f, 0.940f)),
-                                       "Text", string.Empty, 22, TextAnchor.UpperLeft);
+            _pityLabel = UiBuild.Label(Slot(c, "Teselli", new Vector2(0.035f, 0.405f), new Vector2(0.590f, 0.605f)),
+                                       "Text", string.Empty, 22, TextAnchor.MiddleLeft);
             _pityLabel.color = InkSoft;
             Fit(_pityLabel, 13, 22);
 
-            _lastPullLabel = UiBuild.Label(Slot(c, "SonCekilis", new Vector2(0.030f, 0.070f), new Vector2(0.615f, 0.420f)),
-                                           "Text", string.Empty, 24, TextAnchor.UpperCenter);
+            _lastPullLabel = UiBuild.Label(Slot(c, "SonCekilis", new Vector2(0.035f, 0.160f), new Vector2(0.590f, 0.395f)),
+                                           "Text", string.Empty, 24, TextAnchor.MiddleLeft);
             Fit(_lastPullLabel, 14, 24);
 
-            _sourceLabel = UiBuild.Label(Slot(c, "Kaynak", new Vector2(0.07f, 0.030f), new Vector2(0.93f, 0.115f)),
+            // A thin rule over the footer, so the source line reads as the card's caption rather than
+            // as one more thing floating under the second pill.
+            Image rule = Flat(c, "Cizgi", new Vector2(0.035f, 0.140f), new Vector2(0.965f, 0.146f));
+            rule.color = new Color(InkFaint.r, InkFaint.g, InkFaint.b, 0.35f);
+
+            _sourceLabel = UiBuild.Label(Slot(c, "Kaynak", new Vector2(0.035f, 0.030f), new Vector2(0.965f, 0.130f)),
                                          "Text", Loc.T("kaptan.nereden"), 20, TextAnchor.MiddleCenter);
             _sourceLabel.color = InkFaint;
             Fit(_sourceLabel, 12, 20);
@@ -474,8 +504,10 @@ namespace Game.UI
 
             // The word, then the number. A chip reading "47K" on its own does not say what 47K IS,
             // and this is the only place the player ever sees charts counted.
-            _chartsLabel.text = Loc.T("kaptan.harita") + "  "
-                              + NumberFormatter.Format((double)_captains.Charts, 0);
+            // One line: the chip grows taller on a tall phone, and best fit wraps before it shrinks,
+            // so without non-breaking spaces the number dropped under the word.
+            _chartsLabel.text = EtkinlikKit.OneLine(Loc.T("kaptan.harita") + "  "
+                              + NumberFormatter.Format((double)_captains.Charts, 0));
             _collectedLabel.text = string.Format(Loc.T("kaptan.toplandi"),
                                                  _captains.OwnedCount, Captains.Count);
             _sortText.text = "↕ " + Loc.T("kadro.sirala." + (int)_sortMode);
@@ -634,11 +666,13 @@ namespace Game.UI
             {
                 // Pips when they are on show, written stars when the badge has taken their slot —
                 // a captain at the helm still has to say how far he is levelled.
-                _rowRole[captain].text = !owned
+                // One line, shrunk rather than wrapped: "Henüz bulunmadı" broke onto a second line
+                // over the progress bar on tall phones.
+                _rowRole[captain].text = EtkinlikKit.OneLine(!owned
                     ? string.Format("{0} · {1} · {2}", rank, role, Loc.T("kaptan.bulunmadi"))
                     : HasStarPips(captain) && !badged
                         ? string.Format("{0} · {1}", rank, role)
-                        : string.Format("{0} · {1} · {2}", rank, role, StarText(level));
+                        : string.Format("{0} · {1} · {2}", rank, role, StarText(level)));
                 _rowRole[captain].color = owned ? InkSoft : InkFaint;
             }
             PaintStars(captain, owned ? level : 0, tint, !badged);
@@ -861,15 +895,21 @@ namespace Game.UI
         /// showing down each side, which reads as a stray bar rather than as a border. 0.062 clears
         /// the rim, so the frame is either fully seen or not seen at all.
         /// </summary>
-        private const float PageLeft = 0.062f, PageRight = 0.938f;
+        /// It is now inside the sheet's WHITE, not just clear of its rim: with the rim drawn at
+        /// <see cref="backdropBorderScale"/> the white starts about 0.085 in, and a card that crossed
+        /// that line left a blue sliver between every row.
+        private const float PageLeft = 0.105f, PageRight = 0.895f;
+        /// <summary>The header row's outer edge — the chips and close button sit above the sheet, so
+        /// they line up with its frame rather than with the content inside it.</summary>
+        private const float HeaderLeft = 0.062f;
         /// <summary>Where the sort and filter buttons meet, leaving a 0.020 gap between them and an
         /// equal half of the content width each.</summary>
         private const float BrowseSplitLeft = (PageLeft + PageRight) * 0.5f - 0.010f;
         private const float BrowseSplitRight = (PageLeft + PageRight) * 0.5f + 0.010f;
 
-        private const float CrateTop = 0.905f, CrateBottom = 0.690f;
-        private const float BrowseTop = 0.672f, BrowseBottom = 0.622f;
-        private const float RowsTop = 0.606f, RowsBottom = 0.030f;
+        private const float CrateTop = 0.900f, CrateBottom = 0.685f;
+        private const float BrowseTop = 0.669f, BrowseBottom = 0.621f;
+        private const float RowsTop = 0.606f, RowsBottom = 0.072f;
 
         private void BuildBackdrop()
         {
@@ -879,11 +919,14 @@ namespace Game.UI
             // and none on the rows.
             Sprite art = backdropArt != null ? backdropArt : cardPanel;
             RectTransform sheet = Art(_root, "Zemin", art,
-                                      new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.922f));
+                                      new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.955f));
             var image = sheet.GetComponent<Image>();
             image.color = backdropArt != null ? Color.white : backdrop;
             if (backdropArt != null)
+            {
                 image.type = backdropArt.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
+                image.pixelsPerUnitMultiplier = Mathf.Max(0.01f, backdropBorderScale);
+            }
             image.raycastTarget = true;
             var eat = sheet.gameObject.AddComponent<Button>();
             eat.transition = Selectable.Transition.None;

@@ -78,16 +78,6 @@ namespace Game.Tests
             Assert.That(IslandDevelopment.Compare(cheap, dear), Is.LessThan(0));
         }
 
-        [TestCase(1, true, true, true)]
-        [TestCase(1, true, false, false)]
-        [TestCase(1, false, true, false)]
-        [TestCase(0, true, true, false)]
-        public void CanUnlockNext_RequiresPreviousIslandAndObjectives(
-            int destination, bool previousOwned, bool complete, bool expected)
-        {
-            Assert.That(IslandDevelopment.CanUnlockNext(destination, previousOwned, complete), Is.EqualTo(expected));
-        }
-
         private static IslandDevelopment.Recommendation R(
             int station, int axis, int level, int cap, double cost, bool affordable)
             => new IslandDevelopment.Recommendation

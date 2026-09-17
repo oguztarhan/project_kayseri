@@ -96,9 +96,5 @@ namespace Game.Core
             if (left.Station != right.Station) return left.Station.CompareTo(right.Station);
             return left.Axis.CompareTo(right.Axis);
         }
-
-        /// <summary>The next island needs both the previous rung and its chapter objectives.</summary>
-        public static bool CanUnlockNext(int destinationIndex, bool previousOwned, bool previousObjectivesComplete)
-            => destinationIndex > 0 && previousOwned && previousObjectivesComplete;
     }
 }

@@ -69,7 +69,6 @@ namespace Game.UI
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
         private static readonly Color Good = new Color(0.24f, 0.68f, 0.36f, 1f);
         private static readonly Color Bad = new Color(0.86f, 0.30f, 0.26f, 1f);
-        private const float RibbonBand = 0.677f;
 
         private CraftingService _crafting;
         private CaptainService _captains;
@@ -197,7 +196,7 @@ namespace Game.UI
         private void BuildBackdrop()
         {
             RectTransform sheet = Art(_root, "Zemin", _panel,
-                                      new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.842f));
+                                      new Vector2(0.020f, 0.020f), new Vector2(0.980f, AtolyeKit.ContentTop));
             var image = sheet.GetComponent<Image>();
             image.color = backdrop;
             image.raycastTarget = true;
@@ -207,10 +206,7 @@ namespace Game.UI
 
         private void BuildHeader()
         {
-            RectTransform band = Art(_root, "Serit", _ribbon, new Vector2(0.360f, 0.850f), new Vector2(0.640f, 0.992f));
-            _titleLabel = UiBuild.Label(Zone(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
-                                             new Vector2(0.87f, RibbonBand + 0.13f)),
-                                        "Text", Loc.T("atolye.baslik"), 38, TextAnchor.MiddleCenter);
+            _titleLabel = AtolyeKit.Ribbon(_root, _ribbon, Loc.T("atolye.baslik"), AtolyeKit.RibbonMin, AtolyeKit.RibbonMax);
 
             // The points chip now says WHICH points. It carried a bare number — on a screen whose
             // ÜRET button spells out "3 CRAFT POINTS" in full, the one place the balance lives was
@@ -219,25 +215,16 @@ namespace Game.UI
             // the kit capsule spends its height on two end caps, so a tall box left nothing between
             // them. Art draws a borderless sprite Simple and aspect-locked, which is what an icon
             // wants — and the icon is why the chip can say which points these are.
-            RectTransform chip = Chip(_root, "Puan", new Vector2(0.030f, 0.893f), new Vector2(0.300f, 0.957f));
+            RectTransform chip = Chip(_root, "Puan", new Vector2(0.030f, 0.928f), new Vector2(0.255f, 0.982f));
             bool named = _pointsIcon != null;
-            if (named) Art(chip, "Ikon", _pointsIcon, new Vector2(0.06f, 0.14f), new Vector2(0.26f, 0.86f));
-            _pointsLabel = UiBuild.Label(Zone(chip, "Yazi", new Vector2(named ? 0.29f : 0.10f, 0.08f),
-                                              new Vector2(0.90f, 0.92f)),
-                                         "Text", string.Empty, 26, TextAnchor.MiddleCenter);
+            if (named) Art(chip, "Ikon", _pointsIcon, new Vector2(0.08f, 0.14f), new Vector2(0.30f, 0.86f));
+            // Two lines deep at most: on a tall phone the chip is narrower for its height, and a box as
+            // tall as the chip let "0 CRAFT POINTS" wrap onto three lines and out of the capsule.
+            _pointsLabel = UiBuild.Label(Zone(chip, "Yazi", new Vector2(named ? 0.31f : 0.14f, 0.16f),
+                                              new Vector2(0.88f, 0.84f)),
+                                         "Text", string.Empty, 24, TextAnchor.MiddleCenter);
             _pointsLabel.color = Paper;
-            Fit(_pointsLabel, 11, 26);
-
-            // The way through to the shelf. Beside the title rather than on the bench card: the depo
-            // is a screen of its own, not one more control on the bench, and the header is where
-            // this screen already keeps what is true of the whole workshop.
-            Button depo = UiBuild.Btn(_root, "Depo", string.Empty,
-                                      _btnBlue != null ? _btnBlue : UiSkin.ButtonBlue,
-                                      Color.white, 22, OnDepo);
-            UiBuild.Anchor((RectTransform)depo.transform,
-                           new Vector2(0.655f, 0.880f), new Vector2(0.860f, 0.963f));
-            PillFit.Wrap(depo.GetComponent<Image>());
-            _depoLabel = AtolyeKit.Label(depo, 11, 22);
+            Fit(_pointsLabel, 10, 24);
 
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
                                        _closeIcon != null ? _closeIcon : UiSkin.ButtonGrey,
@@ -245,46 +232,58 @@ namespace Game.UI
             var closeImage = close.GetComponent<Image>();
             closeImage.type = Image.Type.Simple;
             closeImage.preserveAspect = true;
-            UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.878f, 0.873f), new Vector2(0.938f, 0.970f));
+            UiBuild.Anchor((RectTransform)close.transform, AtolyeKit.CloseMin, AtolyeKit.CloseMax);
         }
 
         /// <summary>The bench card: level, XP, the ÜRET button, and the retooling stop when one runs.</summary>
         private void BuildBench()
         {
-            RectTransform c = Art(_root, "Tezgah", _panel, new Vector2(0.035f, 0.030f), new Vector2(0.475f, 0.815f));
+            RectTransform card = Art(_root, "Tezgah", _panel, new Vector2(0.035f, 0.030f), new Vector2(0.475f, 0.890f));
+            RectTransform c = AtolyeKit.Inner(card, _panel, 20f);
 
-            _levelLabel = UiBuild.Label(Zone(c, "Seviye", new Vector2(0.07f, 0.880f), new Vector2(0.93f, 0.970f)),
+            _levelLabel = UiBuild.Label(Zone(c, "Seviye", new Vector2(0f, 0.915f), new Vector2(1f, 0.990f)),
                                         "Text", string.Empty, 40, TextAnchor.MiddleCenter);
             _levelLabel.color = Ink;
 
-            _tierLabel = UiBuild.Label(Zone(c, "Kademe", new Vector2(0.07f, 0.820f), new Vector2(0.93f, 0.878f)),
+            _tierLabel = UiBuild.Label(Zone(c, "Kademe", new Vector2(0f, 0.862f), new Vector2(1f, 0.910f)),
                                        "Text", string.Empty, 24, TextAnchor.MiddleCenter);
             _tierLabel.color = InkSoft;
 
-            RectTransform track = Bar(c, "XpCubuk", new Vector2(0.09f, 0.740f), new Vector2(0.91f, 0.800f), out _xpFill);
+            RectTransform track = Bar(c, "XpCubuk", new Vector2(0.02f, 0.785f), new Vector2(0.98f, 0.835f), out _xpFill);
             _xpLabel = UiBuild.Label(track, "Yazi", string.Empty, 22, TextAnchor.MiddleCenter);
             _xpLabel.color = Paper;
 
             _craftBtn = UiBuild.Btn(c, "Uret", string.Empty,
                                     _btnGreen != null ? _btnGreen : UiSkin.ButtonGreen,
                                     Color.white, 30, OnCraft);
-            UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0.10f, 0.560f), new Vector2(0.90f, 0.690f));
+            UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0f, 0.625f), new Vector2(1f, 0.735f));
             PillFit.Wrap(_craftBtn.GetComponent<Image>());
             _craftLabel = _craftBtn.GetComponentInChildren<Text>();
             // The price names its currency now — "3 CRAFT POINTS", not "3 PTS" — so it takes a line of
-            // its own, kept inside the pill's round end caps.
-            UiBuild.Anchor(_craftLabel.rectTransform, new Vector2(0.14f, 0.12f), new Vector2(0.86f, 0.88f));
-            Fit(_craftLabel, 16, 30);
+            // its own. Two lines, not three: the price line runs onto the caps' inner curve rather
+            // than wrapping, and the box is only tall enough for two, so best fit shrinks it instead.
+            UiBuild.Anchor(_craftLabel.rectTransform, new Vector2(0.10f, 0.14f), new Vector2(0.90f, 0.86f));
+            Fit(_craftLabel, 14, 30);
             _craftLabel.verticalOverflow = VerticalWrapMode.Truncate;
 
             _autoCraftAdBtn = UiBuild.Btn(c, "OtoUretReklam", string.Empty,
                                           _btnBlue != null ? _btnBlue : UiSkin.ButtonBlue,
                                           Color.white, 20, OnAutoCraftAd);
             UiBuild.Anchor((RectTransform)_autoCraftAdBtn.transform,
-                           new Vector2(0.10f, 0.445f), new Vector2(0.90f, 0.515f));
+                           new Vector2(0f, 0.530f), new Vector2(1f, 0.590f));
             PillFit.Wrap(_autoCraftAdBtn.GetComponent<Image>());
             // The longest string on the screen ("WATCH AD · 15 MIN AUTO-CRAFT") in the shortest pill.
             _autoCraftAdLabel = AtolyeKit.Label(_autoCraftAdBtn, 10, 20);
+
+            // The way through to the shelf. It used to sit in the header between the ribbon and the
+            // close button, where the room left drew the capsule as an egg; the bench card had half
+            // its height empty below the buttons, and the depo is where a craft goes next anyway.
+            Button depo = UiBuild.Btn(c, "Depo", string.Empty,
+                                      _btnBlue != null ? _btnBlue : UiSkin.ButtonBlue,
+                                      Color.white, 22, OnDepo);
+            UiBuild.Anchor((RectTransform)depo.transform, new Vector2(0f, 0.445f), new Vector2(1f, 0.505f));
+            PillFit.Wrap(depo.GetComponent<Image>());
+            _depoLabel = AtolyeKit.Label(depo, 11, 24);
 
             // The stop's own strip. It does NOT replace the button — crafting carries on while the
             // bench retools; only the level waits, which is exactly what the strip says. The kit's
@@ -295,7 +294,7 @@ namespace Game.UI
             // barely wider than it was tall — the two end caps met and it drew as a blue egg. Full
             // card width and about half the height is what makes it read as a strip; the three lines
             // it carries still fit, kept inside the caps.
-            _gateCard = Art(c, "Durak", _gatePill, new Vector2(0.04f, 0.318f), new Vector2(0.96f, 0.430f));
+            _gateCard = Art(c, "Durak", _gatePill, new Vector2(0f, 0.270f), new Vector2(1f, 0.405f));
             var gateImage = _gateCard.GetComponent<Image>();
             gateImage.type = Image.Type.Sliced;
             gateImage.preserveAspect = false;
@@ -309,7 +308,7 @@ namespace Game.UI
                                        "Text", Loc.T("atolye.birikiyor"), 18, TextAnchor.MiddleCenter);
             _bankLabel.color = new Color(0.75f, 0.81f, 0.92f, 1f);
 
-            _sourceLabel = UiBuild.Label(Zone(c, "Nereden", new Vector2(0.07f, 0.040f), new Vector2(0.93f, 0.300f)),
+            _sourceLabel = UiBuild.Label(Zone(c, "Nereden", new Vector2(0f, 0f), new Vector2(1f, 0.120f)),
                                          "Text", Loc.T("atolye.nereden"), 20, TextAnchor.LowerCenter);
             _sourceLabel.color = InkFaint;
             Fit(_sourceLabel, 12, 20);
@@ -318,13 +317,14 @@ namespace Game.UI
         /// <summary>The odds table: one row per grade, straight off <see cref="Crafting.LevelOdds"/>.</summary>
         private void BuildOdds()
         {
-            RectTransform c = Art(_root, "Oranlar", _panel, new Vector2(0.505f, 0.030f), new Vector2(0.965f, 0.815f));
+            RectTransform card = Art(_root, "Oranlar", _panel, new Vector2(0.505f, 0.030f), new Vector2(0.965f, 0.890f));
+            RectTransform c = AtolyeKit.Inner(card, _panel, 20f);
 
-            _oddsTitleLabel = UiBuild.Label(Zone(c, "Baslik", new Vector2(0.07f, 0.890f), new Vector2(0.93f, 0.970f)),
+            _oddsTitleLabel = UiBuild.Label(Zone(c, "Baslik", new Vector2(0f, 0.935f), new Vector2(1f, 1f)),
                                             "Text", Loc.T("atolye.oranlar"), 30, TextAnchor.MiddleCenter);
             _oddsTitleLabel.color = Ink;
 
-            _captainLabel = UiBuild.Label(Zone(c, "ZanaatKaptani", new Vector2(0.19f, 0.795f), new Vector2(0.81f, 0.875f)),
+            _captainLabel = UiBuild.Label(Zone(c, "ZanaatKaptani", new Vector2(0.22f, 0.845f), new Vector2(0.78f, 0.915f)),
                                           "Text", string.Empty, 19, TextAnchor.MiddleCenter);
             _captainLabel.color = Ink;
             Fit(_captainLabel, 10, 19);
@@ -336,31 +336,35 @@ namespace Game.UI
             _captainPrevBtn = UiBuild.Btn(c, "OncekiKaptan", "‹", _btnPale != null ? _btnPale : UiSkin.ButtonGrey,
                                            Color.white, 24, OnPreviousCaptain);
             UiBuild.Anchor((RectTransform)_captainPrevBtn.transform,
-                           new Vector2(0.040f, 0.812f), new Vector2(0.205f, 0.858f));
+                           new Vector2(0f, 0.862f), new Vector2(0.20f, 0.898f));
             PillFit.Wrap(_captainPrevBtn.GetComponent<Image>());
             _captainNextBtn = UiBuild.Btn(c, "SonrakiKaptan", "›", _btnPale != null ? _btnPale : UiSkin.ButtonGrey,
                                            Color.white, 24, OnNextCaptain);
             UiBuild.Anchor((RectTransform)_captainNextBtn.transform,
-                           new Vector2(0.795f, 0.812f), new Vector2(0.960f, 0.858f));
+                           new Vector2(0.80f, 0.862f), new Vector2(1f, 0.898f));
             PillFit.Wrap(_captainNextBtn.GetComponent<Image>());
 
-            _unlockLabel = UiBuild.Label(Zone(c, "SonrakiAcilis", new Vector2(0.07f, 0.715f), new Vector2(0.93f, 0.790f)),
-                                         "Text", string.Empty, 17, TextAnchor.MiddleCenter);
+            _unlockLabel = UiBuild.Label(Zone(c, "SonrakiAcilis", new Vector2(0f, 0.785f), new Vector2(1f, 0.835f)),
+                                         "Text", string.Empty, 18, TextAnchor.MiddleCenter);
             _unlockLabel.color = InkSoft;
-            Fit(_unlockLabel, 10, 17);
+            Fit(_unlockLabel, 10, 18);
 
-            const float top = 0.705f, bottom = 0.040f;
+            const float top = 0.765f, bottom = 0f;
             float rh = (top - bottom) / Captains.GradeCount;
             for (int g = 0; g < Captains.GradeCount; g++)
             {
-                RectTransform row = Zone(c, "Sira" + g, new Vector2(0.06f, top - (g + 1) * rh + 0.012f),
-                                                        new Vector2(0.94f, top - g * rh - 0.012f));
-                _oddsStripe[g] = Stripe(row, new Vector2(0f, 0.10f), new Vector2(0.035f, 0.90f));
+                RectTransform row = Zone(c, "Sira" + g, new Vector2(0f, top - (g + 1) * rh + 0.012f),
+                                                        new Vector2(1f, top - g * rh - 0.012f));
+                _oddsStripe[g] = Stripe(row, new Vector2(0f, 0.10f), new Vector2(0.03f, 0.90f));
                 _oddsStripe[g].color = GradeTint[g];
-                _oddsName[g] = UiBuild.Label(Zone(row, "Ad", new Vector2(0.09f, 0f), new Vector2(0.62f, 1f)),
+                // Name and value share the row without overlapping: a long value ("OPENS AT LV. 26")
+                // used to run under the name and to the card's rim.
+                // Both one line tall: best fit only shrinks what overflows its box, and a box as tall
+                // as the row let "SV. 16'DA AÇILIR" wrap onto two lines instead.
+                _oddsName[g] = UiBuild.Label(Zone(row, "Ad", new Vector2(0.07f, 0.41f), new Vector2(0.45f, 0.59f)),
                                              "Text", string.Empty, 26, TextAnchor.MiddleLeft);
-                Fit(_oddsName[g], 14, 26);
-                _oddsValue[g] = UiBuild.Label(Zone(row, "Deger", new Vector2(0.40f, 0f), new Vector2(1f, 1f)),
+                Fit(_oddsName[g], 12, 26);
+                _oddsValue[g] = UiBuild.Label(Zone(row, "Deger", new Vector2(0.46f, 0.41f), new Vector2(1f, 0.59f)),
                                               "Text", string.Empty, 26, TextAnchor.MiddleRight);
                 Fit(_oddsValue[g], 13, 26);
             }
@@ -807,6 +811,7 @@ namespace Game.UI
             label.resizeTextMinSize = min;
             label.resizeTextMaxSize = max;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
         }
 
         private static string SecKey(int sec)

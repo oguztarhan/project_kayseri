@@ -47,6 +47,9 @@ namespace Game.UI
         private int _tab;
         private float _tick;
 
+        /// <summary>Decided once at build: the premium column exists only when the track can be bought.</summary>
+        private bool _premiumShown;
+
         private readonly Image[] _taskIcon = new Image[HarborFestival.TaskCount];
         private readonly Text[] _taskName = new Text[HarborFestival.TaskCount];
         private readonly Text[] _taskCount = new Text[HarborFestival.TaskCount];
@@ -81,6 +84,7 @@ namespace Game.UI
         {
             _festival = ServiceLocator.Get<HarborFestivalService>();
             _loc = ServiceLocator.Get<LocalizationService>();
+            _premiumShown = _festival != null && _festival.PremiumAvailable;
             Build();
             if (_festival != null) _festival.Changed += Refresh;
             if (_loc != null) _loc.Changed += Refresh;
@@ -184,6 +188,10 @@ namespace Game.UI
         /// <summary>
         /// A chest that grows richer up the ladder, the token count that opens it, and two columns —
         /// the free reward over its claim, the premium reward over its own.
+        ///
+        /// With no premium store id the premium column is not built into view: the free reward takes
+        /// both columns' width and its claim sits centred under it. The capsule keeps its size — only
+        /// the text slot widens — so the button art never stretches.
         /// </summary>
         private void BuildTier(RectTransform content, int i)
         {
@@ -205,6 +213,16 @@ namespace Game.UI
                                                          22, EkranKit.Paper, TextAnchor.MiddleCenter);
             _premiumBtn[i] = EtkinlikKit.Capsule(card, "PremiumAl", new Vector2(0.710f, 0.21f), new Vector2(0.950f, 0.51f),
                                                  () => ClaimTier(captured, true), out _premiumText[i]);
+
+            if (_premiumShown) return;
+            _premiumReward[i].Root.gameObject.SetActive(false);
+            _premiumBtn[i].gameObject.SetActive(false);
+
+            _freeReward[i].Root.anchorMin = new Vector2(0.440f, 0.52f);
+            _freeReward[i].Root.anchorMax = new Vector2(0.955f, 0.77f);
+            var freeButton = (RectTransform)_freeBtn[i].transform;
+            freeButton.anchorMin = new Vector2(0.5775f, 0.21f);
+            freeButton.anchorMax = new Vector2(0.8175f, 0.51f);
         }
 
         /// <summary>What the item pays, what it costs in tokens, and the orange trade button.</summary>
@@ -364,6 +382,7 @@ namespace Game.UI
                 _freeText[i].text = EtkinlikKit.OneLine(freeClaimed ? Loc.T("gorev.alindi") : Loc.T("liman.ucretsiz"));
                 EtkinlikKit.SetFace(_freeBtn[i], _freeText[i], canFree ? EtkinlikKit.Face.Claim : EtkinlikKit.Face.Dead, canFree);
 
+                if (!_premiumShown) continue;
                 _premiumReward[i].Set(null, tier.Premium.Gems, tier.Premium.Cards, tier.Premium.Charts, Boost(tier.Premium));
                 bool premiumClaimed = _festival.PremiumTierClaimed(i);
                 bool canPremium = _festival.CanClaimPremiumTier(i);

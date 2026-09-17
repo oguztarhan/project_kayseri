@@ -538,6 +538,47 @@ namespace Game.Tests
             }
         }
 
+        [Test] public void OrderCashIsPricedInIncomeMinutesWithTheSavedFloor()
+        {
+            var save = new SaveData();
+            save.shipyard.materialInventory.Add(new ShipyardMaterialState { resourceId = "coal", quantity = 4d });
+            save.shipyard.materialInventory.Add(new ShipyardMaterialState { resourceId = "steel_beam", quantity = 2d });
+            var wallet = new WalletService(save.wallet);
+            long now = 100L;
+            var service = new CannonProductionService(save, null, null, wallet, null, null, () => now);
+            try
+            {
+                ShipyardCustomerOrderState order = service.OrderFor(ShipyardProgression.CannonMachineId);
+                Assert.That(order, Is.Not.Null);
+
+                // No measured income yet: the saved flat value is the floor.
+                save.incomeRatePerSec = 0d;
+                Assert.That(service.OrderCash(order), Is.EqualTo(order.rewardCash));
+
+                // Income high enough to beat the floor: the cannon (machine 0) pays the base minutes.
+                save.incomeRatePerSec = 1000d;
+                double expected = 1000d * 60d * CannonProductionService.OrderCashMinutesBase;
+                Assert.That(service.OrderCash(order), Is.EqualTo(expected));
+
+                Assert.That(service.TryStart(ShipyardProgression.CannonMachineId), Is.True);
+                now += 5L;
+                Assert.That(service.Poll(), Is.True);
+                string itemId = service.FinishedOutputAt(ShipyardProgression.CannonMachineId, 0).itemId;
+                double before = wallet.Cash.ToDouble();
+                Assert.That(service.FulfillOrder(ShipyardProgression.CannonMachineId, itemId), Is.True);
+                Assert.That(wallet.Cash.ToDouble() - before, Is.EqualTo(expected).Within(1e-6d));
+
+                // Later machines pay more minutes than the cannon.
+                var hull = new ShipyardCustomerOrderState { machineId = ShipyardProgression.HullMachineId, rewardCash = 0d };
+                Assert.That(service.OrderCash(hull), Is.GreaterThan(expected));
+            }
+            finally
+            {
+                foreach (string machine in ShipyardProgression.MachineIds)
+                    foreach (ShipyardRecipeDefinition recipe in service.RecipesFor(machine)) Object.DestroyImmediate(recipe);
+            }
+        }
+
         [Test] public void TieredEquipmentDemandKeepsSeaCombatStateSeparate()
         {
             var save = new SaveData();

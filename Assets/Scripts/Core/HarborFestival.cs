@@ -64,23 +64,23 @@ namespace Game.Core
             {
                 Tasks = new[]
                 {
-                    new Task { Metric = Goals.Upgrades,      Target = 10, Tokens = 30, Reward = new Reward { Gems = 20 } },
-                    new Task { Metric = Goals.Contracts,     Target = 3,  Tokens = 40, Reward = new Reward { Gems = 25 } },
-                    new Task { Metric = Goals.Repairs,       Target = 6,  Tokens = 40, Reward = new Reward { Gems = 25 } },
-                    new Task { Metric = Goals.ForemanLevels, Target = 2,  Tokens = 50, Reward = new Reward { Gems = 30, Cards = 1 } },
-                    new Task { Metric = Goals.Upgrades,      Target = 30, Tokens = 60, Reward = new Reward { Gems = 40 } },
-                    new Task { Metric = Goals.Contracts,     Target = 8,  Tokens = 80, Reward = new Reward { Gems = 50, Cards = 1 } },
+                    new Task { Metric = Goals.Upgrades,      Target = 10, Tokens = 30, Reward = new Reward { Gems = 5 } },
+                    new Task { Metric = Goals.Contracts,     Target = 3,  Tokens = 40, Reward = new Reward { Gems = 5 } },
+                    new Task { Metric = Goals.Repairs,       Target = 6,  Tokens = 40, Reward = new Reward { Gems = 5 } },
+                    new Task { Metric = Goals.ForemanLevels, Target = 2,  Tokens = 50, Reward = new Reward { Gems = 5, Cards = 1 } },
+                    new Task { Metric = Goals.Upgrades,      Target = 30, Tokens = 60, Reward = new Reward { Gems = 5 } },
+                    new Task { Metric = Goals.Contracts,     Target = 8,  Tokens = 80, Reward = new Reward { Gems = 5, Cards = 1 } },
                 },
                 Tiers = new[]
                 {
-                    new Tier { Tokens = 30,  Free = new Reward { Gems = 25 }, Premium = new Reward { Gems = 50 } },
+                    new Tier { Tokens = 30,  Free = new Reward { Gems = 20 }, Premium = new Reward { Gems = 50 } },
                     new Tier { Tokens = 70,  Free = new Reward { Cards = 1 }, Premium = new Reward { Cards = 2 } },
-                    new Tier { Tokens = 110, Free = new Reward { Gems = 40 }, Premium = new Reward { Charts = 30 } },
+                    new Tier { Tokens = 110, Free = new Reward { Gems = 30 }, Premium = new Reward { Charts = 30 } },
                     new Tier { Tokens = 150, Free = new Reward { Charts = 20 }, Premium = new Reward { Gems = 80 } },
-                    new Tier { Tokens = 190, Free = new Reward { Gems = 60 }, Premium = new Reward { Cards = 3 } },
+                    new Tier { Tokens = 190, Free = new Reward { Gems = 50 }, Premium = new Reward { Cards = 3 } },
                     new Tier { Tokens = 230, Free = new Reward { Cards = 2 }, Premium = new Reward { Charts = 60 } },
                     new Tier { Tokens = 270, Free = new Reward { BoostMult = 2d, BoostSeconds = 1800d }, Premium = new Reward { Gems = 120 } },
-                    new Tier { Tokens = 300, Free = new Reward { Gems = 120, Charts = 40 }, Premium = new Reward { Gems = 200, Cards = 4 } },
+                    new Tier { Tokens = 300, Free = new Reward { Gems = 75, Charts = 40 }, Premium = new Reward { Gems = 200, Cards = 4 } },
                 },
                 Catalogue = new[]
                 {

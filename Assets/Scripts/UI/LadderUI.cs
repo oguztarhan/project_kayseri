@@ -96,6 +96,9 @@ namespace Game.UI
         /// </summary>
         private static Sprite RowPlate => UiSkin.ButtonBlue;
 
+        /// <summary>The same info badge the captain crate's odds button uses.</summary>
+        private const string InfoIconResource = "UI/Buttons/bilgi";
+
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
@@ -136,6 +139,13 @@ namespace Game.UI
         private RectTransform _rewardGemRow, _rewardCardRow;
         private Text _rewardGemLabel, _rewardCardLabel;
 
+        private RectTransform _pointsCard;
+        private Text _pointsTitle, _pointsIntro, _pointsLimit, _pointsTransition, _pointsCloseLabel;
+        private readonly RectTransform[] _pointsRow = new RectTransform[4];
+        private readonly Text[] _pointsName = new Text[4];
+        private readonly Text[] _pointsValue = new Text[4];
+        private readonly Text[] _pointsProgress = new Text[4];
+
         private readonly Sprite[] _chest = new Sprite[4];
         private float _tick;
 
@@ -168,6 +178,8 @@ namespace Game.UI
             if (_takeLabel != null) _takeLabel.text = Loc.T("gorev.al");
             if (_emptyLabel != null) _emptyLabel.text = Loc.T("lig.yok");
             if (_rewardCloseLabel != null) _rewardCloseLabel.text = Loc.T("lig.kapat");
+            if (_pointsCloseLabel != null) _pointsCloseLabel.text = Loc.T("lig.kapat");
+            RefreshPoints();
             Refresh();
             RefreshOpener();
         }
@@ -177,10 +189,16 @@ namespace Game.UI
             if (_root == null) return;
             _root.gameObject.SetActive(true);
             HideReward();
+            SetActive(_pointsCard, false);
             _tick = 0f;
             ServiceLocator.Get<IAnalytics>()?.Log("ladder_open", "season",
                 _ladder != null ? _ladder.CurrentSeasonId : string.Empty);
             Refresh();
+
+            // Once, the first time the league opens in a points season: most players never tap an
+            // info button, and a score whose rules are never read is a number that moves at random.
+            if (_ladder != null && _ladder.Available && !_ladder.PointsHelpSeen && _ladder.ScoresPoints)
+                ShowPoints();
         }
 
         public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }
@@ -257,6 +275,7 @@ namespace Game.UI
             _emptyLabel.color = InkSoft;
 
             BuildRewardCard();
+            BuildPointsCard();
             // Content into the safe area; the scrim above it keeps covering the notch.
             UiBuild.InsetContent(_root);
         }
@@ -314,6 +333,24 @@ namespace Game.UI
             closeButton.onClick.AddListener(Hide);
             UiBuild.Anchor((RectTransform)close.transform,
                            new Vector2(0.838f, 0.884f), new Vector2(0.952f, 0.972f));
+
+            // The info button mirrors the close cross in the other top corner — the only free place on a
+            // board whose header, podium and rows already fill it top to bottom.
+            var info = new GameObject("Bilgi", typeof(RectTransform), typeof(Image), typeof(Button));
+            info.transform.SetParent(_root, false);
+            var infoImage = info.GetComponent<Image>();
+            Sprite badge = Resources.Load<Sprite>(InfoIconResource);
+            infoImage.sprite = badge != null ? badge : UiSkin.ButtonBlue;
+            infoImage.preserveAspect = true;
+            infoImage.raycastTarget = true;
+            var infoButton = info.GetComponent<Button>();
+            infoButton.transition = Selectable.Transition.None;
+            infoButton.targetGraphic = infoImage;
+            infoButton.onClick.AddListener(ShowPoints);
+            UiBuild.Anchor((RectTransform)info.transform,
+                           new Vector2(0.048f, 0.884f), new Vector2(0.162f, 0.972f));
+            if (badge == null)
+                UiBuild.Label(info.transform, "Text", "i", 40, TextAnchor.MiddleCenter).color = Paper;
 
             _clockLabel = UiBuild.Label(Slot(_root, "Sure", new Vector2(0.130f, 0.744f), new Vector2(0.870f, 0.792f)),
                                         "Text", string.Empty, 30, TextAnchor.MiddleCenter);
@@ -498,6 +535,80 @@ namespace Game.UI
                            HideReward, out _rewardCloseLabel);
 
             _rewardCard.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// How league points are earned: one row per <see cref="Ladder.Scoring"/> rule — the action, what
+        /// it pays, and how many of it have counted this season against the cap.
+        ///
+        /// THE NUMBERS ARE NEVER IN THE TRANSLATIONS. Values and caps are read from the rules when the
+        /// card opens, so retuning a rule cannot leave eleven languages quoting the old one.
+        ///
+        /// Same frame and width as the reward card, for the same crown reason; it is only TALLER, which
+        /// stretches the frame's side rails and not its crown.
+        /// </summary>
+        private void BuildPointsCard()
+        {
+            _pointsCard = UiBuild.Flat(_root, "PuanKarti", new Color(0.04f, 0.05f, 0.08f, 0.86f),
+                                       Vector2.zero, Vector2.one);
+            var dismiss = _pointsCard.gameObject.AddComponent<Button>();
+            dismiss.transition = Selectable.Transition.None;
+            dismiss.onClick.AddListener(HidePoints);
+
+            Image frame = LigKit.Sliced(_pointsCard, "Kart", "odul_pano",
+                                        new Vector2(0.190f, 0.230f), new Vector2(0.810f, 0.770f), false);
+            RectTransform card = frame.rectTransform;
+            frame.raycastTarget = true;
+            var eat = card.gameObject.AddComponent<Button>();
+            eat.transition = Selectable.Transition.None;
+
+            _pointsTitle = UiBuild.Label(Slot(card, "Baslik", new Vector2(0.08f, 0.735f), new Vector2(0.92f, 0.825f)),
+                                         "Text", Loc.T("lig.puan_baslik"), 34, TextAnchor.MiddleCenter);
+            _pointsTitle.color = Ink;
+            Fit(_pointsTitle, 20, 34);
+
+            _pointsIntro = UiBuild.Label(Slot(card, "Aciklama", new Vector2(0.10f, 0.650f), new Vector2(0.90f, 0.730f)),
+                                         "Text", Loc.T("lig.puan_aciklama"), 24, TextAnchor.MiddleCenter);
+            _pointsIntro.color = InkSoft;
+            Fit(_pointsIntro, 16, 24);
+
+            const float top = 0.630f, rowHeight = 0.085f;
+            for (int i = 0; i < _pointsRow.Length; i++)
+            {
+                RectTransform row = Slot(card, "Kural" + i, new Vector2(0.100f, top - (i + 1) * rowHeight),
+                                         new Vector2(0.900f, top - i * rowHeight));
+                _pointsRow[i] = row;
+
+                _pointsName[i] = UiBuild.Label(Slot(row, "Ad", new Vector2(0f, 0f), new Vector2(0.580f, 1f)),
+                                               "Text", string.Empty, 26, TextAnchor.MiddleLeft);
+                _pointsName[i].color = Ink;
+                Fit(_pointsName[i], 16, 26);
+
+                _pointsValue[i] = UiBuild.Label(Slot(row, "Deger", new Vector2(0.590f, 0f), new Vector2(0.740f, 1f)),
+                                                "Text", string.Empty, 28, TextAnchor.MiddleCenter);
+                _pointsValue[i].color = Ink;
+
+                _pointsProgress[i] = UiBuild.Label(Slot(row, "Ilerleme", new Vector2(0.750f, 0f), new Vector2(1f, 1f)),
+                                                   "Text", string.Empty, 22, TextAnchor.MiddleRight);
+                _pointsProgress[i].color = InkSoft;
+                Fit(_pointsProgress[i], 14, 22);
+            }
+
+            _pointsTransition = UiBuild.Label(Slot(card, "Gecis", new Vector2(0.10f, 0.330f), new Vector2(0.90f, 0.630f)),
+                                              "Text", Loc.T("lig.puan_gecis"), 26, TextAnchor.MiddleCenter);
+            _pointsTransition.color = Ink;
+            Fit(_pointsTransition, 16, 26);
+
+            _pointsLimit = UiBuild.Label(Slot(card, "Sinir", new Vector2(0.10f, 0.190f), new Vector2(0.90f, 0.275f)),
+                                         "Text", Loc.T("lig.puan_sinir"), 22, TextAnchor.MiddleCenter);
+            _pointsLimit.color = InkSoft;
+            Fit(_pointsLimit, 14, 22);
+
+            LigKit.Capsule(card, "Kapat", Loc.T("lig.kapat"),
+                           new Vector2(0.230f, 0.045f), new Vector2(0.770f, 0.156f),
+                           HidePoints, out _pointsCloseLabel);
+
+            _pointsCard.gameObject.SetActive(false);
         }
 
         /// <summary>One "icon, then how many" line in the reward card. Two of them, stacked.</summary>
@@ -719,6 +830,91 @@ namespace Game.UI
                 _rewardNone.gameObject.SetActive(!gems && !cards);
 
             _rewardCard.gameObject.SetActive(true);
+        }
+
+        // ----------------------------------------------------------------- points
+        private void ShowPoints()
+        {
+            if (_pointsCard == null) return;
+            HideReward();
+            _pointsCard.gameObject.SetActive(true);
+            RefreshPoints();
+        }
+
+        /// <summary>Closing the card is what counts as having read it, so the automatic open stops.</summary>
+        private void HidePoints()
+        {
+            if (_pointsCard == null || !_pointsCard.gameObject.activeSelf) return;
+            _pointsCard.gameObject.SetActive(false);
+            if (_ladder != null) _ladder.MarkPointsHelpSeen();
+        }
+
+        /// <summary>
+        /// Relabels the card. A season an older build opened still ranks bars, and listing the points
+        /// rules there would explain a score the board is not showing — so it says that instead.
+        /// </summary>
+        private void RefreshPoints()
+        {
+            if (_pointsCard == null || !_pointsCard.gameObject.activeSelf) return;
+
+            bool live = _ladder != null && _ladder.Available;
+            bool points = !live || _ladder.ScoresPoints;
+
+            if (_pointsTitle != null) _pointsTitle.text = Loc.T("lig.puan_baslik");
+            // One line each, shrinking rather than wrapping: a sentence a few units too wide otherwise
+            // breaks with a single word left on the second line.
+            if (_pointsIntro != null) _pointsIntro.text = EtkinlikKit.OneLine(Loc.T("lig.puan_aciklama"));
+            if (_pointsLimit != null) _pointsLimit.text = EtkinlikKit.OneLine(Loc.T("lig.puan_sinir"));
+            if (_pointsTransition != null) _pointsTransition.text = Loc.T("lig.puan_gecis");
+
+            SetActive(_pointsIntro, points);
+            SetActive(_pointsLimit, points);
+            SetActive(_pointsTransition, !points);
+
+            Ladder.ScoringRule[] rules = Ladder.Scoring;
+            for (int i = 0; i < _pointsRow.Length; i++)
+            {
+                bool on = points && i < rules.Length;
+                SetActive(_pointsRow[i], on);
+                if (!on) continue;
+
+                Ladder.ScoringRule rule = rules[i];
+                if (_pointsName[i] != null) _pointsName[i].text = EtkinlikKit.OneLine(MetricLabel(rule.Metric));
+                if (_pointsValue[i] != null) _pointsValue[i].text = "+" + rule.PointsPerAction;
+                if (_pointsProgress[i] != null)
+                {
+                    SetActive(_pointsProgress[i], live);
+                    if (live) _pointsProgress[i].text = _ladder.CountedActions(rule) + " / " + rule.SeasonCap;
+                }
+            }
+        }
+
+        private static string MetricLabel(int metric)
+        {
+            switch (metric)
+            {
+                case Goals.Upgrades:      return Loc.T("gorev.metrik.yukseltme");
+                case Goals.Contracts:     return Loc.T("gorev.metrik.kontrat");
+                case Goals.Repairs:       return Loc.T("gorev.metrik.onarim");
+                case Goals.ForemanLevels: return Loc.T("gorev.metrik.ustabasi");
+                default:                  return string.Empty;
+            }
+        }
+
+        private static void SetActive(Component c, bool on)
+        {
+            if (c != null && c.gameObject.activeSelf != on) c.gameObject.SetActive(on);
+        }
+
+        /// <summary>Shrink-to-fit that actually shrinks: best fit does nothing while the text may
+        /// overflow its box, so the box clips.</summary>
+        private static void Fit(Text label, int min, int max)
+        {
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = min;
+            label.resizeTextMaxSize = max;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
         }
 
         private void HideReward()

@@ -141,7 +141,7 @@ public static class PortraitUiLayoutBuilder
     private static void Hud(GameObject root)
     {
         string[,] map = { {"BtnAyarlar","settings-icon"}, {"BtnMagaza","shop-icon"}, {"BtnGunluk","daily-reward-icon"},
-            {"BtnHarita","map-icon"}, {"BtnKontrat","goals-icon"}, {"BtnBedava","rewarded-ad-icon"}, {"BtnTeklif","reward-chest"}, {"BtnYukselt","upgrade-button"} };
+            {"BtnKontrat","goals-icon"}, {"BtnBedava","rewarded-ad-icon"}, {"BtnTeklif","reward-chest"}, {"BtnYukselt","upgrade-button"} };
         foreach (Image im in root.GetComponentsInChildren<Image>(true))
             for (int i = 0; i < map.GetLength(0); i++) if (im.name == map[i, 0]) PortraitUiArt.Apply(im, "general-" + map[i, 1]);
         foreach (string name in new[] { "PillAltin", "PillElmas" })

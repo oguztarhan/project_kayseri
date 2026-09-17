@@ -377,10 +377,10 @@ and test-verified outside the Editor; **not played** — the in-game pass is the
 | | Decision | Answer |
 |---|---|---|
 | **D1** | Ladder, and which option | **A — local league.** No package, no account, no network, no privacy change. The seam is untouched, so C remains a swap rather than a rewrite |
-| **D3** | What the score is | **Bars sold in the season**, the default §14 proposed — already metered by `Goals`, so no new hook anywhere |
+| **D3** | What the score is | **League points** (changed 2026-09-17, was bars sold): upgrade 1, contract 10, repair 6, foreman level 15, capped per season at 250 / 30 / 30 / 10 for a ceiling of 880 — counts do not inflate per ore tier the way bars do. See `Ladder.Scoring` |
 | **D4** | Generated opponents | **Yes, labelled.** `lig.temsili` is written from the board's own `Synthetic` flag on every refresh |
 | **D5** | Paid entry | **No.** Free entry; no ticket SKU exists to be enabled by accident |
-| **D6** | What the brackets pay | 150 / 100 / 75 / 40 / 20 / 10 gems, with 3 / 2 / 2 / 1 / – / – master cards |
+| **D6** | What the brackets pay | 100 / 70 / 50 / 35 / 20 / 10 gems (retuned 2026-09-17, was 150 / 100 / 75 / 40 / 20 / 10), with 3 / 2 / 2 / 1 / – / – master cards |
 | **D7** | Cadence | **Three days**, not the weekly default this document assumed |
 
 **What the cadence does to the calendar,** recorded because it looks like a bug the first time it is
@@ -414,7 +414,7 @@ this needs no prefab wiring to appear — which also means there is nothing here
 
 ### Four things worth keeping
 
-**1. The score is derived, not reported.** Bars sold minus a baseline snapshotted when the season
+**1. The score is derived, not reported.** Capped points from goal counters minus baselines snapshotted when the season
 opened — the same shape `GoalService`'s day and week baselines use. Nothing reports into the league,
 which is why the market, the yards and the dock needed no edit, and why an existing player's first
 season starts at zero instead of counting their whole career.
@@ -462,10 +462,10 @@ service instead of a stub and still stays dark — which is what PLAN_11 specifi
 2. **Open it.** Ten rows, your row tinted green wherever it sits, the countdown to the season's end,
    and **"Rakipler temsilidir"** under it — that line is the condition the generated cohort pays
    rewards under, and it must never be missing.
-3. **Sell some bars, reopen.** Your score should have moved. Rank moves with it — the cohort does not
+3. **Buy some upgrades or finish a contract, reopen.** Your score should have moved. Rank moves with it — the cohort does not
    chase you, so a big enough day genuinely climbs.
 4. **The pinned row.** Outside the top ten, your own row sits at the bottom instead. Fresh save with
-   no bars sold: it should read "Listede değil".
+   no points earned: it should read "Listede değil".
 5. **Roll a season.** Three days is a long wait, so the honest check is a device-clock jump forward.
    The closed season should file one reward row, the board should reset to zero, and the strip at the
    bottom should say a reward is waiting.

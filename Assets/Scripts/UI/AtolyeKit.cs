@@ -80,6 +80,65 @@ namespace Game.UI
             return true;
         }
 
+        /// <summary>
+        /// The part of a sliced card its content may use: the card's rect pulled in by the sprite's
+        /// own nine-slice border, plus <paramref name="padding"/> on every side.
+        ///
+        /// WHY THE BORDER AND NOT A FRACTION. The kit's card rims are drawn at a fixed size in canvas
+        /// units whatever the card's size, so a fractional inset that clears the rim on a wide card
+        /// lands on it on a narrow one. The rows on all three screens were anchored to the whole card
+        /// rect, which put their text on the blue rim and their capsules across it.
+        /// </summary>
+        public static RectTransform Inner(RectTransform card, Sprite art, float padding)
+        {
+            var go = new GameObject("Ic", typeof(RectTransform));
+            go.transform.SetParent(card, false);
+            RectTransform rect = UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, Vector2.one);
+            Vector4 b = art != null ? art.border : Vector4.zero;   // x left, y bottom, z right, w top
+            rect.offsetMin = new Vector2(b.x + padding, b.y + padding);
+            rect.offsetMax = new Vector2(-(b.z + padding), -(b.w + padding));
+            return rect;
+        }
+
+        /// <summary>
+        /// The kit's title ribbon, kept in proportion. It is sliced across with 233-unit tails, and
+        /// drawn unfitted into a header box those tails met in the middle and the ribbon came out as
+        /// a crest the title spilled off. <see cref="PillFit"/> scales the tails with the box height.
+        /// Returns the label, set on the ribbon's flat band rather than on its hanging tails.
+        /// </summary>
+        public static Text Ribbon(RectTransform parent, Sprite art, string title, Vector2 aMin, Vector2 aMax)
+        {
+            var go = new GameObject("Serit", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var image = go.GetComponent<Image>();
+            image.sprite = art != null ? art : UiSkin.Panel;
+            image.type = art != null ? Image.Type.Sliced : Image.Type.Simple;
+            image.raycastTarget = false;
+            RectTransform band = UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
+            if (art != null) PillFit.Wrap(image);
+
+            var slot = new GameObject("Yazi", typeof(RectTransform));
+            slot.transform.SetParent(band, false);
+            Text label = UiBuild.Label(UiBuild.Anchor((RectTransform)slot.transform,
+                                                      new Vector2(0.21f, 0.36f), new Vector2(0.79f, 0.90f)),
+                                       "Text", title, 40, TextAnchor.MiddleCenter);
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 18;
+            label.resizeTextMaxSize = 40;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+            return label;
+        }
+
+        /// <summary>The header row every kit screen shares with the roster screens: ribbon in the
+        /// middle, close button in the corner the captains and masters screens use.</summary>
+        /// <remarks>Wide and low on purpose: a tall phone gives the ribbon more height for the same
+        /// width, the tails scale with height, and at 0.40 wide they left the title no flat band.</remarks>
+        public static readonly Vector2 RibbonMin = new Vector2(0.270f, 0.927f), RibbonMax = new Vector2(0.730f, 0.983f);
+        public static readonly Vector2 CloseMin = new Vector2(0.855f, 0.920f), CloseMax = new Vector2(0.955f, 0.990f);
+        /// <summary>Top of the content under the header.</summary>
+        public const float ContentTop = 0.905f;
+
         private static readonly Color Ink = new Color(0.16f, 0.22f, 0.34f, 1f);
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
 

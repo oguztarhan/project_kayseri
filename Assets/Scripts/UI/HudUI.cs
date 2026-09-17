@@ -66,7 +66,6 @@ namespace Game.UI
         [Tooltip("Geri sayımın kapsülü. Satacak paket kalmayınca kapanır — buton kalır, sayaç gider.")]
         [SerializeField] private GameObject offerTimerChip;
         [SerializeField] private Button dailyButton;
-        [SerializeField] private Button mapButton;
         [SerializeField] private Button contractButton;
         [Tooltip("Kontrat butonunun altındaki canlı sayaç.")]
         [SerializeField] private TMP_Text contractTimerValue;
@@ -141,7 +140,6 @@ namespace Game.UI
         [Tooltip("Yükseltme ekranı. Tek seferlik genişletmeler oradaki şeridin son yuvasından açılır, " +
                  "yani HUD'un eski uzun listeye bağlanacak bir işi kalmadı.")]
         [SerializeField] private StationScreenUI stationScreen;
-        [SerializeField] private IslandMapUI islandMap;
         [SerializeField] private SettingsUI settings;
         [SerializeField] private DailyRewardUI dailyScreen;
         [SerializeField] private ContractUI contractScreen;
@@ -249,7 +247,6 @@ namespace Game.UI
             if (goldButton != null) goldButton.onClick.AddListener(OnStore);
             if (gemsButton != null) gemsButton.onClick.AddListener(OnStore);
             if (dailyButton != null) dailyButton.onClick.AddListener(OnDaily);
-            if (mapButton != null) mapButton.onClick.AddListener(OnMap);
             if (contractButton != null) contractButton.onClick.AddListener(OnContract);
             if (contractButton != null) contractButton.gameObject.SetActive(true);
             if (adButton != null) adButton.onClick.AddListener(OnAds);
@@ -351,7 +348,7 @@ namespace Game.UI
             // feature you do not have, and Goals, Chapter, Crafting, Events and the League were all
             // being built, ticked and left unreachable.
             if (compactShipyardHud && !IsCompactOpener(name))
-                return AttachMoreRow(order, name, icon, onClick);
+                return AttachMoreRow(order, name, icon, customIcon != null, onClick);
             RectTransform model = FirstAuthored();
             if (model == null) return null;
 
@@ -587,6 +584,9 @@ namespace Game.UI
                 chipRect.anchorMax = new Vector2(1f, 0.5f);
                 chipRect.pivot = new Vector2(1f, 0.5f);
                 chipRect.anchoredPosition = new Vector2(-MoreRowPadding, 0f);
+                // Uniform, and larger. The authored chip is squeezed 0.80 × 0.91 to fit a rail button,
+                // which on a row left a sliver of pill with a number too small to read.
+                chipRect.localScale = new Vector3(MoreChipScale, MoreChipScale, 1f);
             }
             return chip;
         }
@@ -601,6 +601,8 @@ namespace Game.UI
         private const float MoreRowGap = 18f;
         private const float MoreRowPadding = 28f;
         private const float MoreHeaderHeight = 140f;
+        private const float MoreBareIconScale = 0.76f;   // main-menu icons draw their glyph at ~76% of the canvas
+        private const float MoreChipScale = 1.5f;       // the rail's chip, legible at a row's reading distance
         private const float MoreSheetWidth = 880f;   // of the 1080-wide reference canvas
         private const string MoreIconResource = "UI/Buttons/dahafazla";
 
@@ -627,7 +629,10 @@ namespace Game.UI
         /// <see cref="Button"/> plus a working <see cref="AttachCounterChip"/> back. That is the whole
         /// point of routing here rather than making each screen build its own entry point.
         /// </summary>
-        private Button AttachMoreRow(int order, string name, Sprite icon,
+        /// <param name="framedIcon">True for the main-menu icon set, whose art carries its own margin.
+        /// Any other icon (the workshop kit's) fills its canvas edge to edge and is drawn smaller to
+        /// match.</param>
+        private Button AttachMoreRow(int order, string name, Sprite icon, bool framedIcon,
                                      UnityEngine.Events.UnityAction onClick)
         {
             EnsureMoreSheet();
@@ -640,20 +645,23 @@ namespace Game.UI
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
 
+            // A flat plate, not UiSkin.Panel: Panel is null until the skin art loads, so rows attached
+            // before it were flat and rows attached after it (League, Resources) wore the grey bevelled
+            // button art — two row styles in one list, decided by load order.
             var plate = go.GetComponent<Image>();
-            plate.sprite = UiSkin.Panel;
-            plate.type = Image.Type.Sliced;
+            plate.sprite = null;
             plate.color = moreRowColor;
 
+            float iconBox = MoreRowHeight - 2f * MoreRowPadding;
+            float iconSize = framedIcon ? iconBox : iconBox * MoreBareIconScale;
             var iconGo = new GameObject("Simge", typeof(RectTransform), typeof(Image));
             var iconRect = (RectTransform)iconGo.transform;
             iconRect.SetParent(rect, false);
             iconRect.anchorMin = new Vector2(0f, 0.5f);
             iconRect.anchorMax = new Vector2(0f, 0.5f);
             iconRect.pivot = new Vector2(0f, 0.5f);
-            iconRect.sizeDelta = new Vector2(MoreRowHeight - 2f * MoreRowPadding,
-                                             MoreRowHeight - 2f * MoreRowPadding);
-            iconRect.anchoredPosition = new Vector2(MoreRowPadding, 0f);
+            iconRect.sizeDelta = new Vector2(iconSize, iconSize);
+            iconRect.anchoredPosition = new Vector2(MoreRowPadding + (iconBox - iconSize) * 0.5f, 0f);
             var iconImage = iconGo.GetComponent<Image>();
             iconImage.sprite = icon;
             iconImage.preserveAspect = true;
@@ -696,7 +704,6 @@ namespace Game.UI
         {
             switch (name)
             {
-                case "BtnKaptan": return PortraitUiArt.Get("general-captain-roster-icon");
                 case "BtnGorev": case "BtnHedefler": case "BtnGorevler": return PortraitUiArt.Get("general-goals-icon");
                 case "BtnDepo": return PortraitUiArt.Get("general-warehouse-icon");
                 case "BtnCuzdan": return PortraitUiArt.Get("general-wallet-icon");
@@ -733,9 +740,9 @@ namespace Game.UI
                 case "BtnGorev": return "13-gorevler";
                 case "BtnEtkinlik": return "14-etkinlikler";
                 case "BtnBoost": return "15-iki-x-gelir";
-                case "BtnHarita": return "16-map";
                 case "BtnDenizSavasi": return "17-denize-acil";
                 case "BtnPazarGelistir": return "18-pazar-gelistir";
+                case CaptainButtonName: return "19-kaptanlar";
                 default: return null;
             }
         }
@@ -745,7 +752,6 @@ namespace Game.UI
         {
             ApplyMainHudIcon(storeButton, "BtnMagaza");
             ApplyMainHudIcon(dailyButton, "BtnGunluk");
-            ApplyMainHudIcon(mapButton, "BtnHarita");
             ApplyMainHudIcon(contractButton, "BtnKontrat");
             ApplyMainHudIcon(adButton, "BtnBedava");
             ApplyMainHudIcon(upgradeButton, "BtnYukselt");
@@ -1327,7 +1333,6 @@ namespace Game.UI
         public RectTransform ContractRect => Rect(contractButton);
         public RectTransform BoostRect => Rect(boostButton);
         public RectTransform DailyRect => Rect(dailyButton);
-        public RectTransform MapRect => Rect(mapButton);
         public RectTransform GoldRect => Rect(goldButton);
         public RectTransform SettingsRect => Rect(settingsButton);
         public RectTransform StoreRect => Rect(storeButton);
@@ -1364,11 +1369,6 @@ namespace Game.UI
         private void OnDaily()
         {
             if (dailyScreen != null) dailyScreen.Toggle();
-        }
-
-        private void OnMap()
-        {
-            if (islandMap != null) islandMap.ToggleMap();
         }
 
         private void OnUpgrades()

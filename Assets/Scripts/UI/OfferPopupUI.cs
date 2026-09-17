@@ -589,7 +589,7 @@ namespace Game.UI
             int island = IslandOf(_data.offerLiveKey);
             // Ada adı dil tablosundan gelir, merdivenin içindeki yazılı addan değil. WorldIslands'in
             // displayName'i bir kimlik etiketi — hep Türkçe, hangi basamağın hangisi olduğunu söylüyor;
-            // çizilecek metin değil. Harita aynı çeviriyi aynı yerden alıyor (IslandMapUI.IslandName).
+            // çizilecek metin değil.
             if (islandTitle != null && island >= 0)
                 islandTitle.text = Loc.Id("ada", _world.IslandKey(island));
             if (tierTitle != null) tierTitle.text = Loc.T(pack.nameKey);

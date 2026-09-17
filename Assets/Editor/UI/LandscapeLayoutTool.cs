@@ -39,7 +39,6 @@ namespace Game.EditorTools
 
             // The rest are a card holding a tall stack of rows. Folding the rows and rebuilding the card
             // around them is what actually buys the width — fitting the card alone only buys its margins.
-            ("UI_Harita", LandscapeFit.InnerColumns),
             ("UI_Ayarlar", LandscapeFit.InnerColumns),
             ("UI_GunlukOdul", LandscapeFit.InnerColumns),
             ("UI_HosGeldin", LandscapeFit.InnerColumns),

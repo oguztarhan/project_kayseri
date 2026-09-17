@@ -16,20 +16,25 @@ namespace Game.Systems
     /// <c>LiveEventService</c> owns scheduled windows with authored ids, and a league that rolls over
     /// every three days forever is not a schedule anyone can author.
     ///
-    /// THE SCORE IS A DELTA OFF A COUNTER THAT ALREADY EXISTS. Bars sold, measured from a baseline
-    /// snapshotted when the season opened — the same shape <c>GoalService</c>'s day and week baselines
-    /// use, and the reason this needed no new hook in the market, the yards or anywhere else. Nothing
-    /// reports into the league; it reads what the save already knows, which is also why an existing
-    /// player's first season starts correctly instead of counting their whole career.
+    /// THE SCORE IS A DELTA OFF COUNTERS THAT ALREADY EXIST. Capped <see cref="Ladder.Scoring"/> points
+    /// — upgrades, contracts, repairs and foreman levels — measured from baselines snapshotted when the
+    /// season opened: the same shape <c>GoalService</c>'s day and week baselines use, and the reason this
+    /// needed no new hook anywhere else. Nothing reports into the league; it reads what the save already
+    /// knows, which is also why an existing player's first season starts correctly instead of counting
+    /// their whole career.
+    ///
+    /// A SEASON KEEPS THE UNIT IT OPENED IN. Seasons opened before 2026-09-17 ranked bars sold; the one
+    /// running when a player updates finishes in bars and settles against a bars cohort, and every season
+    /// this build opens scores points (<see cref="LadderState.points"/>). No cutover date is involved, so
+    /// nothing about it depends on when the update lands.
     ///
     /// IT NEVER PAYS CASH. Docs/VOYAGES.md R1 — <c>MarketService</c> is the only faucet.
     /// </summary>
     public sealed class LadderService
     {
-        /// <summary>What the league ranks on. Bars sold is the honest candidate and the one the design
-        /// document names: it is already metered for the achievement ladder, it is what the whole
-        /// production chain exists to produce, and it needs no second counter to be kept in step with.
-        /// Cash would inflate ~3.2x per ore tier and make the number meaningless across bands.</summary>
+        /// <summary>What a pre-points season ranked on. Only a season opened by an older build still
+        /// reads it; see the class note. It was replaced because bars inflate x3.2 per ore tier, so it
+        /// ranked progress rather than play.</summary>
         public const int ScoreMetric = Goals.BarsSold;
 
         private readonly SaveData _data;
@@ -129,8 +134,39 @@ namespace Game.Systems
 
         public long SecondsLeftInSeason { get { Sync(); return _leaderboard.SecondsLeftInSeason; } }
 
-        /// <summary>The player's score in the running season: bars sold since it opened.</summary>
+        /// <summary>The player's score in the running season: capped points earned since it opened.</summary>
         public long Score { get { Sync(); return CurrentScore(); } }
+
+        /// <summary>Whether the running season scores <see cref="Ladder.Scoring"/> points. False only for
+        /// the one season an older build opened, which still ranks bars sold.</summary>
+        public bool ScoresPoints { get { Sync(); return _data != null && _data.ladder != null && _data.ladder.points; } }
+
+        /// <summary>
+        /// How many of a rule's actions count this season: taken since the season opened, capped at the
+        /// rule's season limit. Zero in a bars season. What the points card shows as "x / cap".
+        /// </summary>
+        public long CountedActions(in Ladder.ScoringRule rule)
+        {
+            Sync();
+            if (_data == null || _goals == null || _data.ladder == null || !_data.ladder.points) return 0L;
+
+            long[] baselines = _data.ladder.baselines;
+            long baseline = baselines != null && rule.Metric < baselines.Length ? baselines[rule.Metric] : 0L;
+            long actions = _goals.Lifetime(rule.Metric) - baseline;
+            if (actions <= 0L) return 0L;
+            return rule.SeasonCap >= 0L && actions > rule.SeasonCap ? rule.SeasonCap : actions;
+        }
+
+        /// <summary>Whether the player has closed the points card once — after that it opens only on
+        /// request.</summary>
+        public bool PointsHelpSeen => _data == null || _data.ladder == null || _data.ladder.pointsHelpSeen;
+
+        public void MarkPointsHelpSeen()
+        {
+            if (_data == null || _data.ladder == null || _data.ladder.pointsHelpSeen) return;
+            _data.ladder.pointsHelpSeen = true;
+            Commit();
+        }
 
         /// <summary>Asks the ladder for the board. Straight through — a board is a display shape and
         /// this service has nothing to add to one.</summary>
@@ -191,6 +227,7 @@ namespace Game.Systems
             {
                 LadderState ladder = _data.ladder;
                 if (ladder == null) { _data.ladder = ladder = new LadderState(); }
+                RepairBaselines(ladder);
 
                 SyncLocal(ladder);
 
@@ -231,17 +268,50 @@ namespace Game.Systems
 
             if (_restored) return;
             _restored = true;
+            // The double forgets which seasons score points across a restart, exactly as it forgets
+            // the score. A season that closed while the app was shut must still settle in its own unit.
+            if (ladder.points) local.MarkPointsSeason(ladder.seasonId);
             local.Restore(ladder.seasonId, ladder.bestScore, ladder.bestAchievedUnix);
             _submitted = ladder.bestScore;
         }
 
-        /// <summary>The running season's score: bars sold since the baseline, never negative — a
-        /// counter that somehow went backwards must read as zero rather than as a debt.</summary>
+        /// <summary>
+        /// A save from before points has no per-metric baselines. That is only a problem for a points
+        /// season, which an older build never opened — but a damaged array is repaired the same way:
+        /// from the counters as they are now, so the season counts from here rather than counting a
+        /// whole career.
+        /// </summary>
+        private void RepairBaselines(LadderState ladder)
+        {
+            if (ladder.baselines != null && ladder.baselines.Length == Goals.MetricCount) return;
+            ladder.baselines = new long[Goals.MetricCount];
+            if (!ladder.points) return;
+            for (int m = 0; m < Goals.MetricCount; m++) ladder.baselines[m] = _goals.Lifetime(m);
+        }
+
+        /// <summary>The running season's score, never negative — a counter that somehow went backwards
+        /// must read as zero rather than as a debt. Points for a points season, bars for an older one.
+        /// No allocation: this runs on the goal tally's hot path.</summary>
         private long CurrentScore()
         {
             if (_data == null || _goals == null) return 0L;
-            long delta = _goals.Lifetime(ScoreMetric) - _data.ladder.baseline;
-            return delta > 0L ? delta : 0L;
+            LadderState ladder = _data.ladder;
+
+            if (!ladder.points)
+            {
+                long delta = _goals.Lifetime(ScoreMetric) - ladder.baseline;
+                return delta > 0L ? delta : 0L;
+            }
+
+            long score = 0L;
+            Ladder.ScoringRule[] rules = Ladder.Scoring;
+            for (int i = 0; i < rules.Length; i++)
+            {
+                int metric = rules[i].Metric;
+                long baseline = ladder.baselines != null && metric < ladder.baselines.Length ? ladder.baselines[metric] : 0L;
+                score += Ladder.PointsFor(rules[i], _goals.Lifetime(metric) - baseline);
+            }
+            return score;
         }
 
         /// <summary>
@@ -280,8 +350,9 @@ namespace Game.Systems
         /// A season has ended. Settle the outgoing one if the player was in it, then open the new one
         /// on a fresh baseline.
         ///
-        /// The baseline is taken from the lifetime counter AS IT IS NOW, so bars sold while no season
-        /// was open — or during a season the player never scored in — are not credited to the new one.
+        /// The baselines are taken from the lifetime counters AS THEY ARE NOW, so actions taken while no
+        /// season was open — or during a season the player never scored in — are not credited to the new
+        /// one. Every season opened here scores points; the closing one settles in whatever unit it had.
         /// </summary>
         private void Roll(LadderState ladder, string current)
         {
@@ -295,6 +366,11 @@ namespace Game.Systems
 
             ladder.seasonId = current;
             ladder.baseline = _goals.Lifetime(ScoreMetric);
+            ladder.points = true;
+            if (ladder.baselines == null || ladder.baselines.Length != Goals.MetricCount)
+                ladder.baselines = new long[Goals.MetricCount];
+            for (int m = 0; m < Goals.MetricCount; m++) ladder.baselines[m] = _goals.Lifetime(m);
+            if (_leaderboard is LocalLeaderboardService local) local.MarkPointsSeason(current);
             ladder.bestScore = 0L;
             ladder.bestAchievedUnix = 0L;
             _submitted = 0L;   // a fresh season has had nothing sent to it yet

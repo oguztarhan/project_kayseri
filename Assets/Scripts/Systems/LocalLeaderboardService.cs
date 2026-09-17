@@ -91,6 +91,20 @@ namespace Game.Systems
         /// </summary>
         public int IslandsOwned { get; set; } = 1;
 
+        /// <summary>The strongest generated entrant's target in a points season, as a share of
+        /// <see cref="Ladder.MaxSeasonPoints"/>.</summary>
+        public const double PointsTopShare = 0.95d;
+
+        /// <summary>Seasons scored in <see cref="Ladder.Scoring"/> points rather than bars. The owner
+        /// marks them (LadderService knows which unit each season opened in); anything unmarked is a
+        /// pre-points season and gets the bar-scaled cohort.</summary>
+        private readonly HashSet<string> _pointsSeasons = new HashSet<string>(StringComparer.Ordinal);
+
+        public void MarkPointsSeason(string seasonId)
+        {
+            if (!string.IsNullOrEmpty(seasonId)) _pointsSeasons.Add(seasonId);
+        }
+
         /// <summary>
         /// Seconds added to this double's clock. The seam that lets a test roll a season over instead
         /// of waiting a week for one: <see cref="TimeService"/> is sealed and reads the device clock,
@@ -359,13 +373,22 @@ namespace Game.Systems
             if (span < 1L) span = 1L;
             if (span > _cadenceSeconds) span = _cadenceSeconds;
 
-            // What a strong week looks like in this band. The x6 per band is the shape of the game's
-            // own output curve — roughly x3.2 per ore tier, two tiers to a band — so a coal player and
-            // a diamond player are each measured against a target their island can actually reach.
-            long scale = 1000L;
-            for (int i = 0; i < band; i++) scale *= 6L;
-
-            double top = scale * 3d;
+            double top;
+            if (_pointsSeasons.Contains(seasonId))
+            {
+                // A points season: counts do not inflate by ore tier, so every band chases the same
+                // target. Just under the season's ceiling, so a player who maxes every rule takes first.
+                top = Ladder.MaxSeasonPoints * PointsTopShare;
+            }
+            else
+            {
+                // A pre-points season, ranked on bars. The x6 per band is the shape of the game's own
+                // output curve — roughly x3.2 per ore tier, two tiers to a band — so a coal player and
+                // a diamond player are each measured against a target their island can actually reach.
+                long scale = 1000L;
+                for (int i = 0; i < band; i++) scale *= 6L;
+                top = scale * 3d;
+            }
 
             for (int i = 0; i < Leaderboards.CohortSize - 1; i++)
             {

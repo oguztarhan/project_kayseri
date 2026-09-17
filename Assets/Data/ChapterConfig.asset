@@ -16,7 +16,7 @@ MonoBehaviour:
   worksUnlocks: 3
   fullSteamLevels: 200
   fullSteamUnlocks: 8
-  gemsBase: 40
-  gemsStep: 15
+  gemsBase: 6
+  gemsStep: 2
   cardsBase: 1
   cardsStep: 1

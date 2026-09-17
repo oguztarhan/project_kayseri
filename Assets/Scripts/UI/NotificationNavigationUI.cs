@@ -42,14 +42,7 @@ namespace Game.UI
                 return;
             }
 
-            const string prefix = "island:";
-            if (!_pending.StartsWith(prefix, System.StringComparison.Ordinal))
-            {
-                _pending = null;
-                return;
-            }
-            IslandMapUI map = FindAnyObjectByType<IslandMapUI>(FindObjectsInactive.Include);
-            if (map != null && map.TravelToIsland(_pending.Substring(prefix.Length))) _pending = null;
+            _pending = null;
         }
     }
 }

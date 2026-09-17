@@ -9,9 +9,9 @@ namespace Game.UI
     /// The handful of uGUI builders every runtime-built screen needs: a canvas, a coloured box, a label,
     /// a button, a progress bar.
     ///
-    /// <see cref="CoalHud"/>, <see cref="IslandMapUI"/> and <see cref="StationBadges"/> each grew their
+    /// <see cref="CoalHud"/> and <see cref="StationBadges"/> each grew their
     /// own private copies of these before this existed. Those are left alone deliberately — this is here
-    /// so the meta-layer screens added afterwards do not make it five copies. Everything is anchored in
+    /// so the meta-layer screens added afterwards do not make it four copies. Everything is anchored in
     /// fractions of the parent, so a screen laid out here scales to any aspect without a second pass.
     /// </summary>
     public static class UiBuild

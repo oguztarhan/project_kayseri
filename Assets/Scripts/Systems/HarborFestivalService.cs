@@ -221,6 +221,13 @@ namespace Game.Systems
             return tokens;
         }
 
+        /// <summary>
+        /// Whether the premium track can be bought at all. Without a store id there is no purchase
+        /// flow behind it, so the screen hides the column rather than show rewards nobody can reach.
+        /// Setting <see cref="HarborFestival.Tuning.PremiumSku"/> is what turns it back on.
+        /// </summary>
+        public bool PremiumAvailable => !string.IsNullOrEmpty(_tuning.PremiumSku);
+
         public bool PremiumOwned
         {
             get

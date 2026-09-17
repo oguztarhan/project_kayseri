@@ -34,8 +34,17 @@ namespace Game.Tests
             public LocalLeaderboardService Board;
             public LadderService Ladder;
 
-            /// <summary>Sells bars, which is the only thing the league measures.</summary>
+            /// <summary>Sells bars — which a points season does not count, and a pre-points one does.</summary>
             public void Sell(long bars) => Goals.Record(LadderService.ScoreMetric, bars);
+
+            /// <summary>Buys upgrades: one point each, up to the season cap.</summary>
+            public void Upgrade(long count) => Goals.Record(Game.Core.Goals.Upgrades, count);
+
+            /// <summary>Takes every scoring rule to its cap — the season's ceiling.</summary>
+            public void MaxOut()
+            {
+                foreach (Game.Core.Ladder.ScoringRule rule in Game.Core.Ladder.Scoring) Goals.Record(rule.Metric, rule.SeasonCap);
+            }
         }
 
         private static Rig New(SaveData data = null, long offsetSeconds = 0L)
@@ -63,7 +72,7 @@ namespace Game.Tests
             Assert.That(Ladder.IsWellFormed(tuning), Is.True);
             Assert.That(tuning.Brackets.Length, Is.EqualTo(Leaderboards.DefaultBracketEnds.Length));
 
-            Assert.That(Ladder.RewardFor(0, tuning).Gems, Is.EqualTo(150L));
+            Assert.That(Ladder.RewardFor(0, tuning).Gems, Is.EqualTo(100L));
             Assert.That(Ladder.RewardFor(0, tuning).Cards, Is.EqualTo(3));
             Assert.That(Ladder.RewardFor(5, tuning).Gems, Is.EqualTo(10L));
             Assert.That(Ladder.RewardFor(5, tuning).Cards, Is.EqualTo(0));
@@ -103,31 +112,168 @@ namespace Game.Tests
 
         // ----------------------------------------------------------------------------- the score
         /// <summary>
-        /// The baseline is what stops an existing player's whole career counting as one season's
-        /// work. Every save that exists today has bars on it.
+        /// The baselines are what stop an existing player's whole career counting as one season's
+        /// work. Every save that exists today has upgrades and contracts on it.
         /// </summary>
         [Test]
-        public void ANewSeasonStartsFromTodaysBarsNotACareerTotal()
+        public void ANewSeasonStartsFromTodaysCountersNotACareerTotal()
         {
             var data = new SaveData();
             var wallet = new WalletService(data.wallet);
-            new GoalService(data, wallet).Record(Goals.BarsSold, 5000L);
+            var goals = new GoalService(data, wallet);
+            goals.Record(Goals.Upgrades, 5000L);
+            goals.Record(Goals.Contracts, 70L);
 
             Rig rig = New(data);
 
+            Assert.That(rig.Data.ladder.points, Is.True);
             Assert.That(rig.Ladder.Score, Is.EqualTo(0L));
-            Assert.That(rig.Data.ladder.baseline, Is.EqualTo(5000L));
+            Assert.That(rig.Data.ladder.baselines[Goals.Upgrades], Is.EqualTo(5000L));
+            Assert.That(rig.Data.ladder.baselines[Goals.Contracts], Is.EqualTo(70L));
         }
 
         [Test]
-        public void TheScoreIsBarsSoldSinceTheSeasonOpened()
+        public void TheScoreIsCappedPointsEarnedSinceTheSeasonOpened()
         {
             Rig rig = New();
-            rig.Sell(40L);
+            rig.Goals.Record(Goals.Contracts, 1L);
+            rig.Goals.Record(Goals.Repairs, 2L);
+            rig.Upgrade(300L);   // past the 250 cap
 
-            Assert.That(rig.Ladder.Score, Is.EqualTo(40L));
-            Assert.That(rig.Data.ladder.bestScore, Is.EqualTo(40L));
+            long expected = Ladder.PointsFor(Ladder.Scoring[0], 300L) + 10L + 12L;
+            Assert.That(expected, Is.EqualTo(250L + 10L + 12L));
+            Assert.That(rig.Ladder.Score, Is.EqualTo(expected));
+            Assert.That(rig.Data.ladder.bestScore, Is.EqualTo(expected));
             Assert.That(rig.Data.ladder.bestAchievedUnix, Is.GreaterThan(0L));
+        }
+
+        /// <summary>The reason points replaced bars: output inflates x3.2 per ore tier, counts do not,
+        /// so selling a mountain of bars must not move a points season at all.</summary>
+        [Test]
+        public void BarsSoldDoNotScoreInAPointsSeason()
+        {
+            Rig rig = New();
+            rig.Sell(9_000_000L);
+            Assert.That(rig.Ladder.Score, Is.EqualTo(0L));
+        }
+
+        [Test]
+        public void TheSeasonCeilingIsEveryRuleAtItsCap()
+        {
+            Assert.That(Ladder.MaxSeasonPoints, Is.EqualTo(250L + 300L + 180L + 150L));
+
+            Rig rig = New();
+            rig.MaxOut();
+            rig.MaxOut();   // past every cap
+            Assert.That(rig.Ladder.Score, Is.EqualTo(Ladder.MaxSeasonPoints));
+        }
+
+        // ------------------------------------------------------------------ pre-points seasons
+        /// <summary>
+        /// A player who updates mid-season keeps that season in bars: their saved best is in bars, and
+        /// rescoring it would either wipe what they earned or compare bars with points. It settles in
+        /// bars, and the season after it opens in points.
+        /// </summary>
+        [Test]
+        public void ASeasonOpenedByAnOlderBuildFinishesInBarsAndTheNextScoresPoints()
+        {
+            var data = new SaveData();
+            data.ladder.seasonId = Season();
+            data.ladder.baseline = 0L;
+            data.ladder.points = false;
+            data.ladder.baselines = null;   // an older save has no such field
+
+            Rig rig = New(data);
+            rig.Sell(500L);
+            rig.Upgrade(40L);
+            Assert.That(rig.Data.ladder.points, Is.False);
+            Assert.That(rig.Ladder.Score, Is.EqualTo(500L), "the running season still ranks bars");
+            Assert.That(rig.Data.ladder.baselines.Length, Is.EqualTo(Goals.MetricCount), "repaired on load");
+
+            rig.Board.TimeOffsetSeconds = ThreeDays;
+            rig.Ladder.Sync();
+
+            Assert.That(rig.Data.ladder.inbox.Count, Is.EqualTo(1), "the bars season settled");
+            Assert.That(rig.Data.ladder.points, Is.True);
+            rig.Sell(500L);
+            rig.Upgrade(7L);
+            Assert.That(rig.Ladder.Score, Is.EqualTo(7L), "the new season counts points, not bars");
+        }
+
+        /// <summary>
+        /// What the points card shows as "x / cap": actions since the season opened, stopped at the
+        /// rule's cap, and nothing at all in a season that still ranks bars.
+        /// </summary>
+        [Test]
+        public void CountedActionsStartAtTheSeasonStopAtTheCapAndAreZeroInABarsSeason()
+        {
+            Rig rig = New();
+            rig.Upgrade(40L);   // the rig's constructor has already opened the season, so these count
+            Game.Core.Ladder.ScoringRule upgrades = Game.Core.Ladder.Scoring[0];
+            Game.Core.Ladder.ScoringRule contracts = Game.Core.Ladder.Scoring[1];
+            Assert.That(upgrades.Metric, Is.EqualTo(Goals.Upgrades));
+            Assert.That(contracts.Metric, Is.EqualTo(Goals.Contracts));
+
+            Assert.That(rig.Ladder.ScoresPoints, Is.True);
+            Assert.That(rig.Ladder.CountedActions(upgrades), Is.EqualTo(40L));
+            rig.Upgrade(upgrades.SeasonCap);
+            Assert.That(rig.Ladder.CountedActions(upgrades), Is.EqualTo(upgrades.SeasonCap), "stops at the cap");
+            Assert.That(rig.Ladder.CountedActions(contracts), Is.EqualTo(0L));
+
+            var data = new SaveData();
+            data.ladder.seasonId = Season();
+            data.ladder.points = false;
+            Rig bars = New(data);
+            bars.Upgrade(12L);
+            Assert.That(bars.Ladder.ScoresPoints, Is.False);
+            Assert.That(bars.Ladder.CountedActions(upgrades), Is.EqualTo(0L));
+        }
+
+        /// <summary>The card's automatic open is a one-time thing, and closing it is what is saved.</summary>
+        [Test]
+        public void PointsHelpIsUnseenUntilMarkedAndStaysMarked()
+        {
+            Rig rig = New();
+            Assert.That(rig.Ladder.PointsHelpSeen, Is.False);
+            rig.Ladder.MarkPointsHelpSeen();
+            Assert.That(rig.Ladder.PointsHelpSeen, Is.True);
+            Assert.That(rig.Data.ladder.pointsHelpSeen, Is.True);
+        }
+
+        /// <summary>
+        /// The generated cohort follows the season's unit. A points season is the same target in every
+        /// band — the whole point of counting — and sits just under the ceiling, so maxing out wins.
+        /// </summary>
+        [Test]
+        public void APointsSeasonCohortIsTheSameScaleInEveryBandAndAMaxedPlayerWins()
+        {
+            long topCoal = TopOpponent(1);
+            long topDiamond = TopOpponent(8);
+
+            long ceiling = (long)(Ladder.MaxSeasonPoints * LocalLeaderboardService.PointsTopShare);
+            Assert.That(topCoal, Is.LessThanOrEqualTo(ceiling));
+            Assert.That(topDiamond, Is.LessThanOrEqualTo(ceiling));
+            Assert.That(topDiamond, Is.LessThan(topCoal * 2L), "a higher band must not multiply the target");
+
+            Rig rig = New();
+            rig.Data.unlockedIslands.Add("coal");
+            rig.MaxOut();
+            LeaderboardBoard board = null;
+            rig.Ladder.RequestBoard(b => board = b);
+            Assert.That(board.PlayerRank, Is.EqualTo(1));
+        }
+
+        private static long TopOpponent(int islands)
+        {
+            Rig rig = New();
+            for (int i = 0; i < islands; i++) rig.Data.unlockedIslands.Add("ada" + i);
+            rig.Ladder.Sync();
+            LeaderboardBoard board = null;
+            rig.Ladder.RequestBoard(b => board = b);
+            long top = 0L;
+            foreach (LeaderboardEntry entry in board.Entries)
+                if (!entry.IsPlayer && entry.Score > top) top = entry.Score;
+            return top;
         }
 
         /// <summary>
@@ -141,13 +287,13 @@ namespace Game.Tests
         {
             Rig rig = New();
 
-            rig.Sell(53L);
+            rig.Upgrade(53L);
             LeaderboardBoard first = null;
             rig.Ladder.RequestBoard(b => first = b);
             Assert.That(first, Is.Not.Null);
             Assert.That(first.PlayerScore, Is.EqualTo(53L));
 
-            rig.Sell(47L);
+            rig.Upgrade(47L);
             LeaderboardBoard second = null;
             rig.Ladder.RequestBoard(b => second = b);
             Assert.That(second.PlayerScore, Is.EqualTo(100L),
@@ -171,8 +317,8 @@ namespace Game.Tests
         public void ARolloverSettlesTheClosedSeasonAndOpensTheNextOnAFreshBaseline()
         {
             Rig rig = New();
-            rig.Sell(500L);
-            Assert.That(rig.Ladder.Score, Is.EqualTo(500L));
+            rig.Upgrade(200L);
+            Assert.That(rig.Ladder.Score, Is.EqualTo(200L));
 
             rig.Board.TimeOffsetSeconds = ThreeDays;
             rig.Ladder.Sync();
@@ -181,7 +327,7 @@ namespace Game.Tests
             Assert.That(rig.Data.ladder.inbox[0].seasonId, Is.EqualTo(Season()));
             Assert.That(rig.Data.ladder.seasonId, Is.EqualTo(Season(1)));
             Assert.That(rig.Ladder.Score, Is.EqualTo(0L), "the new season starts empty");
-            Assert.That(rig.Data.ladder.baseline, Is.EqualTo(500L));
+            Assert.That(rig.Data.ladder.baselines[Goals.Upgrades], Is.EqualTo(200L));
         }
 
         /// <summary>
@@ -192,7 +338,7 @@ namespace Game.Tests
         public void ASeasonIsSettledExactlyOnceHoweverOftenItIsSynced()
         {
             Rig rig = New();
-            rig.Sell(500L);
+            rig.Upgrade(200L);
             rig.Board.TimeOffsetSeconds = ThreeDays;
 
             for (int i = 0; i < 5; i++) rig.Ladder.Sync();
@@ -226,8 +372,8 @@ namespace Game.Tests
         public void AScoreSurvivesARestartAndSettlesOnWhatWasActuallyEarned()
         {
             Rig first = New();
-            first.Sell(100000L);
-            Assert.That(first.Data.ladder.bestScore, Is.EqualTo(100000L));
+            first.MaxOut();
+            Assert.That(first.Data.ladder.bestScore, Is.EqualTo(Ladder.MaxSeasonPoints));
 
             // Same save, brand-new services, and the clock has moved past the end of that season:
             // the app was closed inside season 0 and re-opened inside season 1.
@@ -247,7 +393,7 @@ namespace Game.Tests
         public void ClaimPaysTheBracketOnceAndRefusesTheSecondTap()
         {
             Rig rig = New();
-            rig.Sell(100000L);
+            rig.MaxOut();
             rig.Board.TimeOffsetSeconds = ThreeDays;
             rig.Ladder.Sync();
 
@@ -268,7 +414,7 @@ namespace Game.Tests
         public void ClaimingASeasonThatWasNeverSettledPaysNothing()
         {
             Rig rig = New();
-            rig.Sell(500L);
+            rig.Upgrade(200L);
 
             Assert.That(rig.Ladder.Claim(Season()), Is.False);
             Assert.That(rig.Ladder.Claim("bilinmeyen"), Is.False);
@@ -281,10 +427,10 @@ namespace Game.Tests
             Rig rig = New();
 
             // Two seasons played and closed back to back.
-            rig.Sell(100000L);
+            rig.MaxOut();
             rig.Board.TimeOffsetSeconds = ThreeDays;
             rig.Ladder.Sync();
-            rig.Sell(100000L);
+            rig.MaxOut();
             rig.Board.TimeOffsetSeconds = ThreeDays * 2L;
             rig.Ladder.Sync();
 
@@ -304,7 +450,7 @@ namespace Game.Tests
         public void AnOldSeasonsRewardIsStillWaitingWeeksLater()
         {
             Rig rig = New();
-            rig.Sell(100000L);
+            rig.MaxOut();
             rig.Board.TimeOffsetSeconds = ThreeDays;
             rig.Ladder.Sync();
 
@@ -323,7 +469,7 @@ namespace Game.Tests
         public void EveryBoardTheLeagueHandsAScreenIsLabelledSynthetic()
         {
             Rig rig = New();
-            rig.Sell(500L);
+            rig.Upgrade(200L);
 
             LeaderboardBoard board = null;
             rig.Ladder.RequestBoard(b => board = b);

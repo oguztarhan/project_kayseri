@@ -12,6 +12,13 @@ namespace Game.Systems
         public const string RewardId = "balloon";
         public const float CooldownSeconds = 180f;
 
+        /// <summary>
+        /// Claims per UTC day. Without a cap the three-minute cooldown was the only limit, which with
+        /// Remove-Ads paid five income-minutes every three minutes of play — a faucet the ad budget in
+        /// EconomyCurve never counted. Six claims is thirty income-minutes a day.
+        /// </summary>
+        public const int ChargesPerDay = 6;
+
         public readonly struct Receipt
         {
             public readonly bool Paid;
@@ -42,11 +49,21 @@ namespace Game.Systems
             _data = data;
         }
 
-        public bool Ready => _free != null && _free.CanWatch(RewardId, int.MaxValue, CooldownSeconds);
+        public bool Ready => _free != null && _free.CanWatch(RewardId, ChargesPerDay, CooldownSeconds);
 
-        public float CooldownLeft => _free != null
-            ? _free.CooldownLeft(RewardId, CooldownSeconds)
-            : 0f;
+        public int ChargesLeft => _free != null ? _free.ChargesLeft(RewardId, ChargesPerDay) : 0;
+
+        /// <summary>Seconds until the next claim: the cooldown, or the UTC reset once today's
+        /// charges are spent, so the HUD timer never goes blank on a disabled button.</summary>
+        public float CooldownLeft
+        {
+            get
+            {
+                if (_free == null) return 0f;
+                if (_free.ChargesLeft(RewardId, ChargesPerDay) <= 0) return _free.SecondsUntilReset();
+                return _free.CooldownLeft(RewardId, CooldownSeconds);
+            }
+        }
 
         /// <summary>
         /// Pays a fixed gem award on the low roll; otherwise pays the greater of the authored floor

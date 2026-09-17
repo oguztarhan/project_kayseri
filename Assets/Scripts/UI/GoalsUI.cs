@@ -39,7 +39,6 @@ namespace Game.UI
                        _barTrack, _chip, _gemIcon, _fillDaily, _fillWeekly, _fillLadder;
 
         private const string OpenerIconResource = "UI/Buttons/gorev";
-        private const float RibbonBand = 0.677f;
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
@@ -162,28 +161,28 @@ namespace Game.UI
 
         private void BuildHeader()
         {
-            RectTransform band = Art(_root, "Serit", _ribbon,
-                new Vector2(0.36f, 0.87f), new Vector2(0.64f, 0.995f));
-            _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
-                new Vector2(0.87f, RibbonBand + 0.13f)), "Text", Loc.T("gorev.baslik"), 38,
-                TextAnchor.MiddleCenter);
+            _titleLabel = AtolyeKit.Ribbon(_root, _ribbon, Loc.T("gorev.baslik"), AtolyeKit.RibbonMin, AtolyeKit.RibbonMax);
             _claimAllButton = UiBuild.Btn(_root, "HepsiniAl", Loc.T("gorev.hepsini_al"),
                 _btnLive != null ? _btnLive : UiSkin.ButtonGreen,
                 Color.white, 24, ClaimAll);
             UiBuild.Anchor((RectTransform)_claimAllButton.transform,
-                new Vector2(0.035f, 0.895f), new Vector2(0.235f, 0.955f));
+                new Vector2(0.040f, 0.930f), new Vector2(0.240f, 0.980f));
             PillFit.Wrap(_claimAllButton.GetComponent<Image>());
-            _claimAllLabel = _claimAllButton.GetComponentInChildren<Text>();
-            _pendingChip = Chip(_root, "Bekleyen", new Vector2(0.25f, 0.895f), new Vector2(0.34f, 0.955f));
-            _pendingLabel = UiBuild.Label(_pendingChip, "Yazi", string.Empty, 26, TextAnchor.MiddleCenter);
+            _claimAllLabel = AtolyeKit.Label(_claimAllButton, 14, 26);
+            // The count rides the claim-all button's corner as a badge. As a chip of its own between
+            // the button and the ribbon it had no room, and it counts what that button takes anyway.
+            _pendingChip = Chip((RectTransform)_claimAllButton.transform, "Bekleyen",
+                new Vector2(0.80f, 0.58f), new Vector2(1.06f, 1.14f));
+            _pendingLabel = UiBuild.Label(Slot(_pendingChip, "Yazi", new Vector2(0.15f, 0.10f), new Vector2(0.85f, 0.90f)),
+                "Text", string.Empty, 24, TextAnchor.MiddleCenter);
             _pendingLabel.color = Paper;
+            Fit(_pendingLabel, 12, 24);
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
                 _closeIcon != null ? _closeIcon : UiSkin.ButtonGrey, Color.white, 34, Hide);
             Image image = close.GetComponent<Image>();
             image.type = Image.Type.Simple;
             image.preserveAspect = true;
-            UiBuild.Anchor((RectTransform)close.transform,
-                new Vector2(0.878f, 0.887f), new Vector2(0.938f, 0.975f));
+            UiBuild.Anchor((RectTransform)close.transform, AtolyeKit.CloseMin, AtolyeKit.CloseMax);
         }
 
         private void BuildTabs()
@@ -192,35 +191,35 @@ namespace Game.UI
             for (int i = 0; i < 3; i++)
             {
                 int captured = i;
-                float left = 0.035f + i * 0.31f;
+                float left = 0.045f + i * 0.310f;
                 _tabButtons[i] = UiBuild.Btn(_root, "Sekme_" + i, Loc.T(keys[i]),
                     _btnMavi != null ? _btnMavi : UiSkin.ButtonGrey, Color.white, 24,
                     () => SelectTab((Tab)captured));
                 UiBuild.Anchor((RectTransform)_tabButtons[i].transform,
-                    new Vector2(left, 0.795f), new Vector2(left + 0.285f, 0.855f));
+                    new Vector2(left, 0.838f), new Vector2(left + 0.290f, 0.892f));
                 PillFit.Wrap(_tabButtons[i].GetComponent<Image>());
-                _tabLabels[i] = _tabButtons[i].GetComponentInChildren<Text>();
-                Fit(_tabLabels[i], 16, 24);
+                _tabLabels[i] = AtolyeKit.Label(_tabButtons[i], 14, 26);
             }
         }
 
         private RectTransform Page(string name)
-            => Slot(_root, name, new Vector2(0.02f, 0.025f), new Vector2(0.98f, 0.78f));
+            => Slot(_root, name, new Vector2(0.03f, 0.025f), new Vector2(0.97f, 0.820f));
 
         private void BuildDailyPage(RectTransform page)
         {
-            float height = 0.94f / Goals.DailySlots;
+            float height = 1f / Goals.DailySlots;
             for (int i = 0; i < Goals.DailySlots; i++)
             {
                 RectTransform row = Card(page, "Gunluk_" + i,
-                    new Vector2(0.02f, 0.97f - (i + 1) * height + 0.012f),
-                    new Vector2(0.98f, 0.97f - i * height - 0.012f));
-                _dailyText[i] = RowText(row, new Vector2(0.035f, 0.58f), new Vector2(0.69f, 0.91f), 30);
-                _dailyFillImage[i] = Bar(row, new Vector2(0.035f, 0.39f), new Vector2(0.69f, 0.54f), _fillDaily, dailyFill);
-                _dailyReward[i] = RowText(row, new Vector2(0.10f, 0.09f), new Vector2(0.69f, 0.34f), 25);
-                Icon(row, "Elmas", _gemIcon, new Vector2(0.035f, 0.10f), new Vector2(0.09f, 0.33f));
+                    new Vector2(0f, 1f - (i + 1) * height + 0.012f),
+                    new Vector2(1f, 1f - i * height - 0.012f));
+                _dailyText[i] = RowText(row, new Vector2(0f, 0.64f), new Vector2(0.60f, 0.96f), 32);
+                _dailyFillImage[i] = Bar(row, new Vector2(0f, 0.42f), new Vector2(0.58f, 0.54f), _fillDaily, dailyFill);
+                Icon(row, "Elmas", _gemIcon, new Vector2(0f, 0.06f), new Vector2(0.07f, 0.30f));
+                _dailyReward[i] = RowText(row, new Vector2(0.085f, 0.04f), new Vector2(0.60f, 0.32f), 26);
                 int captured = i;
                 _dailyBtn[i] = ClaimButton(row, () => ClaimDaily(captured), out _dailyBtnText[i]);
+                UiBuild.Anchor((RectTransform)_dailyBtn[i].transform, new Vector2(0.64f, 0.30f), new Vector2(1f, 0.70f));
             }
         }
 
@@ -228,21 +227,21 @@ namespace Game.UI
         {
             _weeklyTaskCaption = Caption(page, "HaftalikGorev", Loc.T("gorev.haftalik_gorevler"), 0.02f, 0.49f);
             _weeklyRewardCaption = Caption(page, "HaftalikOdul", Loc.T("gorev.haftalik_oduller"), 0.51f, 0.98f);
-            float height = 0.84f / Goals.WeeklySlots;
+            float height = 0.92f / Goals.WeeklySlots;
             for (int i = 0; i < Goals.WeeklySlots; i++)
             {
                 RectTransform row = Card(page, "HaftalikGorev_" + i,
-                    new Vector2(0.02f, 0.88f - (i + 1) * height + 0.01f),
-                    new Vector2(0.49f, 0.88f - i * height - 0.01f));
-                _weeklyTaskText[i] = RowText(row, new Vector2(0.04f, 0.46f), new Vector2(0.96f, 0.91f), 25);
-                _weeklyTaskFill[i] = Bar(row, new Vector2(0.04f, 0.16f), new Vector2(0.96f, 0.36f), _fillWeekly, weeklyFill);
+                    new Vector2(0.02f, 0.93f - (i + 1) * height + 0.01f),
+                    new Vector2(0.49f, 0.93f - i * height - 0.01f));
+                _weeklyTaskText[i] = RowText(row, new Vector2(0f, 0.42f), new Vector2(1f, 1f), 25);
+                _weeklyTaskFill[i] = Bar(row, new Vector2(0f, 0.04f), new Vector2(1f, 0.28f), _fillWeekly, weeklyFill);
             }
             for (int i = 0; i < Goals.WeeklyMilestones.Length; i++)
             {
                 RectTransform row = Card(page, "HaftalikOdul_" + i,
-                    new Vector2(0.51f, 0.88f - (i + 1) * height + 0.01f),
-                    new Vector2(0.98f, 0.88f - i * height - 0.01f));
-                _weeklyMilestoneText[i] = RowText(row, new Vector2(0.04f, 0.18f), new Vector2(0.67f, 0.85f), 24);
+                    new Vector2(0.51f, 0.93f - (i + 1) * height + 0.01f),
+                    new Vector2(0.98f, 0.93f - i * height - 0.01f));
+                _weeklyMilestoneText[i] = RowText(row, new Vector2(0f, 0f), new Vector2(0.58f, 1f), 24);
                 int captured = i;
                 _weeklyMilestoneBtn[i] = ClaimButton(row, () => ClaimWeekly(captured), out _weeklyMilestoneBtnText[i]);
             }
@@ -260,10 +259,13 @@ namespace Game.UI
                 RectTransform row = Card(page, "Basarim_" + i,
                     new Vector2(left, 0.98f - (rowIndex + 1) * height + 0.012f),
                     new Vector2(right, 0.98f - rowIndex * height - 0.012f));
-                _ladderText[i] = RowText(row, new Vector2(0.04f, 0.52f), new Vector2(0.70f, 0.92f), 24);
-                _ladderFillImage[i] = Bar(row, new Vector2(0.04f, 0.18f), new Vector2(0.70f, 0.40f), _fillLadder, ladderFill);
+                // STACKED, not side by side: these cards are nearly square, and a claim capsule given
+                // a third of the width beside the text drew as a circle.
+                _ladderText[i] = RowText(row, new Vector2(0f, 0.56f), new Vector2(1f, 1f), 26);
+                _ladderFillImage[i] = Bar(row, new Vector2(0f, 0.37f), new Vector2(1f, 0.48f), _fillLadder, ladderFill);
                 int captured = i;
                 _ladderBtn[i] = ClaimButton(row, () => ClaimAchievement(captured), out _ladderBtnText[i]);
+                UiBuild.Anchor((RectTransform)_ladderBtn[i].transform, new Vector2(0.12f, 0f), new Vector2(0.88f, 0.28f));
             }
         }
 
@@ -328,7 +330,7 @@ namespace Game.UI
             _dailyText[slot].text = string.Format("{0}   {1} / {2}", MetricName(task.Metric), have, task.Target);
             _dailyText[slot].color = claimed ? InkFaint : Ink;
             Progress(_dailyFillImage[slot], Goals.Progress(have, task.Target));
-            _dailyReward[slot].text = RewardLine(task.Gems, task.Cards);
+            _dailyReward[slot].text = RewardLine(task.Gems, task.Cards, 0, false);
             _dailyBtnText[slot].text = StateText(ready, claimed);
             Dress(_dailyBtn[slot], ready, claimed);
         }
@@ -340,8 +342,9 @@ namespace Game.UI
                 Goals.WeeklyTask task = Goals.WeeklyTasks[i];
                 long have = _goals.WeeklyProgress(i);
                 bool done = _goals.WeeklyDone(i);
-                _weeklyTaskText[i].text = string.Format("{0}   {1}/{2}   ·   +{3} {4}",
-                    MetricName(task.Metric), have, task.Target, task.Points, Loc.T("gorev.puan"));
+                // The points take a line of their own: on the task's line they wrapped as "+25 / puan".
+                _weeklyTaskText[i].text = string.Format("{0}   {1}/{2}\n+{3}{5}{4}",
+                    MetricName(task.Metric), have, task.Target, task.Points, Loc.T("gorev.puan"), (char)0xA0);
                 _weeklyTaskText[i].color = done ? InkFaint : Ink;
                 Progress(_weeklyTaskFill[i], Goals.Progress(have, task.Target));
             }
@@ -402,18 +405,19 @@ namespace Game.UI
                 _btnLive != null ? _btnLive : UiSkin.ButtonGreen,
                 Color.white, 23, action);
             // Low enough that the capsule's two end caps do not meet in the middle — see
-            // AtolyeKit.Label, which then keeps the word off them.
-            UiBuild.Anchor((RectTransform)button.transform, new Vector2(0.70f, 0.33f), new Vector2(0.98f, 0.66f));
+            // AtolyeKit.Label, which then keeps the word off them. Inside the card's rim, not on it.
+            UiBuild.Anchor((RectTransform)button.transform, new Vector2(0.62f, 0.28f), new Vector2(1f, 0.72f));
             PillFit.Wrap(button.GetComponent<Image>());
             label = AtolyeKit.Label(button, 11, 23);
             return button;
         }
 
+        /// <summary>A row card. Returns its content box, inside the card's rim — see AtolyeKit.Inner.</summary>
         private RectTransform Card(RectTransform parent, string name, Vector2 min, Vector2 max)
         {
             RectTransform result = Art(parent, name, _rowCard, min, max);
             if (_rowCard == null) result.GetComponent<Image>().color = card;
-            return result;
+            return AtolyeKit.Inner(result, _rowCard, 28f);
         }
 
         private static Text RowText(RectTransform parent, Vector2 min, Vector2 max, int size)
@@ -427,7 +431,7 @@ namespace Game.UI
 
         private static Text Caption(RectTransform parent, string name, string value, float left, float right)
         {
-            Text text = UiBuild.Label(Slot(parent, name, new Vector2(left, 0.90f), new Vector2(right, 0.99f)),
+            Text text = UiBuild.Label(Slot(parent, name, new Vector2(left, 0.945f), new Vector2(right, 1f)),
                 "Text", value, 25, TextAnchor.MiddleLeft);
             text.color = Paper;
             Fit(text, 15, 25);
@@ -496,8 +500,14 @@ namespace Game.UI
             return image;
         }
 
+        /// <summary>An empty bar hides its fill: the capsule's end caps still drew at zero width, as a
+        /// gold stub on the left of every untouched bar.</summary>
         private static void Progress(Image fill, float value)
-            => ((RectTransform)fill.transform).anchorMax = new Vector2(Mathf.Clamp01(value), 1f);
+        {
+            float t = Mathf.Clamp01(value);
+            ((RectTransform)fill.transform).anchorMax = new Vector2(t, 1f);
+            fill.enabled = t > 0.001f;
+        }
 
         private static void Fit(Text label, int min, int max)
         {
@@ -534,11 +544,15 @@ namespace Game.UI
             if (pending > 0) _openerCount.text = pending.ToString();
         }
 
-        private static string RewardLine(long gems, int cards, int packs = 0)
+        /// <param name="gemGlyph">False where a gem icon already sits beside the line, as on the daily
+        /// cards: the ◆ there said "gems" twice.</param>
+        private static string RewardLine(long gems, int cards, int packs = 0, bool gemGlyph = true)
         {
-            string line = cards > 0 ? string.Format("{0} ◆   +{1} {2}", gems, cards, Loc.T("ustabasi.kart"))
-                                    : string.Format("{0} ◆", gems);
-            return packs > 0 ? line + "   " + string.Format(Loc.T("koleksiyon.paket_x"), packs) : line;
+            string amount = gemGlyph ? gems + " ◆" : gems.ToString();
+            string line = cards > 0 ? string.Format("{0}   +{1} {2}", amount, cards, Loc.T("ustabasi.kart"))
+                                    : amount;
+            // The pack takes a line of its own: on the same line it wrapped mid-phrase ("Kart / paketi").
+            return packs > 0 ? line + "\n" + string.Format(Loc.T("koleksiyon.paket_x"), packs) : line;
         }
 
         private static string MetricName(int metric)

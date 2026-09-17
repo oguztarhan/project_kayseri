@@ -3,8 +3,8 @@ using UnityEngine;
 namespace Game.UI
 {
     /// <summary>
-    /// Shared sprite set for the runtime-built HUD. Before this, <see cref="CoalHud"/>,
-    /// <see cref="IslandMapUI"/> and <see cref="StationBadges"/> each generated their own 4×4 white
+    /// Shared sprite set for the runtime-built HUD. Before this, <see cref="CoalHud"/> and
+    /// <see cref="StationBadges"/> each generated their own 4×4 white
     /// texture, which is why every panel and button rendered as a plain flat rectangle.
     ///
     /// The kit art is pre-coloured (a green button is a green PNG), so callers pick state by swapping

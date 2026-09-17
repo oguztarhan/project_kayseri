@@ -181,7 +181,8 @@ namespace Game.Systems
                     Id = "repair:" + row.id,
                     Title = Loc.T(whole ? "bildirim.onarim_tam_baslik" : "bildirim.onarim_baslik"),
                     Message = string.Format(Loc.T(whole ? "bildirim.onarim_tam" : "bildirim.onarim"), island),
-                    Target = "island:" + row.id,
+                    // No deep link: there is one island, and opening the game already lands on it.
+                    Target = string.Empty,
                     AfterSeconds = (int)left,
                     Priority = 100
                 };

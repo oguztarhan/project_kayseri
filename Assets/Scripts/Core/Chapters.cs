@@ -106,7 +106,9 @@ namespace Game.Core
                 // Gems, not cash. Cash has one faucet (MarketService) and a chapter reward paid in it
                 // would be a second one — Docs/VOYAGES.md R1. Gems and cards feed the roster, which is
                 // the long tail prestige was retired in favour of.
-                GemsBase = 40, GemsStep = 15,
+                // Retuned 2026-09-17 (was 40 + 15 per chapter, 5,180 over eight): one-off rewards land in
+                // month one on top of the recurring budget, so they are held to 728 in total.
+                GemsBase = 6, GemsStep = 2,
                 CardsBase = 1, CardsStep = 1,
             };
         }

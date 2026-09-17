@@ -65,6 +65,9 @@ namespace Game.UI
         [Tooltip("Zeminin dokuz dilim kenarlarının küçültülme oranı (Image.pixelsPerUnitMultiplier). " +
                  "Bantların yerleşimi 2'ye göre ölçüldü.")]
         [SerializeField] private float backdropBorderScale = 2f;
+        [Tooltip("Zeminin üstündeki pusula — UstaPanel/pusula. Zeminin dokuz dilimli üst kenarında " +
+                 "dururken yatayda uzayıp dikeyde ezildiği için sanattan ayrıldı; kendi oranıyla üstüne çizilir.")]
+        [SerializeField] private Sprite compassArt;
         [Tooltip("Nadirlik çerçeveleri, Foremen.Rarity sırasıyla: Sıradan, Nadir, Efsanevi — " +
                  "UstaKiti/cerceve_siradan, cerceve_nadir, cerceve_efsanevi.")]
         [SerializeField] private Sprite[] rarityFrames;
@@ -159,6 +162,14 @@ namespace Game.UI
         private const float BrowseTop = 0.660f, BrowseBottom = 0.615f;
         private const float GridTop = 0.600f, GridBottom = 0.060f;
 
+        /// <summary>One grid row in canvas reference pixels, gap included. With three columns across
+        /// the page a card is about 300 wide, and 540 gives the kit's 2:3 frame a full-height slot
+        /// with room for the name, stars, bar and button underneath — see MakeRosterCardPrefabs.</summary>
+        private const float CardPixels = 540f;
+
+        /// <summary>Gap between two cards, split half each side, in reference pixels.</summary>
+        private const float CardGap = 16f;
+
         /// <summary>
         /// The decimal separator is the game's, not the handset's. Left to the current culture, a
         /// Turkish phone draws "×1,50" here while the wallet an inch away draws "1.5K" out of
@@ -202,6 +213,8 @@ namespace Game.UI
         private readonly Text[] _lockLabel = new Text[Foremen.Count];
         private Image _emptyArt, _freeDot;
         private readonly RectTransform[] _cardRoot = new RectTransform[Foremen.Count];
+        /// <summary>The scrolling content the cards live in; its height is set by ReflowCards.</summary>
+        private RectTransform _cardsContent;
         private readonly RosterCardState[] _cardState = new RosterCardState[Foremen.Count];
         private readonly int[] _visibleOrder = new int[Foremen.Count];
         private RosterSortMode _sortMode;
@@ -335,20 +348,12 @@ namespace Game.UI
             BuildChestShelf();
             BuildBrowseBar();
 
-            int rows = (Foremen.Count + columns - 1) / columns;
-            // The grid is the bottom band, under the shelf and the browse bar — see the band
-            // constants for why the screen is stacked rather than side by side.
-            const float left = PageLeft, right = PageRight, top = GridTop, bottom = GridBottom;
-            float cellW = (right - left) / columns, cellH = (top - bottom) / rows;
-            const float padX = 0.008f, padY = 0.008f;
-
+            // The grid is the bottom band, under the shelf and the browse bar, and it scrolls — see
+            // BuildGridScroll. Cells are placed by ReflowCards on every refresh, so they are built at
+            // a throwaway rect here.
+            BuildGridScroll();
             for (int s = 0; s < Foremen.Count; s++)
-            {
-                int col = s % columns, row = s / columns;
-                var aMin = new Vector2(left + col * cellW + padX, top - (row + 1) * cellH + padY);
-                var aMax = new Vector2(left + (col + 1) * cellW - padX, top - row * cellH - padY);
-                BuildCard(s, aMin, aMax);
-            }
+                BuildCard(s, Vector2.zero, Vector2.one);
 
             BuildReveal();
             _inspect = new RosterInspectPanel(_root);
@@ -363,7 +368,7 @@ namespace Game.UI
                                       actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                       new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleSort);
             UiBuild.Anchor((RectTransform)sort.transform,
-                           new Vector2(PageLeft, BrowseBottom), new Vector2(0.310f, BrowseTop));
+                           new Vector2(PageLeft, BrowseBottom), new Vector2(0.490f, BrowseTop));
             PillFit.Wrap(sort.GetComponent<Image>());
             _sortText = sort.GetComponentInChildren<Text>();
             Fit(_sortText, 12, 22);
@@ -373,7 +378,7 @@ namespace Game.UI
                                         actionButton != null ? actionButton : UiSkin.ButtonGreen,
                                         new Color(0.24f, 0.55f, 0.84f, 1f), 22, CycleFilter);
             UiBuild.Anchor((RectTransform)filter.transform,
-                           new Vector2(0.330f, BrowseBottom), new Vector2(0.610f, BrowseTop));
+                           new Vector2(0.510f, BrowseBottom), new Vector2(PageRight, BrowseTop));
             PillFit.Wrap(filter.GetComponent<Image>());
             _filterText = filter.GetComponentInChildren<Text>();
             Fit(_filterText, 12, 22);
@@ -431,6 +436,16 @@ namespace Game.UI
                                       new Color(0.45f, 0.49f, 0.56f, 1f), 22,
                                       () => { if (_odds != null && _foremen != null)
                                                   _odds.ShowMasterChest(_foremen.ChestTuning); });
+            if (infoIcon != null)
+            {
+                // Drawn as the round badge it is. UiBuild.Btn slices it and tints it with the grey
+                // fallback, which stretched it to the slot's tall box and turned it a dark oval — the
+                // captains screen already dresses the same badge this way.
+                var oddsImage = odds.GetComponent<Image>();
+                oddsImage.type = Image.Type.Simple;
+                oddsImage.preserveAspect = true;
+                oddsImage.color = Color.white;
+            }
             UiBuild.Anchor((RectTransform)odds.transform,
                            new Vector2(0.482f, 0.690f), new Vector2(0.556f, 0.920f));
 
@@ -457,6 +472,41 @@ namespace Game.UI
         }
 
         /// <summary>
+        /// The band the cards scroll inside, under the shelf and the browse bar, which stay put.
+        /// Clamped rather than elastic, and the mask, ScrollRect and viewport are one object — the
+        /// same build as the captain screen's row band, so the two rosters scroll alike.
+        /// </summary>
+        private void BuildGridScroll()
+        {
+            var viewGo = new GameObject("KadroGorunum", typeof(RectTransform), typeof(Image),
+                                        typeof(ScrollRect), typeof(RectMask2D));
+            viewGo.transform.SetParent(_root, false);
+            RectTransform view = (RectTransform)viewGo.transform;
+            UiBuild.Anchor(view, new Vector2(PageLeft, GridBottom), new Vector2(PageRight, GridTop));
+
+            // Clear rather than absent: the ScrollRect needs something that takes a drag between cards.
+            viewGo.GetComponent<Image>().color = Color.clear;
+
+            var contentGo = new GameObject("Icerik", typeof(RectTransform));
+            contentGo.transform.SetParent(view, false);
+            _cardsContent = (RectTransform)contentGo.transform;
+            _cardsContent.anchorMin = new Vector2(0f, 1f);
+            _cardsContent.anchorMax = new Vector2(1f, 1f);
+            _cardsContent.pivot = new Vector2(0.5f, 1f);
+            _cardsContent.offsetMin = Vector2.zero;
+            _cardsContent.offsetMax = Vector2.zero;
+            _cardsContent.sizeDelta = new Vector2(0f, CardPixels);
+
+            ScrollRect scroll = viewGo.GetComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 55f;
+            scroll.viewport = view;
+            scroll.content = _cardsContent;
+        }
+
+        /// <summary>
         /// The kit's panel behind everything, built first so sibling order keeps it at the back. Its
         /// borders are drawn at 1/<see cref="backdropBorderScale"/> of their pixels — at full size the
         /// compass band alone would eat the chest shelf.
@@ -466,8 +516,23 @@ namespace Game.UI
             if (backdropArt == null) return;
             RectTransform sheet = Art(_root, "Zemin", backdropArt,
                                       new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.925f));
-            sheet.GetComponent<Image>().pixelsPerUnitMultiplier = backdropBorderScale;
+            var sheetImage = sheet.GetComponent<Image>();
+            sheetImage.pixelsPerUnitMultiplier = backdropBorderScale;
+            if (compassArt == null) return;
+
+            // The compass used to live in the sheet's top border, whose middle slice stretches across
+            // and is squashed to half height by the multiplier — it drew as a flat oval. It is now a
+            // separate sprite at the border's own scale, so it lines up with the bar it was cut from.
+            float pixels = sheetImage.pixelsPerUnit * backdropBorderScale;
+            Image compass = Icon(sheet, "Pusula", compassArt, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            var rt = compass.rectTransform;
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.sizeDelta = new Vector2(compassArt.rect.width, compassArt.rect.height) / pixels;
+            rt.anchoredPosition = new Vector2(0f, -CompassTopPixels / pixels);
         }
+
+        /// <summary>How far below panel_ana's top edge the compass crop starts, in sheet pixels.</summary>
+        private const float CompassTopPixels = 2f;
 
         /// <summary>The kit's icon at a pill's left end, with the label moved off it. Does nothing when
         /// unwired — the label then keeps its glyph prefix, see <see cref="Refresh"/>.</summary>
@@ -497,30 +562,43 @@ namespace Game.UI
         {
             // 0.310..0.690, not 0.230..0.610: same 0.38 width, but centred. It used to sit 8% of the
             // sheet left of centre — the worst offset of any screen here, and visible without measuring.
+            // 0.330..0.670 rather than 0.310..0.690: the gem hanging off the purse's left cap needs the
+            // room, and the title still fits — the label shrinks to fit for longer languages.
             RectTransform band = Art(_root, "Serit", ribbon,
-                                     new Vector2(0.310f, HeaderBottom), new Vector2(0.690f, 0.998f));
-            _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
-                                        new Vector2(0.87f, RibbonBand + 0.13f)),
+                                     new Vector2(0.330f, HeaderBottom), new Vector2(0.670f, 0.998f));
+            // Legacy Text draws its capitals high in the line box, so a label centred on the band
+            // itself put the title on the ribbon's top edge. Same correction as the captain screen.
+            _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.20f, RibbonBand - 0.30f),
+                                        new Vector2(0.80f, RibbonBand + 0.06f)),
                                    "Text", Loc.T("usta.baslik"), 38, TextAnchor.MiddleCenter);
+            Fit(_titleLabel, 20, 38);
 
             // Both chips are the HUD's own graphite pill. They sit on the same line as the HUD's
             // money and gem counters and used to be white, so the top of the screen read as two
             // different games stacked on each other.
+            // The two chips are the same size and share the close button's centre line (0.969), and
+            // the multiplier keeps the same outer margin on the left as the close button does on the
+            // right, so the header reads as one row rather than three things at three heights.
             RectTransform sol = Chip(_root, "Carpan",
-                                     new Vector2(PageLeft, 0.943f), new Vector2(0.205f, 0.996f));
-            _multiplier = UiBuild.Label(Slot(sol, "Yazi", new Vector2(0.08f, 0f), new Vector2(0.92f, 1f)),
-                                        "Text", string.Empty, 32, TextAnchor.MiddleCenter);
+                                     new Vector2(0.045f, ChipBottom), new Vector2(0.185f, ChipTop));
+            _multiplier = UiBuild.Label(Slot(sol, "Yazi", new Vector2(0.12f, 0.08f), new Vector2(0.88f, 0.92f)),
+                                        "Text", string.Empty, 30, TextAnchor.MiddleCenter);
             _multiplier.color = Paper;
+            Fit(_multiplier, 16, 30);
 
+            // Right of the ribbon, not over its tail: it started at 0.625 and the gem sat on the ribbon.
             RectTransform sag = Chip(_root, "Kese",
-                                     new Vector2(0.625f, 0.943f), new Vector2(0.830f, 0.996f));
+                                     new Vector2(0.710f, ChipBottom), new Vector2(0.850f, ChipTop));
             // The gem overhangs the pill's left cap, the way it does on the HUD — inside the capsule
-            // it would be a diamond in a dark box, and the plus badge would lose its edge.
+            // it would be a diamond in a dark box, and the plus badge would lose its edge. Its box is
+            // roughly square: preserveAspect draws the smaller side, and the old 0.32-wide box drew a
+            // 43px gem on an 84px pill.
             Icon(sag, "Elmas", purseGem != null ? purseGem : gemIcon,
-                 new Vector2(-0.06f, 0.02f), new Vector2(0.26f, 1.02f));
-            _balance = UiBuild.Label(Slot(sag, "Yazi", new Vector2(0.30f, 0f), new Vector2(0.92f, 1f)),
-                                     "Text", string.Empty, 32, TextAnchor.MiddleCenter);
+                 new Vector2(-0.19f, 0.02f), new Vector2(0.29f, 0.98f));
+            _balance = UiBuild.Label(Slot(sag, "Yazi", new Vector2(0.32f, 0.08f), new Vector2(0.88f, 0.92f)),
+                                     "Text", string.Empty, 30, TextAnchor.MiddleCenter);
             _balance.color = Paper;
+            Fit(_balance, 16, 30);
 
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty, closeIcon != null ? closeIcon : UiSkin.ButtonGrey,
                                        cardLocked, 34, Hide);
@@ -533,14 +611,17 @@ namespace Game.UI
             // Tam köşede değil: HUD'un ayarlar dişlisi 120 sıralı kanvasta, bu ekranın üstünde
             // çiziliyor ve tam köşeye konan kapat düğmesinin üstüne biniyor.
             UiBuild.Anchor((RectTransform)close.transform,
-                           new Vector2(0.855f, 0.940f), new Vector2(0.955f, 0.998f));
+                           new Vector2(0.860f, 0.940f), new Vector2(0.955f, 0.998f));
         }
+
+        /// <summary>The header chips' band: 84 reference pixels centred on the close button's line.</summary>
+        private const float ChipBottom = 0.947f, ChipTop = 0.991f;
 
         private void BuildCard(int station, Vector2 aMin, Vector2 aMax)
         {
             if (cardPrefab != null) { BuildPrefabCard(station, aMin, aMax); return; }
 
-            RectTransform card = Art(_root, "Kart_" + station, cardPanel, aMin, aMax);
+            RectTransform card = Art(_cardsContent, "Kart_" + station, cardPanel, aMin, aMax);
             _cardRoot[station] = card;
             _card[station] = card.GetComponent<Image>();
             _card[station].raycastTarget = true;
@@ -550,66 +631,66 @@ namespace Game.UI
             inspect.onClick.AddListener(() => ShowDetails(selected));
             if (cardPanel == null) _card[station].color = cardHired;
 
-            // The cell is WIDE, not tall: fifteen cards three across a portrait sheet, so the card reads
-            // left-to-right — face in its frame on the left, everything about him stacked on the right.
-            // Same layout MakeRosterCardPrefabs gives the authored card, so the two read alike.
+            // The cell is TALL: three across a sheet that scrolls, so the face in its frame fills the top
+            // at the kit's own 2:3 and everything about him stacks underneath. Same layout
+            // MakeRosterCardPrefabs gives the authored card, so the two read alike.
             // Portrait before frame: the frame's rim has to draw over the portrait's edges.
             _portrait[station] = Icon(card, "Portre", Portrait(station),
-                                      new Vector2(0.075f, 0.150f), new Vector2(0.385f, 0.800f));
-            _frame[station] = Icon(card, "Cerceve", null, new Vector2(0.010f, 0.020f), new Vector2(0.450f, 0.980f));
+                                      new Vector2(0.250f, 0.479f), new Vector2(0.750f, 0.875f));
+            _frame[station] = Icon(card, "Cerceve", null, new Vector2(0.145f, 0.400f), new Vector2(0.855f, 0.985f));
 
             // "AKTİF": which of a station's three is actually posted there. A FILLED PILL rather than
             // bare green text — the one fact the player is scanning fifteen cards for is which of the
             // three is working, and a word the size of every other word does not answer that.
             _activeMark[station] = Badge(card, "Aktif", Loc.T("usta.aktif"), Green, activeBadgeIcon,
-                                         new Vector2(0.040f, 0.025f), new Vector2(0.420f, 0.165f));
+                                         new Vector2(0.200f, 0.395f), new Vector2(0.800f, 0.465f));
 
             // And its opposite. Dimming is a comparison — it only reads next to a bright card, and a
             // new player's screen has none. The word does not need one.
             _lockMark[station] = Badge(card, "Kilit", Loc.T("usta.kilitli"), Locked, lockedBadgeIcon,
-                                       new Vector2(0.040f, 0.025f), new Vector2(0.420f, 0.165f));
+                                       new Vector2(0.200f, 0.395f), new Vector2(0.800f, 0.465f));
             _activeLabel[station] = _activeMark[station].GetComponentInChildren<Text>(true);
             _lockLabel[station] = _lockMark[station].GetComponentInChildren<Text>(true);
 
-            Image ready = Icon(card, "Hazir", upgradeBadgeIcon, new Vector2(0.330f, 0.780f), new Vector2(0.450f, 0.980f));
+            Image ready = Icon(card, "Hazir", upgradeBadgeIcon, new Vector2(0.700f, 0.870f), new Vector2(0.880f, 0.990f));
             ready.gameObject.SetActive(false);
             _readyMark[station] = ready.gameObject;
 
             _name[station] = UiBuild.Label(
-                Slot(card, "Ad", new Vector2(0.465f, 0.760f), new Vector2(0.975f, 0.965f)),
-                "Text", string.Empty, 28, TextAnchor.MiddleLeft);
+                Slot(card, "Ad", new Vector2(0.050f, 0.320f), new Vector2(0.950f, 0.390f)),
+                "Text", string.Empty, 28, TextAnchor.MiddleCenter);
             // "Rıza the Weighbridge" tek satirda karta sigmiyor; en uzun ad ne kadar kuculmesi
             // gerekiyorsa o kadar kuculuyor, tasip komsu karta girmiyor.
             Fit(_name[station], 13, 26);
 
             _station[station] = UiBuild.Label(
-                Slot(card, "Istasyon", new Vector2(0.465f, 0.630f), new Vector2(0.975f, 0.760f)),
-                "Text", string.Empty, 20, TextAnchor.MiddleLeft);
+                Slot(card, "Istasyon", new Vector2(0.100f, 0.272f), new Vector2(0.900f, 0.318f)),
+                "Text", string.Empty, 20, TextAnchor.MiddleCenter);
             _station[station].color = InkSoft;
             Fit(_station[station], 11, 20);
 
             _level[station] = UiBuild.Label(
-                Slot(card, "Seviye", new Vector2(0.465f, 0.495f), new Vector2(0.975f, 0.625f)),
+                Slot(card, "Seviye", new Vector2(0.100f, 0.206f), new Vector2(0.560f, 0.272f)),
                 "Text", string.Empty, 24, TextAnchor.MiddleLeft);
 
             // The tier mark: a rule under the name rather than a tab on the card's edge — the white
             // panel's rim carries its own soft glow, and anything laid across it reads as a stray bar.
             _rule[station] = UiBuild.Flat(card, "Sirad", InkFaint,
-                                          new Vector2(0.465f, 0.470f), new Vector2(0.725f, 0.484f))
+                                          new Vector2(0.100f, 0.197f), new Vector2(0.900f, 0.201f))
                                     .GetComponent<Image>();
 
             _effect[station] = UiBuild.Label(
-                Slot(card, "Etki", new Vector2(0.465f, 0.295f), new Vector2(0.975f, 0.465f)),
-                "Text", string.Empty, 30, TextAnchor.MiddleLeft);
+                Slot(card, "Etki", new Vector2(0.560f, 0.206f), new Vector2(0.900f, 0.272f)),
+                "Text", string.Empty, 30, TextAnchor.MiddleRight);
             Fit(_effect[station], 14, 30);
 
             // Cards toward the next star. The bar is the collection made visible: gems can be bought,
             // duplicates cannot, so this is the line that actually paces the roster.
-            _fill[station] = Bar(card, new Vector2(0.465f, 0.205f), new Vector2(0.700f, 0.265f));
+            _fill[station] = Bar(card, new Vector2(0.100f, 0.150f), new Vector2(0.480f, 0.180f));
 
             _cards[station] = UiBuild.Label(
-                Slot(card, "Kartlar", new Vector2(0.465f, 0.030f), new Vector2(0.700f, 0.190f)),
-                "Text", string.Empty, 24, TextAnchor.MiddleLeft);
+                Slot(card, "Kartlar", new Vector2(0.500f, 0.130f), new Vector2(0.900f, 0.200f)),
+                "Text", string.Empty, 24, TextAnchor.MiddleRight);
             Fit(_cards[station], 12, 22);
 
             int captured = station;
@@ -619,9 +700,11 @@ namespace Game.UI
             // Sag alt kose: hap sanatinin kendi orani 4:1 ve uclari yatayda dilimleniyor, o yuzden
             // genis ve alcak duruyor — 2:1'in altinda yumurta gibi cizilir.
             UiBuild.Anchor((RectTransform)_action[station].transform,
-                           new Vector2(0.715f, 0.060f), new Vector2(0.975f, 0.230f));
+                           new Vector2(0.100f, 0.030f), new Vector2(0.900f, 0.125f));
             PillFit.Wrap(_action[station].GetComponent<Image>());
             _actionText[station] = _action[station].GetComponentInChildren<Text>();
+            UiBuild.Anchor(_actionText[station].rectTransform, new Vector2(0.12f, 0.08f), new Vector2(0.88f, 0.92f));
+            Fit(_actionText[station], 12, 24);
         }
 
         /// <summary>
@@ -631,7 +714,7 @@ namespace Game.UI
         /// </summary>
         private void BuildPrefabCard(int station, Vector2 aMin, Vector2 aMax)
         {
-            var go = Instantiate(cardPrefab, _root);
+            var go = Instantiate(cardPrefab, _cardsContent);
             go.name = "Kart_" + station;
             go.SetActive(true);
             var card = go.GetComponent<RectTransform>();
@@ -1262,24 +1345,25 @@ namespace Game.UI
             for (int s = 0; s < Foremen.Count; s++) _cardRoot[s].gameObject.SetActive(false);
 
             int safeColumns = Mathf.Max(1, columns);
-            // Rows come off the FULL roster, not off how many the filter left showing: a filter that
-            // shows one card would otherwise stretch it over the whole band, and the grid would jump
-            // size every time the filter changed.
-            int rows = Mathf.Max(1, (Foremen.Count + safeColumns - 1) / safeColumns);
-            const float left = PageLeft, right = PageRight, top = GridTop, bottom = GridBottom;
-            const float padX = 0.008f, padY = 0.008f;
-            float cellW = (right - left) / safeColumns;
-            float cellH = (top - bottom) / rows;
-
+            // A FIXED PIXEL row that scrolls, not a band divided by the roster. Dividing 0.54 of the
+            // sheet by five rows made every card 207px tall and clipped every label on it. The content
+            // grows with the rows the filter left showing, so a filter shortens the scroll instead of
+            // stretching one card over the whole band.
+            int rows = Mathf.Max(1, (count + safeColumns - 1) / safeColumns);
+            _cardsContent.sizeDelta = new Vector2(0f, rows * CardPixels);
             for (int position = 0; position < count; position++)
             {
                 int station = _visibleOrder[position];
                 int col = position % safeColumns;
                 int row = position / safeColumns;
                 RectTransform card = _cardRoot[station];
+                // Integer ratios, not 1 - n * (1 / rows): the bottom row has to land on exactly 0, and
+                // the float version came out a hair below it.
                 UiBuild.Anchor(card,
-                    new Vector2(left + col * cellW + padX, top - (row + 1) * cellH + padY),
-                    new Vector2(left + (col + 1) * cellW - padX, top - row * cellH - padY));
+                    new Vector2(col / (float)safeColumns, (rows - row - 1) / (float)rows),
+                    new Vector2((col + 1) / (float)safeColumns, (rows - row) / (float)rows));
+                card.offsetMin = new Vector2(CardGap * 0.5f, CardGap * 0.5f);
+                card.offsetMax = new Vector2(-CardGap * 0.5f, -CardGap * 0.5f);
                 card.gameObject.SetActive(true);
             }
             _emptyText.gameObject.SetActive(count == 0);
@@ -1406,7 +1490,9 @@ namespace Game.UI
                 live = false;
             }
 
-            if (_cards[m] != null) _cards[m].text = cardsLine;
+            // One line: the card's slot is short and best fit wraps before it shrinks, so on tall phones
+            // "sandıktan çıkar" broke in two under the bar.
+            if (_cards[m] != null) _cards[m].text = EtkinlikKit.OneLine(cardsLine);
             if (_actionText[m] != null) _actionText[m].text = actionLine;
             if (_action[m] != null) Dress(_action[m], _actionText[m], live);
         }

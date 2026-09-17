@@ -90,7 +90,6 @@ namespace Game.UI
 
         private StationScreenUI _stations;
         private ChapterUI _chapterScreen;
-        private IslandMapUI _map;
 
         private RectTransform _strip;
         private GameObject _cardRoot, _chipRoot;
@@ -383,8 +382,9 @@ namespace Game.UI
                     _count.text = Loc.T("gorev.al");
                     break;
                 case StateDone:
+                    // The game is one island now, so a finished chapter has no next island to name.
                     _title.text = Loc.T("bolum.tamamlandi");
-                    _task.text = Loc.T("bolum.sonraki");
+                    _task.text = "";
                     _count.text = "";
                     break;
                 default:
@@ -458,8 +458,8 @@ namespace Game.UI
             // Levels and buildings are both bought in the station panel, so the two beats that count
             // them go straight there. THE YARD is worked through the door on the island and CLAIM is
             // collected in the log, so both of those open the log — which is also the safe answer for
-            // a beat this switch has never heard of.
-            if (_state == StateDone) { OpenMap(); return; }
+            // a beat this switch has never heard of. A finished chapter goes there too.
+            if (_state == StateDone) { OpenChapters(); return; }
             if (_state == StateWork
                 && (_beat == Chapters.FirstSmoke || _beat == Chapters.TheWorks
                     || _beat == Chapters.FullSteam))
@@ -493,12 +493,6 @@ namespace Game.UI
             if (_chapterScreen == null)
                 _chapterScreen = FindAnyObjectByType<ChapterUI>(FindObjectsInactive.Include);
             if (_chapterScreen != null) _chapterScreen.Show();
-        }
-
-        private void OpenMap()
-        {
-            if (_map == null) _map = FindAnyObjectByType<IslandMapUI>(FindObjectsInactive.Include);
-            if (_map != null) _map.ToggleMap();
         }
     }
 }

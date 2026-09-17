@@ -927,7 +927,7 @@ namespace Game.Gameplay
         // ═══════════════════════════════════════════════════════════════════════════════════════════
         //  PUBLIC SURFACE — everything the UI is allowed to touch
         //
-        //  CoalHud, StationBadges, HudJuice and IslandMapUI all talk to the island through these members
+        //  CoalHud, StationBadges and HudJuice all talk to the island through these members
         //  and nothing else. The UI never reads the sim's internals, and the sim never reaches into the
         //  UI — so you can rebuild the whole interface without touching a line of gameplay code.
         //

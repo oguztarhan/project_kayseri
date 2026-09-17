@@ -7,8 +7,8 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The chapter log: the eight islands down the left, the selected chapter's five beats down the
-    /// right, and the chapter's opening line above them.
+    /// The chapter log: the islands down the left when there is more than one, the selected chapter's
+    /// five beats beside them, and the chapter's opening line above those.
     ///
     /// Built in code for the same reason <see cref="GoalsUI"/> and <see cref="ForemanRosterUI"/> are —
     /// the rows come out of <see cref="Chapters"/>'s own tables, so an authored sheet would be a set
@@ -54,8 +54,14 @@ namespace Game.UI
         private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
 
-        /// <summary>Where the ribbon's flat band sits on the sprite — its tails hang below the rect.</summary>
-        private const float RibbonBand = 0.677f;
+        /// <summary>
+        /// The chapters whose island the game actually has — <see cref="WorldIslands.LadderKeys"/>
+        /// against <see cref="Chapters.Islands"/>. The chapter table still names eight islands, but
+        /// the world is one island now and nothing can buy the rest, so their tabs were seven rows
+        /// of "not yours yet" leading nowhere. With a single chapter there is no selector at all and
+        /// the beats take the full width.
+        /// </summary>
+        private int[] _visible;
 
         private ChapterService _chapters;
         private LocalizationService _loc;
@@ -160,36 +166,41 @@ namespace Game.UI
 
             BuildHeader();
 
-            // Sol sütun: sekiz ada, hem liste hem seçici.
-            const float top = 0.815f, bottom = 0.030f;
-            float th = (top - bottom) / Chapters.Count;
-            for (int c = 0; c < Chapters.Count; c++)
-                BuildTab(c, new Vector2(0.035f, top - (c + 1) * th + 0.005f),
-                            new Vector2(0.330f, top - c * th - 0.005f));
+            _visible = VisibleChapters();
+            const float top = 0.890f, bottom = 0.035f;
+            bool selector = _visible.Length > 1;
+            float left = selector ? 0.355f : 0.045f, right = selector ? 0.965f : 0.955f;
 
-            BuildStory();
+            // Sol sütun: adalar, hem liste hem seçici — yalnızca birden fazla ada varsa.
+            if (selector)
+            {
+                float th = (top - bottom) / _visible.Length;
+                for (int i = 0; i < _visible.Length; i++)
+                    BuildTab(_visible[i], new Vector2(0.035f, top - (i + 1) * th + 0.005f),
+                                          new Vector2(0.330f, top - i * th - 0.005f));
+            }
 
-            // Sağ sütun: seçili bölümün beş aşaması.
-            const float beatTop = 0.660f;
+            BuildStory(new Vector2(left, 0.745f), new Vector2(right, top));
+
+            // Seçili bölümün beş aşaması.
+            const float beatTop = 0.730f;
             float bh = (beatTop - bottom) / Chapters.BeatCount;
             for (int b = 0; b < Chapters.BeatCount; b++)
-                BuildBeat(b, new Vector2(0.355f, beatTop - (b + 1) * bh + 0.008f),
-                             new Vector2(0.965f, beatTop - b * bh - 0.008f));
+                BuildBeat(b, new Vector2(left, beatTop - (b + 1) * bh + 0.007f),
+                             new Vector2(right, beatTop - b * bh - 0.007f));
             // Content into the safe area; the scrim above it keeps covering the notch.
             UiBuild.InsetContent(_root);
         }
 
         private void BuildHeader()
         {
-            RectTransform band = Art(_root, "Serit", _ribbon, new Vector2(0.360f, 0.850f), new Vector2(0.640f, 0.992f));
-            _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.13f, RibbonBand - 0.13f),
-                                        new Vector2(0.87f, RibbonBand + 0.13f)),
-                                   "Text", Loc.T("bolum.baslik"), 38, TextAnchor.MiddleCenter);
+            _titleLabel = AtolyeKit.Ribbon(_root, _ribbon, Loc.T("bolum.baslik"), AtolyeKit.RibbonMin, AtolyeKit.RibbonMax);
 
-            _pendingChip = Chip(_root, "Bekleyen", new Vector2(0.035f, 0.880f), new Vector2(0.185f, 0.963f));
-            _pendingLabel = UiBuild.Label(Slot(_pendingChip, "Yazi", new Vector2(0.08f, 0f), new Vector2(0.92f, 1f)),
-                                          "Text", string.Empty, 32, TextAnchor.MiddleCenter);
+            _pendingChip = Chip(_root, "Bekleyen", new Vector2(0.040f, 0.930f), new Vector2(0.250f, 0.980f));
+            _pendingLabel = UiBuild.Label(Slot(_pendingChip, "Yazi", new Vector2(0.14f, 0.10f), new Vector2(0.86f, 0.90f)),
+                                          "Text", string.Empty, 28, TextAnchor.MiddleCenter);
             _pendingLabel.color = Paper;
+            Fit(_pendingLabel, 14, 28);
 
             Button close = UiBuild.Btn(_root, "Kapat", string.Empty,
                                        _closeIcon != null ? _closeIcon : UiSkin.ButtonGrey, Color.white, 34, Hide);
@@ -197,20 +208,32 @@ namespace Game.UI
             closeImage.type = Image.Type.Simple;
             closeImage.preserveAspect = true;
             // Sağ köşede değil: HUD'un ayarlar dişlisi 120 sıralı kanvasta, bu ekranın üstünde çiziliyor.
-            UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.878f, 0.873f), new Vector2(0.938f, 0.970f));
+            UiBuild.Anchor((RectTransform)close.transform, AtolyeKit.CloseMin, AtolyeKit.CloseMax);
+        }
+
+        /// <summary>Indices into <see cref="Chapters.Islands"/> of the islands the world ladder has, in order.</summary>
+        private static int[] VisibleChapters()
+        {
+            string[] keys = Game.Gameplay.WorldIslands.LadderKeys();
+            var found = new System.Collections.Generic.List<int>(keys.Length);
+            for (int c = 0; c < Chapters.Count; c++)
+                if (System.Array.IndexOf(keys, Chapters.Island(c)) >= 0) found.Add(c);
+            if (found.Count == 0) found.Add(0);
+            return found.ToArray();
         }
 
         /// <summary>The selected chapter's opening line, with the claim-all button beside it.</summary>
-        private void BuildStory()
+        private void BuildStory(Vector2 aMin, Vector2 aMax)
         {
-            RectTransform c = Art(_root, "Hikaye", _panel, new Vector2(0.355f, 0.680f), new Vector2(0.965f, 0.815f));
+            RectTransform card = Art(_root, "Hikaye", _panel, aMin, aMax);
+            RectTransform c = AtolyeKit.Inner(card, _panel, 18f);
 
-            _storyTitle = UiBuild.Label(Slot(c, "Baslik", new Vector2(0.035f, 0.56f), new Vector2(0.700f, 0.92f)),
-                                        "Text", string.Empty, 30, TextAnchor.MiddleLeft);
+            _storyTitle = UiBuild.Label(Slot(c, "Baslik", new Vector2(0f, 0.54f), new Vector2(0.66f, 1f)),
+                                        "Text", string.Empty, 32, TextAnchor.MiddleLeft);
             _storyTitle.color = Ink;
-            Fit(_storyTitle, 18, 30);
+            Fit(_storyTitle, 18, 32);
 
-            _storyLine = UiBuild.Label(Slot(c, "Satir", new Vector2(0.035f, 0.10f), new Vector2(0.700f, 0.50f)),
+            _storyLine = UiBuild.Label(Slot(c, "Satir", new Vector2(0f, 0f), new Vector2(0.66f, 0.52f)),
                                        "Text", string.Empty, 24, TextAnchor.UpperLeft);
             _storyLine.color = InkSoft;
             Fit(_storyLine, 14, 24);
@@ -222,7 +245,7 @@ namespace Game.UI
             // Wide and low, near the capsule art's own 2:1 — a taller box spends its width on two
             // end caps and leaves the label nowhere to sit.
             UiBuild.Anchor((RectTransform)_claimAll.transform,
-                           new Vector2(0.710f, 0.340f), new Vector2(0.980f, 0.660f));
+                           new Vector2(0.690f, 0.180f), new Vector2(1f, 0.820f));
             PillFit.Wrap(_claimAll.GetComponent<Image>());
             _claimAllText = AtolyeKit.Label(_claimAll, 11, 24);
         }
@@ -276,26 +299,29 @@ namespace Game.UI
 
         private void BuildBeat(int beat, Vector2 aMin, Vector2 aMax)
         {
-            RectTransform c = Art(_root, "Asama_" + beat, _panel, aMin, aMax);
+            RectTransform card = Art(_root, "Asama_" + beat, _panel, aMin, aMax);
+            RectTransform c = AtolyeKit.Inner(card, _panel, 16f);
 
-            _beatName[beat] = UiBuild.Label(Slot(c, "Ad", new Vector2(0.030f, 0.58f), new Vector2(0.545f, 0.94f)),
-                                            "Text", string.Empty, 28, TextAnchor.MiddleLeft);
+            _beatName[beat] = UiBuild.Label(Slot(c, "Ad", new Vector2(0f, 0.58f), new Vector2(0.58f, 1f)),
+                                            "Text", string.Empty, 30, TextAnchor.MiddleLeft);
             _beatName[beat].color = Ink;
-            Fit(_beatName[beat], 15, 28);
+            Fit(_beatName[beat], 15, 30);
 
-            _beatNote[beat] = UiBuild.Label(Slot(c, "Not", new Vector2(0.030f, 0.30f), new Vector2(0.545f, 0.56f)),
+            _beatNote[beat] = UiBuild.Label(Slot(c, "Not", new Vector2(0f, 0.28f), new Vector2(0.58f, 0.58f)),
                                             "Text", string.Empty, 22, TextAnchor.MiddleLeft);
             _beatNote[beat].color = InkSoft;
             Fit(_beatNote[beat], 12, 22);
 
-            _beatFillImage[beat] = Bar(c, new Vector2(0.030f, 0.10f), new Vector2(0.545f, 0.26f), beatFill);
+            _beatFillImage[beat] = Bar(c, new Vector2(0f, 0.02f), new Vector2(0.58f, 0.20f), beatFill);
 
-            RectTransform odul = Slot(c, "Odul", new Vector2(0.570f, 0.30f), new Vector2(0.780f, 0.70f));
-            Icon(odul, "Elmas", _gemIcon, new Vector2(0f, 0.10f), new Vector2(0.22f, 0.90f));
-            _beatReward[beat] = UiBuild.Label(Slot(odul, "Yazi", new Vector2(0.26f, 0f), new Vector2(1f, 1f)),
-                                              "Text", string.Empty, 24, TextAnchor.MiddleLeft);
+            // ONE LINE TALL on purpose. Best fit only shrinks text that overflows its box, and a box
+            // two lines deep let "6 +1 kart" wrap instead of shrinking.
+            RectTransform odul = Slot(c, "Odul", new Vector2(0.600f, 0.36f), new Vector2(0.790f, 0.64f));
+            Icon(odul, "Elmas", _gemIcon, new Vector2(0f, -0.2f), new Vector2(0.22f, 1.2f));
+            _beatReward[beat] = UiBuild.Label(Slot(odul, "Yazi", new Vector2(0.25f, 0f), new Vector2(1f, 1f)),
+                                              "Text", string.Empty, 26, TextAnchor.MiddleLeft);
             _beatReward[beat].color = InkSoft;
-            Fit(_beatReward[beat], 12, 24);
+            Fit(_beatReward[beat], 12, 26);
 
             int captured = beat;
             _beatBtn[beat] = UiBuild.Btn(c, "Al", string.Empty,
@@ -304,7 +330,7 @@ namespace Game.UI
                                          () => { if (_chapters != null && _chapters.Claim(_shown, captured)) Ping(); });
             // Geniş ve alçak: hap sanatının kendi oranı 2,5:1 ve uçları yatayda dilimleniyor.
             UiBuild.Anchor((RectTransform)_beatBtn[beat].transform,
-                           new Vector2(0.780f, 0.380f), new Vector2(0.980f, 0.620f));
+                           new Vector2(0.805f, 0.220f), new Vector2(1f, 0.780f));
             PillFit.Wrap(_beatBtn[beat].GetComponent<Image>());
             _beatBtnText[beat] = AtolyeKit.Label(_beatBtn[beat], 10, 22);
         }
@@ -327,7 +353,7 @@ namespace Game.UI
             _pendingChip.gameObject.SetActive(pending > 0);
             if (pending > 0) _pendingLabel.text = string.Format("{0} ×{1}", Loc.T("gorev.al"), pending);
 
-            for (int c = 0; c < Chapters.Count; c++) RefreshTab(c);
+            for (int c = 0; c < Chapters.Count; c++) if (_tabBtn[c] != null) RefreshTab(c);
             RefreshStory();
             for (int b = 0; b < Chapters.BeatCount; b++) RefreshBeat(b);
         }
@@ -472,7 +498,7 @@ namespace Game.UI
         private void BuildBackdrop()
         {
             RectTransform sheet = Art(_root, "Zemin", _panel,
-                                      new Vector2(0.020f, 0.020f), new Vector2(0.980f, 0.842f));
+                                      new Vector2(0.020f, 0.020f), new Vector2(0.980f, AtolyeKit.ContentTop));
             var image = sheet.GetComponent<Image>();
             image.color = backdrop;
             image.raycastTarget = true;
@@ -561,8 +587,13 @@ namespace Game.UI
             return img;
         }
 
+        /// <summary>An empty bar hides its fill — see GoalsUI.Progress.</summary>
         private static void Progress(Image fill, float t)
-            => ((RectTransform)fill.transform).anchorMax = new Vector2(Mathf.Clamp01(t), 1f);
+        {
+            float v = Mathf.Clamp01(t);
+            ((RectTransform)fill.transform).anchorMax = new Vector2(v, 1f);
+            fill.enabled = v > 0.001f;
+        }
 
         /// <summary>
         /// A claim button's two states, as two SPRITES — the kit's green capsule when there is

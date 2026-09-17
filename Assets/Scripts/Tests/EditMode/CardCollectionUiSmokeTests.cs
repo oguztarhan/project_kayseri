@@ -408,8 +408,8 @@ namespace Game.Tests
         {
             MethodInfo line = typeof(GoalsUI).GetMethod("RewardLine", BindingFlags.Static | BindingFlags.NonPublic);
             Assert.That(line, Is.Not.Null);
-            var withPacks = (string)line.Invoke(null, new object[] { 150L, 3, 3 });
-            var without = (string)line.Invoke(null, new object[] { 35L, 0, 0 });
+            var withPacks = (string)line.Invoke(null, new object[] { 150L, 3, 3, true });
+            var without = (string)line.Invoke(null, new object[] { 35L, 0, 0, true });
             Assert.That(withPacks, Does.Contain(string.Format(Loc.T("koleksiyon.paket_x"), 3)));
             Assert.That(without, Does.Not.Contain("×"));
         }

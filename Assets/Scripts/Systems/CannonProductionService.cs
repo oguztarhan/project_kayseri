@@ -378,7 +378,7 @@ namespace Game.Systems
                 ? ShipyardCustomerOrderState.Fulfilled : ShipyardCustomerOrderState.Active;
             _data.shipyard.completedOrders++;
             _data.shipyard.reputation++;
-            if (_wallet != null) _wallet.AddCash(new BigDouble(order.rewardCash));
+            if (_wallet != null) _wallet.AddCash(new BigDouble(OrderCash(order)));
             Commit();
             Changed?.Invoke();
             return true;
@@ -386,6 +386,28 @@ namespace Game.Systems
 
         public ShipyardCustomerOrderState OrderFor(string machineId)
             => EnsureOrder(machineId, RecipeFor(machineId));
+
+        /// <summary>Income-minutes an order pays on the first machine, and per machine after it.
+        /// Small on purpose: an order is a few seconds of production gated only by materials.</summary>
+        public const double OrderCashMinutesBase = 1d;
+        public const double OrderCashMinutesPerMachine = 0.25d;
+
+        /// <summary>
+        /// What fulfilling <paramref name="order"/> pays right now: income-minutes priced at the
+        /// current income rate, the same unit every other cash reward uses. A flat sum is meaningless
+        /// across the 3.2x-per-tier ore ladder. The order's saved rewardCash stays as the floor, so a
+        /// save with no measured income yet still gets paid.
+        /// </summary>
+        public double OrderCash(ShipyardCustomerOrderState order)
+        {
+            if (order == null) return 0d;
+            int machine = Math.Max(0, Array.IndexOf(ShipyardProgression.MachineIds, order.machineId));
+            double minutes = OrderCashMinutesBase + OrderCashMinutesPerMachine * machine;
+            double perSec = _data.incomeRatePerSec;
+            double scaled = perSec > 0d && !double.IsNaN(perSec) && !double.IsInfinity(perSec)
+                ? perSec * 60d * minutes : 0d;
+            return Math.Max(order.rewardCash, scaled);
+        }
 
         private bool PollMachine(string machineId)
         {

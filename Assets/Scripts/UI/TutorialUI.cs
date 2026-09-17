@@ -165,7 +165,6 @@ namespace Game.UI
             new Stop { key = "buton_ayarlar" },
             new Stop { key = "buton_magaza"  },
             new Stop { key = "ipucu_gunluk",  tip = "gunluk"  },
-            new Stop { key = "ipucu_ada",     tip = "ada"     },
             new Stop { key = "buton_kontrat", tip = "kontrat" },
             new Stop { key = "buton_reklam"  },
             new Stop { key = "buton_teklif"  },
@@ -181,7 +180,6 @@ namespace Game.UI
         private AudioService _audio;
         private HapticService _haptic;
         private HudUI _hud;
-        private WorldIslands _world;
         private CoalOperation _op;
         private Canvas _hudCanvas;
         private CanvasGroup _hudFade;
@@ -244,7 +242,6 @@ namespace Game.UI
             _haptic = ServiceLocator.Get<HapticService>();
             _hud = GetComponent<HudUI>();
             _hudCanvas = GetComponent<Canvas>();
-            _world = FindAnyObjectByType<WorldIslands>();
             _market = ServiceLocator.Get<MarketService>();
         }
 
@@ -541,10 +538,9 @@ namespace Game.UI
                 case 0: return _hud.SettingsRect;
                 case 1: return _hud.StoreRect;
                 case 2: return _hud.DailyRect;
-                case 3: return _hud.MapRect;
-                case 4: return _hud.ContractRect;
-                case 5: return _hud.AdRect;
-                case 6: return _hud.OfferRect;
+                case 3: return _hud.ContractRect;
+                case 4: return _hud.AdRect;
+                case 5: return _hud.OfferRect;
                 default: return _hud.BoostRect;
             }
         }
@@ -593,20 +589,8 @@ namespace Game.UI
             if (_contract != null && _contract.Claimable && Tip("kontrat", _hud != null ? _hud.ContractRect : null)) return;
             if (_hud != null && _hud.BoostReady && Tip("boost", _hud.BoostRect)) return;
             if (_daily != null && _daily.CanClaim() && Tip("gunluk", _hud != null ? _hud.DailyRect : null)) return;
-            if (NextIslandAffordable() && Tip("ada", _hud != null ? _hud.MapRect : null)) return;
             if (PhaseMoved() && Tip("faz", null)) return;
             if (_op != null && _op.StationLevelTotal(IslandEconomy.Mine) >= 6 && Tip("genisletme", null)) return;
-        }
-
-        private bool NextIslandAffordable()
-        {
-            if (_world == null || _wallet == null) return false;
-            for (int i = 1; i < _world.Count; i++)
-            {
-                if (_world.IsOwned(i)) continue;
-                return _wallet.CanAfford(new BigDouble(_world.UnlockCost(i)));
-            }
-            return false;
         }
 
         /// <summary>True once any station has been carried past its first phase — the island visibly rebuilt.</summary>
