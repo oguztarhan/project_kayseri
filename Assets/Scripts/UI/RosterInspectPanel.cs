@@ -38,39 +38,98 @@ namespace Game.UI
             dismiss.transition = Selectable.Transition.None;
             dismiss.onClick.AddListener(Hide);
 
-            RectTransform sheet = UiBuild.Box(_overlay, "KadroDetay", new Color(0.15f, 0.18f, 0.26f, 1f),
-                                               new Vector2(0.22f, 0.17f), new Vector2(0.78f, 0.83f));
+            // Use the same centred, portrait-safe panel treatment as Settings and More. Fixed
+            // reference units keep the sheet balanced on both phone aspect ratios.
+            RectTransform sheet = UiBuild.Box(_overlay, "KadroDetay", Color.white,
+                                               new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            sheet.pivot = new Vector2(0.5f, 0.5f);
+            sheet.anchoredPosition = Vector2.zero;
+            sheet.sizeDelta = new Vector2(900f, 1272f);
+            Image sheetImage = sheet.GetComponent<Image>();
+            Sprite panelArt = PortraitUiArt.Get("settings-settings-panel");
+            if (panelArt != null) PortraitUiArt.Apply(sheetImage, panelArt);
+            else { sheetImage.sprite = UiSkin.Panel; sheetImage.type = Image.Type.Sliced; }
+            sheetImage.raycastTarget = true;
             // Stops a tap inside the sheet from reaching the dismiss layer.
             var blocker = sheet.gameObject.AddComponent<Button>();
             blocker.transition = Selectable.Transition.None;
 
-            _title = Label(sheet, "Baslik", 38, new Vector2(0.08f, 0.83f), new Vector2(0.92f, 0.96f));
-            _identity = Label(sheet, "Kimlik", 25, new Vector2(0.08f, 0.69f), new Vector2(0.92f, 0.82f));
+            // Keep the stable child name used by CardCollectionUI when it reuses this shared
+            // inspect sheet for collection previews.
+            var titleSlot = new GameObject("Baslik", typeof(RectTransform), typeof(Image));
+            RectTransform titleRect = (RectTransform)titleSlot.transform;
+            titleRect.SetParent(sheet, false);
+            titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 1f);
+            titleRect.pivot = new Vector2(0.5f, 0.5f);
+            titleRect.sizeDelta = new Vector2(650f, 162f);
+            titleRect.anchoredPosition = new Vector2(0f, -96f);
+            Sprite titleArt = PortraitUiArt.Get("general-title-plate");
+            if (titleArt != null) PortraitUiArt.Apply(titleSlot.GetComponent<Image>(), titleArt);
+            else titleSlot.GetComponent<Image>().enabled = false;
+            _title = UiBuild.Label(titleRect, "Text", string.Empty, 38, TextAnchor.MiddleCenter);
+            _title.color = new Color(0.09f, 0.14f, 0.24f, 1f);
+            Fit(_title, 20, 38);
+
+            _identity = Label(sheet, "Kimlik", 25, new Vector2(0.08f, 0.71f), new Vector2(0.92f, 0.79f));
+            _identity.color = new Color(0.09f, 0.14f, 0.24f, 1f);
+
+            // A deep-blue information card gives the dense skills/effects copy a clear reading
+            // surface while retaining the rounded cyan frame used throughout the current UI.
+            var infoCard = new GameObject("BilgiKart", typeof(RectTransform), typeof(Image));
+            RectTransform infoRect = (RectTransform)infoCard.transform;
+            infoRect.SetParent(sheet, false);
+            UiBuild.Anchor(infoRect, new Vector2(0.075f, 0.335f), new Vector2(0.925f, 0.68f));
+            Sprite infoArt = PortraitUiArt.Get("general-small-card-panel");
+            if (infoArt != null) PortraitUiArt.Apply(infoCard.GetComponent<Image>(), infoArt);
+            else infoCard.GetComponent<Image>().color = new Color(0.05f, 0.20f, 0.42f, 1f);
+            infoCard.GetComponent<Image>().raycastTarget = false;
+
             // Current and next are intentionally multiline: captain details show the sea effect and
             // the separate idle-income bonus together, while master details continue to use the skills block.
-            _current = Label(sheet, "Mevcut", 25, new Vector2(0.08f, 0.52f), new Vector2(0.92f, 0.68f));
-            _next = Label(sheet, "Sonraki", 22, new Vector2(0.08f, 0.37f), new Vector2(0.92f, 0.52f));
+            _current = Label(sheet, "Mevcut", 25, new Vector2(0.10f, 0.50f), new Vector2(0.90f, 0.65f));
+            _next = Label(sheet, "Sonraki", 22, new Vector2(0.10f, 0.36f), new Vector2(0.90f, 0.50f));
 
             // The three skills take the same band the current/next pair does, because only one of the
             // two ever shows: a master has three numbers to read and a captain has a before and after.
-            _skills = Label(sheet, "Beceriler", 24, new Vector2(0.08f, 0.39f), new Vector2(0.92f, 0.68f));
+            _skills = Label(sheet, "Beceriler", 24, new Vector2(0.10f, 0.385f), new Vector2(0.90f, 0.64f));
             _skills.alignment = TextAnchor.MiddleLeft;
+            _skills.color = Color.white;
+            _current.color = Color.white;
+            _next.color = Color.white;
 
-            _progress = Label(sheet, "Ilerleme", 23, new Vector2(0.08f, 0.28f), new Vector2(0.92f, 0.38f));
-            _status = Label(sheet, "Durum", 23, new Vector2(0.08f, 0.19f), new Vector2(0.92f, 0.28f));
+            _progress = Label(sheet, "Ilerleme", 23, new Vector2(0.08f, 0.235f), new Vector2(0.92f, 0.325f));
+            _status = Label(sheet, "Durum", 23, new Vector2(0.08f, 0.155f), new Vector2(0.92f, 0.235f));
 
             _action = UiBuild.Btn(sheet, "Aksiyon", string.Empty, UiSkin.ButtonGreen,
                                   new Color(0.24f, 0.68f, 0.36f, 1f), 27, null);
-            PillFit.Wrap(_action.GetComponent<Image>());
+            ApplyActionArt(_action.GetComponent<Image>());
             _actionText = _action.GetComponentInChildren<Text>();
             Fit(_actionText, 15, 27);
+            _actionText.color = new Color(0.10f, 0.14f, 0.22f, 1f);
 
             _second = UiBuild.Btn(sheet, "Ikincil", string.Empty, UiSkin.ButtonGrey,
                                   new Color(0.28f, 0.40f, 0.62f, 1f), 27, null);
-            PillFit.Wrap(_second.GetComponent<Image>());
+            ApplyActionArt(_second.GetComponent<Image>());
             _secondText = _second.GetComponentInChildren<Text>();
             Fit(_secondText, 15, 27);
+            _secondText.color = new Color(0.10f, 0.14f, 0.22f, 1f);
             _second.gameObject.SetActive(false);
+
+            var closeGo = new GameObject("BtnKapat", typeof(RectTransform), typeof(Image), typeof(Button));
+            RectTransform closeRect = (RectTransform)closeGo.transform;
+            closeRect.SetParent(sheet, false);
+            closeRect.anchorMin = closeRect.anchorMax = new Vector2(0.5f, 1f);
+            closeRect.pivot = new Vector2(0.5f, 0.5f);
+            closeRect.sizeDelta = new Vector2(92f, 92f);
+            closeRect.anchoredPosition = new Vector2(395f, -64f);
+            Image closeImage = closeGo.GetComponent<Image>();
+            Sprite closeArt = PortraitUiArt.Get("general-close-button");
+            if (closeArt != null) PortraitUiArt.Apply(closeImage, closeArt);
+            else { closeImage.sprite = UiSkin.ButtonGrey; closeImage.type = Image.Type.Sliced; }
+            Button close = closeGo.GetComponent<Button>();
+            close.targetGraphic = closeImage;
+            close.transition = Selectable.Transition.None;
+            close.onClick.AddListener(Hide);
 
             _overlay.gameObject.SetActive(false);
         }
@@ -126,6 +185,17 @@ namespace Game.UI
 
             _overlay.gameObject.SetActive(true);
             _overlay.SetAsLastSibling();
+        }
+
+        private static void ApplyActionArt(Image image)
+        {
+            Sprite art = PortraitUiArt.Get("general-primary-action-button");
+            if (art != null) PortraitUiArt.Apply(image, art);
+            else
+            {
+                image.sprite = UiSkin.ButtonGreen;
+                image.type = Image.Type.Sliced;
+            }
         }
 
         public void Hide()

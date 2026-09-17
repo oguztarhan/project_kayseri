@@ -163,6 +163,13 @@ namespace Game.UI
         private bool _landscapeLayout;
         private RectTransform _titleRibbon;
         private RectTransform _goldPill;
+        private BuildingSigns _buildingSigns;
+        private bool _portraitPanelStyle;
+        private static readonly Color UpgradeInk = new Color(0.08f, 0.22f, 0.35f);
+        // settings-settings-empty-button is a wide 1930x444 crop. Keep the row at that native
+        // proportion so its rounded ends never get clipped by the scroll viewport.
+        private const float PortraitCardHeight = 184f;
+        private const float PortraitCardSpacing = 20f;
         // Tepsinin pivotu alt kenarı, o yüzden konum = alt kenar. İki sütun da ContentTop'ta
         // başlıyor; tepsinin boyu kadar aşağıda bitiyor.
         private readonly Vector2 _stationSheetHome = new Vector2(500f, ContentTop - LandscapePanelHeight);
@@ -192,20 +199,67 @@ namespace Game.UI
         /// <summary>Unifies the authored upgrade screen with the blue, gold and white Tycoon kit.</summary>
         private void ApplyTycoonTheme()
         {
+            bool portrait = Screen.width <= Screen.height;
+            _portraitPanelStyle = portrait;
             if (dim != null) dim.color = new Color(0.015f, 0.035f, 0.08f, 0.90f);
-            Dress(sheet != null ? sheet.GetComponent<Image>() : null, TycoonUpgradeArt.Panel);
+            Image sheetImage = sheet != null ? sheet.GetComponent<Image>() : null;
+            if (portrait)
+            {
+                // The portrait upgrade tray now shares the same authored panel as More/Settings.
+                // Its native export is 2:3, so the tray is sized to that ratio rather than asking
+                // Unity to stretch the artwork over the old, extra-tall Tycoon shell.
+                Sprite settingsPanel = PortraitUiArt.Get("settings-settings-panel");
+                if (settingsPanel != null) PortraitUiArt.Apply(sheetImage, settingsPanel);
+                if (sheet != null)
+                {
+                    sheet.sizeDelta = new Vector2(980f, 1470f);
+                    ScrollRect portraitScroll = sheet.GetComponent<ScrollRect>();
+                    RectTransform viewport = portraitScroll != null ? portraitScroll.viewport : null;
+                    if (viewport != null)
+                    {
+                        viewport.offsetMin = new Vector2(90f, 40f);
+                        viewport.offsetMax = new Vector2(-90f, -40f);
+                    }
+                }
+            }
+            else Dress(sheetImage, TycoonUpgradeArt.Panel);
             Dress(stageFrame != null ? stageFrame.GetComponent<Image>() : null, TycoonUpgradeArt.Card);
-            Dress(cardTemplate != null ? cardTemplate.GetComponent<Image>() : null, TycoonUpgradeArt.Card);
+            Image cardImage = cardTemplate != null ? cardTemplate.GetComponent<Image>() : null;
+            if (portrait)
+            {
+                Sprite settingsRow = PortraitUiArt.Get("settings-settings-empty-button");
+                if (settingsRow != null) PortraitUiArt.Apply(cardImage, settingsRow);
+                LayoutElement cardLayout = cardTemplate != null ? cardTemplate.GetComponent<LayoutElement>() : null;
+                if (cardLayout != null) cardLayout.preferredHeight = PortraitCardHeight;
+                VerticalLayoutGroup cardGroup = sheetContent != null
+                    ? sheetContent.GetComponent<VerticalLayoutGroup>() : null;
+                if (cardGroup != null) cardGroup.spacing = PortraitCardSpacing;
+            }
+            else Dress(cardImage, TycoonUpgradeArt.Card);
             Dress(stripTemplate != null ? stripTemplate.GetComponent<Image>() : null, TycoonUpgradeArt.Card);
 
             RectTransform title = titleText != null ? titleText.rectTransform.parent as RectTransform : null;
-            Dress(title != null ? title.GetComponent<Image>() : null, TycoonUpgradeArt.Title);
+            Image titleImage = title != null ? title.GetComponent<Image>() : null;
+            if (portrait)
+            {
+                Sprite titleArt = PortraitUiArt.Get("general-title-plate");
+                if (titleArt != null) PortraitUiArt.Apply(titleImage, titleArt);
+                else Dress(titleImage, TycoonUpgradeArt.Title);
+                // The Settings title plate already carries its anchor medallions; the authored
+                // station icon would sit on top of the left medallion at portrait scale.
+                if (titleIcon != null)
+                {
+                    titleIcon.enabled = false;
+                    titleIcon.gameObject.SetActive(false);
+                }
+            }
+            else Dress(titleImage, TycoonUpgradeArt.Title);
             RectTransform wallet = goldValue != null ? goldValue.rectTransform.parent as RectTransform : null;
             Dress(wallet != null ? wallet.GetComponent<Image>() : null, TycoonUpgradeArt.Wallet);
             if (title != null && title.GetComponent<Image>() != null) title.GetComponent<Image>().preserveAspect = true;
             if (wallet != null && wallet.GetComponent<Image>() != null) wallet.GetComponent<Image>().preserveAspect = true;
 
-            if (titleText != null) titleText.color = Color.white;
+            if (titleText != null) titleText.color = portrait ? UpgradeInk : Color.white;
             if (goldValue != null)
             {
                 goldValue.color = new Color(0.03f, 0.10f, 0.25f);
@@ -214,13 +268,13 @@ namespace Game.UI
                 goldValue.rectTransform.offsetMin = Vector2.zero;
                 goldValue.rectTransform.offsetMax = Vector2.zero;
             }
-            PaintCardText(cardTemplate);
+            PaintCardText(cardTemplate, portrait);
 
             if (TycoonUpgradeArt.Buy != null) priceGreen = TycoonUpgradeArt.Buy;
             slotIdleTint = new Color(0.22f, 0.82f, 0.86f, 0.82f);
         }
 
-        private static void PaintCardText(GameObject card)
+        private static void PaintCardText(GameObject card, bool portrait)
         {
             if (card == null) return;
             Color white = Color.white;
@@ -229,6 +283,8 @@ namespace Game.UI
             foreach (TMP_Text text in card.GetComponentsInChildren<TMP_Text>(true))
             {
                 if (text.name == "Fiyat") text.color = navy;
+                else if (portrait) text.color = text.name == "Seviye" || text.name == "Detay"
+                    ? new Color(0.11f, 0.30f, 0.48f) : navy;
                 else if (text.name == "Seviye" || text.name == "Detay") text.color = light;
                 else text.color = white;
             }
@@ -328,11 +384,11 @@ namespace Game.UI
         private void LayoutLandscapeHeader()
         {
             SetCentered(_titleRibbon, new Vector2(0f, 430f), new Vector2(700f, 150f));
-            SetCentered(stripContent, new Vector2(0f, 268f), new Vector2(1260f, 140f));
-            // Beside the ribbon, not under it. Centred, it sat exactly on the top edge of both content
-            // columns and read as a chip stuck to the panels — and the HUD is already showing the same
-            // balance in the corner, so it was the third thing competing for the middle of the screen.
-            SetCentered(_goldPill, new Vector2(620f, 430f), new Vector2(330f, 92f));
+            // The five station tiles form one readable, centred control row. The old rail was small
+            // enough to read as decoration on a phone and left the money chip competing with the
+            // title on the right; the chip now sits directly beneath the rail on the visual centreline.
+            SetCentered(stripContent, new Vector2(0f, 268f), new Vector2(1260f, 180f));
+            SetCentered(_goldPill, new Vector2(0f, 92f), new Vector2(380f, 112f));
         }
 
         private static void SetCentered(RectTransform rect, Vector2 position, Vector2 size)
@@ -451,6 +507,7 @@ namespace Game.UI
             _busy = false;
             _station = station;
             panelRoot.SetActive(true);
+            SuppressWorldSigns(true);
             ApplyPage();
             BuildCards();
             MountModel();
@@ -506,7 +563,9 @@ namespace Game.UI
                 LayoutLandscapeHeader();
             }
 
-            float height = _landscapeLayout
+            float height = _portraitPanelStyle
+                ? PortraitSheetHeight
+                : _landscapeLayout
                 ? (listPage ? LandscapeListPanelHeight : LandscapePanelHeight)
                 : SheetStationHeight;
             if (listPage)
@@ -516,7 +575,7 @@ namespace Game.UI
                 // where the sheet is scaled down and folded into columns — sizing off it grows the tray
                 // to more than twice the height there is, and since the tray's pivot is its bottom edge
                 // the extra goes straight up off the top of the screen.
-                if (!_landscapeLayout)
+                if (!_landscapeLayout && !_portraitPanelStyle)
                 {
                     float room = _letterbox != null ? _letterbox.VisibleHeight
                                                     : (sheet.parent as RectTransform)?.rect.height ?? 0f;
@@ -532,9 +591,17 @@ namespace Game.UI
             if (_busy) return;
             StopAllCoroutines();
             HideFx();
+            SuppressWorldSigns(false);
             if (stage != null) { stage.Live = false; stage.Clear(); }
             _model = null;
             if (panelRoot != null) panelRoot.SetActive(false);
+        }
+
+        private void SuppressWorldSigns(bool suppressed)
+        {
+            if (_buildingSigns == null)
+                _buildingSigns = FindAnyObjectByType<BuildingSigns>(FindObjectsInactive.Include);
+            if (_buildingSigns != null) _buildingSigns.SetSuppressed(suppressed);
         }
 
         private void OnEnable()
@@ -546,6 +613,7 @@ namespace Game.UI
 
         private void OnDisable()
         {
+            SuppressWorldSigns(false);
             if (stage != null) stage.Live = false;
             if (_loc != null) _loc.Changed -= OnLanguageChanged;
             if (_phases != null) { _phases.PhaseRefreshCompleted -= OnPhaseRefreshCompleted; _phases = null; }
@@ -971,8 +1039,31 @@ namespace Game.UI
             t = go.transform.Find("Kilit");
             if (t != null) { row.lockGO = t.gameObject; t.gameObject.SetActive(false); }
             if (_landscapeLayout) LayoutLandscapeCard(row, _station < 0 || Phases == null);
+            else LayoutPortraitCard(row);
             _rows.Add(row);
             return row;
+        }
+
+        /// <summary>
+        /// Keeps every upgrade value inside the light Settings-style row in portrait. The authored
+        /// Tycoon card placed detail below its 300-high shell; this compact arrangement gives the
+        /// title, level, description, and purchase control distinct lanes without clipping.
+        /// </summary>
+        private static void LayoutPortraitCard(Row row)
+        {
+            if (row == null) return;
+
+            SetLeftMiddle(row.icon, new Vector2(20f, 0f), new Vector2(76f, 76f));
+            SetLeftMiddle(TextRect(row.name), new Vector2(112f, 36f), new Vector2(360f, 34f));
+            SetLeftMiddle(TextRect(row.level), new Vector2(112f, 3f), new Vector2(360f, 24f));
+            SetLeftMiddle(TextRect(row.detail), new Vector2(112f, -28f), new Vector2(360f, 24f));
+            SetRightMiddle(ObjectRect(row.buyGO), new Vector2(-14f, 0f), new Vector2(NarrowPrice, 74f));
+            SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-14f, 0f), new Vector2(NarrowPrice, 74f));
+            FitCardText(row.name, 34f, 18f);
+            FitCardText(row.level, 23f, 16f);
+            FitCardText(row.detail, 18f, 14f);
+            LayoutPriceText(row.price, NarrowPrice, 32f, 20f);
+            LayoutButtonText(row.badgeText, 18f, 18f, 18f, 15f);
         }
 
         /// <summary>
@@ -1778,13 +1869,14 @@ namespace Game.UI
         private const float LandscapeListPanelHeight = 640f;
         // 212'ydi. Fiyat düğmesi karta göre büyüdüğü için kart da büyüdü.
         private const float LandscapeCardHeight = 244f;
-        private const float SlotSize = 100f;
-        private const float SlotIconSize = 78f;
+        private const float SlotSize = 150f;
+        private const float SlotIconSize = 116f;
         /// <summary>Önizlemenin ortası: üstü +170'te, altı -300'de.</summary>
         private const float ContentMiddle = -65f;
         /// <summary>serit_mavi'nin düz bandının rect merkezine göre kayması, 700x150'lik şeritte.</summary>
         private const float RibbonBandOffset = 26f;
         private const float SheetStationHeight = 810f;
+        private const float PortraitSheetHeight = 1470f;
 
         private static readonly Color SlotIdleIcon = new Color(1f, 1f, 1f, 0.72f);
         private const float SlotLiveScale = 1.12f;

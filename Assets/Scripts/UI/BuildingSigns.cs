@@ -114,6 +114,14 @@ namespace Game.UI
         private float _rebindIn;
         private float _appliedNight = -1f;
         private LocalizationService _loc;
+        private bool _suppressed;
+
+        /// <summary>Temporarily hides world labels while a full-screen upgrade sheet is open.</summary>
+        public void SetSuppressed(bool suppressed)
+        {
+            _suppressed = suppressed;
+            if (_fade != null) _fade.alpha = suppressed ? 0f : 1f;
+        }
 
         private void Awake()
         {
@@ -172,6 +180,11 @@ namespace Game.UI
         private void Update()
         {
             Rebind();
+            if (_suppressed)
+            {
+                if (_fade != null) _fade.alpha = 0f;
+                return;
+            }
             if (_count == 0) return;
 
             FadeWithZoom();

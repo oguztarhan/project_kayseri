@@ -580,13 +580,28 @@ namespace Game.UI
             if (_moreRows.Contains(owner.transform as RectTransform))
             {
                 var chipRect = (RectTransform)chip.transform;
-                chipRect.anchorMin = new Vector2(1f, 0.5f);
-                chipRect.anchorMax = new Vector2(1f, 0.5f);
-                chipRect.pivot = new Vector2(1f, 0.5f);
-                chipRect.anchoredPosition = new Vector2(-MoreRowPadding, 0f);
-                // Uniform, and larger. The authored chip is squeezed 0.80 × 0.91 to fit a rail button,
-                // which on a row left a sliver of pill with a number too small to read.
-                chipRect.localScale = new Vector3(MoreChipScale, MoreChipScale, 1f);
+                chipRect.anchorMin = new Vector2(1f, 1f);
+                chipRect.anchorMax = new Vector2(1f, 1f);
+                chipRect.pivot = new Vector2(1f, 1f);
+                chipRect.anchoredPosition = new Vector2(-14f, -12f);
+                // The compact top-corner placement keeps the count visible without taking a whole
+                // text line from a two-column action card.
+                chipRect.localScale = new Vector3(0.68f, 0.68f, 1f);
+
+                // Reserve the badge's complete footprint after it is actually attached. Only a few
+                // More destinations carry a counter, so shrinking every label would make the whole
+                // grid look needlessly sparse.
+                bool needsCounterSpace = owner.name == "BtnMaden"
+                                         || owner.name == CardCollectionUI.OpenerButtonName
+                                         || owner.name == "BtnDenizDostlari";
+                Transform label = needsCounterSpace ? owner.transform.Find("Ad") : null;
+                if (label != null)
+                {
+                    var labelRect = label as RectTransform;
+                    if (labelRect != null) labelRect.offsetMax = new Vector2(-94f, labelRect.offsetMax.y);
+                    var labelText = label.GetComponent<Text>();
+                    if (labelText != null) labelText.fontSize = 20;
+                }
             }
             return chip;
         }
@@ -597,24 +612,25 @@ namespace Game.UI
         /// so a screen launched from a row draws over the sheet that launched it.</summary>
         private const int MoreSortingOrder = 104;
 
-        private const float MoreRowHeight = 150f;    // one rail button tall, so rows read as openers
-        private const float MoreRowGap = 18f;
-        private const float MoreRowPadding = 28f;
-        private const float MoreHeaderHeight = 140f;
+        // The More screen deliberately shares the Settings exports rather than approximating them with
+        // a tinted generic panel. Their native proportions are 2:3 for the card and 3:1 for a row;
+        // preserving those ratios is what keeps the blue corners and capsule ends round on a phone.
+        private const float MoreSheetWidth = 940f;
+        private const float MoreSheetHeight = 1410f;
+        private const float MoreRowHeight = 132f;
+        private const float MoreRowGap = 26f;
+        private const float MoreRowPadding = 18f;
+        private const float MoreGridWidth = 818f;
+        private const float MoreGridTop = 300f;
+        private const float MoreGridBottom = 150f;
         private const float MoreBareIconScale = 0.76f;   // main-menu icons draw their glyph at ~76% of the canvas
-        private const float MoreChipScale = 1.5f;       // the rail's chip, legible at a row's reading distance
-        private const float MoreSheetWidth = 880f;   // of the 1080-wide reference canvas
+        private const float MoreHeaderHeight = 220f;
         private const string MoreIconResource = "UI/Buttons/dahafazla";
 
         [Header("Daha fazla sayfası")]
         [Tooltip("Sayfanın arkasındaki karartma. Dokunulunca sayfa kapanır.")]
         [SerializeField] private Color moreScrimColor = new Color(0.04f, 0.05f, 0.08f, 0.92f);
-        [Tooltip("Sayfanın kendi zemini.")]
-        [SerializeField] private Color moreSheetColor = new Color(0.15f, 0.18f, 0.26f, 1f);
-        [Tooltip("Satır plakası — rayın kendi butonlarından biraz açık.")]
-        [SerializeField] private Color moreRowColor = new Color(0.22f, 0.26f, 0.36f, 1f);
-
-        private static readonly Color MoreInk = new Color(0.96f, 0.97f, 1f, 1f);
+        private static readonly Color MoreInk = new Color32(22, 57, 89, 255);
 
         private RectTransform _moreScrim;   // full-bleed dim, tap to dismiss
         private RectTransform _moreSheet;   // the panel the rows sit in
@@ -641,16 +657,21 @@ namespace Game.UI
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             var rect = (RectTransform)go.transform;
             rect.SetParent(_moreSheet, false);
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
 
-            // A flat plate, not UiSkin.Panel: Panel is null until the skin art loads, so rows attached
-            // before it were flat and rows attached after it (League, Resources) wore the grey bevelled
-            // button art — two row styles in one list, decided by load order.
+            // This is the Settings screen's empty row export at its own 3:1 ratio. It is a real sprite,
+            // not a sliced approximation, so its capsule ends, highlight and outline retain their shape.
             var plate = go.GetComponent<Image>();
-            plate.sprite = null;
-            plate.color = moreRowColor;
+            Sprite rowArt = PortraitUiArt.Get("settings-settings-empty-button");
+            if (rowArt != null) PortraitUiArt.Apply(plate, rowArt);
+            else
+            {
+                plate.sprite = UiSkin.Panel;
+                plate.type = Image.Type.Sliced;
+                plate.color = Color.white;
+            }
 
             float iconBox = MoreRowHeight - 2f * MoreRowPadding;
             float iconSize = framedIcon ? iconBox : iconBox * MoreBareIconScale;
@@ -676,9 +697,9 @@ namespace Game.UI
             slotRect.SetParent(rect, false);
             slotRect.anchorMin = new Vector2(0f, 0f);
             slotRect.anchorMax = new Vector2(1f, 1f);
-            slotRect.offsetMin = new Vector2(MoreRowHeight, 0f);
-            slotRect.offsetMax = new Vector2(-MoreRowHeight, 0f);
-            Text label = UiBuild.Label(slotRect, "Text", Loc.T(MoreRowKey(name)), 34, TextAnchor.MiddleLeft);
+            slotRect.offsetMin = new Vector2(iconBox + 2f * MoreRowPadding, 0f);
+            slotRect.offsetMax = new Vector2(-MoreRowPadding, 0f);
+            Text label = UiBuild.Label(slotRect, "Text", Loc.T(MoreRowKey(name)), 25, TextAnchor.MiddleLeft);
             label.color = MoreInk;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
@@ -799,27 +820,28 @@ namespace Game.UI
             _moreRows.Insert(i, rect);
         }
 
-        /// <summary>
-        /// Stacks the rows top-down and grows the sheet to fit them, so a build with three secondary
-        /// screens gets a three-row sheet rather than a fixed panel with holes in it. Re-run on every
-        /// attach, for the same reason <see cref="LayoutBottomRow"/> is: the openers register from
-        /// several different Awakes and only one piece of code can own the final positions.
-        /// </summary>
+        /// <summary>Places secondary destinations in a balanced two-column Settings-style grid.</summary>
         private void LayoutMoreRows()
         {
             if (_moreSheet == null) return;
             int count = _moreRows.Count;
-            float body = count > 0 ? count * MoreRowHeight + (count - 1) * MoreRowGap : 0f;
-            _moreSheet.sizeDelta = new Vector2(MoreSheetWidth,
-                                               MoreHeaderHeight + body + MoreRowPadding);
+            int rowCount = Mathf.CeilToInt(count * 0.5f);
+            float body = rowCount > 0 ? rowCount * MoreRowHeight + (rowCount - 1) * MoreRowGap : 0f;
+            float availableHeight = MoreSheetHeight - MoreGridTop - MoreGridBottom;
+            float gridTop = MoreGridTop + Mathf.Max(0f, (availableHeight - body) * 0.5f);
+            float rowWidth = (MoreGridWidth - MoreRowGap) * 0.5f;
 
             for (int i = 0; i < count; i++)
             {
                 RectTransform rect = _moreRows[i];
                 if (rect == null) continue;
-                rect.sizeDelta = new Vector2(-2f * MoreRowPadding, MoreRowHeight);
-                rect.anchoredPosition = new Vector2(0f,
-                    -(MoreHeaderHeight + i * (MoreRowHeight + MoreRowGap)));
+                int column = i % 2;
+                int row = i / 2;
+                rect.sizeDelta = new Vector2(rowWidth, MoreRowHeight);
+                bool lastUnpaired = count % 2 != 0 && i == count - 1;
+                float x = lastUnpaired ? 0f : (column == 0 ? -0.5f : 0.5f) * (rowWidth + MoreRowGap);
+                rect.anchoredPosition = new Vector2(x,
+                    -(gridTop + row * (MoreRowHeight + MoreRowGap)));
             }
         }
 
@@ -853,25 +875,48 @@ namespace Game.UI
             _moreSheet.pivot = new Vector2(0.5f, 0.5f);
             _moreSheet.anchoredPosition = Vector2.zero;
             var sheetImage = sheetGo.GetComponent<Image>();
-            sheetImage.sprite = UiSkin.Panel;
-            sheetImage.type = Image.Type.Sliced;
-            sheetImage.color = moreSheetColor;
+            Sprite panelArt = PortraitUiArt.Get("settings-settings-panel");
+            if (panelArt != null) PortraitUiArt.Apply(sheetImage, panelArt);
+            else
+            {
+                sheetImage.sprite = UiSkin.Panel;
+                sheetImage.type = Image.Type.Sliced;
+                sheetImage.color = Color.white;
+            }
             sheetImage.raycastTarget = true;              // eats its own taps so the scrim cannot fire through
             var eat = sheetGo.AddComponent<Button>();
             eat.transition = Selectable.Transition.None;
+            _moreSheet.sizeDelta = new Vector2(MoreSheetWidth, MoreSheetHeight);
 
-            var titleSlot = new GameObject("Baslik", typeof(RectTransform));
+            var titleSlot = new GameObject("Baslik", typeof(RectTransform), typeof(Image));
             var titleRect = (RectTransform)titleSlot.transform;
             titleRect.SetParent(_moreSheet, false);
-            titleRect.anchorMin = new Vector2(0f, 1f);
-            titleRect.anchorMax = new Vector2(1f, 1f);
-            titleRect.pivot = new Vector2(0.5f, 1f);
-            titleRect.sizeDelta = new Vector2(-2f * MoreRowPadding, MoreHeaderHeight);
-            titleRect.anchoredPosition = Vector2.zero;
+            titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 1f);
+            titleRect.pivot = new Vector2(0.5f, 0.5f);
+            titleRect.sizeDelta = new Vector2(660f, MoreHeaderHeight);
+            titleRect.anchoredPosition = new Vector2(0f, -110f);
+            Sprite titleArt = PortraitUiArt.Get("general-title-plate");
+            if (titleArt != null) PortraitUiArt.Apply(titleSlot.GetComponent<Image>(), titleArt);
+            else titleSlot.GetComponent<Image>().enabled = false;
             Text title = UiBuild.Label(titleRect, "Text", Loc.T("hud.dahafazla"), 40,
                                        TextAnchor.MiddleCenter);
             title.color = MoreInk;
             title.gameObject.AddComponent<LocalizedText>().SetKey("hud.dahafazla");
+
+            var closeGo = new GameObject("BtnKapat", typeof(RectTransform), typeof(Image), typeof(Button));
+            var closeRect = (RectTransform)closeGo.transform;
+            closeRect.SetParent(_moreSheet, false);
+            closeRect.anchorMin = closeRect.anchorMax = new Vector2(0.5f, 1f);
+            closeRect.pivot = new Vector2(0.5f, 0.5f);
+            closeRect.sizeDelta = new Vector2(96f, 96f);
+            closeRect.anchoredPosition = new Vector2(412f, -72f);
+            var closeImage = closeGo.GetComponent<Image>();
+            Sprite closeArt = PortraitUiArt.Get("general-close-button");
+            if (closeArt != null) PortraitUiArt.Apply(closeImage, closeArt);
+            else { closeImage.sprite = UiSkin.ButtonGrey; closeImage.type = Image.Type.Sliced; }
+            var close = closeGo.GetComponent<Button>();
+            close.targetGraphic = closeImage;
+            close.onClick.AddListener(HideMore);
 
             // Content into the safe area; the scrim above it keeps covering the notch. Safe here even
             // though the rows arrive later: they parent to _moreSheet, which this moves inside.
