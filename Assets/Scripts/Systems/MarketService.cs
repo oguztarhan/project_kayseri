@@ -797,12 +797,12 @@ namespace Game.Systems
             MarketYard legacy = FindLegacyRow(id);
             if (legacy != null)
             {
-                row = IdleMarketMigration.Convert(legacy, ProductFor(id));
+                row = IdleMarketMigration.Convert(legacy, IslandProduct);
             }
             else
             {
                 row = new IdleMarketYard { schemaVersion = IdleMarketMigration.SchemaVersion, id = id };
-                row.products.Add(new MarketProductStock { productId = ProductFor(id) });
+                row.products.Add(new MarketProductStock { productId = IslandProduct });
             }
             if (_data != null)
             {
@@ -822,26 +822,21 @@ namespace Game.Systems
         }
 
         /// <summary>
-        /// Which product an island sells. Pinned against the recipe assets, not guessed from a display
-        /// name: CokeRecipe consumes Coal, CopperBarRecipe consumes Copper, SteelRecipe consumes Iron,
-        /// and so on down Chapters.Islands. These strings are SAVE KEYS — a migrated row is found by
-        /// this id, so changing one silently reads a player's stock as zero.
+        /// What the island sells. ONE product, on every chapter.
+        ///
+        /// This used to map each of <see cref="Chapters.Namespaces"/> to its own goods — coal to Coke,
+        /// copper to CopperBar, and so on — because those keys named eight different islands with
+        /// eight different mines. They do not any more: there is one island, played through eight
+        /// chapters, and the keys survive only as the save-key namespaces the reset addresses. A
+        /// chapter changes what the island LOOKS like and what it asks for, never what comes off the
+        /// smelter, so deriving goods from the namespace would have renamed the player's output
+        /// halfway through the game for no reason they could see.
+        ///
+        /// It is a SAVE KEY: a yard's stock row is found by this id, so changing it reads a player's
+        /// stock as zero. It stays "Coke" — which is what every existing save already holds, the only
+        /// namespace ever written to disk being the first one.
         /// </summary>
-        public static string ProductFor(string islandKey)
-        {
-            switch (islandKey)
-            {
-                case "coal": return "Coke";
-                case "copper": return "CopperBar";
-                case "iron": return "SteelBeam";
-                case "silver": return "SilverBar";
-                case "gold": return "GoldBar";
-                case "ruby": return "CutRuby";
-                case "emerald": return "CutEmerald";
-                case "diamond": return "PolishedDiamond";
-                default: return islandKey ?? string.Empty;
-            }
-        }
+        public const string IslandProduct = "Coke";
 
         /// <summary>
         /// The one product row a yard trades in today.
@@ -855,7 +850,7 @@ namespace Game.Systems
         {
             var products = y.save.products;
             if (products.Count == 0)
-                products.Add(new MarketProductStock { productId = ProductFor(y.save.id) });
+                products.Add(new MarketProductStock { productId = IslandProduct });
             return products[0];
         }
 

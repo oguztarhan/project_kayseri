@@ -89,7 +89,7 @@ namespace Game.Tests
 
             for (int second = 0; second < 60; second++)
             {
-                market.Deliver(Coal, MarketService.ProductFor(Coal), 2d);
+                market.Deliver(Coal, MarketService.IslandProduct, 2d);
                 market.Tick(1f);
             }
             return wallet.Cash.ToDouble();

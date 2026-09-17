@@ -315,6 +315,12 @@ namespace Game.Systems
             Chapters = new ChapterService(Data, Wallet, Foremen,
                 chapterConfig != null ? chapterConfig.ToTuning() : Game.Core.Chapters.Tuning.Default);
             ServiceLocator.Register(Chapters);
+
+            // Moving BETWEEN chapters, which is a different job from reading one: the chapter service
+            // observes and pays, this one opens the next namespace and writes the save. Registered so
+            // the screens can offer the advance; nothing calls it on its own.
+            ServiceLocator.Register(new ChapterProgressionService(Data, Chapters, () => Save?.Save(Data)));
+
             Maintenance.Goals = Goals;   // built before this, and evaluated before this on purpose
 
             // The captain's mining loadout. Before the market because its income multiplier is

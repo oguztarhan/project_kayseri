@@ -310,13 +310,13 @@ namespace Game.UI
 
         private void RefreshObjective()
         {
-            int chapter = _op != null ? Chapters.Of(_op.IslandKey) : -1;
+            int chapter = _op != null ? Chapters.Of(_op.ProgressionKey) : -1;
             if (_chapters == null || chapter < 0) { SetObjective(StateHidden, -1, -1, 0, 0); return; }
 
             Chapters.Progress p = _chapters.Progress(chapter);
             if (!p.Owned) { SetObjective(StateHidden, chapter, -1, 0, 0); return; }
 
-            Chapters.Tuning t = _chapters.Tuning;
+            Chapters.Tuning t = _chapters.TuningFor(chapter);
 
             // A beat that has been earned but not collected outranks the next one to work on: the
             // player is one tap from a reward and should not be sent to look for the next chore.
@@ -408,7 +408,10 @@ namespace Game.UI
         private string Note(int beat)
         {
             string key = "bolum.asama." + beat + ".not";
-            Chapters.Tuning t = _chapters.Tuning;
+            // The chapter being shown, not the authored tuning: the line quotes the thresholds, and
+            // later chapters ask for more. SetObjective has already stamped _chapter by the time this
+            // runs.
+            Chapters.Tuning t = _chapters.TuningFor(_chapter);
             switch (beat)
             {
                 case Chapters.FirstSmoke: return string.Format(Loc.T(key), t.FirstSmokeLevels);
@@ -421,7 +424,7 @@ namespace Game.UI
 
         private static string Tag(int chapter, int state, int beat)
         {
-            string island = Chapters.Island(chapter);
+            string island = Chapters.Namespace(chapter);
             if (state == StateDone) return island + ".done";
             return island + "." + beat;
         }
@@ -433,7 +436,7 @@ namespace Game.UI
             if (_op != null && _op.FlowReady)
                 wall = ProductionBottleneck.Blocked(
                     _op.YardFullSeconds, _op.FurnaceQueueSeconds, _op.BarStoreFullSeconds,
-                    _market != null ? _market.OverflowSeconds(_op.IslandKey) : 0d);
+                    _market != null ? _market.OverflowSeconds(_op.ProgressionKey) : 0d);
 
             bool same = wall == _wall && !_dirty;
             bool moved = wall != _wall;

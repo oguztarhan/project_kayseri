@@ -153,21 +153,43 @@ namespace Game.Tests
             Assert.That(_ui.IsOpen, Is.True);
         }
 
+        /// <summary>
+        /// Every card sits inside the sheet, above the hint line, and no two of them cover the same
+        /// ground.
+        ///
+        /// Checked as RECTANGLES rather than as a stack. The sheet lays its six cards out in one
+        /// column in landscape but in TWO columns in portrait, so a test that walks the cards in
+        /// order and demands each one start below the last reads the two halves of a portrait row —
+        /// which sit side by side — as an overlap. Comparing every pair on both axes is the
+        /// invariant that was actually meant, and it holds whichever way the sheet is laid out.
+        /// </summary>
         [Test]
         public void AllSixRowsStayInsideTheSheetWithoutOverlap()
         {
-            float previousBottom = 1f;
-            for (int i = 0; i < 6; i++)
+            var rows = new RectTransform[6];
+            for (int i = 0; i < rows.Length; i++)
             {
                 var button = Button("Buy_" + (YardUpgrade)i);
-                var row = (RectTransform)button.transform.parent;
-                Assert.That(row.anchorMin.y, Is.GreaterThan(0.075f));
-                Assert.That(row.anchorMax.y, Is.LessThanOrEqualTo(previousBottom));
-                previousBottom = row.anchorMin.y;
+                rows[i] = (RectTransform)button.transform.parent;
+                Assert.That(rows[i].anchorMin.y, Is.GreaterThan(0.075f), "row " + i + " overruns the hint line");
+                Assert.That(rows[i].anchorMax.y, Is.LessThanOrEqualTo(1f), "row " + i + " overruns the sheet");
+                Assert.That(rows[i].anchorMin.x, Is.GreaterThanOrEqualTo(0f), "row " + i + " overruns the left edge");
+                Assert.That(rows[i].anchorMax.x, Is.LessThanOrEqualTo(1f), "row " + i + " overruns the right edge");
+
                 var bounds = (RectTransform)button.transform;
                 Assert.That(bounds.anchorMin.x, Is.GreaterThanOrEqualTo(0f));
                 Assert.That(bounds.anchorMax.x, Is.LessThanOrEqualTo(1f));
             }
+
+            for (int a = 0; a < rows.Length; a++)
+                for (int b = a + 1; b < rows.Length; b++)
+                {
+                    bool sharesX = rows[a].anchorMin.x < rows[b].anchorMax.x
+                                && rows[b].anchorMin.x < rows[a].anchorMax.x;
+                    bool sharesY = rows[a].anchorMin.y < rows[b].anchorMax.y
+                                && rows[b].anchorMin.y < rows[a].anchorMax.y;
+                    Assert.That(sharesX && sharesY, Is.False, "rows " + a + " and " + b + " overlap");
+                }
         }
     }
 }

@@ -22,7 +22,7 @@ namespace Game.Tests
         [Test]
         public void OneChapterPerIsland()
         {
-            Assert.That(Chapters.Islands.Length, Is.EqualTo(Chapters.Count));
+            Assert.That(Chapters.Namespaces.Length, Is.EqualTo(Chapters.Count));
         }
 
         [Test]
@@ -30,8 +30,8 @@ namespace Game.Tests
         {
             // Mirrors Game.Gameplay.WorldIslands.DefaultLadder(). Game.Core cannot reference
             // Game.Gameplay, so this is the only thing holding the two in step — if the ladder is
-            // re-cut, fix Chapters.Islands here rather than deleting the test.
-            Assert.That(Chapters.Islands, Is.EqualTo(new[]
+            // re-cut, fix Chapters.Namespaces here rather than deleting the test.
+            Assert.That(Chapters.Namespaces, Is.EqualTo(new[]
             { "coal", "copper", "iron", "silver", "gold", "ruby", "emerald", "diamond" }));
         }
 
@@ -39,13 +39,13 @@ namespace Game.Tests
         public void IslandKeysAreUniqueAndRoundTrip()
         {
             for (int c = 0; c < Chapters.Count; c++)
-                Assert.That(Chapters.Of(Chapters.Island(c)), Is.EqualTo(c), "chapter " + c);
+                Assert.That(Chapters.Of(Chapters.Namespace(c)), Is.EqualTo(c), "chapter " + c);
 
             Assert.That(Chapters.Of("nowhere"), Is.EqualTo(-1));
             Assert.That(Chapters.Of(null), Is.EqualTo(-1));
             Assert.That(Chapters.Of(""), Is.EqualTo(-1));
-            Assert.That(Chapters.Island(-1), Is.Empty);
-            Assert.That(Chapters.Island(Chapters.Count), Is.Empty);
+            Assert.That(Chapters.Namespace(-1), Is.Empty);
+            Assert.That(Chapters.Namespace(Chapters.Count), Is.Empty);
         }
 
         // ---- an unowned island earns nothing -----------------------------------------------------

@@ -2,6 +2,7 @@ using Game.Core;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace Game.UI
@@ -55,15 +56,13 @@ namespace Game.UI
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
 
         /// <summary>
-        /// The chapters whose island the game actually has — <see cref="WorldIslands.LadderKeys"/>
-        /// against <see cref="Chapters.Islands"/>. The chapter table still names eight islands, but
-        /// the world is one island now and nothing can buy the rest, so their tabs were seven rows
-        /// of "not yours yet" leading nowhere. With a single chapter there is no selector at all and
-        /// the beats take the full width.
+        /// The chapters the player has actually reached, in order — see <see cref="VisibleChapters"/>.
+        /// With one of them there is no selector at all and the beats take the full width.
         /// </summary>
         private int[] _visible;
 
         private ChapterService _chapters;
+        private ChapterProgressionService _progression;
         private LocalizationService _loc;
         private RectTransform _root;
 
@@ -92,6 +91,7 @@ namespace Game.UI
         private void Awake()
         {
             _chapters = ServiceLocator.Get<ChapterService>();
+            _progression = ServiceLocator.Get<ChapterProgressionService>();
             LoadKit();
             Build();
             BuildOpener();
@@ -211,13 +211,24 @@ namespace Game.UI
             UiBuild.Anchor((RectTransform)close.transform, AtolyeKit.CloseMin, AtolyeKit.CloseMax);
         }
 
-        /// <summary>Indices into <see cref="Chapters.Islands"/> of the islands the world ladder has, in order.</summary>
-        private static int[] VisibleChapters()
+        /// <summary>
+        /// The chapters that get a tab: the ones the player OWNS.
+        ///
+        /// This used to ask the world ladder which islands the game had, which was right when a
+        /// chapter was an island you sailed to and bought. It is wrong now — every chapter is played
+        /// on the one island, the ladder is the single entry "coal" forever, and chapters two to eight
+        /// would have had no tab on a screen the player had already advanced through. A chapter is
+        /// reached by finishing the one before it, so ownership is the only thing that can answer this.
+        ///
+        /// The chapters AHEAD are deliberately left out. Seven rows of "not yours yet" leading nowhere
+        /// is what the ladder filter was put here to stop showing, and what comes next is now said by
+        /// the advance button on a finished chapter instead of by a row of padlocks.
+        /// </summary>
+        private int[] VisibleChapters()
         {
-            string[] keys = Game.Gameplay.WorldIslands.LadderKeys();
-            var found = new System.Collections.Generic.List<int>(keys.Length);
+            var found = new System.Collections.Generic.List<int>(Chapters.Count);
             for (int c = 0; c < Chapters.Count; c++)
-                if (System.Array.IndexOf(keys, Chapters.Island(c)) >= 0) found.Add(c);
+                if (_chapters != null && _chapters.Owned(c)) found.Add(c);
             if (found.Count == 0) found.Add(0);
             return found.ToArray();
         }
@@ -240,8 +251,7 @@ namespace Game.UI
 
             _claimAll = UiBuild.Btn(c, "HepsiniAl", string.Empty,
                                     _btnLive != null ? _btnLive : UiSkin.ButtonGreen,
-                                    Color.white, 26,
-                                    () => { if (_chapters != null && _chapters.ClaimChapter(_shown) > 0) Ping(); });
+                                    Color.white, 26, OnStoryButton);
             // Wide and low, near the capsule art's own 2:1 — a taller box spends its width on two
             // end caps and leaves the label nowhere to sit.
             UiBuild.Anchor((RectTransform)_claimAll.transform,
@@ -335,6 +345,59 @@ namespace Game.UI
             _beatBtnText[beat] = AtolyeKit.Label(_beatBtn[beat], 10, 22);
         }
 
+        // ------------------------------------------------------------------ advance
+        /// <summary>
+        /// Whether the button under the story line is the one that opens the next chapter.
+        ///
+        /// Tied to the chapter being READ, not just to the save: a player looking back at chapter one
+        /// from chapter three is reading a finished chapter, and it must not offer to advance out of a
+        /// chapter they are not standing in.
+        /// </summary>
+        private bool CanAdvanceHere()
+            => _progression != null && _shown == _progression.Current && _progression.CanAdvance;
+
+        /// <summary>
+        /// The story card's one button, doing two jobs.
+        ///
+        /// ADVANCE SUPERSEDES COLLECT ALL rather than crowding in beside it, because
+        /// <see cref="ChapterProgressionService.TryAdvance"/> sweeps every unclaimed beat before it
+        /// opens the next chapter. There is nothing collect could still get the player, so there is no
+        /// wrong button to tap and nothing to leave behind by tapping the right one in a hurry.
+        /// </summary>
+        private void OnStoryButton()
+        {
+            if (CanAdvanceHere()) { Advance(); return; }
+            if (_chapters != null && _chapters.ClaimChapter(_shown) > 0) Ping();
+        }
+
+        /// <summary>
+        /// Opens the next chapter, then reloads the island behind the curtain.
+        ///
+        /// WHY A RELOAD AND NOT A REFRESH. <c>CoalOperation</c> reads its save prefix once in Awake and
+        /// builds the entire operation off it in Start — levels, vehicles, piles, track, dressing.
+        /// Nothing re-binds a running island to a different prefix, and faking it would leave the
+        /// player driving the last chapter's yard out of the new chapter's books. A scene load is what
+        /// a chapter change IS here.
+        ///
+        /// THE SAVE IS ON DISK BEFORE THE LOAD IS ASKED FOR — TryAdvance writes it — so an app killed
+        /// during the fade comes back in the new chapter rather than losing the rewards it just swept.
+        ///
+        /// The screen is left up on purpose. The curtain draws at order 400, well above it, and the
+        /// island underneath is mid-reset; the last thing the player should be shown is that.
+        /// </summary>
+        private void Advance()
+        {
+            if (_progression == null || SceneCurtain.Busy) return;
+
+            int opened = _progression.Current + 1;
+            if (!_progression.TryAdvance()) return;
+
+            Ping();
+            SceneCurtain.Cover(SceneManager.GetActiveScene().name, beatFill,
+                               string.Format("{0} {1}", Loc.T("bolum.bolum"), opened + 1),
+                               false);   // never park: the island has to be built again, not woken
+        }
+
         private void Select(int chapter)
         {
             if (chapter < 0 || chapter >= Chapters.Count || chapter == _shown) return;
@@ -361,7 +424,7 @@ namespace Game.UI
         private void RefreshTab(int chapter)
         {
             bool owned = _chapters.Owned(chapter);
-            string island = Chapters.Island(chapter);
+            string island = Chapters.Namespace(chapter);
 
             // THE ISLAND'S NAME IS ALWAYS THE TITLE, owned or not. It used to read "you do not own
             // this island yet" on every locked row, which put that sentence on the screen seven times
@@ -373,7 +436,7 @@ namespace Game.UI
 
             if (owned)
             {
-                int done = Chapters.BeatsSatisfied(_chapters.Progress(chapter), _chapters.Tuning);
+                int done = Chapters.BeatsSatisfied(_chapters.Progress(chapter), _chapters.TuningFor(chapter));
                 bool complete = done >= Chapters.BeatCount;
                 _tabCount[chapter].text = complete
                     ? string.Format("{0} {1}   ·   {2}", Loc.T("bolum.bolum"), chapter + 1,
@@ -400,7 +463,7 @@ namespace Game.UI
 
         private void RefreshStory()
         {
-            string island = Chapters.Island(_shown);
+            string island = Chapters.Namespace(_shown);
             bool owned = _chapters.Owned(_shown);
 
             _storyTitle.text = string.Format("{0} {1}   ·   {2}",
@@ -410,15 +473,19 @@ namespace Game.UI
 
             int owed = 0;
             for (int b = 0; b < Chapters.BeatCount; b++) if (_chapters.CanClaim(_shown, b)) owed++;
-            _claimAllText.text = owed > 0 ? string.Format("{0} ×{1}", Loc.T("bolum.hepsiniAl"), owed)
-                                          : Loc.T("bolum.hepsiniAl");
-            Dress(_claimAll, owed > 0);
+
+            bool advance = CanAdvanceHere();
+            _claimAllText.text = advance
+                ? Loc.T("bolum.ilerle")
+                : owed > 0 ? string.Format("{0} ×{1}", Loc.T("bolum.hepsiniAl"), owed)
+                           : Loc.T("bolum.hepsiniAl");
+            Dress(_claimAll, advance || owed > 0);
         }
 
         private void RefreshBeat(int beat)
         {
             Chapters.Progress p = _chapters.Progress(_shown);
-            Chapters.Tuning t = _chapters.Tuning;
+            Chapters.Tuning t = _chapters.TuningFor(_shown);
             bool claimed = _chapters.Claimed(_shown, beat);
 
             _beatName[beat].text = Loc.T("bolum.asama." + beat);

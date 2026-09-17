@@ -86,7 +86,7 @@ namespace Game.Systems
         private ChapterState Row(int chapter)
         {
             if (_data == null || chapter < 0 || chapter >= Chapters.Count) return null;
-            string key = Chapters.Island(chapter);
+            string key = Chapters.Namespace(chapter);
             for (int i = 0; i < _data.chapters.Count; i++)
                 if (_data.chapters[i] != null && _data.chapters[i].id == key) return _data.chapters[i];
 
@@ -107,7 +107,7 @@ namespace Game.Systems
             var p = new Chapters.Progress();
             if (_data == null || chapter < 0 || chapter >= Chapters.Count) return p;
 
-            string key = Chapters.Island(chapter);
+            string key = Chapters.Namespace(chapter);
             p.Owned = chapter == 0
                    || (_data.unlockedIslands != null && _data.unlockedIslands.Contains(key));
             if (!p.Owned) return p;
@@ -169,8 +169,19 @@ namespace Game.Systems
 
         public bool Owned(int chapter) => Progress(chapter).Owned;
 
+        /// <summary>
+        /// The tuning a chapter is actually played on. Every chapter runs on the same island with its
+        /// progression reset, so the targets grow as the chapters go by — see
+        /// <see cref="Chapters.TuningFor"/>. Chapter 0 returns the authored tuning unchanged.
+        ///
+        /// Anything that asks a <see cref="Chapters"/> rule about a PARTICULAR chapter must come
+        /// through here rather than reading <see cref="Tuning"/>, or it will judge chapter 5 against
+        /// chapter 1's thresholds and report a beat as earned that is not.
+        /// </summary>
+        public Chapters.Tuning TuningFor(int chapter) => Chapters.TuningFor(chapter, _tuning);
+
         public bool Satisfied(int chapter, int beat)
-            => Chapters.Satisfied(beat, Progress(chapter), _tuning);
+            => Chapters.Satisfied(beat, Progress(chapter), TuningFor(chapter));
 
         public bool Claimed(int chapter, int beat)
         {
@@ -181,7 +192,7 @@ namespace Game.Systems
         public bool CanClaim(int chapter, int beat)
             => Satisfied(chapter, beat) && !Claimed(chapter, beat);
 
-        public bool Complete(int chapter) => Chapters.Complete(Progress(chapter), _tuning);
+        public bool Complete(int chapter) => Chapters.Complete(Progress(chapter), TuningFor(chapter));
 
         /// <summary>
         /// The chapter the player is in: the furthest one they own. Not the furthest INCOMPLETE one —

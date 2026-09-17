@@ -19134,6 +19134,7 @@ GameObject:
   - component: {fileID: 2135659118}
   - component: {fileID: 2135659120}
   - component: {fileID: 2135659121}
+  - component: {fileID: 2135659122}
   m_Layer: 0
   m_Name: CoalController
   m_TagString: Untagged
@@ -19534,6 +19535,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Gameplay::Game.Gameplay.CannonProductionWorldBridge
   operation: {fileID: 0}
+--- !u!114 &2135659122
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2135659099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5eceb06af6efcd1408ceb98e47d29d36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Gameplay::Game.Gameplay.IslandThemeView
+  themes: {fileID: 11400000, guid: 96040dbddd09f144a86ae3e6f7936c1f, type: 2}
+  islandRootName: Island_Shipyard
 --- !u!1 &2140190477
 GameObject:
   m_ObjectHideFlags: 0

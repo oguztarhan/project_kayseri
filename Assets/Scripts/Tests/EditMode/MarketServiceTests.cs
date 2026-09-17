@@ -59,14 +59,14 @@ namespace Game.Tests
             double capacity = market.StockCapacity(Coal);
             Assert.That(capacity, Is.GreaterThan(0d), "the meter has to have a reading for this to mean anything");
 
-            double accepted = market.Deliver(Coal, MarketService.ProductFor(Coal), capacity + 500d);
+            double accepted = market.Deliver(Coal, MarketService.IslandProduct, capacity + 500d);
 
             Assert.That(accepted, Is.EqualTo(capacity).Within(1e-6), "it takes what it can hold and says so");
             Assert.That(market.Stock(Coal), Is.EqualTo(capacity).Within(1e-6));
 
             // Offering the refused remainder again while still full is accepted as nothing, not silently
             // absorbed — this is the retry a carrier makes when he keeps what would not fit.
-            Assert.That(market.Deliver(Coal, MarketService.ProductFor(Coal), 500d), Is.Zero.Within(1e-6));
+            Assert.That(market.Deliver(Coal, MarketService.IslandProduct, 500d), Is.Zero.Within(1e-6));
             Assert.That(market.Stock(Coal), Is.EqualTo(capacity).Within(1e-6), "a refused retry adds nothing");
         }
 
@@ -79,10 +79,10 @@ namespace Game.Tests
             MarketService market = Build(out data, out wallet);
             SetSupply(market, 120d);
             double capacity = market.StockCapacity(Coal);
-            market.Deliver(Coal, MarketService.ProductFor(Coal), capacity);   // now full
+            market.Deliver(Coal, MarketService.IslandProduct, capacity);   // now full
 
             double before = market.Product(Coal).deliveredPerMin;
-            for (int i = 0; i < 20; i++) market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
+            for (int i = 0; i < 20; i++) market.Deliver(Coal, MarketService.IslandProduct, 50d);
 
             Assert.That(market.Product(Coal).deliveredPerMin, Is.EqualTo(before).Within(1e-9),
                         "twenty refused offers are not twenty deliveries");
@@ -95,7 +95,7 @@ namespace Game.Tests
             MarketService market = Build(out data, out wallet);
             SetSupply(market, 120d);
             double capacity = market.StockCapacity(Coal);
-            market.Deliver(Coal, MarketService.ProductFor(Coal), capacity);   // pads full
+            market.Deliver(Coal, MarketService.IslandProduct, capacity);   // pads full
 
             double returned = market.ReturnToStock(Coal, 200d);
 
@@ -159,15 +159,29 @@ namespace Game.Tests
             Assert.That(reopened.Stock(Coal), Is.Zero.Within(1e-9), "legacy stock must not be re-credited");
         }
 
+        /// <summary>
+        /// Every chapter is the same island and sells the same goods. The namespaces are where a
+        /// chapter's progression is filed, nothing more — deriving the product from one would rename
+        /// the player's output halfway through the game.
+        /// </summary>
         [Test]
-        public void EveryIslandOnTheLadderHasItsOwnProduct()
+        public void EveryChapterTradesTheOneProduct()
         {
-            var seen = new System.Collections.Generic.HashSet<string>();
-            for (int i = 0; i < Chapters.Islands.Length; i++)
+            Assert.That(MarketService.IslandProduct, Is.EqualTo("Coke"),
+                        "this is a save key: changing it reads every player's stock as zero");
+
+            SaveData data; WalletService wallet;
+            MarketService market = Build(out data, out wallet);
+
+            for (int chapter = 0; chapter < Chapters.Count; chapter++)
             {
-                string id = MarketService.ProductFor(Chapters.Islands[i]);
-                Assert.That(id, Is.Not.Null.And.Not.Empty);
-                Assert.That(seen.Add(id), Is.True, "two islands cannot share a product id: " + id);
+                string ns = Chapters.Namespaces[chapter];
+                if (chapter > 0) data.unlockedIslands.Add(ns);
+                market.Register(ns, new Terms { BarPriceRaw = Price, IncomeCapPerMinuteRaw = NoCeiling });
+                market.Deliver(ns, MarketService.IslandProduct, 5d);
+
+                Assert.That(market.Product(ns).productId, Is.EqualTo(MarketService.IslandProduct), ns);
+                Assert.That(market.Stock(ns), Is.EqualTo(5d).Within(1e-9), ns);
             }
         }
 
@@ -181,7 +195,7 @@ namespace Game.Tests
             SetSupply(market, 120d);                 // 2 bars a second
             market.SetActiveIsland(Coal);            // its lorries are running, so Deliver is the only supply
 
-            market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
+            market.Deliver(Coal, MarketService.IslandProduct, 50d);
             market.Tick(1f);
 
             // bare yard: capacity 2/s at the 0.15 trickle = 0.3 bars, at $10 a bar
@@ -198,7 +212,7 @@ namespace Game.Tests
             SetSupply(market, 120d);
             market.SetActiveIsland(Coal);
 
-            market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
+            market.Deliver(Coal, MarketService.IslandProduct, 50d);
             market.Tick(1f);
 
             Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(6d).Within(1e-6));
@@ -261,7 +275,7 @@ namespace Game.Tests
             MarketService market = Build(out data, out wallet);
             SetSupply(market, 120d);
             Staff(market, MarketFlow.MaxHireLevel);
-            market.Deliver(Coal, MarketService.ProductFor(Coal), 10d);
+            market.Deliver(Coal, MarketService.IslandProduct, 10d);
 
             double before = wallet.Cash.ToDouble();
             market.Tick(1f);
@@ -279,7 +293,7 @@ namespace Game.Tests
         {
             SaveData data; WalletService wallet;
             MarketService market = Build(out data, out wallet);
-            market.Deliver(Coal, MarketService.ProductFor(Coal), 2.5d);
+            market.Deliver(Coal, MarketService.IslandProduct, 2.5d);
 
             Assert.That(market.TakeFromStock(Coal, 1d), Is.EqualTo(1d).Within(1e-9));
             Assert.That(market.TakeFromStock(Coal, 5d), Is.EqualTo(1.5d).Within(1e-9), "only what was left");
@@ -357,7 +371,7 @@ namespace Game.Tests
             market.Tick(1f);
             for (int second = 0; second < 120; second++)
             {
-                market.Deliver(Coal, MarketService.ProductFor(Coal), 2d * simSpeed);  // 2 bars a second, doubled when the clock is
+                market.Deliver(Coal, MarketService.IslandProduct, 2d * simSpeed);  // 2 bars a second, doubled when the clock is
                 market.Tick(1f);
             }
 
@@ -466,7 +480,7 @@ namespace Game.Tests
             SaveData data; WalletService wallet;
             MarketService market = Build(out data, out wallet);
             SetSupply(market, 120d);
-            market.Deliver(Coal, MarketService.ProductFor(Coal), 20d);
+            market.Deliver(Coal, MarketService.IslandProduct, 20d);
 
             market.SettleOffline(-9999L);
 

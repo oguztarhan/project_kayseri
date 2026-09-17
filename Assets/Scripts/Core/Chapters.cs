@@ -34,14 +34,24 @@ namespace Game.Core
         public const int Count = 8;
 
         /// <summary>
-        /// The island each chapter belongs to, mirroring <c>Game.Gameplay.WorldIslands.DefaultLadder()</c>.
+        /// Each chapter's SAVE-KEY NAMESPACE — the prefix its levels, buildings, yard, wear and rate
+        /// rows are filed under.
         ///
-        /// Authored here rather than read from the ladder because Game.Systems cannot see
+        /// THESE ARE IDS, NOT PLACES. They read as the old eight-island ore ladder because that is
+        /// what they were: one island per ore, one chapter each. The game is one island now, played
+        /// eight times over with its progression reset, and these became the eight namespaces that
+        /// reset addresses. Chapter 5's rows still say "gold" while the player stands on the same
+        /// industrial map, and that is the point — every row a player already owns keeps resolving.
+        ///
+        /// CHANGING ONE ORPHANS EVERY ROW WRITTEN UNDER IT, so they are fixed forever. No entry is a
+        /// prefix of another, which is what lets <c>ChapterService.CountLevels</c> tell "coal#0#0"
+        /// from "coalu#0" and from a future namespace by prefix alone.
+        ///
+        /// Authored here rather than read from the world ladder because Game.Systems cannot see
         /// Game.Gameplay — the same reason <see cref="Foremen.Count"/> restates the length of
-        /// <see cref="IslandEconomy.Stations"/>. ChaptersTests pins the order against this comment;
-        /// if the ladder is ever re-cut, that test is what fails first.
+        /// <see cref="IslandEconomy.Stations"/>. ChaptersTests pins the order against this comment.
         /// </summary>
-        public static readonly string[] Islands =
+        public static readonly string[] Namespaces =
         { "coal", "copper", "iron", "silver", "gold", "ruby", "emerald", "diamond" };
 
         // Beat indices. Saves address these by number, so they must never be reordered. New beats are
@@ -88,6 +98,18 @@ namespace Game.Core
             /// <summary>Foreman cards, the same shape. Beat 0 pays none — see <see cref="BeatCards"/>.</summary>
             public int CardsBase, CardsStep;
 
+            /// <summary>
+            /// What each chapter multiplies the LEVEL thresholds by — see <see cref="TuningFor"/>.
+            /// 1 (or anything at or below zero) keeps every chapter on the same targets.
+            /// </summary>
+            public double LevelGrowth;
+
+            /// <summary>
+            /// What each chapter multiplies upgrade COSTS and sale VALUE by — see
+            /// <see cref="EconomyScale"/>. 1 (or anything at or below zero) leaves the economy flat.
+            /// </summary>
+            public double EconomyStep;
+
             public static Tuning Default => new Tuning
             {
                 // FIRST SMOKE wants to land in the first few minutes on an island: ten levels is
@@ -110,7 +132,78 @@ namespace Game.Core
                 // month one on top of the recurring budget, so they are held to 728 in total.
                 GemsBase = 6, GemsStep = 2,
                 CardsBase = 1, CardsStep = 1,
+
+                // Every chapter is played on the SAME island with its progression reset, so unlike
+                // the retired ore ladder the targets cannot stay flat — chapter 8 would be chapter 1
+                // again. See TuningFor and EconomyScale for what each of these is solved against.
+                LevelGrowth = 1.18d,
+                EconomyStep = 3.2d,
             };
+        }
+
+        // -------------------------------------------------------- per-chapter scaling
+        /// <summary>
+        /// The tuning a given chapter is played on: the same numbers, with the LEVEL thresholds
+        /// raised by <see cref="Tuning.LevelGrowth"/> once per chapter.
+        ///
+        /// CHAPTER 0 IS THE AUTHORED TUNING, EXACTLY. The growth is applied as
+        /// <c>base x growth^chapter</c>, so the first chapter multiplies by one and comes back bit for
+        /// bit what the designer typed. Every threshold the game shipped with therefore still means
+        /// what it meant, and ChaptersTests can go on pinning them.
+        ///
+        /// ONLY THE LEVELS GROW. The building beats cannot: there are ten ghost buildings in total
+        /// and FULL STEAM already asks for eight, so a growing target would wall the chapter shut
+        /// somewhere around chapter two. THE YARD is a yes/no — a yard is staffed or it is not — and
+        /// LANDFALL is arrival. That leaves the level counts to carry the curve on their own, which
+        /// they can: 18 axes at a cap of 50, less the truck axes capped at 3 and 4, is 807 levels an
+        /// island can hold. At 1.18 the last chapter asks 637 of them, which is a long way from the
+        /// end of the board; much past 1.22 and chapter 8 would be asking for levels that cannot be
+        /// bought. THAT is the constraint the growth factor is solved against, not feel.
+        ///
+        /// A growth of zero or less is read as "flat" rather than obeyed, so a Tuning built by hand
+        /// without this field cannot silently reduce every target to nothing.
+        /// </summary>
+        public static Tuning TuningFor(int chapter, in Tuning t)
+        {
+            Tuning scaled = t;
+            if (chapter <= 0 || t.LevelGrowth <= 0d || t.LevelGrowth == 1d) return scaled;
+
+            double factor = System.Math.Pow(t.LevelGrowth, chapter);
+            scaled.FirstSmokeLevels = Grown(t.FirstSmokeLevels, factor);
+            scaled.FullSteamLevels = Grown(t.FullSteamLevels, factor);
+            return scaled;
+        }
+
+        /// <summary>
+        /// What chapter <paramref name="chapter"/> multiplies upgrade costs and sale value by:
+        /// <c>EconomyStep^chapter</c>, and 1 on the first chapter.
+        ///
+        /// COST AND VALUE MOVE TOGETHER, which is the whole point. The wallet is global and survives a
+        /// chapter reset, so a player entering chapter 2 with chapter 1's fortune would buy its 236
+        /// levels in a minute and the higher target would mean nothing. Scaling both keeps the SHAPE
+        /// of a chapter — how long it takes, what it can afford next — the same as the first one,
+        /// which is exactly what the retired ore ladder used its x3.2 tier step for.
+        ///
+        /// Nothing reads this yet. The island takes its cost and value multipliers from its own
+        /// serialized fields; wiring them through here belongs with the change that gives the island
+        /// its chapter, and is deliberately not smuggled in ahead of it.
+        /// </summary>
+        public static double EconomyScale(int chapter, in Tuning t)
+        {
+            if (chapter <= 0 || t.EconomyStep <= 0d) return 1d;
+            return System.Math.Pow(t.EconomyStep, chapter);
+        }
+
+        /// <summary>
+        /// A threshold after growth. Rounded to nearest rather than truncated so a target lands on the
+        /// number a designer would read off the curve, and floored at the unscaled value so a factor
+        /// below one can never make a later chapter EASIER than the one before it.
+        /// </summary>
+        private static int Grown(int baseValue, double factor)
+        {
+            long grown = (long)System.Math.Round(baseValue * factor, System.MidpointRounding.AwayFromZero);
+            if (grown < baseValue) grown = baseValue;
+            return grown > int.MaxValue ? int.MaxValue : (int)grown;
         }
 
         // ------------------------------------------------------------------ rules
@@ -248,19 +341,19 @@ namespace Game.Core
 
         // ------------------------------------------------------------------ names
         /// <summary>
-        /// The island key a chapter belongs to, or "" for an index off the end. Callers localise it
-        /// through <c>Loc.Id("ada", key)</c>; the raw key is also the save key, so it stays English
-        /// here for the same reason station names do.
+        /// A chapter's save-key namespace, or "" for an index off the end. Callers localise the name
+        /// the PLAYER reads through <c>Loc.Id("ada", key)</c>; this is the raw id and stays English
+        /// for the same reason station keys do.
         /// </summary>
-        public static string Island(int chapter)
-            => chapter >= 0 && chapter < Islands.Length ? Islands[chapter] : string.Empty;
+        public static string Namespace(int chapter)
+            => chapter >= 0 && chapter < Namespaces.Length ? Namespaces[chapter] : string.Empty;
 
-        /// <summary>Which chapter an island key belongs to, or -1 for a key off the ladder.</summary>
-        public static int Of(string islandKey)
+        /// <summary>Which chapter a namespace belongs to, or -1 for a key that is not one of them.</summary>
+        public static int Of(string chapterNamespace)
         {
-            if (string.IsNullOrEmpty(islandKey)) return -1;
-            for (int i = 0; i < Islands.Length; i++)
-                if (Islands[i] == islandKey) return i;
+            if (string.IsNullOrEmpty(chapterNamespace)) return -1;
+            for (int i = 0; i < Namespaces.Length; i++)
+                if (Namespaces[i] == chapterNamespace) return i;
             return -1;
         }
     }

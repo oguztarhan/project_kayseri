@@ -50,7 +50,7 @@ namespace Game.Gameplay
     /// match (see <see cref="BuildSiteDressing"/>), so the two can never disagree.</para>
     ///
     /// <para>Cash goes to <see cref="WalletService"/>; levels persist in <see cref="SaveData"/> under keys
-    /// prefixed by <c>islandKey</c>. Two caps wall an island: <c>axisLevelCap</c> ends the upgrade track and
+    /// prefixed by <c>ProgressionKey</c>. Two caps wall an island: <c>axisLevelCap</c> ends the upgrade track and
     /// <c>incomeCapPerMin</c> ends what it can earn. They are set to meet — a fully upgraded island sits at
     /// its ceiling — so buying the <i>next</i> one (via <see cref="WorldIslands"/>) is the only way to grow.</para>
     /// </summary>
@@ -114,7 +114,7 @@ namespace Game.Gameplay
         [SerializeField] private TextAsset authoredRoutes;
 
         [Header("Island identity (world map — one component per ore island)")]
-        [SerializeField] private string islandKey = "coal";        // save-key prefix + unlockedIslands id
+        [SerializeField] private string islandKey = "coal";        // the PHYSICAL island: display, seeds, ladder
         [SerializeField] private string displayName = "COAL ISLAND";
         [SerializeField] private string tilesRootName = "";        // "" = tiles at scene root (coal); clones use "Tiles_<Ore>"
         [SerializeField] private Color oreColor = new Color(0.10f, 0.10f, 0.12f);
@@ -525,7 +525,8 @@ namespace Game.Gameplay
         //                  ├─ AxisMaxLv[0]    = { 0, 0 }                       ← 0 means "no special cap"
         //                  └─ _lv[0]          = new int[2]                     ← levels the player owns
         //
-        //  Saved as "<islandKey>#<station>#<axis>" (e.g. "coal#0#0") in SaveData.islandLevels.
+        //  Saved as "<ProgressionKey>#<station>#<axis>" (e.g. "coal#0#0") in SaveData.islandLevels.
+        //  The prefix is the CHAPTER's namespace, not the island's name — see ProgressionKey.
         // ═══════════════════════════════════════════════════════════════════════════════════════════
 
         // The station tables, the cost curve and every upgrade effect live in
@@ -564,7 +565,7 @@ namespace Game.Gameplay
         //  material while they are locked, and swaps the originals back when you buy. So the player can
         //  always see the shape of what they are saving up for, which is the point.
         //
-        //  Saved as "<islandKey>u#<index>" — note the "u", which keeps these from colliding with the
+        //  Saved as "<ProgressionKey>u#<index>" — note the "u", which keeps these from colliding with the
         //  axis keys ("coal#0#0" vs "coalu#0").
         // ═══════════════════════════════════════════════════════════════════════════════════════════
         public const int UnlockSecondMine = Econ.UnlockSecondMine, UnlockSecondSmelter = Econ.UnlockSecondSmelter,
@@ -711,6 +712,21 @@ namespace Game.Gameplay
         private AudioService _audio;
         private float _deckY;              // ground height every vehicle drives at
         private SaveData _data;
+
+        /// <summary>The chapter's save-key namespace — see <see cref="ProgressionKey"/>.</summary>
+        private string _progressionKey;
+
+        /// <summary>
+        /// What this chapter multiplies upgrade costs, goods value and the income ceiling by:
+        /// <see cref="Chapters.EconomyScale"/>, which is 1 on chapter one.
+        ///
+        /// COST AND VALUE TOGETHER, or the scaling is pointless. The wallet survives a chapter reset,
+        /// so a chapter that raised prices alone would be unaffordable and one that raised value alone
+        /// would be over in a minute. The ceiling rides with them for the same reason: incomeCapPerMin
+        /// is a MEASURED number for a maxed island, and leaving it behind would clamp every chapter
+        /// after the first back to chapter one's income.
+        /// </summary>
+        private float _chapterEconomy = 1f;
         private Material _oreMat, _barMat, _ghostMat, _srcMat;
         private Material _oreTruckMat, _cargoTruckMat;   // one livery per route, shared by its fleet
         private readonly VehicleWheels _wheels = new VehicleWheels();
@@ -726,7 +742,7 @@ namespace Game.Gameplay
         /// figure offline earnings are granted from, and a rewarded ad running at the moment you close
         /// the game should not bank a doubled rate for the next eight hours.
         /// </summary>
-        public double CashPerMinute => _marketService != null ? _marketService.RatePerMin(islandKey) : 0d;
+        public double CashPerMinute => _marketService != null ? _marketService.RatePerMin(ProgressionKey) : 0d;
 
         // ---- what each stage of the chain is managing ----
         // Four trailing minutes, measured where the ore actually moves. The upgrade screen reads them
@@ -798,7 +814,7 @@ namespace Game.Gameplay
         /// side: a prestige multiplier the cap clamped straight back off would make prestige a pure loss
         /// — you wipe the run and the island still pays its old maximum.
         /// </summary>
-        public double IncomeCapPerMinuteRaw => incomeCapPerMin;
+        public double IncomeCapPerMinuteRaw => incomeCapPerMin * _chapterEconomy;
 
         /// <summary>What this island's own upgrade tree costs end to end. <see cref="IIslandSaleTerms"/>.</summary>
         public double UpgradeTreeCostRaw => Ec.FullTreeCost();
@@ -938,6 +954,22 @@ namespace Game.Gameplay
         public double Bars => _bars;
         public string IslandKey => islandKey;
         public string IslandDisplayName => displayName;
+
+        /// <summary>
+        /// The save-key prefix this island's PROGRESSION is filed under: levels, ghost buildings, its
+        /// market yard, its state of repair. It is the current chapter's namespace
+        /// (<see cref="Chapters.Namespaces"/>), resolved once in <see cref="Awake"/>.
+        ///
+        /// NOT THE SAME THING AS <see cref="IslandKey"/>, and the difference is the whole design. The
+        /// island never changes: its name, its buildings, its mountains and the goods it sells are the
+        /// physical place and stay pinned to islandKey. What a chapter changes is where progress is
+        /// WRITTEN — so advancing files the player's next levels under a prefix with nothing in it, and
+        /// the island starts over without a single row being deleted.
+        ///
+        /// Falls back to islandKey when no progression service is registered, which is what every test
+        /// and every scene without a bootstrap gets: chapter one's namespace IS "coal".
+        /// </summary>
+        public string ProgressionKey => string.IsNullOrEmpty(_progressionKey) ? islandKey : _progressionKey;
 
         /// <summary>
         /// The live Mine/Deposit/Refinery hand-off used by the first shipyard machine. The Cannon
@@ -1208,7 +1240,7 @@ namespace Game.Gameplay
             }
         }
         public BigDouble UnlockCost(int u) =>
-            new BigDouble(costMultiplier * (u == UnlockSecondMine ? secondMineCost
+            new BigDouble(costMultiplier * _chapterEconomy * (u == UnlockSecondMine ? secondMineCost
                 : u == UnlockSecondSmelter ? secondSmelterCost
                 : u == UnlockTradePost ? tradePostCost
                 : u == UnlockThirdMine ? thirdMineCost
@@ -1225,7 +1257,7 @@ namespace Game.Gameplay
             if (AxisMaxed(s, a) || AxisLocked(s, a)) return false;
             if (!_wallet.TrySpendCash(AxisCost(s, a))) return false;
             _lv[s][a]++;
-            SaveLevel(islandKey + "#" + s + "#" + a, _lv[s][a]);
+            SaveLevel(ProgressionKey + "#" + s + "#" + a, _lv[s][a]);
             RecordUpgrade();
             if (_punch != null) _punch[s] = punchSeconds;   // the station pops, then settles at its new size
             // And so does the art the station owns. On an authored island the line above pops an EMPTY
@@ -1253,7 +1285,7 @@ namespace Game.Gameplay
             // counts it the same way — otherwise a player who spends an evening on unlocks makes no
             // progress on "buy 5 upgrades" while visibly upgrading the island.
             RecordUpgrade();
-            SaveLevel(islandKey + "u#" + u, 1);
+            SaveLevel(ProgressionKey + "u#" + u, 1);
             ApplyUnlock(u);
             return true;
         }
@@ -1289,7 +1321,7 @@ namespace Game.Gameplay
         // hauling gone it buys the CREW a bigger load instead, on every island and every leg, which is
         // the only place that purchase still means anything. Level 0 is 1x, the level-8 cap is 1.8x.
         private int CarryLevel => _marketService != null
-            ? _marketService.Level(islandKey, YardUpgrade.CarryCapacity) : 0;
+            ? _marketService.Level(ProgressionKey, YardUpgrade.CarryCapacity) : 0;
 
         // The three haul legs read their budgets from IdleTransportRules, not off Ec directly, so the
         // conversion from purchased vehicle levels to crew throughput lives in exactly one place. The
@@ -1370,8 +1402,8 @@ namespace Game.Gameplay
             SmeltPerSecond = smeltPerSecond, StorageFull = storageCapacity,
             BarCapacity = barCapacity, BarPrice = barPrice, DwellSeconds = dwellSeconds,
             AxisEffectScale = axisEffectScale,
-            CostGrowth = upgradeCostGrowth, CostMultiplier = costMultiplier,
-            ValueMultiplier = valueMultiplier, AxisLevelCap = axisLevelCap,
+            CostGrowth = upgradeCostGrowth, CostMultiplier = costMultiplier * _chapterEconomy,
+            ValueMultiplier = valueMultiplier * _chapterEconomy, AxisLevelCap = axisLevelCap,
             SecondSmelterBonus = secondSmelterBonus, TradePostBonus = tradePostBonus,
             WarehouseBonus = warehouseBonus, DepotBonus = depotBonus, DeepShaftBonus = deepShaftBonus,
         };
@@ -1388,6 +1420,20 @@ namespace Game.Gameplay
         private void Awake()
         {
             _data = ServiceLocator.Get<SaveData>();
+
+            // FIRST, before anything reads a save key. LoadLevels below is addressed by the chapter's
+            // namespace, so resolving it late would load chapter one's levels onto chapter five's
+            // island. Both of these are read once and never re-read: a chapter change reloads the
+            // scene rather than moving this component between namespaces underneath a running
+            // simulation — see ChapterProgressionService.
+            var progression = ServiceLocator.Get<ChapterProgressionService>();
+            _progressionKey = progression != null ? progression.CurrentNamespace : islandKey;
+
+            var chapters = ServiceLocator.Get<ChapterService>();
+            _chapterEconomy = chapters != null && progression != null
+                ? (float)Chapters.EconomyScale(progression.Current, chapters.Tuning)
+                : 1f;
+
             LoadLevels();
 
             // The island's state of repair, handed to the maths as a SHARED array — the same contract
@@ -1396,7 +1442,7 @@ namespace Game.Gameplay
             // forever. Here in Awake rather than Start because all eight islands run Awake and only
             // the live one runs Start, and the seven idle ones are still being paid for their yards.
             _maintenance = ServiceLocator.Get<MaintenanceService>();
-            if (_maintenance != null) Ec.SetConditions(_maintenance.Conditions(islandKey));
+            if (_maintenance != null) Ec.SetConditions(_maintenance.Conditions(ProgressionKey));
 
             // The foreman roster, on the same shared-array terms and for the same reason. Account-wide
             // rather than per-island, so every island gets the one array — hiring a mine foreman on
@@ -1408,7 +1454,7 @@ namespace Game.Gameplay
 
             _marketService = ServiceLocator.Get<MarketService>();
             if (_marketService == null) return;
-            _marketService.Register(islandKey, this);
+            _marketService.Register(ProgressionKey, this);
             _marketService.Sold += OnYardSold;
         }
 
@@ -1427,7 +1473,7 @@ namespace Game.Gameplay
         /// </summary>
         private void OnYardSold(string key, double paid)
         {
-            if (key != islandKey || Sold == null || _market == null) return;
+            if (key != ProgressionKey || Sold == null || _market == null) return;
             Sold(_market.position, paid);
         }
 
@@ -3690,7 +3736,7 @@ namespace Game.Gameplay
                         float bonus = a.route == Route.Export ? exportPriceBonus : 1f;
                         double offered = a.carry * bonus;
                         double accepted = _marketService.Deliver(
-                            islandKey, MarketService.ProductFor(islandKey), offered);
+                            ProgressionKey, MarketService.IslandProduct, offered);
 
                         // CONSERVATION. What the pads would not take stays on his back and is offered
                         // again next dwell, instead of being destroyed on the spot as the lorries used
@@ -5229,12 +5275,12 @@ namespace Game.Gameplay
             for (int s = 0; s < StationList.Length; s++)
                 for (int a = 0; a < AxisList[s].Length; a++)
                 {
-                    StationLevel e = FindLevel(islandKey + "#" + s + "#" + a);
+                    StationLevel e = FindLevel(ProgressionKey + "#" + s + "#" + a);
                     if (e != null) _lv[s][a] = e.level;
                 }
             for (int u = 0; u < _unlocked.Length; u++)
             {
-                StationLevel e = FindLevel(islandKey + "u#" + u);
+                StationLevel e = FindLevel(ProgressionKey + "u#" + u);
                 _unlocked[u] = e != null && e.level > 0;
             }
         }
@@ -6836,13 +6882,13 @@ namespace Game.Gameplay
             if (_maintenance == null) return 0f;
 
             float condition;
-            if (station >= 0) condition = _maintenance.StateOfRepair(islandKey, station);
+            if (station >= 0) condition = _maintenance.StateOfRepair(ProgressionKey, station);
             else
             {
                 condition = 1f;
                 for (int s = 0; s < StationList.Length; s++)
                 {
-                    float c = _maintenance.StateOfRepair(islandKey, s);
+                    float c = _maintenance.StateOfRepair(ProgressionKey, s);
                     if (c < condition) condition = c;
                 }
             }

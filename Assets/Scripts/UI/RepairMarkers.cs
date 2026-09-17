@@ -319,7 +319,7 @@ namespace Game.UI
         {
             if (_op == null || _maintenance == null || !_maintenance.Enabled) return;
 
-            string island = _op.IslandKey;
+            string island = _op.ProgressionKey;
             double rate = _op.CashPerMinute;
             double cost = station < 0
                 ? _maintenance.RepairCostAll(island, rate)
@@ -340,7 +340,7 @@ namespace Game.UI
         /// <summary>A crew finishing is worth a noise. Only for the island the player is stood on.</summary>
         private void OnRepaired(string island, int station)
         {
-            if (_op == null || island != _op.IslandKey) return;
+            if (_op == null || island != _op.ProgressionKey) return;
             if (_audio != null) _audio.Play(SoundId.Upgrade);
             if (_haptic != null) _haptic.Medium();
         }
@@ -384,7 +384,7 @@ namespace Game.UI
                 return;
             }
 
-            string island = _op.IslandKey;
+            string island = _op.ProgressionKey;
             double rate = _op.CashPerMinute;
             bool anyIdleAndDirty = false;
 

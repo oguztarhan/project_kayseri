@@ -35,6 +35,7 @@ namespace Game.Gameplay
         private TimeService _time;
         private SaveService _save;
         private SaveData _data;
+        private ChapterProgressionService _progression;
         private int _active;
 
         /// <summary>
@@ -133,7 +134,7 @@ namespace Game.Gameplay
         public double RatePerMin(int i)
         {
             if (_market == null) return SavedRate(i);
-            double live = _market.RatePerMin(islands[i].key);
+            double live = _market.RatePerMin(YardKey(i));
             return live > 0d ? live : SavedRate(i);
         }
 
@@ -169,7 +170,7 @@ namespace Game.Gameplay
 
             // exactly one island alive: Awake runs before every Start, so inactive operations never boot
             for (int i = 0; i < islands.Length; i++) SetIslandLive(i, i == _active);
-            if (_market != null) _market.SetActiveIsland(islands[_active].key);
+            if (_market != null) _market.SetActiveIsland(YardKey(_active));
         }
 
         private void SetIslandLive(int i, bool on)
@@ -189,11 +190,32 @@ namespace Game.Gameplay
         // MarketService settles all eight in one pass. Two payers reading the same rate would have paid
         // for the same ore twice, so this one had to go rather than be guarded.
 
+        /// <summary>
+        /// Which market yard a rung's income is filed under.
+        ///
+        /// THE RUNG AND THE YARD ARE NO LONGER THE SAME KEY. A rung is the physical island and keeps
+        /// its id forever — the starter offer, the map label and the ore name all hang off that. The
+        /// yard belongs to the CHAPTER being played, because a chapter resets its yard along with
+        /// everything else it owns and files the new one under its own namespace. Reading the rung's
+        /// key here would have paid the live island out of chapter one's yard for the rest of the game.
+        ///
+        /// Only the ACTIVE rung moves: a rung nobody is playing has no chapter of its own to ask
+        /// about. With no progression service registered this is chapter one, whose namespace is the
+        /// rung's own key anyway.
+        /// </summary>
+        private string YardKey(int i)
+        {
+            if (!Has(i)) return string.Empty;
+            if (i != _active) return islands[i].key;
+            if (_progression == null) _progression = ServiceLocator.Get<ChapterProgressionService>();
+            return _progression != null ? _progression.CurrentNamespace : islands[i].key;
+        }
+
         // ---- persistence helpers (same islandLevels store the operations use) ----
         private double SavedRate(int i)
         {
             if (_data == null || _data.islandRates == null) return 0d;
-            string id = islands[i].key;
+            string id = YardKey(i);
             for (int r = 0; r < _data.islandRates.Count; r++)
                 if (_data.islandRates[r].id == id) return _data.islandRates[r].perMin;
             return 0d;

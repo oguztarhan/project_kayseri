@@ -57,7 +57,7 @@ namespace Game.Tests
             var d = new SaveData();
             ChapterService s = Make(d, out _);
             for (int c = 1; c < Chapters.Count; c++)
-                Assert.That(s.Owned(c), Is.False, Chapters.Island(c));
+                Assert.That(s.Owned(c), Is.False, Chapters.Namespace(c));
 
             d.unlockedIslands.Add("iron");
             Assert.That(s.Owned(Chapters.Of("iron")), Is.True);

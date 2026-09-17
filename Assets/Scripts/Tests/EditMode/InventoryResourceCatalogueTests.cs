@@ -42,7 +42,7 @@ namespace Game.Tests
             var data = new SaveData();
             for (int i = 1; i < Catalogue.OreCount; i++) data.unlockedIslands.Add(Catalogue.OreKeys[i]);
             var market = new MarketService(data, new WalletService(data.wallet), null);
-            market.Deliver("gold", MarketService.ProductFor("gold"), 7d);
+            market.Deliver("gold", MarketService.IslandProduct, 7d);
             ServiceLocator.Register(market);
             var localization = new LocalizationService();
             localization.SetLanguage("en");
@@ -69,13 +69,17 @@ namespace Game.Tests
             Assert.That(market.Stock("gold"), Is.EqualTo(7d).Within(1e-9), "catalogue refresh is read-only");
         }
 
+        /// <summary>
+        /// The catalogue still names all eight goods — they are what the ore table describes — but only
+        /// one of them is ever traded, and it is the first one. The per-island mapping this used to pin
+        /// is gone: a chapter changes the island's look, not its output.
+        /// </summary>
         [Test]
-        public void MarketProductMappingStillMatchesEachOreIsland()
+        public void TheOneTradedProductIsTheCataloguesFirstGood()
         {
-            string[] expected = { "Coke", "CopperBar", "SteelBeam", "SilverBar",
-                                  "GoldBar", "CutRuby", "CutEmerald", "PolishedDiamond" };
-            for (int i = 0; i < expected.Length; i++)
-                Assert.That(MarketService.ProductFor(Catalogue.OreKeys[i]), Is.EqualTo(expected[i]));
+            Assert.That(MarketService.IslandProduct, Is.EqualTo("Coke"));
+            Assert.That(Catalogue.OreKeys[0], Is.EqualTo("coal"),
+                        "the traded product is the first ore's good; if the table is re-cut, re-read this");
         }
 
         private static void EnsureAwake(InventoryUI ui)

@@ -435,6 +435,7 @@ bolum.bolum	Bölüm	Chapter	Kapitel	Chapitre	Capítulo	Capítulo	Capitolo	Rozdzi
 bolum.tamamlandi	BÖLÜM TAMAMLANDI	CHAPTER COMPLETE	KAPITEL ABGESCHLOSSEN	CHAPITRE TERMINÉ	CAPÍTULO COMPLETADO	CAPÍTULO COMPLETO	CAPITOLO COMPLETATO	ROZDZIAŁ UKOŃCZONY	ГЛАВА ЗАВЕРШЕНА	BAB SELESAI	HOÀN THÀNH CHƯƠNG
 bolum.kilitli	Bu ada henüz senin değil	You do not own this island yet	Diese Insel gehört dir noch nicht	Cette île ne vous appartient pas encore	Todavía no es tu isla	Esta ilha ainda não é sua	Quest'isola non è ancora tua	Ta wyspa nie jest jeszcze twoja	Этот остров ещё не ваш	Pulau ini belum jadi milikmu	Bạn chưa sở hữu đảo này
 bolum.hepsiniAl	HEPSİNİ AL	CLAIM ALL	ALLES ABHOLEN	TOUT RÉCLAMER	RECLAMAR TODO	RESGATAR TUDO	RISCUOTI TUTTO	ODBIERZ WSZYSTKO	ЗАБРАТЬ ВСЁ	AMBIL SEMUA	NHẬN TẤT CẢ
+bolum.ilerle	SONRAKİ BÖLÜM	NEXT CHAPTER	NÄCHSTES KAPITEL	CHAPITRE SUIVANT	CAPÍTULO SIGUIENTE	PRÓXIMO CAPÍTULO	CAPITOLO SUCCESSIVO	NASTĘPNY ROZDZIAŁ	СЛЕДУЮЩАЯ ГЛАВА	BAB BERIKUTNYA	CHƯƠNG TIẾP THEO
 bolum.asama.0	KARAYA ÇIKIŞ	LANDFALL	ANLANDUNG	DÉBARQUEMENT	DESEMBARCO	DESEMBARQUE	APPRODO	LĄDOWANIE	ВЫСАДКА	PENDARATAN	CẬP BỜ
 bolum.asama.1	İLK DUMAN	FIRST SMOKE	ERSTER RAUCH	PREMIÈRE FUMÉE	PRIMER HUMO	PRIMEIRA FUMAÇA	PRIMO FUMO	PIERWSZY DYM	ПЕРВЫЙ ДЫМ	ASAP PERTAMA	LÀN KHÓI ĐẦU
 bolum.asama.2	TESİSLER	THE WORKS	DIE ANLAGEN	LES INSTALLATIONS	LAS INSTALACIONES	AS INSTALAÇÕES	GLI IMPIANTI	ZAKŁADY	ПОСТРОЙКИ	FASILITAS	CÔNG TRÌNH

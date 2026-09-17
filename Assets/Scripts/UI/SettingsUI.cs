@@ -654,7 +654,7 @@ namespace Game.UI
             var market = ServiceLocator.Get<MarketService>();
             if (market != null)
             {
-                IdleMarketYard yard = market.Row(op.IslandKey);
+                IdleMarketYard yard = market.Row(op.ProgressionKey);
                 yard.depositSlots = MarketPrices.MaxLevel(YardUpgrade.DepositSlot);
                 yard.queueSlots = MarketPrices.MaxLevel(YardUpgrade.QueueSlot);
                 yard.hireCarry = yard.hireServe = yard.dispatchLevel = MarketFlow.MaxHireLevel;
@@ -698,7 +698,7 @@ namespace Game.UI
             CoalOperation op = LiveOperation();
             if (maintenance == null || data == null || op == null || !maintenance.Enabled) return;
 
-            if (AtFloor(maintenance, op.IslandKey)) maintenance.Reset(op.IslandKey);
+            if (AtFloor(maintenance, op.ProgressionKey)) maintenance.Reset(op.ProgressionKey);
             else
             {
                 // İki damga birden: Evaluate ikisinin GEÇ olanını referans alıyor, yani yalnızca birini
@@ -731,7 +731,7 @@ namespace Game.UI
                 return;
             }
 
-            string island = op.IslandKey;
+            string island = op.ProgressionKey;
             float condition = maintenance.IslandCondition(island);
             int percent = Mathf.RoundToInt(condition * 100f);
 
@@ -764,8 +764,8 @@ namespace Game.UI
             CoalOperation op = LiveOperation();
             if (maintenance == null || op == null || !maintenance.Enabled) return;
 
-            if (maintenance.Repairing(op.IslandKey)) maintenance.SkipRepair(op.IslandKey);
-            else if (maintenance.TryRepair(op.IslandKey, -1, 0d)) maintenance.SkipRepair(op.IslandKey);
+            if (maintenance.Repairing(op.ProgressionKey)) maintenance.SkipRepair(op.ProgressionKey);
+            else if (maintenance.TryRepair(op.ProgressionKey, -1, 0d)) maintenance.SkipRepair(op.ProgressionKey);
 
             // Kir kendi yavaş taramasında zaten kalkacak, ama düğmeye basan biri sonucu ŞİMDİ görmeli.
             if (op.Wear != null) op.Wear.Refresh();
@@ -781,7 +781,7 @@ namespace Game.UI
             var maintenance = ServiceLocator.Get<MaintenanceService>();
             CoalOperation op = LiveOperation();
             bool needs = maintenance != null && op != null && maintenance.Enabled
-                         && (maintenance.NeedsRepair(op.IslandKey) || maintenance.Repairing(op.IslandKey));
+                         && (maintenance.NeedsRepair(op.ProgressionKey) || maintenance.Repairing(op.ProgressionKey));
 
             _repairLabel.text = needs ? "ONAR (BEDAVA, ANINDA)" : "ONARACAK BİR ŞEY YOK";
             if (_repairImage != null) _repairImage.color = needs ? RepairReadyColor : RepairIdleColor;

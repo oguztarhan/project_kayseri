@@ -31,6 +31,18 @@ namespace Game.Data
         [SerializeField] private int fullSteamLevels = 200;
         [SerializeField] private int fullSteamUnlocks = 8;
 
+        [Header("BÖLÜM BAŞINA BÜYÜME")]
+        [Tooltip("Her bölüm, seviye hedeflerini bu kat sayıyla çarpar. Bölüm 1 her zaman yukarıdaki " +
+                 "sayıların aynısıdır (çarpan bir kez bile uygulanmaz). Ada 807 seviye taşıyabiliyor; " +
+                 "1.18'de son bölüm 637 ister. 1.22'nin üstüne çıkarsan 8. bölüm satın alınamayacak " +
+                 "kadar çok seviye ister — orası tavan. Bina hedefleri BÜYÜMEZ: toplam on bina var.")]
+        [SerializeField] private double levelGrowth = 1.18d;
+
+        [Tooltip("Her bölüm, yükseltme maliyetlerini ve satış değerini bu kat sayıyla çarpar. " +
+                 "Cüzdan bölümler arasında korunduğu için ikisi birlikte ölçeklenir: yoksa oyuncu " +
+                 "önceki bölümün parasıyla yeni bölümü bir dakikada bitirir.")]
+        [SerializeField] private double economyStep = 3.2d;
+
         [Header("Ödül — elmas")]
         [Tooltip("Bir aşamanın ödemesi: Taban + Adım x bölüm sırası. Sonraki bölümler daha çok " +
                  "öder çünkü daha geç gelinir, daha zor oldukları için değil. " +
@@ -55,6 +67,8 @@ namespace Game.Data
             GemsStep         = gemsStep,
             CardsBase        = cardsBase,
             CardsStep        = cardsStep,
+            LevelGrowth      = levelGrowth,
+            EconomyStep      = economyStep,
         };
     }
 }

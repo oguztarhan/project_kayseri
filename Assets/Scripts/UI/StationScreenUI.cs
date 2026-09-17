@@ -955,14 +955,14 @@ namespace Game.UI
                 _op.YardFullSeconds,
                 _op.FurnaceQueueSeconds,
                 _op.BarStoreFullSeconds,
-                _market != null ? _market.OverflowSeconds(_op.IslandKey) : 0d);
+                _market != null ? _market.OverflowSeconds(_op.ProgressionKey) : 0d);
         }
 
         /// <summary>Bars waiting on the market's pads to be sold, or 0 before the yard has a reading.</summary>
         private double MarketStock()
         {
             if (_market == null) _market = ServiceLocator.Get<MarketService>();
-            return _market != null ? _market.Stock(_op.IslandKey) : 0d;
+            return _market != null ? _market.Stock(_op.ProgressionKey) : 0d;
         }
 
         /// <summary>

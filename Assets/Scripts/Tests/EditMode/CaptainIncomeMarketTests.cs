@@ -36,7 +36,7 @@ namespace Game.Tests
             SaveData data; WalletService wallet; CaptainService captains;
             MarketService market = Build(Captains.MaxLevel, 1e12d, out data, out wallet, out captains);
             market.SetActiveIsland(Coal);
-            market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
+            market.Deliver(Coal, MarketService.IslandProduct, 50d);
             market.Tick(1f);
 
             Assert.That(captains.IncomeMultiplier, Is.EqualTo(5d).Within(1e-9));
@@ -50,11 +50,11 @@ namespace Game.Tests
             SaveData data; WalletService wallet; CaptainService captains;
             MarketService market = Build(Captains.MaxLevel, 10d, out data, out wallet, out captains);
             market.SetActiveIsland(Coal);
-            market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
+            market.Deliver(Coal, MarketService.IslandProduct, 50d);
             for (int second = 0; second < 15; second++)
             {
                 market.Tick(1f);
-                market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
+                market.Deliver(Coal, MarketService.IslandProduct, 50d);
             }
 
             Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(50d).Within(1e-9));
@@ -69,7 +69,7 @@ namespace Game.Tests
             market.SetActiveIsland(Coal);
             for (int second = 0; second < 15; second++)
             {
-                market.Deliver(Coal, MarketService.ProductFor(Coal), 50d);
+                market.Deliver(Coal, MarketService.IslandProduct, 50d);
                 market.Tick(1f);
             }
 
