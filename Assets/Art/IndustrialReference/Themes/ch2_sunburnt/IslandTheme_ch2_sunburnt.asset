@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21b7b7ae0e57b674eac148452d7f4976, type: 3}
+  m_Name: IslandTheme_ch2_sunburnt
+  m_EditorClassIdentifier: Game.Data::Game.Data.IslandThemeDefinition
+  themeId: ch2_sunburnt
+  displayName: Ch2 Sunburnt Hills
+  fromChapter: 1
+  swaps:
+  - source: {fileID: 2100000, guid: 59e6221fd230ab94e8639d202e37e03b, type: 2}
+    replacement: {fileID: 2100000, guid: 3a34a9b83ba776c46a13a900cbee41ae, type: 2}
+  - source: {fileID: 2100000, guid: 4a25d339386d9cd46a94991ef817d7cc, type: 2}
+    replacement: {fileID: 2100000, guid: 79375ba7818eee24685505001ac4ab06, type: 2}
+  - source: {fileID: 2100000, guid: 57fd78cff23d4024d98f390b9a6a19a4, type: 2}
+    replacement: {fileID: 2100000, guid: ddecf6f6698417f4cba742f8048be6e2, type: 2}
+  - source: {fileID: 2100000, guid: 3a1331585c843804fa698ab0e3214293, type: 2}
+    replacement: {fileID: 2100000, guid: 8279945cdc5bedf4f8f3b2a0475091ab, type: 2}
+  - source: {fileID: 2100000, guid: 74812cb554f15d7439c4cfff84dcbebe, type: 2}
+    replacement: {fileID: 2100000, guid: f6140773e7d8b1c4399ab4848cac62c2, type: 2}
+  - source: {fileID: 2100000, guid: dacd9acc11d12f14ca78a6e89badec82, type: 2}
+    replacement: {fileID: 2100000, guid: d1a5ad599cc1d924bbc752a524e0520d, type: 2}
+  - source: {fileID: 2100000, guid: bdf3c16a0a823cd4a92e04acf15f3ae4, type: 2}
+    replacement: {fileID: 2100000, guid: 8437ec1b27ac2754f891fe606185f1e6, type: 2}
+  - source: {fileID: 2100000, guid: d719a26529116364b92fd4ed571b0a51, type: 2}
+    replacement: {fileID: 2100000, guid: 53dcbeedc669e9b4db1858f9f9315e96, type: 2}
+  - source: {fileID: 2100000, guid: 801c68c70ad16b849b4482b1ed3f77dd, type: 2}
+    replacement: {fileID: 2100000, guid: 73f21c4b8be7f3b4f99f9d02acd0d9cd, type: 2}
+  - source: {fileID: 2100000, guid: fd730568406ed2f45b8517c594fae82d, type: 2}
+    replacement: {fileID: 2100000, guid: e7f7cfb053eb0784098ed33d835cfff7, type: 2}
+  - source: {fileID: 2100000, guid: 958dcc16dbcb16448a197878655eb801, type: 2}
+    replacement: {fileID: 2100000, guid: 17dfc37887b97a145ac9cb043dcdcaef, type: 2}
+  - source: {fileID: 2100000, guid: e43eee2d0fdf26343bc7fcf55c556f93, type: 2}
+    replacement: {fileID: 2100000, guid: 2ef9ae3b8817fbb4b97dd71be52d0a61, type: 2}
+  - source: {fileID: 2100000, guid: 5d9ad18c0d2d51e41b0b400f1c9e8856, type: 2}
+    replacement: {fileID: 2100000, guid: 8f35baac9cfe424478f56f03a236dfb9, type: 2}
+  - source: {fileID: 2100000, guid: bd6d57d46931b1b40a773a39e75c0ef6, type: 2}
+    replacement: {fileID: 2100000, guid: 3154263169d6e8c47bdf9ae27587a216, type: 2}
+  - source: {fileID: 2100000, guid: d361984ba35dae74488a686b0bf4e0dd, type: 2}
+    replacement: {fileID: 2100000, guid: 3b80adaf94df98c439228ecd0cff8fed, type: 2}
+  - source: {fileID: 2100000, guid: deba647d421b35d44a33f1c6451eb74e, type: 2}
+    replacement: {fileID: 2100000, guid: 46515b5f57f79f840a404d74dfb4ec61, type: 2}
+  - source: {fileID: 2100000, guid: 31e057faa02813f46a62a24369b93fab, type: 2}
+    replacement: {fileID: 2100000, guid: d72ed86349ccb5f4b827334546f0885d, type: 2}
+  - source: {fileID: 2100000, guid: d35b9943af740c9458f85e387f2808ce, type: 2}
+    replacement: {fileID: 2100000, guid: 1f8436ed9276de7488b7e9263231af88, type: 2}
+  - source: {fileID: 2100000, guid: 3f0b2c286c3e4be498a6261205d7dca5, type: 2}
+    replacement: {fileID: 2100000, guid: 87dd7b7bad9622c44bca2cff1a49ac99, type: 2}
+  - source: {fileID: 2100000, guid: b350977d9c172254db25016afb139280, type: 2}
+    replacement: {fileID: 2100000, guid: 7198782deb8f71747997e3ca96fab870, type: 2}

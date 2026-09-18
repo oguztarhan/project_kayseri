@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21b7b7ae0e57b674eac148452d7f4976, type: 3}
+  m_Name: IslandTheme_ch3_slate
+  m_EditorClassIdentifier: Game.Data::Game.Data.IslandThemeDefinition
+  themeId: ch3_slate
+  displayName: Ch3 Slate Moor
+  fromChapter: 2
+  swaps:
+  - source: {fileID: 2100000, guid: 59e6221fd230ab94e8639d202e37e03b, type: 2}
+    replacement: {fileID: 2100000, guid: 0318178816a797e498313642b4ac1ee1, type: 2}
+  - source: {fileID: 2100000, guid: 4a25d339386d9cd46a94991ef817d7cc, type: 2}
+    replacement: {fileID: 2100000, guid: 8fb3c86f57e623e45aebddcf3121504e, type: 2}
+  - source: {fileID: 2100000, guid: 57fd78cff23d4024d98f390b9a6a19a4, type: 2}
+    replacement: {fileID: 2100000, guid: 00917080eb78fe54997734e39594cbf7, type: 2}
+  - source: {fileID: 2100000, guid: 3a1331585c843804fa698ab0e3214293, type: 2}
+    replacement: {fileID: 2100000, guid: 8300f56fb542daf4982cdf8c5b723d80, type: 2}
+  - source: {fileID: 2100000, guid: 74812cb554f15d7439c4cfff84dcbebe, type: 2}
+    replacement: {fileID: 2100000, guid: 38407859ba8f27943accf6ebc09f7c29, type: 2}
+  - source: {fileID: 2100000, guid: dacd9acc11d12f14ca78a6e89badec82, type: 2}
+    replacement: {fileID: 2100000, guid: 42862b9aad4b818428a0133c25e77007, type: 2}
+  - source: {fileID: 2100000, guid: bdf3c16a0a823cd4a92e04acf15f3ae4, type: 2}
+    replacement: {fileID: 2100000, guid: 537851b5da6b7344db962e187cc667fd, type: 2}
+  - source: {fileID: 2100000, guid: d719a26529116364b92fd4ed571b0a51, type: 2}
+    replacement: {fileID: 2100000, guid: c86e99de9648c414ea7c5bc029a1c165, type: 2}
+  - source: {fileID: 2100000, guid: 801c68c70ad16b849b4482b1ed3f77dd, type: 2}
+    replacement: {fileID: 2100000, guid: c778ffe8b5b4ab84c85356a16f0889f4, type: 2}
+  - source: {fileID: 2100000, guid: fd730568406ed2f45b8517c594fae82d, type: 2}
+    replacement: {fileID: 2100000, guid: 825e23eb40b42224d81916a5b5b6c70c, type: 2}
+  - source: {fileID: 2100000, guid: 958dcc16dbcb16448a197878655eb801, type: 2}
+    replacement: {fileID: 2100000, guid: 8974dc4c1a67e5641a98b8e4fbcf0628, type: 2}
+  - source: {fileID: 2100000, guid: e43eee2d0fdf26343bc7fcf55c556f93, type: 2}
+    replacement: {fileID: 2100000, guid: ddf24a745d1878a40a64bff1d22cad99, type: 2}
+  - source: {fileID: 2100000, guid: 5d9ad18c0d2d51e41b0b400f1c9e8856, type: 2}
+    replacement: {fileID: 2100000, guid: 67e0f4641325ea941a8e19c21b876793, type: 2}
+  - source: {fileID: 2100000, guid: bd6d57d46931b1b40a773a39e75c0ef6, type: 2}
+    replacement: {fileID: 2100000, guid: 75523c0489bdc2b49a2776a3a509d662, type: 2}
+  - source: {fileID: 2100000, guid: d361984ba35dae74488a686b0bf4e0dd, type: 2}
+    replacement: {fileID: 2100000, guid: 894ed2e3123474249b44f3b4dde38b87, type: 2}
+  - source: {fileID: 2100000, guid: deba647d421b35d44a33f1c6451eb74e, type: 2}
+    replacement: {fileID: 2100000, guid: fefc24070795ba643abd94f2a938acb6, type: 2}
+  - source: {fileID: 2100000, guid: 31e057faa02813f46a62a24369b93fab, type: 2}
+    replacement: {fileID: 2100000, guid: 76bd5680f78d08c40891d4c1886124d9, type: 2}
+  - source: {fileID: 2100000, guid: d35b9943af740c9458f85e387f2808ce, type: 2}
+    replacement: {fileID: 2100000, guid: d0c5fd7f956577b489a58b9d361690d1, type: 2}
+  - source: {fileID: 2100000, guid: 3f0b2c286c3e4be498a6261205d7dca5, type: 2}
+    replacement: {fileID: 2100000, guid: c2428d275b4e9984183702d7d66feeeb, type: 2}
+  - source: {fileID: 2100000, guid: b350977d9c172254db25016afb139280, type: 2}
+    replacement: {fileID: 2100000, guid: a167996cb8aa516468e6f406cfd5961a, type: 2}

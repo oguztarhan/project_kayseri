@@ -13,4 +13,10 @@ MonoBehaviour:
   m_Name: IslandThemeSet
   m_EditorClassIdentifier: Game.Data::Game.Data.IslandThemeSet
   themes:
-  - {fileID: 11400000, guid: 73974d3844503ec47a6f3c70b3362046, type: 2}
+  - {fileID: 11400000, guid: 9e2ac669dac66d343a449dcc02819370, type: 2}
+  - {fileID: 11400000, guid: abac9ec970f5de847bc6450f5abe239e, type: 2}
+  - {fileID: 11400000, guid: 46587178e869d1f4aa891b1be0b8f149, type: 2}
+  - {fileID: 11400000, guid: a1c624d1f223392489b00e40e36348a9, type: 2}
+  - {fileID: 11400000, guid: 991d4cf33d8bb2442b3879c0a96e2584, type: 2}
+  - {fileID: 11400000, guid: 4cd877b0bce69484f955de8a1008d45d, type: 2}
+  - {fileID: 11400000, guid: 629e9aee8ba92fc4391b3abc7559c736, type: 2}

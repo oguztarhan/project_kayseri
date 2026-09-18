@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21b7b7ae0e57b674eac148452d7f4976, type: 3}
+  m_Name: IslandTheme_ch6_crimson
+  m_EditorClassIdentifier: Game.Data::Game.Data.IslandThemeDefinition
+  themeId: ch6_crimson
+  displayName: Ch6 Crimson Dusk
+  fromChapter: 5
+  swaps:
+  - source: {fileID: 2100000, guid: 59e6221fd230ab94e8639d202e37e03b, type: 2}
+    replacement: {fileID: 2100000, guid: 0d0fc1850fbda824ea5c33a39f75330f, type: 2}
+  - source: {fileID: 2100000, guid: 4a25d339386d9cd46a94991ef817d7cc, type: 2}
+    replacement: {fileID: 2100000, guid: df8c9f23c762dff438fb0e6c6656e965, type: 2}
+  - source: {fileID: 2100000, guid: 57fd78cff23d4024d98f390b9a6a19a4, type: 2}
+    replacement: {fileID: 2100000, guid: ddc4fe08af9e9a542adcade8d8907832, type: 2}
+  - source: {fileID: 2100000, guid: 3a1331585c843804fa698ab0e3214293, type: 2}
+    replacement: {fileID: 2100000, guid: 1eed7ec29edd85c4baa23424920abc64, type: 2}
+  - source: {fileID: 2100000, guid: 74812cb554f15d7439c4cfff84dcbebe, type: 2}
+    replacement: {fileID: 2100000, guid: eb71687f5f58ea646916a038c3b46862, type: 2}
+  - source: {fileID: 2100000, guid: dacd9acc11d12f14ca78a6e89badec82, type: 2}
+    replacement: {fileID: 2100000, guid: fcf43bc36210b60468d47b951c71888d, type: 2}
+  - source: {fileID: 2100000, guid: bdf3c16a0a823cd4a92e04acf15f3ae4, type: 2}
+    replacement: {fileID: 2100000, guid: 6ac3c284406fd334e94b1bedb526a180, type: 2}
+  - source: {fileID: 2100000, guid: d719a26529116364b92fd4ed571b0a51, type: 2}
+    replacement: {fileID: 2100000, guid: e69ca5085a491f54080187284d3b84db, type: 2}
+  - source: {fileID: 2100000, guid: 801c68c70ad16b849b4482b1ed3f77dd, type: 2}
+    replacement: {fileID: 2100000, guid: 6a6cc833ec351a1459294f1533c7a029, type: 2}
+  - source: {fileID: 2100000, guid: fd730568406ed2f45b8517c594fae82d, type: 2}
+    replacement: {fileID: 2100000, guid: 538e14264af1bc24989971c74c616051, type: 2}
+  - source: {fileID: 2100000, guid: 958dcc16dbcb16448a197878655eb801, type: 2}
+    replacement: {fileID: 2100000, guid: 9fa3062889993bf429b77c8dd5f1e5e0, type: 2}
+  - source: {fileID: 2100000, guid: e43eee2d0fdf26343bc7fcf55c556f93, type: 2}
+    replacement: {fileID: 2100000, guid: 66ccefd1c7828a04da3b0449bdd5a7b9, type: 2}
+  - source: {fileID: 2100000, guid: d361984ba35dae74488a686b0bf4e0dd, type: 2}
+    replacement: {fileID: 2100000, guid: 0bc25e5c117873949ae4f7ec2c2fa2a3, type: 2}
+  - source: {fileID: 2100000, guid: deba647d421b35d44a33f1c6451eb74e, type: 2}
+    replacement: {fileID: 2100000, guid: 0d415c4a6269a3b448e2a43cd673dfea, type: 2}
+  - source: {fileID: 2100000, guid: 31e057faa02813f46a62a24369b93fab, type: 2}
+    replacement: {fileID: 2100000, guid: 13cb2fd7a92c36b4c881fb4a2e0f7b81, type: 2}
+  - source: {fileID: 2100000, guid: d35b9943af740c9458f85e387f2808ce, type: 2}
+    replacement: {fileID: 2100000, guid: ffc5d97d111f035499ab79501f9be9e1, type: 2}
+  - source: {fileID: 2100000, guid: 3f0b2c286c3e4be498a6261205d7dca5, type: 2}
+    replacement: {fileID: 2100000, guid: 3744d3990833b81438315f79559aa505, type: 2}
+  - source: {fileID: 2100000, guid: b350977d9c172254db25016afb139280, type: 2}
+    replacement: {fileID: 2100000, guid: 5378a6e6b2dd67d47b64c08f81ad48ea, type: 2}

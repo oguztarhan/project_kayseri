@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21b7b7ae0e57b674eac148452d7f4976, type: 3}
+  m_Name: IslandTheme_ch4_frost
+  m_EditorClassIdentifier: Game.Data::Game.Data.IslandThemeDefinition
+  themeId: ch4_frost
+  displayName: Ch4 Frost
+  fromChapter: 3
+  swaps:
+  - source: {fileID: 2100000, guid: 59e6221fd230ab94e8639d202e37e03b, type: 2}
+    replacement: {fileID: 2100000, guid: bef388181e72a4d4e8a49d2061246db7, type: 2}
+  - source: {fileID: 2100000, guid: 4a25d339386d9cd46a94991ef817d7cc, type: 2}
+    replacement: {fileID: 2100000, guid: e543a7b9869a38a4d8c82847682e7172, type: 2}
+  - source: {fileID: 2100000, guid: 57fd78cff23d4024d98f390b9a6a19a4, type: 2}
+    replacement: {fileID: 2100000, guid: 21bc4823d322b4640ab1f24ae6eb236f, type: 2}
+  - source: {fileID: 2100000, guid: 3a1331585c843804fa698ab0e3214293, type: 2}
+    replacement: {fileID: 2100000, guid: 3a823bb9bfc256c40b0b1c961b95f4c0, type: 2}
+  - source: {fileID: 2100000, guid: 74812cb554f15d7439c4cfff84dcbebe, type: 2}
+    replacement: {fileID: 2100000, guid: 58b6744e675a2a64682603a2f84abeed, type: 2}
+  - source: {fileID: 2100000, guid: dacd9acc11d12f14ca78a6e89badec82, type: 2}
+    replacement: {fileID: 2100000, guid: 593dce74fad405f4ea159b880caf9637, type: 2}
+  - source: {fileID: 2100000, guid: bdf3c16a0a823cd4a92e04acf15f3ae4, type: 2}
+    replacement: {fileID: 2100000, guid: dc5e029f6b8ad884a89ce3534861a654, type: 2}
+  - source: {fileID: 2100000, guid: d719a26529116364b92fd4ed571b0a51, type: 2}
+    replacement: {fileID: 2100000, guid: 260c0532790a8f74e80aeb414988f933, type: 2}
+  - source: {fileID: 2100000, guid: 801c68c70ad16b849b4482b1ed3f77dd, type: 2}
+    replacement: {fileID: 2100000, guid: 4201c9d5b1c65754eba2f80e2caeb4fd, type: 2}
+  - source: {fileID: 2100000, guid: fd730568406ed2f45b8517c594fae82d, type: 2}
+    replacement: {fileID: 2100000, guid: 9b27cbbbce4ee0346a54da42ee631731, type: 2}
+  - source: {fileID: 2100000, guid: 958dcc16dbcb16448a197878655eb801, type: 2}
+    replacement: {fileID: 2100000, guid: e423369167ca2264dbb50cb42bd170e9, type: 2}
+  - source: {fileID: 2100000, guid: e43eee2d0fdf26343bc7fcf55c556f93, type: 2}
+    replacement: {fileID: 2100000, guid: 00ba5517adb74c346bbef4a044825a16, type: 2}
+  - source: {fileID: 2100000, guid: d361984ba35dae74488a686b0bf4e0dd, type: 2}
+    replacement: {fileID: 2100000, guid: 2a68aa79e73ab4940b0638aaf25f9227, type: 2}
+  - source: {fileID: 2100000, guid: deba647d421b35d44a33f1c6451eb74e, type: 2}
+    replacement: {fileID: 2100000, guid: 5076b559d3c9cf14c81b4eb260e8790a, type: 2}
+  - source: {fileID: 2100000, guid: 31e057faa02813f46a62a24369b93fab, type: 2}
+    replacement: {fileID: 2100000, guid: fbb3ea5008b0b5046b11874973e86e0d, type: 2}
+  - source: {fileID: 2100000, guid: d35b9943af740c9458f85e387f2808ce, type: 2}
+    replacement: {fileID: 2100000, guid: 217a2e6fcab35b54d975c5aa1a9e0b90, type: 2}
+  - source: {fileID: 2100000, guid: 3f0b2c286c3e4be498a6261205d7dca5, type: 2}
+    replacement: {fileID: 2100000, guid: 7b2b83aae8893d6419481abda872736e, type: 2}
+  - source: {fileID: 2100000, guid: b350977d9c172254db25016afb139280, type: 2}
+    replacement: {fileID: 2100000, guid: f9511af1837754948a2b6bc042ffff57, type: 2}
