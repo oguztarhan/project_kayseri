@@ -165,7 +165,6 @@ namespace Game.UI
         private RectTransform _goldPill;
         private BuildingSigns _buildingSigns;
         private bool _portraitPanelStyle;
-        private static readonly Color UpgradeInk = new Color(0.08f, 0.22f, 0.35f);
         // settings-settings-empty-button is a wide 1930x444 crop. Keep the row at that native
         // proportion so its rounded ends never get clipped by the scroll viewport.
         private const float PortraitCardHeight = 184f;
@@ -236,17 +235,15 @@ namespace Game.UI
                 if (cardGroup != null) cardGroup.spacing = PortraitCardSpacing;
             }
             else Dress(cardImage, TycoonUpgradeArt.Card);
-            Dress(stripTemplate != null ? stripTemplate.GetComponent<Image>() : null, TycoonUpgradeArt.Card);
+            if (portrait) LayoutPortraitStrip();
+            else Dress(stripTemplate != null ? stripTemplate.GetComponent<Image>() : null, TycoonUpgradeArt.Card);
 
             RectTransform title = titleText != null ? titleText.rectTransform.parent as RectTransform : null;
             Image titleImage = title != null ? title.GetComponent<Image>() : null;
             if (portrait)
             {
-                Sprite titleArt = PortraitUiArt.Get("general-title-plate");
-                if (titleArt != null) PortraitUiArt.Apply(titleImage, titleArt);
-                else Dress(titleImage, TycoonUpgradeArt.Title);
-                // The Settings title plate already carries its anchor medallions; the authored
-                // station icon would sit on top of the left medallion at portrait scale.
+                LayoutPortraitRibbon(title, titleImage);
+                // The ribbon carries text only, as in landscape: its clasps sit where an icon would go.
                 if (titleIcon != null)
                 {
                     titleIcon.enabled = false;
@@ -259,7 +256,7 @@ namespace Game.UI
             if (title != null && title.GetComponent<Image>() != null) title.GetComponent<Image>().preserveAspect = true;
             if (wallet != null && wallet.GetComponent<Image>() != null) wallet.GetComponent<Image>().preserveAspect = true;
 
-            if (titleText != null) titleText.color = portrait ? UpgradeInk : Color.white;
+            if (titleText != null) titleText.color = portrait ? EkranKit.Paper : Color.white;
             if (goldValue != null)
             {
                 goldValue.color = new Color(0.03f, 0.10f, 0.25f);
@@ -271,7 +268,75 @@ namespace Game.UI
             PaintCardText(cardTemplate, portrait);
 
             if (TycoonUpgradeArt.Buy != null) priceGreen = TycoonUpgradeArt.Buy;
-            slotIdleTint = new Color(0.22f, 0.82f, 0.86f, 0.82f);
+            // The slot frame is pre-coloured and opaque, so an idle tile only steps back a shade.
+            slotIdleTint = portrait ? PortraitSlotResting : new Color(0.22f, 0.82f, 0.86f, 0.82f);
+        }
+
+        /// <summary>
+        /// The league ribbon in place of the anchor plate. Sliced across only, so PillFit keeps its
+        /// clasped ends at the art's proportions whatever width the title needs.
+        /// </summary>
+        private void LayoutPortraitRibbon(RectTransform ribbon, Image image)
+        {
+            Sprite art = LigKit.Get("serit");
+            if (ribbon == null || image == null || art == null) return;
+            ribbon.anchorMin = ribbon.anchorMax = ribbon.pivot = new Vector2(0.5f, 1f);
+            ribbon.anchoredPosition = new Vector2(0f, PortraitRibbonTop);
+            ribbon.sizeDelta = PortraitRibbonSize;
+            image.sprite = art;
+            image.type = Image.Type.Sliced;
+            image.preserveAspect = false;
+            image.color = Color.white;
+            PillFit.Wrap(image);
+
+            if (titleText == null) return;
+            RectTransform text = titleText.rectTransform;
+            text.anchorMin = PortraitRibbonTextMin;
+            text.anchorMax = PortraitRibbonTextMax;
+            text.pivot = new Vector2(0.5f, 0.5f);
+            text.offsetMin = text.offsetMax = Vector2.zero;
+            titleText.enableAutoSizing = true;
+            titleText.fontSizeMin = 26f;
+            titleText.fontSizeMax = 56f;
+            titleText.textWrappingMode = TextWrappingModes.NoWrap;
+            titleText.overflowMode = TextOverflowModes.Ellipsis;
+            titleText.alignment = TextAlignmentOptions.Center;
+        }
+
+        /// <summary>
+        /// The five station tiles as the bolted equipment slots of the mining gear screen, each icon
+        /// seated in the slot's dark well. The frame keeps the art's own 300×286 aspect.
+        /// </summary>
+        private void LayoutPortraitStrip()
+        {
+            if (stripContent != null)
+            {
+                stripContent.anchoredPosition = new Vector2(stripContent.anchoredPosition.x, PortraitStripTop);
+                stripContent.sizeDelta = new Vector2(stripContent.sizeDelta.x, PortraitStripHeight);
+                var row = stripContent.GetComponent<HorizontalLayoutGroup>();
+                if (row != null) row.spacing = PortraitSlotSpacing;
+            }
+            if (stripTemplate == null) return;
+
+            Sprite frame = EkranKit.Get("yuva");
+            Image tile = stripTemplate.GetComponent<Image>();
+            if (tile != null && frame != null)
+            {
+                tile.sprite = frame;
+                tile.type = Image.Type.Simple;
+                tile.preserveAspect = true;
+                tile.color = Color.white;
+            }
+            var tileRect = (RectTransform)stripTemplate.transform;
+            tileRect.sizeDelta = new Vector2(PortraitSlotWidth, PortraitSlotWidth * SlotFrameAspect);
+
+            var icon = stripTemplate.transform.Find("Ikon") as RectTransform;
+            if (icon == null) return;
+            icon.anchorMin = icon.anchorMax = icon.pivot = new Vector2(0.5f, 0.5f);
+            icon.anchoredPosition = new Vector2(0f, PortraitSlotWidth * SlotFrameAspect * SlotWellLift);
+            icon.sizeDelta = new Vector2(PortraitSlotIcon, PortraitSlotIcon);
+            Image iconImage = icon.GetComponent<Image>();
+            if (iconImage != null) iconImage.preserveAspect = true;
         }
 
         private static void PaintCardText(GameObject card, bool portrait)
@@ -1877,6 +1942,23 @@ namespace Game.UI
         private const float RibbonBandOffset = 26f;
         private const float SheetStationHeight = 810f;
         private const float PortraitSheetHeight = 1470f;
+
+        // Portrait header, in the safe area's units from its top edge. The ribbon ends at -188, the
+        // tiles grow to 1.12x inside -200..-370, and the cash pill still starts at -404.
+        private const float PortraitRibbonTop = -18f;
+        private static readonly Vector2 PortraitRibbonSize = new Vector2(780f, 170f);
+        // Measured on serit.png: the flat band spans 0.16..0.99 of the height, the clasps end ~0.18 in.
+        private static readonly Vector2 PortraitRibbonTextMin = new Vector2(0.21f, 0.26f);
+        private static readonly Vector2 PortraitRibbonTextMax = new Vector2(0.79f, 0.90f);
+        private const float PortraitStripTop = -200f;
+        private const float PortraitStripHeight = 170f;
+        private const float PortraitSlotWidth = 152f;
+        private const float PortraitSlotSpacing = 30f;
+        private const float PortraitSlotIcon = 108f;
+        /// <summary>yuva.png is 300×286; its well is centred 1.25% above the frame's middle.</summary>
+        private const float SlotFrameAspect = 286f / 300f;
+        private const float SlotWellLift = 0.0125f;
+        private static readonly Color PortraitSlotResting = new Color(0.78f, 0.82f, 0.90f, 1f);
 
         private static readonly Color SlotIdleIcon = new Color(1f, 1f, 1f, 0.72f);
         private const float SlotLiveScale = 1.12f;

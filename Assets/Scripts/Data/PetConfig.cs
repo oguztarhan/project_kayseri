@@ -98,6 +98,9 @@ namespace Game.Data
 
         [SerializeField] private Sprite chestIcon;
         [SerializeField] private Sprite pearlIcon;
+        [Tooltip("Koleksiyon ekranındaki sandık — sandık kartında ve açılışın başlığında. HUD düğmesi " +
+                 "chestIcon'u kullanmaya devam eder; bu yalnızca ekranın içindeki büyük görsel.")]
+        [SerializeField] private Sprite chestArt;
 
         /// <summary>One species' portrait, bound by id so reordering the roster cannot silently put
         /// the wrong picture on a pet.</summary>
@@ -165,6 +168,7 @@ namespace Game.Data
         public Color[] RarityTint => rarityTint;
         public Sprite ChestIcon => chestIcon;
         public Sprite PearlIcon => pearlIcon;
+        public Sprite ChestArt => chestArt;
 
         // Built on first ask rather than in OnEnable, the same lazy-dictionary trick
         // CardCollectionConfig uses; cleared by OnValidate so an Inspector edit lands at once.

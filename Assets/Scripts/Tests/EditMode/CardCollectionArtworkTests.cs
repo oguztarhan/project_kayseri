@@ -40,7 +40,7 @@ namespace Game.Tests
         }
 
         [Test]
-        public void AllTwelveSourceAssetsAreUsedWithTheirProportionsPreserved()
+        public void AllElevenSourceAssetsAreUsedWithTheirProportionsPreserved()
         {
             var sources = new HashSet<string>();
             foreach (var image in _root.GetComponentsInChildren<Image>(true))
@@ -52,7 +52,9 @@ namespace Game.Tests
                 Assert.That(image.preserveAspect, Is.True, image.name);
                 Assert.That(image.type, Is.EqualTo(Image.Type.Simple), image.name);
             }
-            Assert.That(sources.Count, Is.EqualTo(12));
+            // Eleven of the kit's twelve: the pack odds window is drawn by the shared OddsSheetUI in the
+            // card pack's coat now, the same sheet the masters and captain screens open.
+            Assert.That(sources.Count, Is.EqualTo(11));
             var card = (RectTransform)Find("Kart_0");
             var sprite = card.GetComponent<Image>().sprite;
             Assert.That(card.rect.width / card.rect.height, Is.EqualTo(sprite.rect.width / sprite.rect.height).Within(0.001f));

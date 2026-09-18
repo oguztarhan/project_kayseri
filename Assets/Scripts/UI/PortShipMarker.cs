@@ -54,6 +54,9 @@ namespace Game.UI
         private GameObject _root;
         private Text _label;
         private Button _hudButton;
+        private RectTransform _goldRect, _gemsRect;
+        private readonly Vector3[] _cornersA = new Vector3[4];
+        private readonly Vector3[] _cornersB = new Vector3[4];
         private LocalizationService _loc;
         private float _rebindIn;
         private bool _opening;
@@ -166,9 +169,11 @@ namespace Game.UI
         /// </summary>
         private void EnsureHudButton()
         {
-            if (_hudButton != null) return;
             HudUI hud = FindAnyObjectByType<HudUI>(FindObjectsInactive.Exclude);
             if (hud == null) return;
+            _goldRect = hud.GoldRect;
+            _gemsRect = hud.GemsRect;
+            if (_hudButton != null) return;
             Sprite icon = Resources.Load<Sprite>("UI/Sea/gemi");
             _hudButton = hud.AttachBottomButton(14, HudUI.SailButtonName, icon, Open);
         }
@@ -203,7 +208,22 @@ namespace Game.UI
                 _canvasRect, new Vector2(screen.x, screen.y), null, out local);
             _rect.anchoredPosition = local;
 
+            // The side rail already has a permanent sail button, so the floating one only needs to
+            // stay out of the cash/gem pills' way, not disappear near the top of frame altogether.
+            if (Overlaps(_goldRect) || Overlaps(_gemsRect)) { Hide(); return; }
+
             if (!_root.activeSelf) _root.SetActive(true);
+        }
+
+        /// <summary>Both canvases are Screen Space - Overlay, so world corners are already screen pixels.</summary>
+        private bool Overlaps(RectTransform other)
+        {
+            if (other == null || !other.gameObject.activeInHierarchy) return false;
+            _rect.GetWorldCorners(_cornersA);
+            other.GetWorldCorners(_cornersB);
+            Rect a = Rect.MinMaxRect(_cornersA[0].x, _cornersA[0].y, _cornersA[2].x, _cornersA[2].y);
+            Rect b = Rect.MinMaxRect(_cornersB[0].x, _cornersB[0].y, _cornersB[2].x, _cornersB[2].y);
+            return a.Overlaps(b);
         }
 
         /// <summary>

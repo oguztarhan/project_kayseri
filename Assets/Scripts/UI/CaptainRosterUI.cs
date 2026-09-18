@@ -226,7 +226,7 @@ namespace Game.UI
             for (int c = 0; c < Captains.Count; c++)
                 BuildRow(c, Vector2.zero, Vector2.one);
             _inspect = new RosterInspectPanel(_root);
-            _odds = new OddsSheetUI(_root);
+            _odds = new OddsSheetUI(_root, OddsSheetUI.Skin.Captains(backdropArt, ribbon, actionButton, closeIcon));
             // Content into the safe area; the scrim above it keeps covering the notch.
             UiBuild.InsetContent(_root);
         }
@@ -355,7 +355,8 @@ namespace Game.UI
                                       badge != null ? badge : UiSkin.ButtonGrey,
                                       new Color(0.45f, 0.49f, 0.56f, 1f), 22,
                                       () => { if (_odds != null && _captains != null)
-                                                  _odds.ShowCaptainCrate(_captains.CrateTuning); });
+                                                  _odds.ShowCaptainCrate(_captains.CrateTuning,
+                                                      g => _captains.GradeTint((Captains.Grade)g)); });
             var oddsImage = odds.GetComponent<Image>();
             if (badge != null)
             {

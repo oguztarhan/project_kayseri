@@ -74,7 +74,8 @@ namespace Game.Tests
             string pity = Find(ui.transform, "Merhamet").GetComponentInChildren<Text>(true).text;
             Assert.That(pity, Does.Contain(Loc.T("kaptan.derece.2")));
             Assert.That(pity, Does.Contain(Loc.T("kaptan.derece.3")));
-            Assert.That(Find(ui.transform, "Bilgi").GetComponentInChildren<Text>(true).text,
+            // Each slot captions its own socket; slot 2 is the first one shut.
+            Assert.That(Find(ui.transform, "Bilgi1").GetComponentInChildren<Text>(true).text,
                         Does.Contain(string.Format(Loc.T("dost.yuva_kilit"), 10)));
             Assert.That(Find(Find(ui.transform, "Pet_0"), "EnIyi").GetComponentInChildren<Text>(true).text,
                         Does.Contain(Loc.T("kaptan.bulunmadi")));

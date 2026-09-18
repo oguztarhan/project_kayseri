@@ -71,16 +71,17 @@ MonoBehaviour:
   - {r: 0.94, g: 0.28, b: 0.42, a: 1}
   speciesArt:
   - speciesId: papagan
-    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+    portrait: {fileID: 21300000, guid: 959b5b62a42c5f84ba674fe4e186ec5a, type: 3}
   - speciesId: maymun
-    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+    portrait: {fileID: 21300000, guid: 8826ed5c8370f3d41b4b04772ba64d32, type: 3}
   - speciesId: ahtapot
-    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+    portrait: {fileID: 21300000, guid: dc239c846cf1fee48949557475650ca0, type: 3}
   - speciesId: gemi_faresi
-    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+    portrait: {fileID: 21300000, guid: b5b30ca62a671c84f8f66210e2130484, type: 3}
   - speciesId: yengec
-    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+    portrait: {fileID: 21300000, guid: 9485f2ef7004b504782db00ffbb8cee6, type: 3}
   - speciesId: kaplumbaga
-    portrait: {fileID: 21300000, guid: 271cf1c2c387f7d42bf89bfd3f334cf8, type: 3}
+    portrait: {fileID: 21300000, guid: f8f3467ce604b644aab2c0600ba899c0, type: 3}
   chestIcon: {fileID: 21300000, guid: 78ce755dcb4b7304a9b900205d12b723, type: 3}
   pearlIcon: {fileID: 21300000, guid: 05abb2eab9f178b44bec447840bcf110, type: 3}
+  chestArt: {fileID: 21300000, guid: 2b3d273042c5f8b4ba8a87e5425b6c3d, type: 3}

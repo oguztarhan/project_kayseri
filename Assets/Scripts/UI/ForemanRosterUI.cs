@@ -357,7 +357,7 @@ namespace Game.UI
 
             BuildReveal();
             _inspect = new RosterInspectPanel(_root);
-            _odds = new OddsSheetUI(_root);
+            _odds = new OddsSheetUI(_root, OddsSheetUI.Skin.Masters(backdropArt, ribbon, actionButton, closeIcon));
             // Content into the safe area; the scrim above it keeps covering the notch.
             UiBuild.InsetContent(_root);
         }
@@ -435,7 +435,8 @@ namespace Game.UI
                                       infoIcon != null ? infoIcon : UiSkin.ButtonGrey,
                                       new Color(0.45f, 0.49f, 0.56f, 1f), 22,
                                       () => { if (_odds != null && _foremen != null)
-                                                  _odds.ShowMasterChest(_foremen.ChestTuning); });
+                                                  _odds.ShowMasterChest(_foremen.ChestTuning,
+                                                      r => _foremen.RarityTint((Foremen.Rarity)r)); });
             if (infoIcon != null)
             {
                 // Drawn as the round badge it is. UiBuild.Btn slices it and tints it with the grey

@@ -256,7 +256,7 @@ namespace Game.UI
             BuildGrid();
 
             _inspect = new RosterInspectPanel(_root);
-            _odds = new OddsSheetUI(_root);
+            _odds = new OddsSheetUI(_root, OddsSheetUI.Skin.CardPack());
             // Content into the safe area; the scrim above it keeps covering the notch.
             RectTransform safe = UiBuild.InsetContent(_root);
             if (_usePortraitArtwork && PortraitUiArt.Get("collection-collection-card-template") != null) ApplyPortraitLayout(safe);
@@ -663,13 +663,8 @@ namespace Game.UI
 
         private void ShowOdds()
         {
-            if (_odds != null && _cards != null) _odds.ShowCardPack(_cards.PackTuning, _cards.RarityCensus());
-            if (_portraitGrid != null)
-            {
-                var overlay = _portraitGrid.parent.parent.Find("OranKarartma");
-                foreach (var label in overlay.GetComponentsInChildren<Text>(true))
-                    if (label.transform.parent.name == "Deger") label.text = label.text.Replace("%", "");
-            }
+            if (_odds != null && _cards != null)
+                _odds.ShowCardPack(_cards.PackTuning, _cards.RarityCensus(), r => TintOf((RosterCardState.Rarity)r));
         }
 
         private void SelectSet(int set)
@@ -1272,7 +1267,6 @@ namespace Game.UI
             BuildPortraitPack(body);
             BuildPortraitSet(body);
             StylePortraitModal(body, "KadroDetayKarartma", "KadroDetay", "collection-card-detail-window");
-            StylePortraitModal(body, "OranKarartma", "OranSayfasi", "collection-pack-odds-window");
             BuildPortraitResult(body);
             foreach (var label in body.GetComponentsInChildren<Text>(true))
             {
@@ -1369,26 +1363,6 @@ namespace Game.UI
                 TransparentControl(sheet.Find("Aksiyon").GetComponent<Button>());
                 var close = Hit(sheet, "DetailClose", "", () => _inspect.Hide());
                 UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.89f, 0.81f), new Vector2(1, 1));
-            }
-            else
-            {
-                var title = (RectTransform)sheet.Find("Baslik"); title.SetParent(overlay, false);
-                Place(title, 160, 292, 680, 78);
-                title.GetComponentInChildren<Text>().color = Paper; Fit(title.GetComponentInChildren<Text>(), 34, 39);
-                for (int i = 0; i < 4; i++)
-                {
-                    var row = (RectTransform)sheet.Find("Satir" + i);
-                    UiBuild.Anchor(row, new Vector2(0.25f, 0.63f - i * 0.115f), new Vector2(0.89f, 0.71f - i * 0.115f));
-                    foreach (var label in row.GetComponentsInChildren<Text>()) { label.color = Ink; Fit(label, 29, 34); }
-                    // The percentage symbol is already drawn into the value cell.
-                    UiBuild.Anchor((RectTransform)row.Find("Deger"), new Vector2(0.61f, 0), new Vector2(0.81f, 1));
-                }
-                var note = (RectTransform)sheet.Find("Not"); note.SetParent(overlay, false);
-                Place(note, 130, 1320, 740, 300);
-                note.GetComponentInChildren<Text>().color = Paper; Fit(note.GetComponentInChildren<Text>(), 26, 30);
-                var close = sheet.Find("Kapat").GetComponent<Button>(); TransparentControl(close);
-                close.GetComponentInChildren<Text>().text = "";
-                UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.86f, 0.74f), new Vector2(1, 0.91f));
             }
         }
 

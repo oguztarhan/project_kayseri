@@ -1379,6 +1379,7 @@ namespace Game.UI
         public RectTransform BoostRect => Rect(boostButton);
         public RectTransform DailyRect => Rect(dailyButton);
         public RectTransform GoldRect => Rect(goldButton);
+        public RectTransform GemsRect => Rect(gemsButton);
         public RectTransform SettingsRect => Rect(settingsButton);
         public RectTransform StoreRect => Rect(storeButton);
         public RectTransform AdRect => Rect(adButton);

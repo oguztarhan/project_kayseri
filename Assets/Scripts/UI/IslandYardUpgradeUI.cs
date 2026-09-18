@@ -26,6 +26,9 @@ namespace Game.UI
         // instead of competing with the animated island behind it.
         private static readonly Color Scrim = new Color(0.015f, 0.035f, 0.08f, 0.96f);
         private static readonly Color Gold = new Color(0.98f, 0.72f, 0.24f);
+        // Room the portrait sheet may fill inside the safe area; the fitter keeps the art's aspect.
+        private static readonly Vector2 PortraitBoxMin = new Vector2(0.035f, 0.03f);
+        private static readonly Vector2 PortraitBoxMax = new Vector2(0.965f, 0.97f);
         private readonly Button[] _buy = new Button[6];
         private readonly Text[] _names = new Text[6], _levels = new Text[6], _prices = new Text[6];
         private readonly Image[] _rowArt = new Image[6];
@@ -38,7 +41,7 @@ namespace Game.UI
         private Text _title, _cash, _section, _hint;
         private string _island;
         private float _untilRefresh;
-        private bool _configured;
+        private bool _configured, _portrait;
         public bool IsOpen => _overlay != null && _overlay.activeSelf;
         public string IslandKey => _island;
 
@@ -136,9 +139,19 @@ namespace Game.UI
             if (!IsOpen || !ready) return;
             FollowIsland();
             if (Chapters.Of(_island) < 0) { Hide(); return; }
-            Put(_title, Loc.Id("ada", _island) + " · " + Tr("Market", "Pazar"));
-            Put(_cash, Tr("Coins  ", "Para  ") + NumberFormatter.Format(_wallet.Cash));
-            Put(_section, Tr("MARKET UPGRADES", "PAZAR YÜKSELTMELERİ"));
+            if (_portrait)
+            {
+                // The ribbon names the screen; the island moves down beside the wallet.
+                Put(_title, EtkinlikKit.OneLine(Tr("MARKET UPGRADES", "PAZAR YÜKSELTMELERİ")));
+                Put(_section, Loc.Id("ada", _island));
+            }
+            else
+            {
+                Put(_title, Loc.Id("ada", _island) + " · " + Tr("Market", "Pazar"));
+                Put(_section, Tr("MARKET UPGRADES", "PAZAR YÜKSELTMELERİ"));
+            }
+            string cash = Tr("Coins  ", "Para  ") + NumberFormatter.Format(_wallet.Cash);
+            Put(_cash, _portrait ? EtkinlikKit.OneLine(cash) : cash);
             Put(_hint, Tr("Your crew works and sells automatically.", "Ekibin otomatik çalışır ve satış yapar."));
             bool tr = ServiceLocator.Get<LocalizationService>()?.Code == "tr";
             for (int i = 0; i < Tracks.Length; i++)
@@ -170,21 +183,89 @@ namespace Game.UI
             safe.AddComponent<SafeArea>();
             var veil = UiBuild.Flat(area, "YardUpgradeOverlay", Scrim, Vector2.zero, Vector2.one);
             _overlay = veil.gameObject;
-            _sheet = UiBuild.Flat(veil, "YardUpgradeSheet", Paper, new Vector2(0.055f, 0.10f), new Vector2(0.945f, 0.90f));
-            // Contracts' light framed panel is the shared modal surface for this screen as well.
-            // Fit the rect to the export ratio before applying the art so its frame and corners stay
-            // true on portrait phones instead of being stretched to the available anchors.
+            _portrait = Screen.width <= Screen.height;
+            if (_portrait) BuildPortrait(veil);
+            else BuildLandscape(veil);
+            Hide();
+            Refresh();
+        }
+
+        /// <summary>
+        /// The settings panel held at its own aspect by a fitter, so the sheet follows the canvas once
+        /// the scaler has run (sizing it in Awake measured the unscaled screen and ran off both edges).
+        /// Every child is anchored in the sheet's fractions, measured on the 962×1360 art: the top bar
+        /// is 0.93–1 and the white interior spans x 0.096–0.906, y 0.079–0.929.
+        /// </summary>
+        private void BuildPortrait(RectTransform veil)
+        {
+            var box = new GameObject("SheetBox", typeof(RectTransform));
+            box.transform.SetParent(veil, false);
+            RectTransform bounds = UiBuild.Anchor((RectTransform)box.transform, PortraitBoxMin, PortraitBoxMax);
+            _sheet = UiBuild.Flat(bounds, "YardUpgradeSheet", Paper, Vector2.zero, Vector2.one);
             Sprite panelArt = PortraitUiArt.Get("settings-settings-panel");
-            if (panelArt != null)
+            if (panelArt != null) PortraitUiArt.Apply(_sheet.GetComponent<Image>(), panelArt);
+            else Dress(_sheet.GetComponent<Image>(), TycoonUpgradeArt.Panel, Paper, true);
+            var fitter = _sheet.gameObject.AddComponent<AspectRatioFitter>();
+            fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            fitter.aspectRatio = panelArt != null ? panelArt.rect.width / panelArt.rect.height : 1024f / 1536f;
+
+            // The league ribbon across the top bar, as on the station upgrade screen. Sliced across
+            // only, so PillFit keeps its clasped ends at the art's proportions.
+            Image ribbon = EkranKit.Sliced(_sheet, "Ribbon", LigKit.Get("serit"), new Vector2(0.155f, 0.905f),
+                                           new Vector2(0.845f, 1.005f), true);
+            _title = Label(ribbon.transform, "Title", 44, new Vector2(0.17f, 0.26f), new Vector2(0.83f, 0.88f), Color.white);
+            _title.alignment = TextAnchor.MiddleCenter;
+            _title.resizeTextMinSize = 20;
+
+            // On the top-right corner bumper, clear of the ribbon's tail.
+            EkranKit.Close(_sheet, new Vector2(0.868f, 0.917f), new Vector2(0.982f, 0.997f), Hide);
+
+            _section = Label(_sheet, "Island", 30, new Vector2(0.125f, 0.822f), new Vector2(0.57f, 0.8985f), EkranKit.Ink);
+            _section.alignment = TextAnchor.MiddleLeft;
+            RectTransform wallet = UiBuild.Flat(_sheet, "WalletPlate", Paper, new Vector2(0.585f, 0.822f), new Vector2(0.88f, 0.8985f));
+            Dress(wallet.GetComponent<Image>(), TycoonUpgradeArt.Wallet, Paper, true);
+            Art(wallet, "CashIcon", TycoonUpgradeArt.CashIcon, new Vector2(0.03f, 0.05f), new Vector2(0.42f, 0.95f));
+            _cash = Label(wallet, "Wallet", 26, new Vector2(0.38f, 0.12f), new Vector2(0.92f, 0.88f), Color.white);
+            _cash.alignment = TextAnchor.MiddleCenter;
+
+            const float listTop = 0.805f, listBottom = 0.135f, gap = 0.012f;
+            float rowHeight = (listTop - listBottom - gap * (Tracks.Length - 1)) / Tracks.Length;
+            Sprite rowArt = EkranKit.Get("kart_lacivert");
+            Sprite buyArt = EkranKit.Get("btn_turuncu");
+            for (int i = 0; i < Tracks.Length; i++)
             {
-                FitPortraitSheet(_sheet, panelArt.rect.width / panelArt.rect.height);
-                PortraitUiArt.Apply(_sheet.GetComponent<Image>(), panelArt);
+                int captured = i;
+                float top = listTop - i * (rowHeight + gap);
+                // A full nine-slice fitted to the row height: the capsule's caps and rim keep the art's
+                // shape and only the navy middle grows across.
+                _rowArt[i] = EkranKit.Sliced(_sheet, "Track_" + Tracks[i], rowArt, new Vector2(0.12f, top - rowHeight),
+                                             new Vector2(0.88f, top), true);
+                RectTransform row = _rowArt[i].rectTransform;
+                _icons[i] = Art(row, "Icon", TycoonUpgradeArt.YardIcon(i), new Vector2(0.025f, 0.10f), new Vector2(0.175f, 0.90f));
+                _names[i] = Label(row, "Name", 30, new Vector2(0.195f, 0.50f), new Vector2(0.625f, 0.86f), EkranKit.Paper);
+                _levels[i] = Label(row, "Level", 22, new Vector2(0.195f, 0.14f), new Vector2(0.625f, 0.50f), EkranKit.PaperSoft);
+                _buy[i] = UiBuild.Btn(row, "Buy_" + Tracks[i], "", buyArt != null ? buyArt : UiSkin.ButtonYellow,
+                                      Gold, 26, () => Purchase(Tracks[captured]));
+                UiBuild.Anchor((RectTransform)_buy[i].transform, new Vector2(0.635f, 0.17f), new Vector2(0.965f, 0.83f));
+                Image face = _buy[i].GetComponent<Image>();
+                face.color = Color.white;
+                if (buyArt != null) PillFit.Wrap(face);
+                _prices[i] = _buy[i].GetComponentInChildren<Text>();
+                // The cream inlay of btn_turuncu, widened for the caps shrinking with PillFit.
+                UiBuild.Anchor(_prices[i].rectTransform, new Vector2(0.15f, 0.30f), new Vector2(0.85f, 0.74f));
+                _prices[i].color = EkranKit.Ink;
+                Fit(_prices[i], 26);
             }
-            else
-            {
-                FitPortraitSheet(_sheet, 1024f / 1536f);
-                Dress(_sheet.GetComponent<Image>(), TycoonUpgradeArt.Panel, Paper, true);
-            }
+            _hint = Label(_sheet, "AutomaticWork", 22, new Vector2(0.12f, 0.087f), new Vector2(0.88f, 0.125f), EkranKit.Ink);
+            _hint.alignment = TextAnchor.MiddleCenter;
+        }
+
+        private void BuildLandscape(RectTransform veil)
+        {
+            _sheet = UiBuild.Flat(veil, "YardUpgradeSheet", Paper, new Vector2(0.055f, 0.10f), new Vector2(0.945f, 0.90f));
+            Sprite panelArt = PortraitUiArt.Get("settings-settings-panel");
+            if (panelArt != null) PortraitUiArt.Apply(_sheet.GetComponent<Image>(), panelArt);
+            else Dress(_sheet.GetComponent<Image>(), TycoonUpgradeArt.Panel, Paper, true);
 
             RectTransform titlePlate = UiBuild.Flat(_sheet, "TitlePlate", Color.white,
                 new Vector2(0.05f, 0.84f), new Vector2(0.66f, 0.966f));
@@ -207,55 +288,27 @@ namespace Game.UI
             _cash.alignment = TextAnchor.MiddleCenter;
             _hint = Label(_sheet, "AutomaticWork", 20, new Vector2(0.09f, 0.08f), new Vector2(0.91f, 0.125f), Ink);
             _hint.alignment = TextAnchor.MiddleCenter;
-            bool portrait = Screen.width <= Screen.height;
-            _section = Label(_sheet, "SectionTitle", portrait ? 22 : 24,
-                new Vector2(0.08f, 0.745f), new Vector2(0.92f, 0.80f), Ink);
+            _section = Label(_sheet, "SectionTitle", 24, new Vector2(0.08f, 0.745f), new Vector2(0.92f, 0.80f), Ink);
             _section.alignment = TextAnchor.MiddleCenter;
             for (int i = 0; i < Tracks.Length; i++)
             {
                 int captured = i;
-                float x0, x1, y0, y1;
-                if (portrait)
-                {
-                    // The source card is a rounded 3:1 capsule. Two columns let all six tracks
-                    // keep that proportion while leaving comfortable touch targets on a phone.
-                    const float left = 0.08f, right = 0.92f, gap = 0.03f;
-                    float column = (right - left - gap) * 0.5f;
-                    int columnIndex = i % 2;
-                    int rowIndex = i / 2;
-                    x0 = left + columnIndex * (column + gap);
-                    x1 = x0 + column;
-                    float top = 0.705f - rowIndex * 0.145f;
-                    const float rowHeight = 0.096f;
-                    y0 = top - rowHeight;
-                    y1 = top;
-                }
-                else
-                {
-                    float top = 0.80f - i * 0.112f;
-                    x0 = 0.06f; x1 = 0.94f; y0 = top - 0.098f; y1 = top;
-                }
-                var row = UiBuild.Flat(_sheet, "Track_" + Tracks[i], Paper, new Vector2(x0, y0), new Vector2(x1, y1));
+                float top = 0.80f - i * 0.112f;
+                var row = UiBuild.Flat(_sheet, "Track_" + Tracks[i], Paper, new Vector2(0.06f, top - 0.098f), new Vector2(0.94f, top));
                 _rowArt[i] = row.GetComponent<Image>();
-                Sprite cardArt = portrait ? PortraitUiArt.Get("general-small-card-panel") : null;
-                if (cardArt != null) PortraitUiArt.Apply(_rowArt[i], cardArt);
-                else Dress(_rowArt[i], TycoonUpgradeArt.Card, Paper);
+                Dress(_rowArt[i], TycoonUpgradeArt.Card, Paper);
                 _icons[i] = Art(row, "Icon", TycoonUpgradeArt.YardIcon(i),
                     new Vector2(0.025f, 0.12f), new Vector2(0.20f, 0.88f));
-                int nameSize = portrait ? 18 : 27;
-                int levelSize = portrait ? 15 : 20;
-                _names[i] = Label(row, "Name", nameSize, new Vector2(0.21f, 0.47f), new Vector2(0.68f, 0.94f), Color.white);
-                _levels[i] = Label(row, "Level", levelSize, new Vector2(0.21f, 0.08f), new Vector2(0.68f, 0.47f), LightInk);
+                _names[i] = Label(row, "Name", 27, new Vector2(0.21f, 0.47f), new Vector2(0.68f, 0.94f), Color.white);
+                _levels[i] = Label(row, "Level", 20, new Vector2(0.21f, 0.08f), new Vector2(0.68f, 0.47f), LightInk);
                 Sprite buyArt = TycoonUpgradeArt.Buy;
                 _buy[i] = UiBuild.Btn(row, "Buy_" + Tracks[i], "", buyArt != null ? buyArt : UiSkin.ButtonYellow,
-                                      buyArt != null ? Color.white : Gold, portrait ? 18 : 23, () => Purchase(Tracks[captured]));
+                                      buyArt != null ? Color.white : Gold, 23, () => Purchase(Tracks[captured]));
                 UiBuild.Anchor((RectTransform)_buy[i].transform, new Vector2(0.69f, 0.14f), new Vector2(0.98f, 0.86f));
                 _prices[i] = _buy[i].GetComponentInChildren<Text>();
                 _prices[i].color = Ink;
-                Fit(_prices[i], portrait ? 18 : 23);
+                Fit(_prices[i], 23);
             }
-            Hide();
-            Refresh();
         }
 
         private static void Dress(Image image, Sprite art, Color fallback, bool preserveAspect = false)
@@ -265,18 +318,6 @@ namespace Game.UI
             image.type = image.sprite != null && image.sprite.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
             image.color = art != null ? Color.white : fallback;
             image.preserveAspect = preserveAspect;
-        }
-
-        private static void FitPortraitSheet(RectTransform sheet, float aspect)
-        {
-            if (sheet == null || Screen.width > Screen.height || !(sheet.parent is RectTransform parent)) return;
-            float maxWidth = parent.rect.width * (sheet.anchorMax.x - sheet.anchorMin.x);
-            float maxHeight = parent.rect.height * (sheet.anchorMax.y - sheet.anchorMin.y);
-            float width = Mathf.Min(maxWidth, maxHeight * aspect);
-            float height = width / aspect;
-            sheet.anchorMin = sheet.anchorMax = sheet.pivot = new Vector2(0.5f, 0.5f);
-            sheet.anchoredPosition = Vector2.zero;
-            sheet.sizeDelta = new Vector2(width, height);
         }
 
         private static Text Label(Transform parent, string name, int size, Vector2 min, Vector2 max, Color color)

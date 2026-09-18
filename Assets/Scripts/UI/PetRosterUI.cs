@@ -5,6 +5,7 @@ using Game.Data;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
+using UnityEngine.U2D;
 using UnityEngine.UI;
 
 namespace Game.UI
@@ -16,20 +17,19 @@ namespace Game.UI
     ///
     /// Equipment controls live on SeaFightUI in Phase 5. This sheet therefore explains which slot
     /// gates are open, while keeping the six collection cards, chest and fusion decision together.
+    ///
+    /// DRESSED FROM THE KITS, NOT THE INSPECTOR. The league sheet, ribbon, close disc and capsules come
+    /// from <see cref="LigKit"/>/<see cref="EkranKit"/>/<see cref="AtolyeKit"/> as on the contracts,
+    /// mining gear and events screens, and the rarity frames from the masters' UstaKiti atlas, so every
+    /// piece loads at runtime and no scene has to be rewired. Only the pet art itself is authored data:
+    /// the portraits and the chest come from <see cref="PetConfig"/>.
     /// </summary>
     public sealed class PetRosterUI : MonoBehaviour
     {
         [SerializeField] private int sortingOrder = 118;
 
-        [Header("Görseller")]
-        [SerializeField] private Sprite cardPanel;
-        [SerializeField] private Sprite ribbon;
-        [SerializeField] private Sprite actionButton;
-        [SerializeField] private Sprite closeIcon;
-
         [Header("Renkler")]
         [SerializeField] private Color scrim = new Color(0.04f, 0.05f, 0.08f, 0.92f);
-        [SerializeField] private Color backdrop = new Color(0.15f, 0.18f, 0.26f, 1f);
 
         public const string OpenerButtonName = "BtnDenizDostlari";
 
@@ -37,43 +37,102 @@ namespace Game.UI
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
         private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
-        private static readonly Color ButtonGreen = new Color(0.24f, 0.68f, 0.36f, 1f);
         private static readonly Color ButtonYellow = new Color(0.94f, 0.68f, 0.20f, 1f);
-        private static readonly Color ButtonOff = new Color(0.72f, 0.75f, 0.80f, 1f);
+        private static readonly Color OpenGreen = new Color(0.13f, 0.62f, 0.35f, 1f);
         private static readonly CultureInfo Culture = CultureInfo.InvariantCulture;
+
+        // ------------------------------------------------------------------ kit pieces
+        /// <summary>The masters' kit atlas. Its rarity frames are the pet ladder's too: one per rung,
+        /// plus the padlocked frame for a species nobody has drawn.</summary>
+        private const string UstaAtlasPath = "UI/Usta/UstaKiti";
+        private static readonly string[] FrameNames =
+            { "cerceve_siradan", "cerceve_nadir", "cerceve_destansi", "cerceve_efsanevi", "cerceve_mitik", "cerceve_kilitli" };
+        private const int LockedFrame = 5;
+
+        /// <summary>
+        /// Each frame's own transparent window (xMin, yMin, xMax, yMax as fractions of the frame),
+        /// measured on the exports off the centre lines so the gems and the crown do not skew it, and
+        /// pulled in 0.01. The pale backdrop behind a pet fills exactly this, so its corners hide under
+        /// the rim whichever frame the card is wearing.
+        /// </summary>
+        private static readonly Vector4[] FrameWindows =
+        {
+            new Vector4(0.164f, 0.204f, 0.833f, 0.878f),   // Sıradan
+            new Vector4(0.178f, 0.113f, 0.819f, 0.825f),   // Nadir
+            new Vector4(0.187f, 0.102f, 0.810f, 0.820f),   // Destansı
+            new Vector4(0.177f, 0.110f, 0.820f, 0.680f),   // Efsanevi
+            new Vector4(0.168f, 0.148f, 0.829f, 0.765f),   // Mitik
+            new Vector4(0.152f, 0.133f, 0.841f, 0.794f),   // kilitli
+        };
+
+        /// <summary>Where the animal sits inside any frame: the part every window shares, which is
+        /// square — the pets are drawn square-ish, so none of them ever runs onto a gem or a crown.</summary>
+        private static readonly Vector2 PetBoxMin = new Vector2(0.18f, 0.235f);
+        private static readonly Vector2 PetBoxMax = new Vector2(0.82f, 0.69f);
+
+        /// <summary>The league board's crest and rail, lifted 0.06 above where the contracts screen
+        /// wears them: six framed pets need the height, and the sheet's art is the same either way.</summary>
+        private static readonly Vector2 SheetMin = new Vector2(0.030f, 0.040f), SheetMax = new Vector2(0.970f, 0.930f);
+        private static readonly Vector2 RibbonMin = new Vector2(0.215f, 0.758f), RibbonMax = new Vector2(0.785f, 0.850f);
+        private static readonly Vector2 CloseMin = new Vector2(0.848f, 0.796f), CloseMax = new Vector2(0.962f, 0.880f);
+
+        /// <summary>The white page inside the board's rim, and the bands stacked down it.</summary>
+        private const float PageLeft = 0.12f, PageRight = 0.88f;
+        private const float ChestTop = 0.745f, ChestBottom = 0.605f;
+        private const float SlotsTop = 0.597f, SlotsBottom = 0.525f;
+        private const float GridTop = 0.517f, GridBottom = 0.180f;
+        private const float FusionTop = 0.172f, FusionBottom = 0.115f;
+        private const float GridGapX = 0.012f, GridGapY = 0.006f;
+
+        private Sprite[] _frames;
+        private Sprite _cardBack, _readyBadge, _card, _socket, _padlock;
 
         private PetService _pets;
         private PetConfig _config;
         private LocalizationService _loc;
         private RectTransform _root;
-        private Text _title, _pearl, _essence, _pity, _last, _bonus, _slotInfo, _fusionPreview;
+        private Text _title, _pearl, _essence, _pity, _last, _bonus, _fusionPreview;
         private Button _openOne, _openBulk, _fuse;
         private Text _openOneText, _openBulkText, _fuseText;
+        private Image _fusePortrait;
         private readonly Image[] _cardArt = new Image[Pets.SpeciesCount];
-        private readonly Image[] _cardPortrait = new Image[Pets.SpeciesCount];
+        private readonly PetFrame[] _cardFrame = new PetFrame[Pets.SpeciesCount];
         private readonly Text[] _cardName = new Text[Pets.SpeciesCount];
         private readonly Text[] _cardBest = new Text[Pets.SpeciesCount];
+        private readonly Text[] _cardEffect = new Text[Pets.SpeciesCount];
         private readonly Text[] _cardCounts = new Text[Pets.SpeciesCount];
+        private readonly GameObject[] _cardReady = new GameObject[Pets.SpeciesCount];
         private readonly Button[] _cardButton = new Button[Pets.SpeciesCount];
+        private readonly Image[] _slotFrame = new Image[Pets.SlotCount];
+        private readonly Image[] _slotLock = new Image[Pets.SlotCount];
+        private readonly Text[] _slotNumber = new Text[Pets.SlotCount];
+        private readonly Text[] _slotCaption = new Text[Pets.SlotCount];
         private GameObject _openerChip;
         private TMP_Text _openerCount;
         private int _selectedSpecies;
         private PetService.FusionResult _fusion;
         private bool _hasFusion;
 
+        /// <summary>A rarity frame with the pet seated in it: the backdrop and the animal under the
+        /// frame's rim, the whole held at the frame's own aspect by a fitter.</summary>
+        private struct PetFrame
+        {
+            public AspectRatioFitter Fit;
+            public Image Window, Portrait, Frame;
+        }
+
         // The chest reveal: its own canvas and a pooled row of tiles, the same ceremony
         // ForemanRosterUI ships for its crate — see BuildReveal.
         private const int RevealTiles = 10;
         private const float FlipSeconds = 0.34f;
         private const float FlipStagger = 0.13f;
-        private static readonly Color CardDown = new Color(0.11f, 0.12f, 0.17f, 1f);
         private static readonly Color Gain = new Color(0.20f, 0.60f, 0.30f, 1f);
         private static readonly Color Drop = new Color(0.80f, 0.26f, 0.22f, 1f);
         private RectTransform _reveal;
         private Text _revealTitle, _revealFooter, _revealHint;
+        private Image _revealChest;
         private readonly RectTransform[] _tileRect = new RectTransform[RevealTiles];
-        private readonly Image[] _tile = new Image[RevealTiles];
-        private readonly Image[] _tileArt = new Image[RevealTiles];
+        private readonly PetFrame[] _tile = new PetFrame[RevealTiles];
         private readonly Text[] _tileName = new Text[RevealTiles];
         private readonly Text[] _tileRarity = new Text[RevealTiles];
         private readonly bool[] _tileTurned = new bool[RevealTiles];
@@ -89,6 +148,7 @@ namespace Game.UI
         // The fusion confirm card: what is shown is exactly what is committed.
         private RectTransform _confirm;
         private Text _confirmTitle, _confirmInputs, _confirmResult, _confirmBonus, _cancelText, _confirmText;
+        private PetFrame _confirmFrame;
         private PetService.FusionResult _pendingFusion;
 
         // What the summary line last reported, kept as data so a language change rewrites it.
@@ -110,6 +170,7 @@ namespace Game.UI
             GameBootstrap bootstrap = FindAnyObjectByType<GameBootstrap>(FindObjectsInactive.Include);
             _config = bootstrap != null ? bootstrap.PetConfig : null;
             _loc = ServiceLocator.Get<LocalizationService>();
+            LoadKit();
             Build();
             BuildOpener();
             if (_pets != null) _pets.Changed += OnChanged;
@@ -159,6 +220,20 @@ namespace Game.UI
         }
 
         // ------------------------------------------------------------------ build
+        /// <summary>Takes every masters-kit sprite once. SpriteAtlas.GetSprite hands back a new clone
+        /// per call, so nothing after this asks the atlas again.</summary>
+        private void LoadKit()
+        {
+            var atlas = Resources.Load<SpriteAtlas>(UstaAtlasPath);
+            _frames = new Sprite[FrameNames.Length];
+            for (int i = 0; i < FrameNames.Length; i++) _frames[i] = atlas != null ? atlas.GetSprite(FrameNames[i]) : null;
+            _readyBadge = atlas != null ? atlas.GetSprite("rozet_yukselt") : null;
+            _cardBack = LigKit.Get("usta_kart");
+            _card = AtolyeKit.Get("panel_kart");
+            _socket = EkranKit.Get("yuva");
+            _padlock = EkranKit.Get("kilit");
+        }
+
         private void Build()
         {
             RectTransform canvas = UiBuild.Canvas(transform, "DenizDostlariKanvas", sortingOrder);
@@ -167,83 +242,132 @@ namespace Game.UI
             dismiss.transition = Selectable.Transition.None;
             dismiss.onClick.AddListener(Hide);
 
-            RectTransform panel = Art(_root, "Zemin", new Vector2(0.025f, 0.018f), new Vector2(0.975f, 0.982f));
-            BuildHeader(panel);
-            BuildChest(panel);
-            BuildSummary(panel);
-            BuildSlots(panel);
-            BuildCards(panel);
-            BuildFusion(panel);
+            Image sheet = EkranKit.Sliced(_root, "Zemin", LigKit.Board, SheetMin, SheetMax, false);
+            sheet.raycastTarget = true;
+            sheet.gameObject.AddComponent<Button>().transition = Selectable.Transition.None;   // eats its own taps
+            BuildHeader();
+            BuildChest();
+            BuildSlots();
+            BuildCards();
+            BuildFusion();
             BuildConfirm();
             UiBuild.InsetContent(_root);
             BuildReveal();
         }
 
-        private void BuildHeader(RectTransform panel)
+        private void BuildHeader()
         {
-            RectTransform band = Art(panel, "Serit", new Vector2(0.285f, 0.930f), new Vector2(0.715f, 0.992f));
-            _title = UiBuild.Label(band, "Text", Loc.T("dost.baslik"), 35, TextAnchor.MiddleCenter);
-            _title.color = Ink;
-            Fit(_title, 18, 35);   // "COMPANHEIROS MARINHOS" is wider than the ribbon at full size
-
-            Button close = UiBuild.Btn(panel, "Kapat", string.Empty,
-                closeIcon != null ? closeIcon : UiSkin.ButtonGrey, InkSoft, 28, Hide);
-            Image closeImage = close.GetComponent<Image>();
-            closeImage.type = Image.Type.Simple;
-            closeImage.preserveAspect = true;
-            UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.875f, 0.936f), new Vector2(0.955f, 0.992f));
+            Image band = EkranKit.Sliced(_root, "Serit", LigKit.Get("serit"), RibbonMin, RibbonMax, true);
+            // 0.25–0.75: the clasps ride the ribbon's caps, which PillFit grows with its height.
+            _title = Line(band.rectTransform, "Text", new Vector2(0.25f, 0.18f), new Vector2(0.75f, 0.82f),
+                          36, TextAnchor.MiddleCenter, EkranKit.Paper, 18);
+            EkranKit.Close(_root, CloseMin, CloseMax, Hide);
         }
 
-        private void BuildChest(RectTransform panel)
+        /// <summary>
+        /// The chest on a framed white card: the clam, the two balances, the guarantee, the two open
+        /// buttons — and under a rule, what the last pull was and what the collection adds at sea.
+        /// </summary>
+        private void BuildChest()
         {
-            RectTransform chest = Art(panel, "Sandik", new Vector2(0.035f, 0.765f), new Vector2(0.965f, 0.920f));
-            _pearl = UiBuild.Label(Slot(chest, "Inciler", new Vector2(0.030f, 0.580f), new Vector2(0.430f, 0.930f)),
-                "Text", string.Empty, 27, TextAnchor.MiddleLeft);
-            _pearl.color = Ink;
-            _essence = UiBuild.Label(Slot(chest, "Oz", new Vector2(0.030f, 0.220f), new Vector2(0.430f, 0.560f)),
-                "Text", string.Empty, 23, TextAnchor.MiddleLeft);
-            _essence.color = InkSoft;
-            _pity = UiBuild.Label(Slot(chest, "Merhamet", new Vector2(0.430f, 0.130f), new Vector2(0.635f, 0.920f)),
-                "Text", string.Empty, 18, TextAnchor.MiddleLeft);
-            _pity.color = InkSoft;
+            RectTransform chest = Panel(_root, "Sandik", new Vector2(PageLeft, ChestBottom), new Vector2(PageRight, ChestTop));
+            EkranKit.Icon(chest, "SandikResmi", _config != null ? _config.ChestArt : null,
+                          new Vector2(0.035f, 0.290f), new Vector2(0.205f, 0.950f));
 
-            _openOne = UiBuild.Btn(chest, "AcBir", string.Empty,
-                actionButton != null ? actionButton : UiSkin.ButtonGreen, ButtonGreen, 21, () => Open(1));
-            UiBuild.Anchor((RectTransform)_openOne.transform, new Vector2(0.650f, 0.535f), new Vector2(0.970f, 0.925f));
-            _openOneText = _openOne.GetComponentInChildren<Text>();
+            _pearl = EtkinlikKit.Chip(chest, "Inciler", new Vector2(0.215f, 0.705f), new Vector2(0.600f, 0.925f));
+            _essence = EtkinlikKit.Chip(chest, "Oz", new Vector2(0.215f, 0.475f), new Vector2(0.600f, 0.695f));
+            _pity = Line(chest, "Merhamet", new Vector2(0.230f, 0.285f), new Vector2(0.600f, 0.470f),
+                         19, TextAnchor.MiddleLeft, InkSoft, 11);
 
-            _openBulk = UiBuild.Btn(chest, "AcToplu", string.Empty,
-                actionButton != null ? actionButton : UiSkin.ButtonYellow, ButtonYellow, 20,
-                () => Open(_pets != null ? _pets.ChestTuning.BulkCount : 10));
-            UiBuild.Anchor((RectTransform)_openBulk.transform, new Vector2(0.650f, 0.090f), new Vector2(0.970f, 0.480f));
-            _openBulkText = _openBulk.GetComponentInChildren<Text>();
+            _openOne = EtkinlikKit.Capsule(chest, "AcBir", new Vector2(0.612f, 0.630f), new Vector2(0.962f, 0.925f),
+                                           () => Open(1), out _openOneText);
+            _openBulk = EtkinlikKit.Capsule(chest, "AcToplu", new Vector2(0.612f, 0.310f), new Vector2(0.962f, 0.605f),
+                                            () => Open(_pets != null ? _pets.ChestTuning.BulkCount : 10), out _openBulkText);
+
+            UiBuild.Flat(chest, "Cizgi", new Color(InkFaint.r, InkFaint.g, InkFaint.b, 0.45f),
+                         new Vector2(0.045f, 0.262f), new Vector2(0.955f, 0.270f)).GetComponent<Image>().raycastTarget = false;
+            RectTransform summary = EtkinlikKit.Slot(chest, "Durum", new Vector2(0.050f, 0.070f), new Vector2(0.950f, 0.250f));
+            _last = Line(summary, "SonCekilis", Vector2.zero, new Vector2(0.48f, 1f), 19, TextAnchor.MiddleLeft, InkSoft, 11);
+            _last.text = Loc.T("dost.son_yok");
+            _bonus = Line(summary, "CanliBonus", new Vector2(0.52f, 0f), Vector2.one, 19, TextAnchor.MiddleRight, Ink, 11);
         }
 
-        private void BuildSummary(RectTransform panel)
+        /// <summary>
+        /// The three equip slots as the mining gear's bolted sockets: an open one shows its number in
+        /// the well, a shut one its padlock, and the caption under each says open or how far off it is.
+        /// Every free pearl source the panel pays sits beside them, behind one button that counts them.
+        /// </summary>
+        private void BuildSlots()
         {
-            RectTransform summary = Art(panel, "Durum", new Vector2(0.035f, 0.670f), new Vector2(0.965f, 0.750f));
-            _last = UiBuild.Label(Slot(summary, "SonCekilis", new Vector2(0.025f, 0.060f), new Vector2(0.485f, 0.940f)),
-                "Text", Loc.T("dost.son_yok"), 18, TextAnchor.MiddleLeft);
-            _last.color = InkSoft;
-            _bonus = UiBuild.Label(Slot(summary, "CanliBonus", new Vector2(0.505f, 0.060f), new Vector2(0.975f, 0.940f)),
-                "Text", string.Empty, 17, TextAnchor.MiddleLeft);
-            _bonus.color = Ink;
+            RectTransform slots = EtkinlikKit.Slot(_root, "Yuvalar", new Vector2(PageLeft, SlotsBottom), new Vector2(PageRight, SlotsTop));
+            for (int slot = 0; slot < Pets.SlotCount; slot++)
+            {
+                float x0 = slot * 0.190f;
+                RectTransform cell = EtkinlikKit.Slot(slots, "Yuva" + slot, new Vector2(x0, 0f), new Vector2(x0 + 0.180f, 1f));
+                _slotFrame[slot] = EkranKit.Icon(cell, "Soket", _socket, new Vector2(0f, 0.36f), new Vector2(1f, 1f));
+                RectTransform well = _slotFrame[slot].rectTransform;
+                // The socket's dark well, measured on yuva: a little above its middle.
+                _slotLock[slot] = EkranKit.Icon(well, "Kilit", _padlock, new Vector2(0.36f, 0.30f), new Vector2(0.64f, 0.76f));
+                _slotNumber[slot] = Line(well, "No", new Vector2(0.25f, 0.24f), new Vector2(0.75f, 0.82f),
+                                         34, TextAnchor.MiddleCenter, Paper, 14);
+                _slotNumber[slot].text = (slot + 1).ToString(Culture);
+                _slotCaption[slot] = Line(cell, "Bilgi" + slot, new Vector2(-0.04f, 0f), new Vector2(1.04f, 0.34f),
+                                          19, TextAnchor.MiddleCenter, InkSoft, 10);
+            }
+
+            _claim = EtkinlikKit.Capsule(slots, "Oduller", new Vector2(0.600f, 0.200f), new Vector2(1f, 0.860f),
+                                         ClaimRewards, out _claimText);
         }
 
-        private void BuildSlots(RectTransform panel)
+        /// <summary>
+        /// Six cards, three across and two down. Each is a framed white card holding the pet in its
+        /// rarity frame — the padlocked one until it is found — with the name, best copy, the stat it
+        /// feeds and the copies in hand underneath. Tapping one picks it for the fusion bar.
+        /// </summary>
+        private void BuildCards()
         {
-            RectTransform slots = Art(panel, "Yuvalar", new Vector2(0.035f, 0.595f), new Vector2(0.965f, 0.660f));
-            _slotInfo = UiBuild.Label(Slot(slots, "Bilgi", new Vector2(0.025f, 0.050f), new Vector2(0.640f, 0.950f)),
-                "Text", string.Empty, 18, TextAnchor.MiddleCenter);
-            _slotInfo.color = InkSoft;
-            Fit(_slotInfo, 11, 18);
+            const int cols = 3;
+            float width = (PageRight - PageLeft - GridGapX * (cols - 1)) / cols;
+            float height = (GridTop - GridBottom - GridGapY) * 0.5f;
+            for (int species = 0; species < Pets.SpeciesCount; species++)
+            {
+                int col = species % cols;
+                int row = species / cols;
+                float x0 = PageLeft + col * (width + GridGapX);
+                float y1 = GridTop - row * (height + GridGapY);
+                RectTransform card = Panel(_root, "Pet_" + species, new Vector2(x0, y1 - height), new Vector2(x0 + width, y1));
+                _cardArt[species] = card.GetComponent<Image>();
+                _cardArt[species].raycastTarget = true;
+                int captured = species;
+                _cardButton[species] = card.gameObject.AddComponent<Button>();
+                _cardButton[species].transition = Selectable.Transition.None;
+                _cardButton[species].onClick.AddListener(() => SelectSpecies(captured));
 
-            // Every free pearl source the panel pays — daily, reached sea milestones, reached
-            // collection tiers — behind one button that says how many are waiting.
-            _claim = UiBuild.Btn(slots, "Oduller", string.Empty,
-                actionButton != null ? actionButton : UiSkin.ButtonYellow, ButtonYellow, 19, ClaimRewards);
-            UiBuild.Anchor((RectTransform)_claim.transform, new Vector2(0.655f, 0.090f), new Vector2(0.975f, 0.910f));
-            _claimText = _claim.GetComponentInChildren<Text>();
+                _cardFrame[species] = Frame(card, "Cerceve", new Vector2(0.08f, 0.300f), new Vector2(0.92f, 0.950f));
+                Image ready = EkranKit.Icon((RectTransform)_cardFrame[species].Fit.transform, "Yukselt", _readyBadge,
+                                            new Vector2(0.70f, 0.80f), new Vector2(1.02f, 1.03f));
+                _cardReady[species] = ready.gameObject;
+                ready.gameObject.SetActive(false);
+
+                _cardName[species] = Line(card, "Ad", new Vector2(0.06f, 0.225f), new Vector2(0.94f, 0.300f),
+                                          25, TextAnchor.MiddleCenter, Ink, 12);
+                _cardBest[species] = Line(card, "EnIyi", new Vector2(0.06f, 0.168f), new Vector2(0.94f, 0.225f),
+                                          18, TextAnchor.MiddleCenter, InkSoft, 10);
+                _cardEffect[species] = Line(card, "Etki", new Vector2(0.06f, 0.115f), new Vector2(0.94f, 0.168f),
+                                            17, TextAnchor.MiddleCenter, InkSoft, 10);
+                _cardCounts[species] = Line(card, "Sayilar", new Vector2(0.06f, 0.065f), new Vector2(0.94f, 0.115f),
+                                            15, TextAnchor.MiddleCenter, InkFaint, 9);
+            }
+        }
+
+        private void BuildFusion()
+        {
+            RectTransform fusion = Panel(_root, "Fusyon", new Vector2(PageLeft, FusionBottom), new Vector2(PageRight, FusionTop));
+            _fusePortrait = EkranKit.Icon(fusion, "Secili", null, new Vector2(0.035f, 0.17f), new Vector2(0.125f, 0.83f));
+            _fusionPreview = Line(fusion, "Onizleme", new Vector2(0.140f, 0.10f), new Vector2(0.640f, 0.90f),
+                                  19, TextAnchor.MiddleLeft, Ink, 10);
+            _fuse = EtkinlikKit.Capsule(fusion, "FusyonYap", new Vector2(0.655f, 0.15f), new Vector2(0.968f, 0.85f),
+                                        FuseSelected, out _fuseText);
         }
 
         /// <summary>
@@ -259,31 +383,34 @@ namespace Game.UI
             outside.transition = Selectable.Transition.None;
             outside.onClick.AddListener(CancelFusion);
 
-            RectTransform card = Art(_confirm, "OnayKarti", new Vector2(0.07f, 0.33f), new Vector2(0.93f, 0.67f));
-            card.gameObject.AddComponent<Button>().transition = Selectable.Transition.None;
+            // The same league board, smaller: its crest and rail stay the art's own height, the white
+            // page under them is what shrinks.
+            Image board = EkranKit.Sliced(_confirm, "OnayKarti", LigKit.Board, new Vector2(0.05f, 0.27f), new Vector2(0.95f, 0.73f), false);
+            board.raycastTarget = true;
+            board.gameObject.AddComponent<Button>().transition = Selectable.Transition.None;
+            RectTransform card = board.rectTransform;
 
-            _confirmTitle = UiBuild.Label(Slot(card, "OnayBaslik", new Vector2(0.05f, 0.80f), new Vector2(0.95f, 0.95f)),
-                "Text", Loc.T("dost.fusyon"), 34, TextAnchor.MiddleCenter);
-            _confirmTitle.color = Ink;
-            _confirmInputs = UiBuild.Label(Slot(card, "Girdiler", new Vector2(0.05f, 0.63f), new Vector2(0.95f, 0.79f)),
-                "Text", string.Empty, 24, TextAnchor.MiddleCenter);
-            _confirmInputs.color = InkSoft;
-            Fit(_confirmInputs, 13, 24);
-            _confirmResult = UiBuild.Label(Slot(card, "Sonuc", new Vector2(0.05f, 0.46f), new Vector2(0.95f, 0.63f)),
-                "Text", string.Empty, 30, TextAnchor.MiddleCenter);
-            Fit(_confirmResult, 15, 30);
-            _confirmBonus = UiBuild.Label(Slot(card, "OnayBonus", new Vector2(0.05f, 0.30f), new Vector2(0.95f, 0.45f)),
-                "Text", string.Empty, 21, TextAnchor.MiddleCenter);
-            Fit(_confirmBonus, 12, 21);
+            Image band = EkranKit.Sliced(card, "OnayBaslik", LigKit.Get("serit"), new Vector2(0.20f, 0.605f), new Vector2(0.80f, 0.805f), true);
+            _confirmTitle = Line(band.rectTransform, "Text", new Vector2(0.25f, 0.18f), new Vector2(0.75f, 0.82f),
+                                 34, TextAnchor.MiddleCenter, EkranKit.Paper, 16);
+            _confirmTitle.text = Loc.T("dost.fusyon");
 
-            Button cancel = UiBuild.Btn(card, "Vazgec", Loc.T("dost.vazgec"),
-                actionButton != null ? actionButton : UiSkin.ButtonGrey, ButtonOff, 22, CancelFusion);
-            UiBuild.Anchor((RectTransform)cancel.transform, new Vector2(0.06f, 0.06f), new Vector2(0.47f, 0.24f));
-            _cancelText = cancel.GetComponentInChildren<Text>();
-            Button confirm = UiBuild.Btn(card, "Onayla", Loc.T("dost.onayla"),
-                actionButton != null ? actionButton : UiSkin.ButtonGreen, ButtonGreen, 22, ConfirmFusion);
-            UiBuild.Anchor((RectTransform)confirm.transform, new Vector2(0.53f, 0.06f), new Vector2(0.94f, 0.24f));
-            _confirmText = confirm.GetComponentInChildren<Text>();
+            _confirmFrame = Frame(card, "SonucCercevesi", new Vector2(0.10f, 0.285f), new Vector2(0.34f, 0.595f));
+            _confirmInputs = Line(card, "Girdiler", new Vector2(0.37f, 0.485f), new Vector2(0.91f, 0.585f),
+                                  24, TextAnchor.MiddleLeft, InkSoft, 12);
+            _confirmResult = Line(card, "Sonuc", new Vector2(0.37f, 0.385f), new Vector2(0.91f, 0.485f),
+                                  30, TextAnchor.MiddleLeft, Ink, 14);
+            _confirmBonus = Line(card, "OnayBonus", new Vector2(0.37f, 0.290f), new Vector2(0.91f, 0.385f),
+                                 22, TextAnchor.MiddleLeft, Ink, 11);
+
+            Button cancel = EtkinlikKit.Capsule(card, "Vazgec", new Vector2(0.10f, 0.150f), new Vector2(0.48f, 0.265f),
+                                                CancelFusion, out _cancelText);
+            EtkinlikKit.SetFace(cancel, _cancelText, EtkinlikKit.Face.Dead, true);
+            Button confirm = EtkinlikKit.Capsule(card, "Onayla", new Vector2(0.52f, 0.150f), new Vector2(0.90f, 0.265f),
+                                                 ConfirmFusion, out _confirmText);
+            EtkinlikKit.SetFace(confirm, _confirmText, EtkinlikKit.Face.Claim, true);
+            _cancelText.text = Loc.T("dost.vazgec");
+            _confirmText.text = Loc.T("dost.onayla");
 
             _confirm.gameObject.SetActive(false);
         }
@@ -293,6 +420,7 @@ namespace Game.UI
         /// and its reasons: the whole sheet is the skip target, the confetti lives on this canvas so
         /// it is not drawn under an opaque sheet, and the tiles are built once so a reveal allocates
         /// nothing while it plays. The pull it shows is already paid and saved when it starts.
+        /// Each tile is a card lying face down that turns over into the pet in its rarity frame.
         /// </summary>
         private void BuildReveal()
         {
@@ -302,88 +430,33 @@ namespace Game.UI
             skip.transition = Selectable.Transition.None;
             skip.onClick.AddListener(OnRevealTapped);
 
-            _revealTitle = UiBuild.Label(Slot(_reveal, "SandikBaslik", new Vector2(0.08f, 0.860f), new Vector2(0.92f, 0.950f)),
-                "Text", string.Empty, 44, TextAnchor.MiddleCenter);
-            _revealTitle.color = Paper;
-            Fit(_revealTitle, 22, 44);
-            _revealFooter = UiBuild.Label(Slot(_reveal, "Ozet", new Vector2(0.05f, 0.125f), new Vector2(0.95f, 0.215f)),
-                "Text", string.Empty, 24, TextAnchor.MiddleCenter);
-            _revealFooter.color = Paper;
-            Fit(_revealFooter, 13, 24);
-            _revealHint = UiBuild.Label(Slot(_reveal, "Devam", new Vector2(0.10f, 0.045f), new Vector2(0.90f, 0.110f)),
-                "Text", string.Empty, 22, TextAnchor.MiddleCenter);
-            _revealHint.color = InkFaint;
+            Image band = EkranKit.Sliced(_reveal, "SandikSerit", LigKit.Get("serit"),
+                                         new Vector2(0.140f, 0.862f), new Vector2(0.860f, 0.952f), true);
+            _revealTitle = Line(band.rectTransform, "SandikBaslik", new Vector2(0.22f, 0.18f), new Vector2(0.78f, 0.82f),
+                                40, TextAnchor.MiddleCenter, Paper, 18);
+            _revealChest = EkranKit.Icon(_reveal, "Istiridye", _config != null ? _config.ChestArt : null,
+                                         new Vector2(0.36f, 0.745f), new Vector2(0.64f, 0.855f));
+            _revealFooter = Line(_reveal, "Ozet", new Vector2(0.05f, 0.125f), new Vector2(0.95f, 0.215f),
+                                 24, TextAnchor.MiddleCenter, Paper, 13);
+            _revealHint = Line(_reveal, "Devam", new Vector2(0.10f, 0.045f), new Vector2(0.90f, 0.110f),
+                               22, TextAnchor.MiddleCenter, InkFaint, 11);
 
             for (int t = 0; t < RevealTiles; t++)
             {
-                RectTransform tile = UiBuild.Flat(_reveal, "Kart_" + t, CardDown, Vector2.zero, Vector2.one);
-                Image image = tile.GetComponent<Image>();
-                if (cardPanel != null) { image.sprite = cardPanel; image.type = Image.Type.Sliced; }
-                image.raycastTarget = false;
+                RectTransform tile = EtkinlikKit.Slot(_reveal, "Kart_" + t, Vector2.zero, Vector2.one);
                 _tileRect[t] = tile;
-                _tile[t] = image;
-                _tileArt[t] = Icon(tile, "Portre", null, new Vector2(0.14f, 0.36f), new Vector2(0.86f, 0.95f));
-                _tileName[t] = UiBuild.Label(Slot(tile, "Ad", new Vector2(0.04f, 0.19f), new Vector2(0.96f, 0.35f)),
-                    "Text", string.Empty, 22, TextAnchor.MiddleCenter);
-                _tileName[t].color = Paper;
-                Fit(_tileName[t], 11, 22);
-                _tileRarity[t] = UiBuild.Label(Slot(tile, "Nadirlik", new Vector2(0.04f, 0.03f), new Vector2(0.96f, 0.19f)),
-                    "Text", string.Empty, 20, TextAnchor.MiddleCenter);
-                _tileRarity[t].color = Paper;
-                Fit(_tileRarity[t], 10, 20);
+                _tile[t] = Frame(tile, "Yuz", new Vector2(0.04f, 0.255f), new Vector2(0.96f, 1f));
+                _tileName[t] = Line(tile, "Ad", new Vector2(0.02f, 0.135f), new Vector2(0.98f, 0.245f),
+                                    44, TextAnchor.MiddleCenter, Paper, 11);
+                _tileRarity[t] = Line(tile, "Nadirlik", new Vector2(0.02f, 0.040f), new Vector2(0.98f, 0.135f),
+                                      34, TextAnchor.MiddleCenter, Paper, 10);
                 tile.gameObject.SetActive(false);
             }
 
             _reveal.gameObject.SetActive(false);
             _confetti = canvas.gameObject.AddComponent<ConfettiBurst>();
-            _rewardReveal = RewardRevealUI.Create(canvas, cardPanel, _config != null ? _config.PearlIcon : null);
+            _rewardReveal = RewardRevealUI.Create(canvas, null, _config != null ? _config.PearlIcon : null);
             UiBuild.InsetContent(_reveal);
-        }
-
-        private void BuildCards(RectTransform panel)
-        {
-            const float left = 0.035f, right = 0.965f, top = 0.580f, bottom = 0.155f;
-            const int cols = 2, rows = 3;
-            float width = (right - left) / cols;
-            float height = (top - bottom) / rows;
-            for (int species = 0; species < Pets.SpeciesCount; species++)
-            {
-                int col = species % cols;
-                int row = species / cols;
-                RectTransform card = Art(panel, "Pet_" + species,
-                    new Vector2(left + col * width + 0.006f, top - (row + 1) * height + 0.006f),
-                    new Vector2(left + (col + 1) * width - 0.006f, top - row * height - 0.006f));
-                _cardArt[species] = card.GetComponent<Image>();
-                int captured = species;
-                _cardButton[species] = card.gameObject.AddComponent<Button>();
-                _cardButton[species].transition = Selectable.Transition.None;
-                _cardButton[species].onClick.AddListener(() => SelectSpecies(captured));
-
-                _cardPortrait[species] = Icon(card, "Portre", PortraitOf(species),
-                    new Vector2(0.030f, 0.220f), new Vector2(0.215f, 0.875f));
-                _cardName[species] = UiBuild.Label(Slot(card, "Ad", new Vector2(0.235f, 0.650f), new Vector2(0.965f, 0.940f)),
-                    "Text", string.Empty, 20, TextAnchor.MiddleLeft);
-                _cardName[species].color = Ink;
-                Fit(_cardName[species], 11, 20);
-                _cardBest[species] = UiBuild.Label(Slot(card, "EnIyi", new Vector2(0.235f, 0.425f), new Vector2(0.965f, 0.660f)),
-                    "Text", string.Empty, 16, TextAnchor.MiddleLeft);
-                _cardBest[species].color = InkSoft;
-                _cardCounts[species] = UiBuild.Label(Slot(card, "Sayilar", new Vector2(0.030f, 0.060f), new Vector2(0.965f, 0.400f)),
-                    "Text", string.Empty, 13, TextAnchor.UpperLeft);
-                _cardCounts[species].color = InkSoft;
-            }
-        }
-
-        private void BuildFusion(RectTransform panel)
-        {
-            RectTransform fusion = Art(panel, "Fusyon", new Vector2(0.035f, 0.030f), new Vector2(0.965f, 0.140f));
-            _fusionPreview = UiBuild.Label(Slot(fusion, "Onizleme", new Vector2(0.025f, 0.080f), new Vector2(0.640f, 0.920f)),
-                "Text", string.Empty, 17, TextAnchor.MiddleLeft);
-            _fusionPreview.color = Ink;
-            _fuse = UiBuild.Btn(fusion, "FusyonYap", string.Empty,
-                actionButton != null ? actionButton : UiSkin.ButtonGreen, ButtonGreen, 19, FuseSelected);
-            UiBuild.Anchor((RectTransform)_fuse.transform, new Vector2(0.665f, 0.120f), new Vector2(0.970f, 0.880f));
-            _fuseText = _fuse.GetComponentInChildren<Text>();
         }
 
         // ---------------------------------------------------------------- opener
@@ -543,17 +616,16 @@ namespace Game.UI
                 _tileRarityOf[t] = pulled[t].Rarity;
                 _tileEssence[t] = pulled[t].Essence;
                 _tileTurned[t] = false;
-                _tileArt[t].enabled = false;               // face down until it turns
+                ShowCardBack(_tile[t]);                    // face down until it turns
                 _tileName[t].text = string.Empty;
                 _tileRarity[t].text = string.Empty;
-                _tile[t].color = CardDown;
                 _tileRect[t].localScale = Vector3.one;
             }
 
             // Written per open rather than at build, so a language change between chests lands.
-            _revealTitle.text = pulled.Length > 1
+            _revealTitle.text = EtkinlikKit.OneLine(pulled.Length > 1
                 ? pulled.Length.ToString(Culture) + " × " + Loc.T("dost.sandik")
-                : Loc.T("dost.sandik");
+                : Loc.T("dost.sandik"));
             _revealFooter.text = RevealFooter();
             _revealHint.text = Loc.T("usta.devam");
             _revealClock = 0f;
@@ -562,24 +634,28 @@ namespace Game.UI
             ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
         }
 
-        /// <summary>One big card for a single chest; a three-wide grid for a batch.</summary>
+        /// <summary>One big card under the clam for a single chest; a three-wide grid for a batch,
+        /// its short last row centred. The clam steps aside for a batch, whose grid needs the room.</summary>
         private void LayoutTiles(int count)
         {
+            EtkinlikKit.SetActive(_revealChest, count <= 1 && _revealChest.sprite != null);
             if (count <= 1)
             {
-                UiBuild.Anchor(_tileRect[0], new Vector2(0.28f, 0.40f), new Vector2(0.72f, 0.74f));
+                UiBuild.Anchor(_tileRect[0], new Vector2(0.26f, 0.30f), new Vector2(0.74f, 0.735f));
                 return;
             }
             const int cols = 3;
-            const float left = 0.06f, right = 0.94f, top = 0.840f, bottom = 0.230f;
+            const float left = 0.06f, right = 0.94f, top = 0.845f, bottom = 0.225f;
             int rows = (count + cols - 1) / cols;
             float cellW = (right - left) / cols, cellH = (top - bottom) / rows;
             for (int t = 0; t < count; t++)
             {
                 int col = t % cols, row = t / cols;
+                int inRow = row == rows - 1 ? count - row * cols : cols;
+                float x0 = left + (cols - inRow) * cellW * 0.5f + col * cellW;
                 UiBuild.Anchor(_tileRect[t],
-                    new Vector2(left + col * cellW + 0.012f, top - (row + 1) * cellH + 0.010f),
-                    new Vector2(left + (col + 1) * cellW - 0.012f, top - row * cellH - 0.010f));
+                    new Vector2(x0 + 0.012f, top - (row + 1) * cellH + 0.006f),
+                    new Vector2(x0 + cellW - 0.012f, top - row * cellH - 0.006f));
             }
         }
 
@@ -592,14 +668,12 @@ namespace Game.UI
 
             int species = _tileSpecies[t];
             RosterCardState.Rarity rarity = _tileRarityOf[t];
-            _tile[t].color = _pets != null ? _pets.RarityTint(rarity) : Paper;
-            Sprite portrait = PortraitOf(species);
-            _tileArt[t].sprite = portrait != null ? portrait : UiSkin.Flat;
-            _tileArt[t].enabled = portrait != null;
+            ShowPet(_tile[t], species, true, rarity);
             _tileName[t].text = SpeciesName(species);
             _tileRarity[t].text = _tileEssence[t]
                 ? "✦ +1 " + Loc.T("dost.oz")
                 : RarityName(rarity) + " " + Stars(1);
+            _tileRarity[t].color = _pets != null ? Color.Lerp(_pets.RarityTint(rarity), Color.white, 0.35f) : Paper;
 
             if (rarity >= RosterCardState.Rarity.Legendary)
             {
@@ -656,22 +730,24 @@ namespace Game.UI
         private void Refresh()
         {
             if (_pets == null) return;
-            if (_title != null) _title.text = Loc.T("dost.baslik");
-            _pearl.text = "◉ " + Loc.T("dost.inci") + ": " + _pets.Pearls.ToString(Culture);
-            _essence.text = "✦ " + Loc.T("dost.oz") + ": " + _pets.PetEssence.ToString(Culture);
+            if (_title != null) _title.text = EtkinlikKit.OneLine(Loc.T("dost.baslik"));
+            _pearl.text = EtkinlikKit.OneLine("◉ " + Loc.T("dost.inci") + ": " + _pets.Pearls.ToString(Culture));
+            _essence.text = EtkinlikKit.OneLine("✦ " + Loc.T("dost.oz") + ": " + _pets.PetEssence.ToString(Culture));
             _pity.text = PityText();
-            _openOneText.text = Loc.T("kaptan.ac") + "\n" + _pets.ChestCost(1).ToString(Culture) + " ◉";
+            _openOneText.text = EtkinlikKit.OneLine(Loc.T("kaptan.ac") + " ×1   " + _pets.ChestCost(1).ToString(Culture) + " ◉");
             int bulk = _pets.ChestTuning.BulkCount;
-            _openBulkText.text = string.Format(Loc.T("kaptan.acCok"), bulk.ToString(Culture)) + "\n"
-                              + _pets.ChestCost(bulk).ToString(Culture) + " ◉";
-            Dress(_openOne, _pets.CanOpenChest(1), ButtonGreen);
-            Dress(_openBulk, _pets.CanOpenChest(bulk), ButtonYellow);
+            _openBulkText.text = EtkinlikKit.OneLine(string.Format(Loc.T("kaptan.acCok"), bulk.ToString(Culture)) + "   "
+                                                     + _pets.ChestCost(bulk).ToString(Culture) + " ◉");
+            EtkinlikKit.SetFace(_openOne, _openOneText, _pets.CanOpenChest(1) ? EtkinlikKit.Face.Claim : EtkinlikKit.Face.Dead,
+                                _pets.CanOpenChest(1));
+            EtkinlikKit.SetFace(_openBulk, _openBulkText, _pets.CanOpenChest(bulk) ? EtkinlikKit.Face.Primary : EtkinlikKit.Face.Dead,
+                                _pets.CanOpenChest(bulk));
             _bonus.text = BonusText();
-            _slotInfo.text = SlotText();
+            RefreshSlots();
             int claimable = _pets.ClaimableRewardCount;
-            _claimText.text = Loc.T("dost.oduller")
-                            + (claimable > 0 ? " (" + claimable.ToString(Culture) + ")" : string.Empty);
-            Dress(_claim, claimable > 0, ButtonYellow);
+            _claimText.text = EtkinlikKit.OneLine(Loc.T("dost.oduller")
+                            + (claimable > 0 ? " (" + claimable.ToString(Culture) + ")" : string.Empty));
+            EtkinlikKit.SetFace(_claim, _claimText, claimable > 0 ? EtkinlikKit.Face.Claim : EtkinlikKit.Face.Dead, claimable > 0);
             _confirmTitle.text = Loc.T("dost.fusyon");
             _cancelText.text = Loc.T("dost.vazgec");
             _confirmText.text = Loc.T("dost.onayla");
@@ -697,6 +773,21 @@ namespace Game.UI
             _last.color = _pets != null ? _pets.RarityTint(_lastRarity) : InkSoft;
         }
 
+        private void RefreshSlots()
+        {
+            for (int slot = 0; slot < Pets.SlotCount; slot++)
+            {
+                bool open = slot < _pets.SlotsUnlocked;
+                _slotFrame[slot].color = open ? Color.white : new Color(0.78f, 0.80f, 0.85f, 1f);
+                EtkinlikKit.SetActive(_slotLock[slot], !open && _slotLock[slot].sprite != null);
+                EtkinlikKit.SetActive(_slotNumber[slot], open || _slotLock[slot].sprite == null);
+                _slotCaption[slot].text = open
+                    ? Loc.T("dost.acik")
+                    : string.Format(Loc.T("dost.yuva_kilit"), _pets.FightsUntilSlot(slot).ToString(Culture));
+                _slotCaption[slot].color = open ? OpenGreen : InkSoft;
+            }
+        }
+
         private void RefreshCards()
         {
             if (_pets == null) return;
@@ -704,22 +795,28 @@ namespace Game.UI
             {
                 bool owned = _pets.TryBestOwned(species, out var rarity, out int star);
                 Color tint = owned ? _pets.RarityTint(rarity) : InkFaint;
-                _cardArt[species].color = species == _selectedSpecies
-                    ? new Color(tint.r, tint.g, tint.b, 0.46f)
-                    : new Color(1f, 1f, 1f, 1f);
-                Sprite portrait = PortraitOf(species);
-                _cardPortrait[species].sprite = portrait != null ? portrait : UiSkin.Flat;
-                _cardPortrait[species].color = portrait != null
-                    ? (owned ? Color.white : new Color(0.34f, 0.37f, 0.43f, 0.9f))
-                    : new Color(tint.r, tint.g, tint.b, owned ? 0.8f : 0.25f);
-                // The species and the stat it feeds, so an unowned card still says what it would do.
-                _cardName[species].text = SpeciesName(species) + "  ·  " + EffectName(Pets.EffectKindOf(species));
-                _cardName[species].color = owned ? Ink : InkFaint;
+                // The picked card goes a pale sea blue: the white fill takes the tint, the blue rim
+                // barely moves, so it reads as lit rather than recoloured.
+                _cardArt[species].color = species == _selectedSpecies ? new Color(0.80f, 0.90f, 1f, 1f) : Color.white;
+                ShowPet(_cardFrame[species], species, owned, rarity);
+                // One line each, shrinking rather than wrapping: a third of the page is narrow, and the
+                // rung and its five stars side by side read like the masters' cards. The frame already
+                // says this is the best copy, so the card drops the "Best:" prefix to make them fit.
+                _cardName[species].text = EtkinlikKit.OneLine(SpeciesName(species));
+                _cardName[species].color = owned ? Ink : InkSoft;
                 _cardBest[species].text = owned
-                    ? string.Format(Loc.T("dost.en_iyi"), RarityName(rarity) + " " + Stars(star))
+                    ? EtkinlikKit.OneLine(RarityName(rarity) + " " + Stars(star))
                     : Loc.T("kaptan.bulunmadi");
                 _cardBest[species].color = owned ? tint : InkFaint;
-                _cardCounts[species].text = CountText(species);
+                // The stat the species feeds, so an unowned card still says what it would do.
+                Pets.EffectKind kind = Pets.EffectKindOf(species);
+                _cardEffect[species].text = EtkinlikKit.OneLine(owned
+                    ? EffectName(kind) + " " + EffectValue(kind, Pets.Bonus(kind, rarity, star, _pets.Tuning))
+                    : EffectName(kind));
+                _cardCounts[species].text = EtkinlikKit.OneLine(CountText(species));
+                bool ready = FindFusion(species, out _);
+                if (_cardReady[species].activeSelf != (ready && _readyBadge != null))
+                    _cardReady[species].SetActive(ready && _readyBadge != null);
             }
         }
 
@@ -739,8 +836,12 @@ namespace Game.UI
                 _fusionPreview.text = ShortfallText(_selectedSpecies);
                 _fusionPreview.color = InkSoft;
             }
+            Sprite portrait = PortraitOf(_selectedSpecies);
+            _fusePortrait.sprite = portrait;
+            _fusePortrait.enabled = portrait != null;
+            _fusePortrait.color = _pets != null && _pets.Owned(_selectedSpecies) ? Color.white : new Color(0.34f, 0.37f, 0.43f, 0.9f);
             _fuseText.text = Loc.T("dost.fusyon");
-            Dress(_fuse, _hasFusion, ButtonGreen);
+            EtkinlikKit.SetFace(_fuse, _fuseText, _hasFusion ? EtkinlikKit.Face.Primary : EtkinlikKit.Face.Dead, _hasFusion);
         }
 
         /// <summary>
@@ -780,6 +881,7 @@ namespace Game.UI
             _confirmInputs.text = SpeciesName(f.Species) + ":  " + inputs;
             _confirmResult.text = "→ " + RarityName(f.ResultRarity) + " " + Stars(f.ResultStar);
             _confirmResult.color = _pets.RarityTint(f.ResultRarity);
+            ShowPet(_confirmFrame, f.Species, true, f.ResultRarity);
 
             Pets.EffectKind kind = Pets.EffectKindOf(f.Species);
             double before = 0d;
@@ -829,11 +931,13 @@ namespace Game.UI
         }
 
         // ------------------------------------------------------------------ text
+        /// <summary>The guarantee in two lines — its heading, then both rungs — which is what the
+        /// chest card's column has room for.</summary>
         private string PityText()
         {
             var t = _pets.ChestTuning;
             return Loc.T("dost.merhamet") + "\n"
-                 + PityLine(RosterCardState.Rarity.Epic, t.EpicPity, _pets.SinceEpic, false) + "\n"
+                 + PityLine(RosterCardState.Rarity.Epic, t.EpicPity, _pets.SinceEpic, false) + "  ·  "
                  + PityLine(RosterCardState.Rarity.Legendary, t.LegendaryPity, _pets.SinceLegendary, false);
         }
 
@@ -846,19 +950,6 @@ namespace Game.UI
             if (pity <= 0) return name + ": —";
             string left = Mathf.Max(1, pity - since).ToString(Culture);
             return sentence ? string.Format(Loc.T("kaptan.teselli"), name, left) : name + ": " + left;
-        }
-
-        private string SlotText()
-        {
-            var b = new StringBuilder();
-            for (int slot = 0; slot < Pets.SlotCount; slot++)
-            {
-                if (slot > 0) b.Append("   ·   ");
-                b.Append(string.Format(Loc.T("dost.yuva"), (slot + 1).ToString(Culture))).Append(": ");
-                if (slot < _pets.SlotsUnlocked) b.Append(Loc.T("dost.acik"));
-                else b.Append(string.Format(Loc.T("dost.yuva_kilit"), _pets.FightsUntilSlot(slot).ToString(Culture)));
-            }
-            return b.ToString();
         }
 
         private string BonusText()
@@ -875,6 +966,8 @@ namespace Game.UI
             return string.Format(Loc.T("dost.bonus"), b.Length > 0 ? b.ToString() : Loc.T("dost.yok"));
         }
 
+        /// <summary>Copies in hand per rung, compact enough for a card's last line: "N2★×3" is three
+        /// Rare two-stars.</summary>
         private string CountText(int species)
         {
             var b = new StringBuilder();
@@ -884,9 +977,9 @@ namespace Game.UI
                     int count = _pets.CountAt(species, (RosterCardState.Rarity)r, star);
                     if (count <= 0) continue;
                     if (b.Length > 0) b.Append(" · ");
-                    b.Append(RarityShort((RosterCardState.Rarity)r)).Append(Stars(star)).Append('×').Append(count);
+                    b.Append(RarityShort((RosterCardState.Rarity)r)).Append(star).Append('★').Append('×').Append(count);
                 }
-            return b.Length > 0 ? b.ToString() : "—";
+            return b.ToString();
         }
 
         private Sprite PortraitOf(int species)
@@ -926,55 +1019,84 @@ namespace Game.UI
         }
 
         // ---------------------------------------------------------------- pieces
-        private RectTransform Art(Transform parent, string name, Vector2 min, Vector2 max)
+        /// <summary>The workshop's framed white card, nine-sliced so its rim holds one thickness —
+        /// drawn at two thirds of the art's own rim, which at full size crowded the six small cards.</summary>
+        private RectTransform Panel(RectTransform parent, string name, Vector2 min, Vector2 max)
         {
-            RectTransform rect = UiBuild.Box(parent, name, backdrop, min, max);
-            Image image = rect.GetComponent<Image>();
-            if (cardPanel != null)
-            {
-                image.sprite = cardPanel;
-                image.type = Image.Type.Sliced;
-                image.color = Color.white;
-            }
-            return rect;
+            Image card = EkranKit.Sliced(parent, name, _card, min, max, false);
+            card.pixelsPerUnitMultiplier = 1.5f;
+            return card.rectTransform;
         }
 
-        private static RectTransform Slot(RectTransform parent, string name, Vector2 min, Vector2 max)
+        /// <summary>
+        /// A rarity frame in <paramref name="min"/>–<paramref name="max"/>, held to its art's aspect.
+        /// Backdrop and animal are drawn first so the frame's rim covers their edges.
+        /// </summary>
+        private PetFrame Frame(RectTransform parent, string name, Vector2 min, Vector2 max)
         {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            return UiBuild.Anchor((RectTransform)go.transform, min, max);
+            RectTransform area = EtkinlikKit.Slot(parent, name + "Alani", min, max);
+            RectTransform box = EtkinlikKit.Slot(area, name, Vector2.zero, Vector2.one);
+            var frame = new PetFrame { Fit = box.gameObject.AddComponent<AspectRatioFitter>() };
+            frame.Fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            frame.Fit.aspectRatio = 321f / 448f;
+            frame.Window = UiBuild.Flat(box, "Pencere", Color.white, Vector2.zero, Vector2.one).GetComponent<Image>();
+            frame.Window.raycastTarget = false;
+            frame.Portrait = EkranKit.Icon(box, "Portre", null, PetBoxMin, PetBoxMax);
+            frame.Frame = EkranKit.Icon(box, "Kenar", null, Vector2.zero, Vector2.one);
+            return frame;
         }
 
-        private static Image Icon(RectTransform parent, string name, Sprite sprite, Vector2 min, Vector2 max)
+        /// <summary>A pet in its frame: the rung's frame and a pale wash of its colour behind the animal,
+        /// or the padlocked frame with the animal in shadow for a species nobody has drawn.</summary>
+        private void ShowPet(PetFrame f, int species, bool owned, RosterCardState.Rarity rarity)
         {
-            RectTransform rect = UiBuild.Flat(parent, name, Color.white, min, max);
-            Image image = rect.GetComponent<Image>();
-            image.sprite = sprite != null ? sprite : UiSkin.Flat;
-            image.type = sprite != null ? Image.Type.Simple : Image.Type.Sliced;
-            image.preserveAspect = true;
-            image.raycastTarget = false;
-            return image;
+            int index = owned ? Mathf.Clamp((int)rarity, 0, LockedFrame - 1) : LockedFrame;
+            SetFrame(f, _frames != null ? _frames[index] : null, index);
+            Color tint = owned && _pets != null ? _pets.RarityTint(rarity) : InkFaint;
+            f.Window.enabled = true;
+            f.Window.color = Color.Lerp(tint, Color.white, owned ? 0.72f : 0.80f);
+            Sprite portrait = PortraitOf(species);
+            f.Portrait.sprite = portrait;
+            f.Portrait.enabled = portrait != null;
+            f.Portrait.color = owned ? Color.white : new Color(0.30f, 0.33f, 0.40f, 0.85f);
         }
 
-        /// <summary>Shrinks a label until it fits its box — ForemanRosterUI's helper, honouring the
-        /// accessibility text scale the same way.</summary>
-        private static void Fit(Text label, int min, int max)
+        /// <summary>The face-down reveal tile: the kit's card back, nothing behind it.</summary>
+        private void ShowCardBack(PetFrame f)
         {
+            f.Portrait.enabled = false;
+            f.Window.enabled = false;
+            f.Frame.sprite = _cardBack;
+            f.Frame.enabled = _cardBack != null;
+            if (_cardBack != null) f.Fit.aspectRatio = _cardBack.rect.width / _cardBack.rect.height;
+        }
+
+        private static void SetFrame(PetFrame f, Sprite sprite, int index)
+        {
+            f.Frame.sprite = sprite;
+            f.Frame.enabled = sprite != null;
+            if (sprite != null) f.Fit.aspectRatio = sprite.rect.width / sprite.rect.height;
+            Vector4 w = FrameWindows[index];
+            RectTransform window = f.Window.rectTransform;
+            window.anchorMin = new Vector2(w.x, w.y);
+            window.anchorMax = new Vector2(w.z, w.w);
+        }
+
+        /// <summary>A label in its own band, shrinking to fit — the band is <paramref name="name"/>,
+        /// the Text its child — honouring the accessibility text scale as ForemanRosterUI does.</summary>
+        private static Text Line(RectTransform parent, string name, Vector2 min, Vector2 max, int size,
+                                 TextAnchor anchor, Color color, int minSize)
+        {
+            Text label = UiBuild.Label(EtkinlikKit.Slot(parent, name, min, max), "Text", string.Empty, size, anchor);
+            label.color = color;
             AccessibilityConfig accessibility = ServiceLocator.Get<AccessibilityConfig>();
             float scale = accessibility != null ? accessibility.TextScale : 1f;
             label.resizeTextForBestFit = true;
-            label.resizeTextMinSize = Mathf.Max(1, Mathf.RoundToInt(min * scale));
-            label.resizeTextMaxSize = Mathf.Max(label.resizeTextMinSize, Mathf.RoundToInt(max * scale));
+            label.resizeTextMinSize = Mathf.Max(1, Mathf.RoundToInt(minSize * scale));
+            label.resizeTextMaxSize = Mathf.Max(label.resizeTextMinSize, Mathf.RoundToInt(size * scale));
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
-        }
-
-        private void Dress(Button button, bool live, Color tint)
-        {
-            if (button == null) return;
-            button.interactable = live;
-            button.GetComponent<Image>().color = !live ? ButtonOff : actionButton != null ? Color.white : tint;
+            return label;
         }
     }
 }
