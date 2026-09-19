@@ -1338,7 +1338,7 @@ namespace Game.UI
             }
 
             _threatWobble = Mathf.MoveTowards(_threatWobble, 0f, Time.deltaTime * 26f);
-            SizeVessel(_threatRoot, h * (kind == SeaCombat.Beast ? 0.40f : 0.34f));
+            SizeVessel(_threatRoot, h * (kind == SeaCombat.Beast ? 0.36f : 0.34f));
             float xHome = w * 0.74f;
             float y = h * 0.335f + Mathf.Sin(t * Mathf.PI * 2f / 3.6f + 1.7f) * h * 0.012f;
 
