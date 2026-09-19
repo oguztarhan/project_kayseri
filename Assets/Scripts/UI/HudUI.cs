@@ -252,7 +252,13 @@ namespace Game.UI
             if (adButton != null) adButton.onClick.AddListener(OnAds);
             if (offerButton != null) offerButton.onClick.AddListener(OnOffer);
             if (upgradeButton != null) upgradeButton.onClick.AddListener(OnUpgrades);
-            if (rateButton != null) rateButton.onClick.AddListener(OnRate);
+            if (rateButton != null)
+            {
+                rateButton.onClick.AddListener(OnRate);
+                // 271 by 61 units: wide enough, too short for a thumb. The cash pill is right above it, so
+                // the extra height goes below.
+                rateButton.gameObject.AddComponent<TouchPad>().Configure(0.85f);
+            }
             if (boostButton != null) boostButton.onClick.AddListener(OnBoost);
             if (settingsButton != null) settingsButton.onClick.AddListener(OnSettings);
 
@@ -588,9 +594,9 @@ namespace Game.UI
                 // text line from a two-column action card.
                 chipRect.localScale = new Vector3(0.68f, 0.68f, 1f);
 
-                // Reserve the badge's complete footprint after it is actually attached. Only a few
-                // More destinations carry a counter, so shrinking every label would make the whole
-                // grid look needlessly sparse.
+                // Reserve a sliver for the badge, not its whole width. It hangs on the row's top edge and the
+                // label is centred, so a one-line label never reaches it; the old 94 left "MEERESBEGLEITER"
+                // and "BERGBAUAUSRÜSTUNG" 170 wide, too narrow to fit even at the smallest size.
                 bool needsCounterSpace = owner.name == "BtnMaden"
                                          || owner.name == CardCollectionUI.OpenerButtonName
                                          || owner.name == "BtnDenizDostlari";
@@ -598,7 +604,7 @@ namespace Game.UI
                 if (label != null)
                 {
                     var labelRect = label as RectTransform;
-                    if (labelRect != null) labelRect.offsetMax = new Vector2(-94f, labelRect.offsetMax.y);
+                    if (labelRect != null) labelRect.offsetMax = new Vector2(-40f, labelRect.offsetMax.y);
                     var labelText = label.GetComponent<Text>();
                     if (labelText != null) labelText.fontSize = 20;
                 }
@@ -703,6 +709,12 @@ namespace Game.UI
             label.color = MoreInk;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
+            // Best fit, so a long word shrinks instead of breaking mid-word ("VERANSTALTUNGE / N"). The
+            // floor is 18, under the type scale's 22: a row is half the sheet and the longest German
+            // names are single 15-17 letter words.
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 18;
+            label.resizeTextMaxSize = 25;
             // Baked once at build time otherwise: a later language switch left this sheet stuck in
             // whatever language the HUD happened to build under, while every other screen kept up.
             label.gameObject.AddComponent<LocalizedText>().SetKey(MoreRowKey(name));

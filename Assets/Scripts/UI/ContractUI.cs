@@ -100,15 +100,22 @@ namespace Game.UI
         private GameObject _pacePrompt;
         private GameObject _adPill;
         private TMP_Text _adPillLabel;
+        private TMP_Text _pacePromptLabel;
+        private LocalizationService _loc;
         private GameObject _slotRoot;   // the authored "SIRADAKİ KONTRAT" slot — part of the running view
         private float _barFullWidth;
         private float _timer;
 
         // Code-built pieces: the three offer cards, and the line that shows while there is no ship.
+        private static readonly string[] TierKeys = { "kontrat.kolay", "kontrat.normal", "kontrat.zor" };
+
         private GameObject _offersRoot;
         private GameObject _statusRoot;
         private TMP_Text _statusText;
+        private TMP_Text _offersTitle;
         private readonly TMP_Text[] _offerTier = new TMP_Text[ContractService.TierCount];
+        private readonly TMP_Text[] _offerSwapLabel = new TMP_Text[ContractService.TierCount];
+        private readonly TMP_Text[] _offerTakeLabel = new TMP_Text[ContractService.TierCount];
         private readonly TMP_Text[] _offerTask = new TMP_Text[ContractService.TierCount];
         private readonly TMP_Text[] _offerTime = new TMP_Text[ContractService.TierCount];
         private readonly TMP_Text[] _offerPay = new TMP_Text[ContractService.TierCount];
@@ -149,9 +156,40 @@ namespace Game.UI
             BuildStatus();
             BuildAdPill();
             BuildPacePrompt();
+            ApplyStaticText();
+
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += OnLanguageChanged;
 
             if (panelRoot != null) panelRoot.SetActive(false);
             UiPanelSound.Attach(panelRoot);   // panel kapatıldıktan SONRA — açılış sesi boot'ta çalmasın
+        }
+
+        private void OnDestroy()
+        {
+            if (_loc != null) _loc.Changed -= OnLanguageChanged;
+        }
+
+        /// <summary>The captions built in code are written once, so a language change has to rewrite them
+        /// and drop the cached offer text; an open screen redraws straight away.</summary>
+        private void OnLanguageChanged()
+        {
+            ApplyStaticText();
+            _shownUnit = null;
+            if (IsOpen) Refresh();
+        }
+
+        private void ApplyStaticText()
+        {
+            if (_offersTitle != null) _offersTitle.text = Loc.T("kontrat.teklifler");
+            for (int i = 0; i < ContractService.TierCount; i++)
+            {
+                if (_offerTier[i] != null) _offerTier[i].text = Loc.T(TierKeys[i]);
+                if (_offerSwapLabel[i] != null) _offerSwapLabel[i].text = Loc.T("kontrat.degistir");
+                if (_offerTakeLabel[i] != null) _offerTakeLabel[i].text = Loc.T("kontrat.kabul");
+            }
+            if (_adPillLabel != null) _adPillLabel.text = Loc.T("kontrat.odul_iki_kat");
+            if (_pacePromptLabel != null) _pacePromptLabel.text = Loc.T("kontrat.geride");
         }
 
         private void ApplyLandscapeLayout()
@@ -200,9 +238,6 @@ namespace Game.UI
         {
             if (_contract == null) _contract = ServiceLocator.Get<ContractService>();
             if (_contract == null || panelRoot == null) return;
-            // Nothing here watches for a language change, so the cached offer text is thrown away every
-            // time the screen opens rather than being trusted across a trip to the settings menu.
-            _shownUnit = null;
             Refresh();
             panelRoot.SetActive(true);
         }
@@ -301,8 +336,7 @@ namespace Game.UI
             rt.anchoredPosition = runningCard.anchoredPosition
                                 - new Vector2(0f, runningCard.rect.height * 0.5f + height * 0.5f + 22f);
 
-            TMP_Text label = Text(rt, "Yazi", 24, TextAlignmentOptions.Center, EkranKit.InlayMin, EkranKit.InlayMax);
-            label.text = Loc.T("kontrat.geride");
+            _pacePromptLabel = Text(rt, "Yazi", 24, TextAlignmentOptions.Center, EkranKit.InlayMin, EkranKit.InlayMax);
 
             _pacePrompt = btn.gameObject;
             _pacePrompt.SetActive(false);
@@ -394,7 +428,6 @@ namespace Game.UI
             rt.anchoredPosition = chipRt.anchoredPosition;
 
             _adPillLabel = Text(rt, "Yazi", 26, TextAlignmentOptions.Center, EkranKit.InlayMin, EkranKit.InlayMax);
-            _adPillLabel.text = Loc.T("kontrat.odul_iki_kat");
 
             _adPill = btn.gameObject;
             _adPill.SetActive(false);
@@ -528,9 +561,8 @@ namespace Game.UI
             // Fractions of the 976 x 1575 sheet in UI_Kontrat. Its top 287 units are the crest and the
             // league ribbon laid across it (centred 242 down, as LadderUI lays the same pair), so the
             // subtitle starts 350 down and the rows below it; the bottom 103 are the frame.
-            TMP_Text title = Text(root, "Baslik", 40, TextAlignmentOptions.Center,
-                                  new Vector2(0.08f, 0.733f), new Vector2(0.92f, 0.778f));
-            title.text = Loc.T("kontrat.teklifler");
+            _offersTitle = Text(root, "Baslik", 40, TextAlignmentOptions.Center,
+                                new Vector2(0.08f, 0.733f), new Vector2(0.92f, 0.778f));
 
             // Three rows of the navy card, top down — in landscape too. Each row is 868 x 300 units,
             // the card's own 2.9:1, with a 24-unit gap; the three portrait columns landscape used to get
@@ -538,11 +570,10 @@ namespace Game.UI
             bool landscape = Screen.width > Screen.height;
             float left = landscape ? 0.20f : 0.055f;
             Color[] tints = { easyTint, normalTint, hardTint };
-            string[] keys = { "kontrat.kolay", "kontrat.normal", "kontrat.zor" };
             for (int i = 0; i < ContractService.TierCount; i++)
             {
                 float top = 0.7206f - i * 0.2057f;
-                BuildOfferCard(root, i, keys[i], tints[i], left, 1f - left, top - 0.1905f, top);
+                BuildOfferCard(root, i, tints[i], left, 1f - left, top - 0.1905f, top);
             }
 
             _offersRoot.SetActive(false);
@@ -563,7 +594,7 @@ namespace Game.UI
         /// The capsules are placed at their art's own proportion (btn_bos 4.4:1, btn_turuncu 2.77:1) on
         /// a card 868 by 300 units; both come out 0.335 of the card wide, so they share a column.
         /// </summary>
-        private void BuildOfferCard(RectTransform parent, int tier, string tierKey, Color tint,
+        private void BuildOfferCard(RectTransform parent, int tier, Color tint,
                                     float xMin, float xMax, float yMin, float yMax)
         {
             Image img = EkranKit.Sliced(parent, "Teklif" + tier, EkranKit.Get("kart_lacivert"),
@@ -580,7 +611,6 @@ namespace Game.UI
 
             _offerTier[tier] = Text(rt, "Zorluk", 28, TextAlignmentOptions.MidlineLeft,
                                     new Vector2(0.085f, 0.655f), new Vector2(0.58f, 0.80f));
-            _offerTier[tier].text = Loc.T(tierKey);
             _offerTier[tier].color = tint;
 
             _offerPay[tier] = Text(rt, "Odul", 36, TextAlignmentOptions.MidlineLeft,
@@ -593,35 +623,36 @@ namespace Game.UI
 
             // Clock, gems and foreman cards share the bottom band. The cards were the whole reason a
             // contract is worth running and the card never said so — a player comparing three jobs
-            // could only see the cash.
-            _offerTime[tier] = Text(rt, "Sure", 22, TextAlignmentOptions.MidlineLeft,
-                                    new Vector2(0.085f, 0.195f), new Vector2(0.24f, 0.335f));
-            _offerTime[tier].color = EkranKit.PaperSoft;
+            // could only see the cash. One row, so a layout group spaces whatever the three strings
+            // measure: three fixed columns left ragged gaps that changed with the language.
+            var metaGo = new GameObject("Meta", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            var meta = (RectTransform)metaGo.transform;
+            meta.SetParent(rt, false);
+            Stretch(meta, new Vector2(0.085f, 0.195f), new Vector2(0.58f, 0.335f));
+            var metaRow = metaGo.GetComponent<HorizontalLayoutGroup>();
+            metaRow.spacing = 30f;
+            metaRow.childAlignment = TextAnchor.MiddleLeft;
+            metaRow.childControlWidth = metaRow.childControlHeight = true;
+            metaRow.childForceExpandWidth = metaRow.childForceExpandHeight = false;
 
-            _offerGems[tier] = Text(rt, "Elmas", 22, TextAlignmentOptions.MidlineLeft,
-                                    new Vector2(0.24f, 0.195f), new Vector2(0.36f, 0.335f));
-            _offerGems[tier].color = new Color(0.45f, 0.82f, 1f);
-
-            _offerCards[tier] = Text(rt, "Kart", 22, TextAlignmentOptions.MidlineLeft,
-                                     new Vector2(0.36f, 0.195f), new Vector2(0.58f, 0.335f));
-            _offerCards[tier].color = new Color(0.80f, 0.66f, 1f);
+            _offerTime[tier] = MetaText(meta, "Sure", EkranKit.PaperSoft);
+            _offerGems[tier] = MetaText(meta, "Elmas", new Color(0.45f, 0.82f, 1f));
+            _offerCards[tier] = MetaText(meta, "Kart", new Color(0.80f, 0.66f, 1f));
 
             // The swap is a Button of its own on top of the card's Button: the raycast goes to the
             // topmost graphic, so pressing it never signs.
             Button swap = EkranKit.Capsule(rt, "Degistir", EkranKit.Get("btn_bos"),
                                            new Vector2(0.60f, 0.57f), new Vector2(0.934f, 0.79f),
                                            () => OnSwap(captured));
-            TMP_Text swapLabel = Text((RectTransform)swap.transform, "Yazi", 24, TextAlignmentOptions.Center,
-                                      EkranKit.CapsMin, EkranKit.CapsMax);
-            swapLabel.text = Loc.T("kontrat.degistir");
+            _offerSwapLabel[tier] = Text((RectTransform)swap.transform, "Yazi", 24, TextAlignmentOptions.Center,
+                                         EkranKit.CapsMin, EkranKit.CapsMax);
             _offerSwap[tier] = swap.gameObject;
 
             // Not a Button: a second press target on the card would only duplicate the card's own.
             Image accept = EkranKit.Sliced(rt, "Kabul", EkranKit.Get("btn_turuncu"),
                                            new Vector2(0.60f, 0.20f), new Vector2(0.935f, 0.55f), true);
-            TMP_Text take = Text(accept.rectTransform, "Yazi", 26, TextAlignmentOptions.Center,
-                                 EkranKit.InlayMin, EkranKit.InlayMax);
-            take.text = Loc.T("kontrat.kabul");
+            _offerTakeLabel[tier] = Text(accept.rectTransform, "Yazi", 26, TextAlignmentOptions.Center,
+                                         EkranKit.InlayMin, EkranKit.InlayMax);
         }
 
         private void BuildStatus()
@@ -687,7 +718,7 @@ namespace Game.UI
             if (targetText != null && targetText.font != null) t.font = targetText.font;
             t.fontSize = size;
             t.enableAutoSizing = true;
-            t.fontSizeMin = Mathf.Max(18f, size * 0.68f);
+            t.fontSizeMin = Mathf.Max((float)UiType.MinSize, size * 0.68f);
             t.fontSizeMax = size;
             t.alignment = align;
             // Navy by default: the sheet, the cream inlay and the pale capsule are all near-white. Labels
@@ -696,6 +727,18 @@ namespace Game.UI
             t.raycastTarget = false;      // the card under it is the tap target
             t.textWrappingMode = TextWrappingModes.NoWrap;
             t.overflowMode = TextOverflowModes.Ellipsis;
+            return t;
+        }
+
+        /// <summary>A fixed-size label for the meta row: auto-size would make its preferred width, and so the
+        /// row's spacing, depend on the largest size instead of the one drawn.</summary>
+        private TMP_Text MetaText(RectTransform row, string name, Color color)
+        {
+            TMP_Text t = Text(row, name, UiType.Body, TextAlignmentOptions.MidlineLeft, Vector2.zero, Vector2.one);
+            t.enableAutoSizing = false;
+            t.fontSize = UiType.Body;
+            t.overflowMode = TextOverflowModes.Overflow;
+            t.color = color;
             return t;
         }
 

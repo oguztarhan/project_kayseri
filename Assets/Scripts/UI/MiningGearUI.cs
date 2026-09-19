@@ -112,7 +112,7 @@ namespace Game.UI
 
         private void OnLanguageChanged()
         {
-            if (_titleLabel != null) _titleLabel.text = Loc.T("madenci.baslik");
+            if (_titleLabel != null) _titleLabel.text = EtkinlikKit.OneLine(Loc.T("madenci.baslik"));
             for (int i = 0; i < MiningGear.SlotCount; i++)
                 if (_slotName[i] != null) _slotName[i].text = Loc.T("madenci.yuva." + i);
             if (_root != null && _root.gameObject.activeSelf) Refresh();
@@ -179,15 +179,7 @@ namespace Game.UI
         /// </summary>
         private void BuildHeader()
         {
-            Image band = EkranKit.Sliced(_root, "Serit", LigKit.Get("serit"),
-                                         new Vector2(0.215f, 0.698f), new Vector2(0.785f, 0.790f), true);
-            _titleLabel = UiBuild.Label(Zone(band.rectTransform, "Yazi", new Vector2(0.20f, 0.18f), new Vector2(0.80f, 0.82f)),
-                                        "Text", Loc.T("madenci.baslik"), 36, TextAnchor.MiddleCenter);
-            _titleLabel.color = EkranKit.Paper;
-            Fit(_titleLabel, 18, 36);
-            _titleLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-
-            EkranKit.Close(_root, new Vector2(0.838f, 0.789f), new Vector2(0.952f, 0.877f), Hide);
+            _titleLabel = EtkinlikKit.Header(_root, EtkinlikKit.OneLine(Loc.T("madenci.baslik")), Hide);
 
             Image pill = EkranKit.Sliced(_root, "Puan", EkranKit.Get("hap_puan"),
                                          new Vector2(0.110f, 0.636f), new Vector2(0.500f, 0.688f), true);

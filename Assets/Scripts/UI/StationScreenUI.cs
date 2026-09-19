@@ -1118,16 +1118,28 @@ namespace Game.UI
         {
             if (row == null) return;
 
+            // Two lanes centred in the row, each box as tall as its largest size needs: the old 34 and 24 unit
+            // boxes were shorter than the font's line box, so best fit shrank the text to 21 and 15 and
+            // pushed it to the row's edges. The row keeps its native 184 height (see PortraitCardHeight). The
+            // level line has never fitted the row, and best fit dropped it whole; it stays off.
+            const float nameSize = 32f, detailSize = UiType.Body, textWidth = 400f;
+            float nameBox = UiType.LineBox(nameSize), detailBox = UiType.LineBox(detailSize);
+            float top = (nameBox + detailBox) * 0.5f;
             SetLeftMiddle(row.icon, new Vector2(20f, 0f), new Vector2(76f, 76f));
-            SetLeftMiddle(TextRect(row.name), new Vector2(112f, 36f), new Vector2(360f, 34f));
-            SetLeftMiddle(TextRect(row.level), new Vector2(112f, 3f), new Vector2(360f, 24f));
-            SetLeftMiddle(TextRect(row.detail), new Vector2(112f, -28f), new Vector2(360f, 24f));
-            SetRightMiddle(ObjectRect(row.buyGO), new Vector2(-14f, 0f), new Vector2(NarrowPrice, 74f));
-            SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-14f, 0f), new Vector2(NarrowPrice, 74f));
-            FitCardText(row.name, 34f, 18f);
-            FitCardText(row.level, 23f, 16f);
-            FitCardText(row.detail, 18f, 14f);
-            LayoutPriceText(row.price, NarrowPrice, 32f, 20f);
+            SetLeftMiddle(TextRect(row.name), new Vector2(112f, top - nameBox * 0.5f), new Vector2(textWidth, nameBox));
+            SetLeftMiddle(TextRect(row.detail), new Vector2(112f, top - nameBox - detailBox * 0.5f), new Vector2(textWidth, detailBox));
+            if (row.level != null) row.level.gameObject.SetActive(false);
+            // The buy art is 2:1 and preserveAspect draws it that way, so a 262x74 box showed a 148-wide pill
+            // inside a text rect worked out for 262: "$174.55" ran over the coin and past the cap. The box is
+            // the art's own proportion now, one touch target tall.
+            var buySize = new Vector2(UiType.MinTouch * 2f, UiType.MinTouch);
+            SetRightMiddle(ObjectRect(row.buyGO), new Vector2(-14f, 0f), buySize);
+            SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-14f, 0f), buySize);
+            FitCardText(row.name, nameSize, 24f);
+            FitCardText(row.detail, detailSize, UiType.MinSize);
+            // upgrade_buy has no coin: its cream inlay is 0.17-0.86 of the box, so the price sits there and
+            // not in the coin-art zone LayoutPriceText insets for (which put "$174.55" on the right cap).
+            LayoutButtonText(row.price, buySize.x * BuyInlayMin, buySize.x * (1f - BuyInlayMax), 34f, UiType.MinSize);
             LayoutButtonText(row.badgeText, 18f, 18f, 18f, 15f);
         }
 
@@ -1182,6 +1194,9 @@ namespace Game.UI
         private const float PriceCoinEnd = 0.361f;
         private const float PriceBodyEnd = 0.949f;
         private const float PriceGap = 8f;
+        // upgrade_buy's cream inlay, measured in Play on the settled 2:1 box (0.17-0.86), less a hair each side.
+        private const float BuyInlayMin = 0.19f;
+        private const float BuyInlayMax = 0.84f;
 
         /// <summary>
         /// The price text, inset past the coin the button art carries on its left third. Fractions of

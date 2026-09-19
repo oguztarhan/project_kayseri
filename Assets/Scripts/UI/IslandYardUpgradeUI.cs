@@ -15,10 +15,8 @@ namespace Game.UI
 
         private static readonly YardUpgrade[] Tracks = { YardUpgrade.DepositSlot, YardUpgrade.QueueSlot,
             YardUpgrade.HireCarry, YardUpgrade.HireServe, YardUpgrade.HireCollect, YardUpgrade.CarryCapacity };
-        private static readonly string[] Names = { "Stock capacity", "Customer capacity", "Restocking crew",
-            "Sales crew", "Order dispatch", "Porter load" };
-        private static readonly string[] TurkishNames = { "Stok kapasitesi", "Müşteri kapasitesi", "İkmal ekibi",
-            "Satış ekibi", "Sipariş hazırlama", "Taşıma kapasitesi" };
+        private static readonly string[] NameKeys = { "pazar_yukselt.depo", "pazar_yukselt.musteri", "pazar_yukselt.ikmal",
+            "pazar_yukselt.satis", "pazar_yukselt.siparis", "pazar_yukselt.tasima" };
         private static readonly Color Ink = new Color(0.08f, 0.13f, 0.19f);
         private static readonly Color Paper = new Color(0.97f, 0.98f, 1f);
         private static readonly Color LightInk = new Color(0.78f, 0.88f, 1f);
@@ -142,35 +140,33 @@ namespace Game.UI
             if (_portrait)
             {
                 // The ribbon names the screen; the island moves down beside the wallet.
-                Put(_title, EtkinlikKit.OneLine(Tr("MARKET UPGRADES", "PAZAR YÜKSELTMELERİ")));
+                Put(_title, EtkinlikKit.OneLine(Loc.T("pazar_yukselt.baslik")));
                 Put(_section, Loc.Id("ada", _island));
             }
             else
             {
-                Put(_title, Loc.Id("ada", _island) + " · " + Tr("Market", "Pazar"));
-                Put(_section, Tr("MARKET UPGRADES", "PAZAR YÜKSELTMELERİ"));
+                Put(_title, Loc.Id("ada", _island) + " · " + Loc.T("shipyard.market"));
+                Put(_section, Loc.T("pazar_yukselt.baslik"));
             }
-            string cash = Tr("Coins  ", "Para  ") + NumberFormatter.Format(_wallet.Cash);
+            string cash = Loc.T("pazar_yukselt.para") + "  " + NumberFormatter.Format(_wallet.Cash);
             Put(_cash, _portrait ? EtkinlikKit.OneLine(cash) : cash);
-            Put(_hint, Tr("Your crew works and sells automatically.", "Ekibin otomatik çalışır ve satış yapar."));
-            bool tr = ServiceLocator.Get<LocalizationService>()?.Code == "tr";
+            Put(_hint, Loc.T("pazar_yukselt.ipucu"));
             for (int i = 0; i < Tracks.Length; i++)
             {
                 var kind = Tracks[i];
                 int level = _market.Level(_island, kind);
                 bool maxed = _market.IsTrackMaxed(_island, kind);
                 double price = _market.Cost(_island, kind);
-                Put(_names[i], tr ? TurkishNames[i] : Names[i]);
-                string scope = kind == YardUpgrade.CarryCapacity ? Tr("All islands", "Tüm adalar") : Tr("This island", "Bu ada");
+                Put(_names[i], Loc.T(NameKeys[i]));
+                string scope = Loc.T(kind == YardUpgrade.CarryCapacity ? "pazar_yukselt.tum_adalar" : "pazar_yukselt.bu_ada");
                 Put(_levels[i], scope + "  ·  " + level + " / " + MarketPrices.MaxLevel(kind));
-                Put(_prices[i], maxed ? Tr("MAX", "MAKS") : price <= 0d ? Tr("Loading…", "Yükleniyor…")
+                Put(_prices[i], maxed ? Loc.T("market.maks") : price <= 0d ? Loc.T("ortak.yukleniyor")
                     : "+1  ·  " + NumberFormatter.Format(new BigDouble(price)));
                 _buy[i].interactable = !maxed && price > 0d && _wallet.Cash >= new BigDouble(price);
             }
         }
 
         private static void Put(Text label, string value) { if (label.text != value) label.text = value; }
-        private static string Tr(string en, string tr) => ServiceLocator.Get<LocalizationService>()?.Code == "tr" ? tr : en;
 
         private void Build()
         {
@@ -225,7 +221,9 @@ namespace Game.UI
             RectTransform wallet = UiBuild.Flat(_sheet, "WalletPlate", Paper, new Vector2(0.585f, 0.822f), new Vector2(0.88f, 0.8985f));
             Dress(wallet.GetComponent<Image>(), TycoonUpgradeArt.Wallet, Paper, true);
             Art(wallet, "CashIcon", TycoonUpgradeArt.CashIcon, new Vector2(0.03f, 0.05f), new Vector2(0.42f, 0.95f));
-            _cash = Label(wallet, "Wallet", 26, new Vector2(0.38f, 0.12f), new Vector2(0.92f, 0.88f), Color.white);
+            // Stops at 0.86, not 0.92: the balance filled its line to the plate's right cap, so a wide
+            // amount ran onto the rim. The smaller ceiling keeps a normal one clear of it as well.
+            _cash = Label(wallet, "Wallet", 24, new Vector2(0.38f, 0.12f), new Vector2(0.86f, 0.88f), Color.white);
             _cash.alignment = TextAnchor.MiddleCenter;
 
             const float listTop = 0.805f, listBottom = 0.135f, gap = 0.012f;

@@ -324,25 +324,31 @@ namespace Game.UI
                                             "Text", Loc.T("atolye.oranlar"), 30, TextAnchor.MiddleCenter);
             _oddsTitleLabel.color = Ink;
 
-            _captainLabel = UiBuild.Label(Zone(c, "ZanaatKaptani", new Vector2(0.22f, 0.845f), new Vector2(0.78f, 0.915f)),
-                                          "Text", string.Empty, 19, TextAnchor.MiddleCenter);
+            // The column is only 367 units wide, so the arrows and the label share it: the label gets a
+            // taller zone that holds three lines at the floor size instead of shrinking below it.
+            _captainLabel = UiBuild.Label(Zone(c, "ZanaatKaptani", new Vector2(0.23f, 0.835f), new Vector2(0.77f, 0.925f)),
+                                          "Text", string.Empty, 24, TextAnchor.MiddleCenter);
             _captainLabel.color = Ink;
-            Fit(_captainLabel, 10, 19);
+            Fit(_captainLabel, UiType.MinSize, 24);
 
             // FLATTER THAN THE ROW THEY SIT IN. The kit's buttons are all about 2:1, and the boxes
             // these used to have were taller than they were wide, which draws a capsule as a standing
             // oval. Short and wide, they come out as the stubby pills the rest of the screen is made
             // of instead of the two grey blocks they were.
+            // 81 by 84 units instead of 73 by 60 with a 24 unit arrow (now 52): as big as the shared column allows,
+            // and TouchPad takes the tap area up to the 126 unit minimum around it.
             _captainPrevBtn = UiBuild.Btn(c, "OncekiKaptan", "‹", _btnPale != null ? _btnPale : UiSkin.ButtonGrey,
-                                           Color.white, 24, OnPreviousCaptain);
+                                           Color.white, 52, OnPreviousCaptain);
             UiBuild.Anchor((RectTransform)_captainPrevBtn.transform,
-                           new Vector2(0f, 0.862f), new Vector2(0.20f, 0.898f));
+                           new Vector2(0f, 0.853f), new Vector2(0.22f, 0.903f));
             PillFit.Wrap(_captainPrevBtn.GetComponent<Image>());
+            _captainPrevBtn.gameObject.AddComponent<TouchPad>();
             _captainNextBtn = UiBuild.Btn(c, "SonrakiKaptan", "›", _btnPale != null ? _btnPale : UiSkin.ButtonGrey,
-                                           Color.white, 24, OnNextCaptain);
+                                           Color.white, 52, OnNextCaptain);
             UiBuild.Anchor((RectTransform)_captainNextBtn.transform,
-                           new Vector2(0.80f, 0.862f), new Vector2(1f, 0.898f));
+                           new Vector2(0.78f, 0.853f), new Vector2(1f, 0.903f));
             PillFit.Wrap(_captainNextBtn.GetComponent<Image>());
+            _captainNextBtn.gameObject.AddComponent<TouchPad>();
 
             _unlockLabel = UiBuild.Label(Zone(c, "SonrakiAcilis", new Vector2(0f, 0.785f), new Vector2(1f, 0.835f)),
                                          "Text", string.Empty, 18, TextAnchor.MiddleCenter);
@@ -572,9 +578,8 @@ namespace Game.UI
                 _autoCraftAdBtn.interactable = !active && AutoCraftAdReady;
                 Dress(_autoCraftAdBtn, _btnBlue, _autoCraftAdBtn.interactable);
                 _autoCraftAdLabel.text = active
-                    ? "OTO ÜRETİM  " + UiBuild.Clock(_crafting.AutoCraftSecondsLeft)
-                    : "REKLAM İZLE · " + Mathf.CeilToInt(rewardedAutoCraftSeconds / 60f)
-                      + " DK OTO ÜRETİM";
+                    ? string.Format(Loc.T("atolye.oto_uretim"), UiBuild.Clock(_crafting.AutoCraftSecondsLeft))
+                    : string.Format(Loc.T("atolye.reklam_oto"), Mathf.CeilToInt(rewardedAutoCraftSeconds / 60f));
             }
 
             for (int g = 0; g < Captains.GradeCount; g++)
@@ -606,11 +611,13 @@ namespace Game.UI
         {
             if (_captainLabel == null || _crafting == null) return;
             int captain = _crafting.AssignedCaptain;
+            // The title gets its own balanced lines and the status starts a fresh one: run together in a
+            // column this narrow they wrapped as "KHOA / TRƯỞNG CHẾ / TẠO / CHƯA GIAO".
+            string title = UiType.Balance(Loc.T("atolye.kaptan"));
             if (captain < 0)
-                _captainLabel.text = Loc.T("atolye.kaptan") + "\n" + Loc.T("atolye.kaptan_yok");
+                _captainLabel.text = title + "\n" + Loc.T("atolye.kaptan_yok");
             else
-                _captainLabel.text = Loc.T("atolye.kaptan") + "  "
-                                   + Loc.T("kaptan.ad." + Captains.IdOf(captain))
+                _captainLabel.text = title + "\n" + Loc.T("kaptan.ad." + Captains.IdOf(captain))
                                    + "  ·  " + string.Format(Loc.T("atolye.seviye"),
                                                                _crafting.AssignedCaptainLevel);
 

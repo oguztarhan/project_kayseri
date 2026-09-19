@@ -123,10 +123,10 @@ namespace Game.UI
         /// <summary>A row's height in canvas reference pixels — the canvas is 1080x1920. Five rows
         /// divided the band exactly; fifteen do not fit it at any readable height, so the band scrolls
         /// and this is what holds a row at the size it already was instead of a fifteenth of a screen.</summary>
-        private const float RowPixels = 221f;
+        private const float RowPixels = 244f;
 
         /// <summary>Gap between two rows, split half above and half below. Was 0.006 of the sheet.</summary>
-        private const float RowGap = 12f;
+        private const float RowGap = 20f;
 
         private CaptainService _captains;
         private LocalizationService _loc;
@@ -136,7 +136,7 @@ namespace Game.UI
         /// <see cref="RowPixels"/>, so a filter shortens the scroll instead of stretching the rows.</summary>
         private RectTransform _rowsContent;
 
-        private Text _titleLabel, _chartsLabel, _collectedLabel, _pityLabel, _lastPullLabel, _sourceLabel;
+        private Text _titleLabel, _crateLabel, _chartsLabel, _collectedLabel, _pityLabel, _lastPullLabel, _sourceLabel;
         private RectTransform _chartsChip;
         private Button _openOne, _openBulk;
         private Text _openOneText, _openBulkText;
@@ -187,7 +187,8 @@ namespace Game.UI
 
         private void OnLanguageChanged()
         {
-            if (_titleLabel != null) _titleLabel.text = Loc.T("kaptan.baslik");
+            if (_titleLabel != null) _titleLabel.text = EtkinlikKit.OneLine(Loc.T("kaptan.baslik"));
+            if (_crateLabel != null) _crateLabel.text = Loc.T("kaptan.sandik");
             if (_sourceLabel != null) _sourceLabel.text = Loc.T("kaptan.nereden");
             Refresh();
             RefreshOpener();
@@ -280,11 +281,22 @@ namespace Game.UI
             // sheet left of centre, which reads as a crooked title beside the Zemin behind it.
             RectTransform band = Art(_root, "Serit", ribbon,
                                      new Vector2(0.310f, 0.928f), new Vector2(0.690f, 0.998f));
+            // The art keeps its proportion inside that box, so on a squarer screen (3:4) it is limited by
+            // the box's height and drawn narrower than the box, while the label zone below is a share of
+            // the box: "THUYỀN TRƯỞNG" then ran over the clasps. Width follows height here, so the box IS
+            // the drawn ribbon and the zone stays between the clasps at every ratio.
+            if (ribbon != null)
+            {
+                var fitter = band.gameObject.AddComponent<AspectRatioFitter>();
+                fitter.aspectMode = AspectRatioFitter.AspectMode.HeightControlsWidth;
+                fitter.aspectRatio = ribbon.rect.width / ribbon.rect.height;
+            }
             // Legacy Text draws its capitals high in the line box, so a label centred on the ribbon's
-            // flat middle (0.64 of its height) put the title on the ribbon's top edge.
+            // flat middle (0.64 of its height) put the title on the ribbon's top edge. OneLine makes a
+            // long title shrink rather than break in two, as it did at 9:21.
             _titleLabel = UiBuild.Label(Slot(band, "Yazi", new Vector2(0.20f, RibbonBand - 0.18f),
                                         new Vector2(0.80f, RibbonBand + 0.18f)),
-                                   "Text", Loc.T("kaptan.baslik"), 38, TextAnchor.MiddleCenter);
+                                   "Text", EtkinlikKit.OneLine(Loc.T("kaptan.baslik")), 38, TextAnchor.MiddleCenter);
             Fit(_titleLabel, 20, 38);
 
             // Header chips hang off the sheet's outer edge, not the content margin — same line as the
@@ -341,11 +353,11 @@ namespace Game.UI
                 boxImage.preserveAspect = true;
                 boxImage.raycastTarget = false;
             }
-            Text title = UiBuild.Label(Slot(c, "Baslik", new Vector2(chest ? 0.175f : 0.035f, 0.745f),
-                                            new Vector2(0.480f, 0.945f)),
-                                       "Text", Loc.T("kaptan.sandik"), 34, TextAnchor.MiddleLeft);
-            title.color = Ink;
-            Fit(title, 18, 34);
+            _crateLabel = UiBuild.Label(Slot(c, "Baslik", new Vector2(chest ? 0.175f : 0.035f, 0.745f),
+                                             new Vector2(0.480f, 0.945f)),
+                                        "Text", Loc.T("kaptan.sandik"), 34, TextAnchor.MiddleLeft);
+            _crateLabel.color = Ink;
+            Fit(_crateLabel, 18, 34);
 
             // Charts cannot be bought, so this crate is outside the platforms' paid-loot-box rule. The
             // badge is here anyway: the card already shows how far each guarantee is away, and the
@@ -667,13 +679,14 @@ namespace Game.UI
             {
                 // Pips when they are on show, written stars when the badge has taken their slot —
                 // a captain at the helm still has to say how far he is levelled.
-                // One line, shrunk rather than wrapped: "Henüz bulunmadı" broke onto a second line
-                // over the progress bar on tall phones.
-                _rowRole[captain].text = EtkinlikKit.OneLine(!owned
-                    ? string.Format("{0} · {1} · {2}", rank, role, Loc.T("kaptan.bulunmadi"))
-                    : HasStarPips(captain) && !badged
-                        ? string.Format("{0} · {1}", rank, role)
-                        : string.Format("{0} · {1} · {2}", rank, role, StarText(level)));
+                // Grade and role on the first line, the state or stars on a second. Each line is one
+                // unbreakable run: at the type scale's floor the three parts no longer fit one line, and
+                // an unbreakable run that is too long is cut mid-word ("Chưa tìm th / ấy").
+                string tail = !owned ? Loc.T("kaptan.bulunmadi")
+                            : HasStarPips(captain) && !badged ? string.Empty
+                            : StarText(level);
+                string head = EtkinlikKit.OneLine(string.Format("{0} · {1}", rank, role));
+                _rowRole[captain].text = tail.Length == 0 ? head : head + "\n" + EtkinlikKit.OneLine(tail);
                 _rowRole[captain].color = owned ? InkSoft : InkFaint;
             }
             PaintStars(captain, owned ? level : 0, tint, !badged);
@@ -1027,6 +1040,37 @@ namespace Game.UI
             Adopt(_rowBadgeFill[captain], chipPill);
             Adopt(FindIn<Image>(card, "Cubuk"), barTrack);
             Adopt(_rowFill[captain], barFill);
+            StyleRow(captain, card);
+        }
+
+        /// <summary>
+        /// The authored card sets its text in regular weight with best-fit floors of 10 to 13, so a row
+        /// read as a thinner, smaller face than the bold ribbon over it, and packs name, role and a bar as
+        /// thick as the role line into 209 units. Here the text is bold like the ribbon, no floor is under
+        /// the type scale, the role lane holds two lines, and the bar slims down to leave air between them.
+        /// </summary>
+        private void StyleRow(int captain, RectTransform card)
+        {
+            Text name = _rowName[captain], role = _rowRole[captain];
+            if (name != null)
+            {
+                name.fontStyle = FontStyle.Bold;
+                Fit(name, 24, 30);
+                UiBuild.Anchor(name.rectTransform, new Vector2(0.21f, 0.58f), new Vector2(0.70f, 0.95f));
+            }
+            if (role != null)
+            {
+                role.fontStyle = FontStyle.Bold;
+                role.lineSpacing = UiType.LineSpacing;
+                Fit(role, UiType.MinSize, 24);
+                UiBuild.Anchor(role.rectTransform, new Vector2(0.21f, 0.31f), new Vector2(0.70f, 0.58f));
+            }
+            Image track = FindIn<Image>(card, "Cubuk");
+            if (track != null) UiBuild.Anchor(track.rectTransform, new Vector2(0.21f, 0.10f), new Vector2(0.70f, 0.22f));
+
+            Text button = _rowBtnText[captain], badge = _rowBadgeText[captain];
+            if (button != null) { button.fontStyle = FontStyle.Bold; Fit(button, UiType.MinSize, 26); }
+            if (badge != null) { badge.fontStyle = FontStyle.Bold; Fit(badge, UiType.MinSize, 24); }
         }
 
         /// <summary>

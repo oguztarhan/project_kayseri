@@ -45,6 +45,10 @@ namespace Game.UI
             "maden_dukkani.fener_tezgahi", "maden_dukkani.canta_tezgahi"
         };
 
+        private readonly System.Collections.Generic.List<Text> _signLabels = new System.Collections.Generic.List<Text>(3);
+        private readonly System.Collections.Generic.List<string> _signKeys = new System.Collections.Generic.List<string>(3);
+        private LocalizationService _loc;
+
         private MiningShopView _view;
         private MiningShopBusinessService _shop;
         private int _product;
@@ -76,6 +80,19 @@ namespace Game.UI
             _cameraController = FindAnyObjectByType<CameraController>();
             _camera = Camera.main;
             Build();
+            _loc = ServiceLocator.Get<LocalizationService>();
+            if (_loc != null) _loc.Changed += OnLanguageChanged;
+        }
+
+        private void OnDestroy()
+        {
+            if (_loc != null) _loc.Changed -= OnLanguageChanged;
+        }
+
+        /// <summary>The signs are drawn once when the camera frames the shop, so they are rewritten here.</summary>
+        private void OnLanguageChanged()
+        {
+            for (int i = 0; i < _signLabels.Count; i++) _signLabels[i].text = Loc.T(_signKeys[i]);
         }
 
         private void Update()
@@ -146,6 +163,8 @@ namespace Game.UI
             Transform at = _view.transform.Find(anchor);
             if (at == null) return;
             Text label = UiBuild.Label(canvas, "Sign", Loc.T(key), 48, TextAnchor.MiddleCenter);
+            _signLabels.Add(label);
+            _signKeys.Add(key);
             label.color = signColor;
             label.gameObject.AddComponent<Outline>().effectDistance = new Vector2(3f, -3f);
             RectTransform rt = label.rectTransform;

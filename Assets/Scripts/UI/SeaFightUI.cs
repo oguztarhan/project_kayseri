@@ -684,14 +684,17 @@ namespace Game.UI
                 _petStars[slot] = new Image[Pets.MaxStars];
                 Stars(go.transform, star, _petStars[slot]);
 
-                // Sized for the lone "+" of an empty slot; LOCKED over its wins auto-sizes down.
+                // Sized for the lone "+" of an empty slot; LOCKED over its wins auto-sizes down. It has the
+                // whole frame: a slot with no pet has no portrait, bonus or stars to leave room for.
                 TMP_Text badge = Line((RectTransform)go.transform, "Rozet", 44f,
-                                      new Vector2(0.08f, 0.26f), new Vector2(0.92f, 0.86f));
+                                      new Vector2(0.04f, 0.12f), new Vector2(0.96f, 0.94f));
                 badge.fontStyle = FontStyles.Bold;
                 badge.color = Faded;
-                // Two lines, never three: LOCKED over "N WINS", shrunk to fit like the route pills'
-                // own caption rather than broken mid-phrase.
-                badge.textWrappingMode = TextWrappingModes.NoWrap;
+                // LOCKED, then the wins on up to two more lines. On one line "24 CHIẾN THẮNG" is 3x the slot's
+                // width even at the auto-size floor, so it ran across the next slot's text. Wrapped, it breaks
+                // between words only, and the floor drops to 15 for the longest translations ("ZABLOKOWANE").
+                // Three lines at this font's 1.6 line box need about 72 of the frame's 80.
+                badge.fontSizeMin = 15f;
                 _petBadge[slot] = badge;
 
                 var button = go.AddComponent<Button>();

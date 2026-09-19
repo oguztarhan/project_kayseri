@@ -152,7 +152,7 @@ namespace Game.UI
 
         private void OnLanguageChanged()
         {
-            if (_titleLabel != null) _titleLabel.text = Loc.T("etkinlik.baslik");
+            if (_titleLabel != null) _titleLabel.text = EtkinlikKit.OneLine(Loc.T("etkinlik.baslik"));
             if (_emptyLabel != null) _emptyLabel.text = Loc.T("etkinlik.yok");
             Refresh();
             RefreshOpener();
@@ -225,14 +225,7 @@ namespace Game.UI
         /// offsets from its top edge — the same header the contract and mining gear screens wear.</summary>
         private void BuildHeader()
         {
-            Image band = EkranKit.Sliced(_root, "Serit", LigKit.Get("serit"),
-                                         new Vector2(0.215f, 0.698f), new Vector2(0.785f, 0.790f), true);
-            _titleLabel = UiBuild.Label(Slot(band.rectTransform, "Yazi", new Vector2(0.20f, 0.18f), new Vector2(0.80f, 0.82f)),
-                                        "Text", Loc.T("etkinlik.baslik"), 38, TextAnchor.MiddleCenter);
-            _titleLabel.color = EkranKit.Paper;
-            Fit(_titleLabel, 18, 38);
-
-            EkranKit.Close(_root, new Vector2(0.838f, 0.789f), new Vector2(0.952f, 0.877f), Hide);
+            _titleLabel = EtkinlikKit.Header(_root, EtkinlikKit.OneLine(Loc.T("etkinlik.baslik")), Hide);
         }
 
         /// <summary>

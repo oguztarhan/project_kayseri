@@ -98,7 +98,7 @@ namespace Game.UI
             _tabLabels[0].text = Loc.T("gorev.sekme.gunluk");
             _tabLabels[1].text = Loc.T("gorev.sekme.haftalik");
             _tabLabels[2].text = Loc.T("gorev.sekme.basarim");
-            _claimAllLabel.text = Loc.T("gorev.hepsini_al");
+            _claimAllLabel.text = UiType.Balance(Loc.T("gorev.hepsini_al"));
             _weeklyTaskCaption.text = Loc.T("gorev.haftalik_gorevler");
             _weeklyRewardCaption.text = Loc.T("gorev.haftalik_oduller");
             Refresh();
@@ -162,7 +162,7 @@ namespace Game.UI
         private void BuildHeader()
         {
             _titleLabel = AtolyeKit.Ribbon(_root, _ribbon, Loc.T("gorev.baslik"), AtolyeKit.RibbonMin, AtolyeKit.RibbonMax);
-            _claimAllButton = UiBuild.Btn(_root, "HepsiniAl", Loc.T("gorev.hepsini_al"),
+            _claimAllButton = UiBuild.Btn(_root, "HepsiniAl", UiType.Balance(Loc.T("gorev.hepsini_al")),
                 _btnLive != null ? _btnLive : UiSkin.ButtonGreen,
                 Color.white, 24, ClaimAll);
             UiBuild.Anchor((RectTransform)_claimAllButton.transform,

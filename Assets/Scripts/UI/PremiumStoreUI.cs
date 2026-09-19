@@ -533,7 +533,11 @@ namespace Game.UI
                 {
                     TMP_Text noteTxt = noteT.GetComponent<TMP_Text>();
                     bool hasNote = !string.IsNullOrEmpty(offer.description) && noteTxt != null;
-                    if (hasNote) noteTxt.text = Line("magaza." + offer.sku + ".aciklama", offer.description);
+                    if (hasNote)
+                    {
+                        noteTxt.text = Line("magaza." + offer.sku + ".aciklama", offer.description);
+                        StyleNote(go.transform, noteTxt);
+                    }
                     noteT.gameObject.SetActive(hasNote);
                 }
 
@@ -558,6 +562,33 @@ namespace Game.UI
                 OfferBinding captured = offer;
                 if (offer.button != null) offer.button.onClick.AddListener(() => BuyOffer(captured));
             }
+        }
+
+        /// <summary>
+        /// A note is set like the labels around it: capitals, no smaller than the type scale allows, and
+        /// top-aligned so one- and two-line notes start on the same line. The template's 66-high box sat
+        /// flush against the icon above and the pill below, so a second line touched the pill; the icon
+        /// gives up 20 units here to make the box 80 high, which holds two lines at the floor size.
+        /// </summary>
+        private static void StyleNote(Transform cell, TMP_Text note)
+        {
+            const float boxHeight = 80f, boxTop = 32f, iconSize = 126f, iconCentre = 98f;
+            note.enableAutoSizing = true;
+            note.fontSizeMin = UiType.MinSize;
+            note.fontSizeMax = 24f;
+            note.fontStyle |= FontStyles.UpperCase;
+            note.alignment = TextAlignmentOptions.Top;
+            note.textWrappingMode = TextWrappingModes.Normal;
+            note.overflowMode = TextOverflowModes.Ellipsis;
+            RectTransform rt = note.rectTransform;
+            rt.sizeDelta = new Vector2(248f, boxHeight);   // a line that fills the 280 card touches its rounded edges
+            rt.anchoredPosition = new Vector2(0f, boxTop - boxHeight * 0.5f);
+
+            Transform icon = cell.Find("Ikon");
+            if (icon == null) return;
+            var iconRt = (RectTransform)icon;
+            iconRt.sizeDelta = new Vector2(iconSize, iconSize);
+            iconRt.anchoredPosition = new Vector2(iconRt.anchoredPosition.x, iconCentre);
         }
 
         /// <summary>

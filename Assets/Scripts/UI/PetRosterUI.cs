@@ -78,10 +78,12 @@ namespace Game.UI
 
         /// <summary>The white page inside the board's rim, and the bands stacked down it.</summary>
         private const float PageLeft = 0.12f, PageRight = 0.88f;
-        private const float ChestTop = 0.745f, ChestBottom = 0.605f;
-        private const float SlotsTop = 0.597f, SlotsBottom = 0.525f;
-        private const float GridTop = 0.517f, GridBottom = 0.180f;
-        private const float FusionTop = 0.172f, FusionBottom = 0.115f;
+        // The chest card grew from 0.14 to 0.17 of the screen so its guarantee lines have room at the type
+        // scale; the pet grid gave back 0.015 of it and the rows below moved down by the rest.
+        private const float ChestTop = 0.745f, ChestBottom = 0.575f;
+        private const float SlotsTop = 0.567f, SlotsBottom = 0.495f;
+        private const float GridTop = 0.487f, GridBottom = 0.165f;
+        private const float FusionTop = 0.157f, FusionBottom = 0.100f;
         private const float GridGapX = 0.012f, GridGapY = 0.006f;
 
         private Sprite[] _frames;
@@ -274,22 +276,24 @@ namespace Game.UI
             EkranKit.Icon(chest, "SandikResmi", _config != null ? _config.ChestArt : null,
                           new Vector2(0.035f, 0.290f), new Vector2(0.205f, 0.950f));
 
-            _pearl = EtkinlikKit.Chip(chest, "Inciler", new Vector2(0.215f, 0.705f), new Vector2(0.600f, 0.925f));
-            _essence = EtkinlikKit.Chip(chest, "Oz", new Vector2(0.215f, 0.475f), new Vector2(0.600f, 0.695f));
-            _pity = Line(chest, "Merhamet", new Vector2(0.230f, 0.285f), new Vector2(0.600f, 0.470f),
-                         19, TextAnchor.MiddleLeft, InkSoft, 11);
+            // Two chips, then the guarantee as three short lines with a clear gap under the second chip: it
+            // was one wrapped line under a 5 unit gap, at 19 shrinking to 11.
+            _pearl = EtkinlikKit.Chip(chest, "Inciler", new Vector2(0.215f, 0.745f), new Vector2(0.600f, 0.945f));
+            _essence = EtkinlikKit.Chip(chest, "Oz", new Vector2(0.215f, 0.535f), new Vector2(0.600f, 0.735f));
+            _pity = Line(chest, "Merhamet", new Vector2(0.230f, 0.290f), new Vector2(0.605f, 0.515f),
+                         UiType.Body, TextAnchor.MiddleLeft, InkSoft, UiType.MinSize);
 
-            _openOne = EtkinlikKit.Capsule(chest, "AcBir", new Vector2(0.612f, 0.630f), new Vector2(0.962f, 0.925f),
+            _openOne = EtkinlikKit.Capsule(chest, "AcBir", new Vector2(0.612f, 0.640f), new Vector2(0.962f, 0.930f),
                                            () => Open(1), out _openOneText);
-            _openBulk = EtkinlikKit.Capsule(chest, "AcToplu", new Vector2(0.612f, 0.310f), new Vector2(0.962f, 0.605f),
+            _openBulk = EtkinlikKit.Capsule(chest, "AcToplu", new Vector2(0.612f, 0.320f), new Vector2(0.962f, 0.610f),
                                             () => Open(_pets != null ? _pets.ChestTuning.BulkCount : 10), out _openBulkText);
 
             UiBuild.Flat(chest, "Cizgi", new Color(InkFaint.r, InkFaint.g, InkFaint.b, 0.45f),
-                         new Vector2(0.045f, 0.262f), new Vector2(0.955f, 0.270f)).GetComponent<Image>().raycastTarget = false;
-            RectTransform summary = EtkinlikKit.Slot(chest, "Durum", new Vector2(0.050f, 0.070f), new Vector2(0.950f, 0.250f));
-            _last = Line(summary, "SonCekilis", Vector2.zero, new Vector2(0.48f, 1f), 19, TextAnchor.MiddleLeft, InkSoft, 11);
+                         new Vector2(0.045f, 0.252f), new Vector2(0.955f, 0.258f)).GetComponent<Image>().raycastTarget = false;
+            RectTransform summary = EtkinlikKit.Slot(chest, "Durum", new Vector2(0.050f, 0.050f), new Vector2(0.950f, 0.235f));
+            _last = Line(summary, "SonCekilis", Vector2.zero, new Vector2(0.48f, 1f), 24, TextAnchor.MiddleLeft, InkSoft, UiType.MinSize);
             _last.text = Loc.T("dost.son_yok");
-            _bonus = Line(summary, "CanliBonus", new Vector2(0.52f, 0f), Vector2.one, 19, TextAnchor.MiddleRight, Ink, 11);
+            _bonus = Line(summary, "CanliBonus", new Vector2(0.52f, 0f), Vector2.one, 24, TextAnchor.MiddleRight, Ink, UiType.MinSize);
         }
 
         /// <summary>
@@ -937,7 +941,7 @@ namespace Game.UI
         {
             var t = _pets.ChestTuning;
             return Loc.T("dost.merhamet") + "\n"
-                 + PityLine(RosterCardState.Rarity.Epic, t.EpicPity, _pets.SinceEpic, false) + "  ·  "
+                 + PityLine(RosterCardState.Rarity.Epic, t.EpicPity, _pets.SinceEpic, false) + "\n"
                  + PityLine(RosterCardState.Rarity.Legendary, t.LegendaryPity, _pets.SinceLegendary, false);
         }
 

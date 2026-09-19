@@ -247,7 +247,8 @@ namespace Game.UI
             _storyLine = UiBuild.Label(Slot(c, "Satir", new Vector2(0f, 0f), new Vector2(0.66f, 0.52f)),
                                        "Text", string.Empty, 24, TextAnchor.UpperLeft);
             _storyLine.color = InkSoft;
-            Fit(_storyLine, 14, 24);
+            _storyLine.lineSpacing = UiType.LineSpacing;   // at 1 the second line sat on the first
+            Fit(_storyLine, UiType.MinSize, 24);
 
             _claimAll = UiBuild.Btn(c, "HepsiniAl", string.Empty,
                                     _btnLive != null ? _btnLive : UiSkin.ButtonGreen,
@@ -466,10 +467,10 @@ namespace Game.UI
             string island = Chapters.Namespace(_shown);
             bool owned = _chapters.Owned(_shown);
 
-            _storyTitle.text = string.Format("{0} {1}   ·   {2}",
-                                             Loc.T("bolum.bolum"), _shown + 1, Loc.Id("ada", island));
+            _storyTitle.text = EtkinlikKit.OneLine(string.Format("{0} {1}   ·   {2}",
+                                             Loc.T("bolum.bolum"), _shown + 1, Loc.Id("ada", island)));
             // A chapter the player has not reached keeps its line back — it is the reason to get there.
-            _storyLine.text = owned ? Loc.T("bolum.hikaye." + island) : Loc.T("bolum.kilitli");
+            _storyLine.text = KeepTail(owned ? Loc.T("bolum.hikaye." + island) : Loc.T("bolum.kilitli"));
 
             int owed = 0;
             for (int b = 0; b < Chapters.BeatCount; b++) if (_chapters.CanClaim(_shown, b)) owed++;
@@ -493,8 +494,8 @@ namespace Game.UI
             _beatNote[beat].text = BeatNote(beat, t);
             Progress(_beatFillImage[beat], Chapters.BeatProgress(beat, p, t));
 
-            _beatReward[beat].text = RewardLine(Chapters.BeatGems(_shown, beat, t),
-                                                Chapters.BeatCards(_shown, beat, t));
+            _beatReward[beat].text = EtkinlikKit.OneLine(RewardLine(Chapters.BeatGems(_shown, beat, t),
+                                                                    Chapters.BeatCards(_shown, beat, t)));
 
             _beatBtnText[beat].text = claimed ? Loc.T("gorev.alindi") : Loc.T("gorev.al");
             Dress(_beatBtn[beat], _chapters.CanClaim(_shown, beat));
@@ -599,6 +600,13 @@ namespace Game.UI
             label.resizeTextMaxSize = max;
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
+        }
+
+        /// <summary>The last two words made one, so a sentence that wraps never leaves a lone word on its last line.</summary>
+        private static string KeepTail(string text)
+        {
+            int space = string.IsNullOrEmpty(text) ? -1 : text.LastIndexOf(' ');
+            return space < 0 ? text : text.Substring(0, space) + (char)0xA0 + text.Substring(space + 1);
         }
 
         private RectTransform Chip(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)

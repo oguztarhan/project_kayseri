@@ -1175,8 +1175,11 @@ namespace Game.UI
                 _tab[s].transform.SetParent(tabs, false);
                 UiBuild.Anchor((RectTransform)_tab[s].transform, new Vector2(s / 3f, 0), new Vector2((s + 1) / 3f, 1));
                 TransparentControl(_tab[s]);
-                UiBuild.Anchor((RectTransform)_tabText[s].transform, new Vector2(0.045f, 0.105f), new Vector2(0.955f, 0.29f));
-                Fit(_tabText[s], 22, 24);
+                // The caption plate in the tab art is about 0.69 of a third, not the 0.91 this box used to
+                // span, so "Shipyard Workshop" ran off its right end. 18 is below the type scale's 22 on
+                // purpose: the plate is a fixed width and that name is its longest (it settles near 21).
+                UiBuild.Anchor((RectTransform)_tabText[s].transform, new Vector2(0.185f, 0.105f), new Vector2(0.815f, 0.29f));
+                Fit(_tabText[s], 18, 24);
                 _tabText[s].color = Ink;
                 _tabBadge[s].SetActive(false);
                 var marker = UiBuild.Flat(_tab[s].transform, "SelectedSet", new Color(0.15f, 0.91f, 1f, 1),

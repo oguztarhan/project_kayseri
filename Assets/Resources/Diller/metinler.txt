@@ -93,20 +93,31 @@ hud.gunluk	GÜNLÜK	DAILY	TÄGLICH	QUOTIDIEN	DIARIO	DIÁRIO	GIORNALIERO	CODZIENN
 hud.magaza	MAĞAZA	SHOP	SHOP	BOUTIQUE	TIENDA	LOJA	NEGOZIO	SKLEP	МАГАЗИН	TOKO	CỬA HÀNG
 hud.yukselt	YÜKSELT	UPGRADE	AUSBAU	AMÉLIORER	MEJORAR	MELHORAR	POTENZIA	ULEPSZ	УЛУЧШИТЬ	TINGKATKAN	NÂNG CẤP
 hud.pazar_gelistir	PAZAR GELİŞTİR	UPGRADE MARKET	MARKT AUSBAU	AMÉLIORER LE MARCHÉ	MEJORAR MERCADO	MELHORAR MERCADO	POTENZIA MERCATO	ULEPSZ RYNEK	УЛУЧШИТЬ РЫНОК	TINGKATKAN PASAR	NÂNG CẤP CHỢ
+pazar_yukselt.baslik	PAZAR YÜKSELTMELERİ	MARKET UPGRADES	MARKT-AUSBAU	AMÉLIORATIONS DU MARCHÉ	MEJORAS DEL MERCADO	MELHORIAS DO MERCADO	POTENZIAMENTI DEL MERCATO	ULEPSZENIA RYNKU	УЛУЧШЕНИЯ РЫНКА	UPGRADE PASAR	NÂNG CẤP CHỢ
+pazar_yukselt.para	Para	Coins	Münzen	Pièces	Monedas	Moedas	Monete	Monety	Монеты	Koin	Xu
+pazar_yukselt.ipucu	Ekibin otomatik çalışır ve satış yapar.	Your crew works and sells automatically.	Deine Crew arbeitet und verkauft automatisch.	Ton équipe travaille et vend automatiquement.	Tu equipo trabaja y vende automáticamente.	Sua equipe trabalha e vende automaticamente.	La tua squadra lavora e vende in automatico.	Twoja ekipa pracuje i sprzedaje automatycznie.	Твоя команда работает и продаёт автоматически.	Timmu bekerja dan berjualan secara otomatis.	Đội của bạn tự động làm việc và bán hàng.
+pazar_yukselt.bu_ada	Bu ada	This island	Diese Insel	Cette île	Esta isla	Esta ilha	Quest'isola	Ta wyspa	Этот остров	Pulau ini	Đảo này
+pazar_yukselt.tum_adalar	Tüm adalar	All islands	Alle Inseln	Toutes les îles	Todas las islas	Todas as ilhas	Tutte le isole	Wszystkie wyspy	Все острова	Semua pulau	Mọi đảo
+pazar_yukselt.depo	Stok kapasitesi	Stock capacity	Lagerkapazität	Capacité de stock	Capacidad de stock	Capacidade de estoque	Capacità di scorta	Pojemność magazynu	Вместимость склада	Kapasitas stok	Sức chứa kho
+pazar_yukselt.musteri	Müşteri kapasitesi	Customer capacity	Kundenkapazität	Capacité de clients	Capacidad de clientes	Capacidade de clientes	Capacità clienti	Pojemność klientów	Вместимость клиентов	Kapasitas pelanggan	Sức chứa khách
+pazar_yukselt.ikmal	İkmal ekibi	Restocking crew	Nachschub-Team	Équipe de réassort	Equipo de reposición	Equipe de reposição	Squadra rifornimento	Ekipa zaopatrzenia	Команда пополнения	Tim pengisian stok	Đội tiếp hàng
+pazar_yukselt.satis	Satış ekibi	Sales crew	Verkaufs-Team	Équipe de vente	Equipo de ventas	Equipe de vendas	Squadra vendite	Ekipa sprzedaży	Команда продаж	Tim penjualan	Đội bán hàng
+pazar_yukselt.siparis	Sipariş hazırlama	Order dispatch	Auftragsversand	Envoi des commandes	Envío de pedidos	Envio de pedidos	Spedizione ordini	Wysyłka zamówień	Отправка заказов	Pengiriman pesanan	Giao đơn hàng
+pazar_yukselt.tasima	Taşıma kapasitesi	Porter load	Trägerlast	Charge des porteurs	Carga de porteadores	Carga dos carregadores	Carico dei facchini	Udźwig tragarzy	Ноша грузчиков	Muatan pengangkut	Tải trọng phu vác
 hud.bedava	BEDAVA	FREE	GRATIS	GRATUIT	GRATIS	GRÁTIS	GRATIS	GRATIS	БЕСПЛАТНО	GRATIS	MIỄN PHÍ
 hud.teklif	TEKLİF	OFFER	ANGEBOT	OFFRE	OFERTA	OFERTA	OFFERTA	OFERTA	АКЦИЯ	PENAWARAN	ƯU ĐÃI
 hud.kalkan	KALKAN	SHIELD	SCHILD	BOUCLIER	ESCUDO	ESCUDO	SCUDO	TARCZA	ЩИТ	PERISAI	KHIÊN
 hud.dahafazla	DAHA FAZLA	MORE	MEHR	PLUS	MÁS	MAIS	ALTRO	WIĘCEJ	ЕЩЁ	LAINNYA	THÊM
-wallet.title	CÜZDAN	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET	WALLET
-wallet.open	KAYNAKLAR	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES	RESOURCES
-wallet.close	KAPAT	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE	CLOSE
-wallet.group.main	ANA EKONOMİ	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY	MAIN ECONOMY
-wallet.group.sea	DENİZ	SEA	SEA	SEA	SEA	SEA	SEA	SEA	SEA	SEA	SEA
-wallet.group.crafting	ZANAAT	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING	CRAFTING
-wallet.group.mining	MADEN TEÇHİZATI	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR	MINING GEAR
-wallet.group.pets	EVCİL HAYVANLAR	PETS	PETS	PETS	PETS	PETS	PETS	PETS	PETS	PETS	PETS
-wallet.next_regen	{0} sonra +1	+1 in {0}	+1 in {0}	+1 in {0}	+1 in {0}	+1 in {0}	+1 in {0}	+1 in {0}	+1 in {0}	+1 in {0}	+1 in {0}
-wallet.full	DOLU	FULL	FULL	FULL	FULL	FULL	FULL	FULL	FULL	FULL	FULL
+wallet.title	CÜZDAN	WALLET	GELDBEUTEL	PORTEFEUILLE	CARTERA	CARTEIRA	PORTAFOGLIO	PORTFEL	КОШЕЛЁК	DOMPET	VÍ
+wallet.open	KAYNAKLAR	RESOURCES	RESSOURCEN	RESSOURCES	RECURSOS	RECURSOS	RISORSE	ZASOBY	РЕСУРСЫ	SUMBER DAYA	TÀI NGUYÊN
+wallet.close	KAPAT	CLOSE	SCHLIESSEN	FERMER	CERRAR	FECHAR	CHIUDI	ZAMKNIJ	ЗАКРЫТЬ	TUTUP	ĐÓNG
+wallet.group.main	ANA EKONOMİ	MAIN ECONOMY	WIRTSCHAFT	ÉCONOMIE PRINCIPALE	ECONOMÍA PRINCIPAL	ECONOMIA PRINCIPAL	ECONOMIA PRINCIPALE	GŁÓWNA EKONOMIA	ОСНОВНАЯ ЭКОНОМИКА	EKONOMI UTAMA	KINH TẾ CHÍNH
+wallet.group.sea	DENİZ	SEA	MEER	MER	MAR	MAR	MARE	MORZE	МОРЕ	LAUT	BIỂN
+wallet.group.crafting	ZANAAT	CRAFTING	HANDWERK	ARTISANAT	FABRICACIÓN	FABRICAÇÃO	CREAZIONE	RZEMIOSŁO	РЕМЕСЛО	KERAJINAN	CHẾ TẠO
+wallet.group.mining	MADEN TEÇHİZATI	MINING GEAR	BERGBAU	MINAGE	MINERÍA	MINERAÇÃO	ESTRAZIONE	GÓRNICTWO	ДОБЫЧА	TAMBANG	KHAI MỎ
+wallet.group.pets	EVCİL HAYVANLAR	PETS	BEGLEITER	COMPAGNONS	COMPAÑEROS	COMPANHEIROS	COMPAGNI	TOWARZYSZE	СПУТНИКИ	TEMAN	BẠN ĐỒNG HÀNH
+wallet.next_regen	{0} sonra +1	+1 in {0}	+1 in {0}	+1 dans {0}	+1 en {0}	+1 em {0}	+1 tra {0}	+1 za {0}	+1 через {0}	+1 dalam {0}	+1 sau {0}
+wallet.full	DOLU	FULL	VOLL	PLEIN	LLENO	CHEIO	PIENO	PEŁNE	ПОЛНО	PENUH	ĐẦY
 currency.cash	NAKİT	CASH	BARGELD	ESPÈCES	EFECTIVO	DINHEIRO	CONTANTI	GOTÓWKA	НАЛИЧНЫЕ	UANG TUNAI	TIỀN MẶT
 currency.gems	ELMAS	GEMS	DIAMANTEN	GEMMES	GEMAS	GEMAS	GEMME	KLEJNOTY	АЛМАЗЫ	PERMATA	KIM CƯƠNG
 currency.salvage	HURDA	SALVAGE	BERGEGUT	RÉCUP	CHATARRA	SUCATA	RECUPERO	ZŁOM	УТИЛЬ	BESI TUA	PHẾ LIỆU
@@ -923,17 +934,19 @@ koleksiyon.kart.deep_waters/wreck_map.ad	Enkaz Haritası	Wreck Map	Wrackkarte	Ca
 koleksiyon.kart.deep_waters/wreck_map.aciklama	Çarpı, gövdenin yerini gösterir.	X marks the hull.	X markiert den Rumpf.	La croix marque la coque.	La X marca el casco.	O X marca o casco.	La X segna lo scafo.	X oznacza kadłub.	Крестик отмечает корпус.	Tanda X menunjuk lambung kapal.	Dấu X đánh dấu thân tàu.
 koleksiyon.kart.deep_waters/admiralty_seal.ad	Amiral Mührü	Admiralty Seal	Admiralitätssiegel	Sceau de l'Amirauté	Sello del Almirantazgo	Selo do Almirantado	Sigillo dell'Ammiragliato	Pieczęć admiralicji	Печать адмиралтейства	Segel Laksamana	Ấn đô đốc
 koleksiyon.kart.deep_waters/admiralty_seal.aciklama	Haritadaki her limanı açar.	Opens every harbour on the map.	Öffnet jeden Hafen auf der Karte.	Ouvre chaque port de la carte.	Abre todos los puertos del mapa.	Abre todos os portos do mapa.	Apre ogni porto sulla mappa.	Otwiera każdy port na mapie.	Открывает любую гавань на карте.	Membuka setiap pelabuhan di peta.	Mở mọi bến cảng trên bản đồ.
-atolye.kaptan	ZANAAT KAPTANI	CRAFTING CAPTAIN	WERKSTATTKAPITÄN	CAPITAINE D'ATELIER	CAPITÁN DE TALLER	CAPITÃO DE OFICINA	CAPITANO D'OFFICINA	KAPITAN RZEMIOSŁA	КАПИТАН МАСТЕРСКОЙ	KAPTEN PERAJIN	KHOA TRƯỞNG CHẾ TẠO
+atolye.kaptan	ZANAAT KAPTANI	CRAFTING CAPTAIN	WERKSTATT KAPITÄN	CAPITAINE D'ATELIER	CAPITÁN DE TALLER	CAPITÃO DE OFICINA	CAPITANO D'OFFICINA	KAPITAN RZEMIOSŁA	КАПИТАН МАСТЕРСКОЙ	KAPTEN PERAJIN	KHOA TRƯỞNG CHẾ TẠO
 atolye.kaptan_yok	ATANMADI	NONE ASSIGNED	KEINER ZUGEWIESEN	AUCUN ASSIGNÉ	SIN ASIGNAR	NENHUM ATRIBUÍDO	NON ASSEGNATO	NIE PRZYPISANO	НЕ НАЗНАЧЕН	BELUM DITUGASKAN	CHƯA GIAO
 atolye.sonraki_acilis	SONRAKİ: {0} SV. {1}	NEXT UNLOCK: {0} AT LV. {1}	NÄCHSTER: {0} AB STUFE {1}	SUIVANT : {0} AU NIV. {1}	SIGUIENTE: {0} NV. {1}	PRÓXIMO: {0} NV. {1}	SUCCESSIVO: {0} LIV. {1}	NASTĘPNE: {0} OD POZ. {1}	СЛЕДУЮЩИЙ: {0} С УР. {1}	BERIKUTNYA: {0} DI LV. {1}	TIẾP THEO: {0} Ở CẤP {1}
 atolye.tum_acik	TÜM NADİRLİKLER AÇIK	ALL RARITIES UNLOCKED	ALLE SELTENHEITEN FREIGESCHALTET	TOUTES LES RARETÉS SONT DÉBLOQUÉES	TODAS LAS RAREZAS DESBLOQUEADAS	TODAS AS RARIDADES LIBERADAS	TUTTE LE RARITÀ SBLOCCATE	WSZYSTKIE RZADKOŚCI ODBLOKOWANE	ВСЕ РЕДКОСТИ ОТКРЫТЫ	SEMUA KELANGKAAN TERBUKA	TẤT CẢ ĐỘ HIẾM ĐÃ MỞ
+atolye.oto_uretim	OTO ÜRETİM  {0}	AUTO-CRAFT  {0}	AUTO-FERTIGUNG  {0}	FABRICATION AUTO  {0}	CREACIÓN AUTO  {0}	CRIAÇÃO AUTO  {0}	CREAZIONE AUTO  {0}	AUTO-WYTWARZANIE  {0}	АВТОСОЗДАНИЕ  {0}	BUAT OTOMATIS  {0}	TỰ ĐỘNG CHẾ TẠO  {0}
+atolye.reklam_oto	REKLAM İZLE · {0} DK OTO ÜRETİM	WATCH AD · {0} MIN AUTO-CRAFT	WERBUNG ANSEHEN · {0} MIN AUTO-FERTIGUNG	VOIR UNE PUB · {0} MIN FABRICATION AUTO	VER ANUNCIO · {0} MIN CREACIÓN AUTO	VER ANÚNCIO · {0} MIN CRIAÇÃO AUTO	GUARDA UN ANNUNCIO · {0} MIN CREAZIONE AUTO	OBEJRZYJ REKLAMĘ · {0} MIN AUTO-WYTWARZANIA	СМОТРЕТЬ РЕКЛАМУ · {0} МИН АВТОСОЗДАНИЯ	TONTON IKLAN · {0} MNT BUAT OTOMATIS	XEM QUẢNG CÁO · {0} PHÚT TỰ ĐỘNG CHẾ TẠO
 # maden dukkani
 maden_dukkani.kazma_tezgahi	KAZMA TEZGÂHI	PICKAXE BENCH	SPITZHACKEN-WERKBANK	ÉTABLI À PIOCHES	BANCO DE PICOS	BANCADA DE PICARETAS	BANCO DEI PICCONI	WARSZTAT KILOFÓW	ВЕРСТАК КИРОК	MEJA BELIUNG	BÀN RÈN CUỐC
 maden_dukkani.ozet	{0} SN · ${1} · {2} SATILDI	{0}S · ${1} · {2} SOLD	{0} S · ${1} · {2} VERKAUFT	{0} S · {1} $ · {2} VENDUES	{0} S · ${1} · {2} VENDIDOS	{0} S · ${1} · {2} VENDIDAS	{0} S · ${1} · {2} VENDUTI	{0} S · ${1} · {2} SPRZEDANO	{0} С · ${1} · {2} ПРОДАНО	{0} DTK · ${1} · {2} TERJUAL	{0} GIÂY · ${1} · ĐÃ BÁN {2}
 maden_dukkani.hiz	HIZ SV. {0}	SPEED LV. {0}	TEMPO ST. {0}	VITESSE NIV. {0}	VELOCIDAD NV. {0}	VELOCIDADE NV. {0}	VELOCITÀ LIV. {0}	SZYBKOŚĆ POZ. {0}	СКОРОСТЬ УР. {0}	KECEPATAN LV. {0}	TỐC ĐỘ CẤP {0}
 maden_dukkani.deger	DEĞER SV. {0}	VALUE LV. {0}	WERT ST. {0}	VALEUR NIV. {0}	VALOR NV. {0}	VALOR NV. {0}	VALORE LIV. {0}	WARTOŚĆ POZ. {0}	ЦЕНА УР. {0}	NILAI LV. {0}	GIÁ TRỊ CẤP {0}
 maden_dukkani.maks	MAKS	MAX	MAX	MAX	MÁX	MÁX	MAX	MAKS	МАКС	MAKS	TỐI ĐA
-maden_dukkani.uret	ÜRET	CRAFT	HERSTELLEN	FABRIQUER	FABRICAR	FABRICAR	CREA	WYTWÓRZ	СОЗДАТЬ	BUAT	CHẾ TẠO
+maden_dukkani.uret	ÜRET	CRAFT	FERTIGEN	CRÉER	FABRICAR	FABRICAR	CREA	WYTWÓRZ	СОЗДАТЬ	BUAT	CHẾ TẠO
 maden_dukkani.stok	STOK	STOCK	LAGER	STOCK	STOCK	ESTOQUE	SCORTE	ZAPAS	ЗАПАС	STOK	KHO
 maden_dukkani.sat	SAT	SELL	VERKAUF	VENTE	VENTA	VENDA	VENDITA	SPRZEDAŻ	ПРОДАЖА	JUAL	BÁN
 maden_dukkani.kask_tezgahi	KASK TEZGÂHI	HELMET BENCH	HELM-WERKBANK	ÉTABLI À CASQUES	BANCO DE CASCOS	BANCADA DE CAPACETES	BANCO DEGLI ELMETTI	WARSZTAT KASKÓW	ВЕРСТАК КАСОК	MEJA HELM	BÀN LÀM MŨ
