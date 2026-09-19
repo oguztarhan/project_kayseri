@@ -87,7 +87,7 @@ namespace Game.UI
         private const float GridGapX = 0.012f, GridGapY = 0.006f;
 
         private Sprite[] _frames;
-        private Sprite _cardBack, _readyBadge, _card, _socket, _padlock;
+        private Sprite _cardBack, _readyBadge, _card, _socket, _padlock, _pearlArt, _essenceArt;
 
         private PetService _pets;
         private PetConfig _config;
@@ -234,6 +234,9 @@ namespace Game.UI
             _card = AtolyeKit.Get("panel_kart");
             _socket = EkranKit.Get("yuva");
             _padlock = EkranKit.Get("kilit");
+            // The wallet's own art for the two balances, so a pearl looks the same here as in the wallet.
+            _pearlArt = Resources.Load<Sprite>("UI/Wallet/Pearls");
+            _essenceArt = Resources.Load<Sprite>("UI/Wallet/PetEssence");
         }
 
         private void Build()
@@ -287,6 +290,10 @@ namespace Game.UI
                                            () => Open(1), out _openOneText);
             _openBulk = EtkinlikKit.Capsule(chest, "AcToplu", new Vector2(0.612f, 0.320f), new Vector2(0.962f, 0.610f),
                                             () => Open(_pets != null ? _pets.ChestTuning.BulkCount : 10), out _openBulkText);
+            CurrencyChip(_pearl, _pearlArt);
+            CurrencyChip(_essence, _essenceArt);
+            PearlPrice(_openOneText, _pearlArt);
+            PearlPrice(_openBulkText, _pearlArt);
 
             UiBuild.Flat(chest, "Cizgi", new Color(InkFaint.r, InkFaint.g, InkFaint.b, 0.45f),
                          new Vector2(0.045f, 0.252f), new Vector2(0.955f, 0.258f)).GetComponent<Image>().raycastTarget = false;
@@ -294,6 +301,22 @@ namespace Game.UI
             _last = Line(summary, "SonCekilis", Vector2.zero, new Vector2(0.48f, 1f), 24, TextAnchor.MiddleLeft, InkSoft, UiType.MinSize);
             _last.text = Loc.T("dost.son_yok");
             _bonus = Line(summary, "CanliBonus", new Vector2(0.52f, 0f), Vector2.one, 24, TextAnchor.MiddleRight, Ink, UiType.MinSize);
+        }
+
+        /// <summary>A balance chip's currency art at its left end, the label moved clear of it.</summary>
+        private static void CurrencyChip(Text label, Sprite art)
+        {
+            var band = (RectTransform)label.transform.parent;
+            UiBuild.Anchor(band, new Vector2(0.24f, 0.20f), new Vector2(0.90f, 0.80f));
+            EkranKit.Icon(band.parent, "Simge", art, new Vector2(0.03f, 0.06f), new Vector2(0.23f, 0.94f));
+        }
+
+        /// <summary>The pearl at the right end of a price button's label band, the label held short of it.</summary>
+        private static void PearlPrice(Text label, Sprite art)
+        {
+            var band = (RectTransform)label.transform.parent;
+            UiBuild.Anchor(label.rectTransform, Vector2.zero, new Vector2(0.80f, 1f));
+            EkranKit.Icon(band, "Inci", art, new Vector2(0.82f, 0.08f), new Vector2(1f, 0.92f));
         }
 
         /// <summary>
@@ -735,13 +758,13 @@ namespace Game.UI
         {
             if (_pets == null) return;
             if (_title != null) _title.text = EtkinlikKit.OneLine(Loc.T("dost.baslik"));
-            _pearl.text = EtkinlikKit.OneLine("◉ " + Loc.T("dost.inci") + ": " + _pets.Pearls.ToString(Culture));
-            _essence.text = EtkinlikKit.OneLine("✦ " + Loc.T("dost.oz") + ": " + _pets.PetEssence.ToString(Culture));
+            _pearl.text = EtkinlikKit.OneLine(Loc.T("dost.inci") + ": " + _pets.Pearls.ToString(Culture));
+            _essence.text = EtkinlikKit.OneLine(Loc.T("dost.oz") + ": " + _pets.PetEssence.ToString(Culture));
             _pity.text = PityText();
-            _openOneText.text = EtkinlikKit.OneLine(Loc.T("kaptan.ac") + " ×1   " + _pets.ChestCost(1).ToString(Culture) + " ◉");
+            _openOneText.text = EtkinlikKit.OneLine(Loc.T("kaptan.ac") + " ×1   " + _pets.ChestCost(1).ToString(Culture));
             int bulk = _pets.ChestTuning.BulkCount;
             _openBulkText.text = EtkinlikKit.OneLine(string.Format(Loc.T("kaptan.acCok"), bulk.ToString(Culture)) + "   "
-                                                     + _pets.ChestCost(bulk).ToString(Culture) + " ◉");
+                                                     + _pets.ChestCost(bulk).ToString(Culture));
             EtkinlikKit.SetFace(_openOne, _openOneText, _pets.CanOpenChest(1) ? EtkinlikKit.Face.Claim : EtkinlikKit.Face.Dead,
                                 _pets.CanOpenChest(1));
             EtkinlikKit.SetFace(_openBulk, _openBulkText, _pets.CanOpenChest(bulk) ? EtkinlikKit.Face.Primary : EtkinlikKit.Face.Dead,
@@ -970,8 +993,8 @@ namespace Game.UI
             return string.Format(Loc.T("dost.bonus"), b.Length > 0 ? b.ToString() : Loc.T("dost.yok"));
         }
 
-        /// <summary>Copies in hand per rung, compact enough for a card's last line: "N2★×3" is three
-        /// Rare two-stars.</summary>
+        /// <summary>Copies in hand per rung, compact enough for a card's last line: "★2 ×3" is three
+        /// two-star copies, drawn in the colour of their rarity — the colour the rarity line above uses.</summary>
         private string CountText(int species)
         {
             var b = new StringBuilder();
@@ -981,7 +1004,8 @@ namespace Game.UI
                     int count = _pets.CountAt(species, (RosterCardState.Rarity)r, star);
                     if (count <= 0) continue;
                     if (b.Length > 0) b.Append(" · ");
-                    b.Append(RarityShort((RosterCardState.Rarity)r)).Append(star).Append('★').Append('×').Append(count);
+                    b.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(_pets.RarityTint((RosterCardState.Rarity)r))).Append('>')
+                     .Append('★').Append(star).Append(" ×").Append(count).Append("</color>");
                 }
             return b.ToString();
         }
@@ -996,9 +1020,6 @@ namespace Game.UI
 
         private static string RarityName(RosterCardState.Rarity rarity)
             => Loc.T("kaptan.derece." + (int)rarity);
-
-        private static string RarityShort(RosterCardState.Rarity rarity)
-            => Loc.T("dost.kisa." + (int)rarity);
 
         private static string Stars(int value)
             => new string('★', Mathf.Clamp(value, 0, Pets.MaxStars))

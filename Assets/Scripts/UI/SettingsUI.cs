@@ -280,6 +280,12 @@ namespace Game.UI
         private const float FooterHeight = 180f;
         private const float FooterTop = -1630f;
         private const float FooterWidth = 870f;
+        // Destek sanatı (1961x505) kulaklığı sol uçta taşıyor ve preserveAspect ile çiziliyor: 870'lik
+        // kutuda 699 birim genişliğinde ortalanıyordu. Yazılar kutuya göre konunca sürüm kulaklığın
+        // üstüne, "DESTEK" de sanatın sağ kenarının dışına düşüyordu. Kutu artık sanatın kendi oranında
+        // ve yazılar kulaklıktan (sanatın 0.06-0.25'i) sonraki alanı paylaşıyor: başlık üstte, sürüm altında.
+        private const float FooterTextLeft = 0.29f;
+        private const float FooterTextRight = 0.93f;
 
         private SupportMenuUI _support;
 
@@ -326,33 +332,35 @@ namespace Game.UI
                 // dilim üst üste biniyor.
                 float border = Mathf.Max(img.sprite.border.y, img.sprite.border.w);
                 if (border > 0f) img.pixelsPerUnitMultiplier = Mathf.Max(1f, border / (FooterHeight * 0.21f));
+                if (img.preserveAspect)
+                    rt.sizeDelta = new Vector2(FooterHeight * img.sprite.rect.width / img.sprite.rect.height, FooterHeight);
             }
 
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             btn.onClick.AddListener(OnSupport);
 
-            FooterText(rt, "Surum", PlayerIdentity.VersionLine(), 30f, TMPro.TextAlignmentOptions.Left,
-                       new Vector2(140f, 0f), new Vector2(-380f, 0f), Color.white);
-            var support = FooterText(rt, "Destek", Loc.T("ayarlar.destek"), 36f, TMPro.TextAlignmentOptions.Right,
-                                     new Vector2(FooterWidth - 380f, 0f), new Vector2(-34f, 0f),
+            var support = FooterText(rt, "Destek", Loc.T("ayarlar.destek"), 38f, TMPro.TextAlignmentOptions.Left,
+                                     new Vector2(FooterTextLeft, 0.47f), new Vector2(FooterTextRight, 0.87f),
                                      Color.white);
+            FooterText(rt, "Surum", PlayerIdentity.VersionLine(), 26f, TMPro.TextAlignmentOptions.Left,
+                       new Vector2(FooterTextLeft, 0.17f), new Vector2(FooterTextRight, 0.47f), Color.white);
             // Dil değişince kendi kendine güncellensin: bu şerit kodla kuruluyor, prefabdaki satırlar
             // gibi Inspector'dan LocalizedText alamıyor.
             support.gameObject.AddComponent<LocalizedText>().SetKey("ayarlar.destek");
         }
 
         private TMPro.TMP_Text FooterText(RectTransform parent, string name, string caption, float size,
-                                          TMPro.TextAlignmentOptions align, Vector2 min, Vector2 max, Color ink)
+                                          TMPro.TextAlignmentOptions align, Vector2 anchorMin, Vector2 anchorMax, Color ink)
         {
             var go = new GameObject(name, typeof(RectTransform));
             var t = go.AddComponent<TMPro.TextMeshProUGUI>();
             var rt = (RectTransform)go.transform;
             rt.SetParent(parent, false);
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = new Vector2(min.x, 0f);
-            rt.offsetMax = new Vector2(max.x, 0f);
+            rt.anchorMin = anchorMin;
+            rt.anchorMax = anchorMax;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
             if (languageSkin.Font != null) t.font = languageSkin.Font;
             t.text = caption;
             t.fontSize = size;

@@ -107,6 +107,9 @@ namespace Game.UI
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
         private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
+        // Text on a locked row's dimmed grey card: quieter than Ink, still readable. InkFaint on that
+        // card measured under 2:1.
+        private static readonly Color InkLocked = new Color(0.22f, 0.27f, 0.36f, 1f);
 
         /// <summary>The state badge's three fills. Green is at the wheel, blue is away on a voyage,
         /// slate is not found. None of them is a grade colour — a Mythic you have not pulled is
@@ -354,7 +357,7 @@ namespace Game.UI
                 boxImage.raycastTarget = false;
             }
             _crateLabel = UiBuild.Label(Slot(c, "Baslik", new Vector2(chest ? 0.175f : 0.035f, 0.745f),
-                                             new Vector2(0.480f, 0.945f)),
+                                             new Vector2(0.360f, 0.945f)),
                                         "Text", Loc.T("kaptan.sandik"), 34, TextAnchor.MiddleLeft);
             _crateLabel.color = Ink;
             Fit(_crateLabel, 18, 34);
@@ -377,7 +380,7 @@ namespace Game.UI
                 oddsImage.color = Color.white;
             }
             UiBuild.Anchor((RectTransform)odds.transform,
-                           new Vector2(0.500f, 0.765f), new Vector2(0.580f, 0.935f));
+                           new Vector2(0.375f, 0.765f), new Vector2(0.455f, 0.935f));
 
             _collectedLabel = UiBuild.Label(Slot(c, "Toplandi", new Vector2(0.035f, 0.615f), new Vector2(0.590f, 0.725f)),
                                             "Text", string.Empty, 26, TextAnchor.MiddleLeft);
@@ -646,7 +649,13 @@ namespace Game.UI
             var grade = Captains.RankOf(captain);
 
             Color tint = TintOf(captain);
-            if (_rowGrade[captain] != null) _rowGrade[captain].color = tint;
+            Image stripe = _rowGrade[captain];
+            if (stripe != null)
+            {
+                Sprite capsule = StripeArt();
+                if (stripe.sprite != capsule) { stripe.sprite = capsule; stripe.type = Image.Type.Sliced; }
+                stripe.color = tint;
+            }
             if (_rowArt[captain] != null)
                 _rowArt[captain].color = owned ? Color.white : new Color(0.82f, 0.84f, 0.88f, 1f);
             if (_rowPortrait[captain] != null)
@@ -668,7 +677,7 @@ namespace Game.UI
             if (_rowName[captain] != null)
             {
                 _rowName[captain].text = Loc.T("kaptan.ad." + Captains.IdOf(captain));
-                _rowName[captain].color = owned ? Ink : InkFaint;
+                _rowName[captain].color = owned ? Ink : InkLocked;
             }
 
             // Grade, role, and how far along he is as STARS rather than "Lv 2". Five levels drawn as
@@ -687,7 +696,7 @@ namespace Game.UI
                             : StarText(level);
                 string head = EtkinlikKit.OneLine(string.Format("{0} · {1}", rank, role));
                 _rowRole[captain].text = tail.Length == 0 ? head : head + "\n" + EtkinlikKit.OneLine(tail);
-                _rowRole[captain].color = owned ? InkSoft : InkFaint;
+                _rowRole[captain].color = owned ? InkSoft : InkLocked;
             }
             PaintStars(captain, owned ? level : 0, tint, !badged);
 
@@ -1068,6 +1077,11 @@ namespace Game.UI
             Image track = FindIn<Image>(card, "Cubuk");
             if (track != null) UiBuild.Anchor(track.rectTransform, new Vector2(0.21f, 0.10f), new Vector2(0.70f, 0.22f));
 
+            // The authored grade stripe sits on the card's rim; move it in off it (RefreshRow rounds it).
+            Image stripe = _rowGrade[captain];
+            if (stripe != null)
+                UiBuild.Anchor(stripe.rectTransform, new Vector2(0.030f, 0.17f), new Vector2(0.050f, 0.83f));
+
             Text button = _rowBtnText[captain], badge = _rowBadgeText[captain];
             if (button != null) { button.fontStyle = FontStyle.Bold; Fit(button, UiType.MinSize, 26); }
             if (badge != null) { badge.fontStyle = FontStyle.Bold; Fit(badge, UiType.MinSize, 24); }
@@ -1178,6 +1192,34 @@ namespace Game.UI
             return (RectTransform)go.transform;
         }
 
+        private static Sprite _stripeArt;
+
+        /// <summary>
+        /// A white capsule for the grade stripe, generated. The stripe is tinted per grade, and the kit's
+        /// pill art is not neutral: tinted, every grade came out navy.
+        /// </summary>
+        private static Sprite StripeArt()
+        {
+            if (_stripeArt != null) return _stripeArt;
+            const int size = 18, radius = 8;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float cx = Mathf.Clamp(x + 0.5f, radius, size - radius);
+                    float cy = Mathf.Clamp(y + 0.5f, radius, size - radius);
+                    float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy) - radius;
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)((1f - Mathf.Clamp01(d + 0.5f)) * 255f));
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            _stripeArt = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
+                                       SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+            return _stripeArt;
+        }
+
         /// <summary>A plain coloured quad — the grade stripe, which must keep its own colour.</summary>
         private static Image Flat(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
         {
@@ -1244,6 +1286,10 @@ namespace Game.UI
         {
             b.interactable = live;
             b.GetComponent<Image>().color = live ? Color.white : new Color(0.72f, 0.75f, 0.80f, 1f);
+            // A disabled plate washes out to pale lavender and its white label went with it (about
+            // 2:1), so the label takes dark ink while the button is dead.
+            Text label = b.GetComponentInChildren<Text>();
+            if (label != null) label.color = live ? Color.white : Ink;
         }
 
         private static void Ping() => ServiceLocator.Get<HapticService>()?.Medium();

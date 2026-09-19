@@ -60,7 +60,9 @@ namespace Game.UI
         private const float CloseSize = 140f;
         private const float CloseRight = -94f;      // ayarların kapatma tuşuyla aynı nokta
         private const float CloseTop = -276f;
-        private const float ViewportSide = 60f;
+        // The panel's cream inlay is about 820 wide; the old 60 side and 420 cells made a 856 grid that
+        // ran both columns over the blue frame. 110 and 368 give 752, with a margin on each side.
+        private const float ViewportSide = 110f;
         private const float ViewportTop = 162f;     // ayarlardaki ilk satırın başladığı yer
         private const float ViewportBottom = 60f;
         // İki sütun × altı sıra = on iki yer, on bir dil; hepsi tek ekranda, kaydırma yok. Dolgu ızgarayı
@@ -68,8 +70,9 @@ namespace Game.UI
         private const float ListTopPad = 159f;
         private const int Columns = 2;
         private const int LandscapeColumns = 4;
-        // 2×420 + 16 = 856, yani görüş alanının tam genişliği
+        // Yatayda 4×420 + 3×16 = 1728, görüş alanının tamamı; dikeyde 2×368 + 16 = 752, görüş alanının tamamı
         private const float CellWidth = 420f;
+        private const float PortraitCellWidth = 368f;
         private const float CellHeight = 150f;
         // Yatayda on bir dil dört sütuna üç sıra olarak oturuyor ve 150'lik satırlarla panelin alt
         // yarısı boş kalıyordu. Satırı görüş alanını dolduracak kadar yükseltiyoruz: 26 + 3×200 +
@@ -203,7 +206,8 @@ namespace Game.UI
             // Izgara: diller yan yana, sonrakiler altına. Tek sütunlu tam genişlikte satırlarken on bir
             // dil ekrana sığmıyordu; iki sütunda hepsi tek bakışta duruyor ve hiç kaydırmak gerekmiyor.
             var grid = _list.gameObject.AddComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(CellWidth, landscape ? LandscapeCellHeight : CellHeight);
+            grid.cellSize = new Vector2(landscape ? CellWidth : PortraitCellWidth,
+                                        landscape ? LandscapeCellHeight : CellHeight);
             grid.spacing = new Vector2(CellSpacing, CellSpacing);
             float topPad = landscape ? 26f : ListTopPad;
             grid.padding = new RectOffset(0, 0, (int)topPad, (int)topPad);
@@ -277,7 +281,9 @@ namespace Game.UI
             _rowNameText[i] = Text(rt, "Ad", caption, 40f, TextAlignmentOptions.Left,
                                    new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
             var nrt = (RectTransform)_rowNameText[i].transform;
-            nrt.sizeDelta = new Vector2(CellWidth - 128f - 60f, 74f);
+            // 76 clear of the tick on the narrower portrait cell: at 60 the longest names ran into it.
+            bool landscape = Screen.width > Screen.height;
+            nrt.sizeDelta = new Vector2((landscape ? CellWidth - 60f : PortraitCellWidth - 76f) - 128f, 74f);
             nrt.pivot = new Vector2(0f, 0.5f);
             nrt.anchoredPosition = new Vector2(128f, 0f);
             // "Português" ile "Polski" arasında iki kat fark var, kutu ise sabit

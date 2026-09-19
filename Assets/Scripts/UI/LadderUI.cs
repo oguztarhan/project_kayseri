@@ -402,11 +402,11 @@ namespace Game.UI
                 // podium medal pinned to the card reads as a sticker, hung over it as a medal.
                 _slotMedal[i] = LigKit.Icon(body, "Madalya", "madalya_altin",
                                             new Vector2(0.26f, 0.620f), new Vector2(0.74f, 1.030f));
-                _slotName[i] = UiBuild.Label(Slot(body, "Ad", new Vector2(0.04f, 0.480f), new Vector2(0.96f, 0.600f)),
-                                             "Text", string.Empty, 24, TextAnchor.MiddleCenter);
+                _slotName[i] = Rimmed(UiBuild.Label(Slot(body, "Ad", new Vector2(0.04f, 0.480f), new Vector2(0.96f, 0.600f)),
+                                             "Text", string.Empty, 24, TextAnchor.MiddleCenter));
                 _slotChest[i] = Chest(body, new Vector2(0.215f, 0.150f), new Vector2(0.785f, 0.460f), i);
-                _slotScore[i] = UiBuild.Label(Slot(body, "Puan", new Vector2(0.04f, 0.020f), new Vector2(0.96f, 0.140f)),
-                                              "Text", string.Empty, 28, TextAnchor.MiddleCenter);
+                _slotScore[i] = Rimmed(UiBuild.Label(Slot(body, "Puan", new Vector2(0.04f, 0.020f), new Vector2(0.96f, 0.140f)),
+                                              "Text", string.Empty, 28, TextAnchor.MiddleCenter));
             }
             else
             {
@@ -419,13 +419,15 @@ namespace Game.UI
                 // The rank is centred on the player row's gold star, not placed beside it: the star is a
                 // rank badge, which is what it was drawn as. It lands in the same place on an ordinary
                 // plate, where it simply reads as a left-hand rank column.
-                _slotRank[i] = UiBuild.Label(Slot(body, "Sira", RankMin, RankMax),
-                                             "Text", string.Empty, 28, TextAnchor.MiddleCenter);
-                _slotName[i] = UiBuild.Label(Slot(body, "Ad", new Vector2(0.200f, 0f), new Vector2(0.575f, 1f)),
-                                             "Text", string.Empty, 26, TextAnchor.MiddleLeft);
-                _slotScore[i] = UiBuild.Label(Slot(body, "Puan", new Vector2(0.585f, 0f), new Vector2(0.845f, 1f)),
-                                              "Text", string.Empty, 26, TextAnchor.MiddleRight);
-                _slotChest[i] = Chest(body, new Vector2(0.860f, 0.060f), new Vector2(0.988f, 0.940f), i);
+                _slotRank[i] = Rimmed(UiBuild.Label(Slot(body, "Sira", RankMin, RankMax),
+                                             "Text", string.Empty, 28, TextAnchor.MiddleCenter));
+                _slotName[i] = Rimmed(UiBuild.Label(Slot(body, "Ad", new Vector2(0.200f, 0f), new Vector2(0.575f, 1f)),
+                                             "Text", string.Empty, 26, TextAnchor.MiddleLeft));
+                _slotScore[i] = Rimmed(UiBuild.Label(Slot(body, "Puan", new Vector2(0.585f, 0f), new Vector2(0.845f, 1f)),
+                                              "Text", string.Empty, 26, TextAnchor.MiddleRight));
+                // Inside the plate's rim: the old 0.06-0.94 box was the whole row, so the chest's own
+                // outline crossed the border above and below.
+                _slotChest[i] = Chest(body, new Vector2(0.868f, 0.160f), new Vector2(0.972f, 0.840f), i);
             }
 
             body.gameObject.SetActive(false);
@@ -466,10 +468,10 @@ namespace Game.UI
 
             _pinnedRank = UiBuild.Label(Slot(_pinnedRoot, "Sira", RankMin, RankMax),
                                         "Text", string.Empty, 28, TextAnchor.MiddleCenter);
-            _pinnedName = UiBuild.Label(Slot(_pinnedRoot, "Ad", new Vector2(0.200f, 0f), new Vector2(0.640f, 1f)),
-                                        "Text", string.Empty, 26, TextAnchor.MiddleLeft);
-            _pinnedScore = UiBuild.Label(Slot(_pinnedRoot, "Puan", new Vector2(0.650f, 0f), new Vector2(0.950f, 1f)),
-                                         "Text", string.Empty, 26, TextAnchor.MiddleRight);
+            _pinnedName = Rimmed(UiBuild.Label(Slot(_pinnedRoot, "Ad", new Vector2(0.200f, 0f), new Vector2(0.640f, 1f)),
+                                        "Text", string.Empty, 26, TextAnchor.MiddleLeft));
+            _pinnedScore = Rimmed(UiBuild.Label(Slot(_pinnedRoot, "Puan", new Vector2(0.650f, 0f), new Vector2(0.950f, 1f)),
+                                         "Text", string.Empty, 26, TextAnchor.MiddleRight));
 
             _pinnedRoot.gameObject.SetActive(false);
         }
@@ -691,6 +693,17 @@ namespace Game.UI
             });
         }
 
+        private static readonly Color Rim = new Color(0.03f, 0.10f, 0.25f, 0.9f);
+
+        /// <summary>A navy outline for text that sits on the game's bright blue and green plates.</summary>
+        private static Text Rimmed(Text label)
+        {
+            var rim = label.gameObject.AddComponent<Outline>();
+            rim.effectColor = Rim;
+            rim.effectDistance = new Vector2(2f, -2f);
+            return label;
+        }
+
         private void Seat(int i, in LeaderboardEntry entry)
         {
             _slotRankValue[i] = entry.Rank;
@@ -723,13 +736,16 @@ namespace Game.UI
                 if (fit != null) fit.Fit();
             }
 
-            // The name and score sit on the plate, so they invert with it. The RANK does not: on the
-            // player's row it sits on the gold star, where white would be unreadable, and on an
-            // ordinary plate dark is right anyway. So it stays dark on both.
-            Color text = entry.IsPlayer ? Paper : Ink;
-            if (_slotRank[i] != null) _slotRank[i].color = Ink;
-            if (_slotName[i] != null) _slotName[i].color = text;
-            if (_slotScore[i] != null) _slotScore[i].color = text;
+            // Name and score are paper ink with a navy rim on both plates: dark navy on the saturated
+            // blue panel read as a smear. The RANK is dark only on the player's row, where it sits on
+            // the gold star and white would vanish.
+            if (_slotRank[i] != null)
+            {
+                _slotRank[i].color = entry.IsPlayer ? Ink : Paper;
+                _slotRank[i].GetComponent<Outline>().enabled = !entry.IsPlayer;   // a rim smears the dark digits
+            }
+            if (_slotName[i] != null) _slotName[i].color = Paper;
+            if (_slotScore[i] != null) _slotScore[i].color = Paper;
 
             if (_slotChest[i] != null) _slotChest[i].sprite = ChestFor(entry.Rank);
         }

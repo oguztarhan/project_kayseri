@@ -120,7 +120,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -480}
+  m_AnchoredPosition: {x: 0, y: -400}
   m_SizeDelta: {x: 980, y: 230}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7840403436321408308
@@ -138,7 +138,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 824065844434698981}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
@@ -423,7 +423,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -132, y: -480}
+  m_AnchoredPosition: {x: -116, y: -566}
   m_SizeDelta: {x: 84, y: 84}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3085241441698945863
@@ -644,7 +644,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e19c2752793c41348ab4f342c7a32e7a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.CardSparkle
-  starSprite: {fileID: 0}
+  starSprite: {fileID: 21300000, guid: e6390e88f89aa234e93cb9aed192bc57, type: 3}
   count: 3
   minSize: 22
   maxSize: 46
@@ -912,7 +912,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: 0, y: -430}
-  m_SizeDelta: {x: 976, y: 1600}
+  m_SizeDelta: {x: 976, y: 1530}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &3249049187504052051
 CanvasRenderer:
@@ -942,7 +942,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 62f429fcb3a53fd4eb3e386a96701be1, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 07408ab32904e93438f365f3f05c4f7a, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1518,7 +1518,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e19c2752793c41348ab4f342c7a32e7a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.CardSparkle
-  starSprite: {fileID: 0}
+  starSprite: {fileID: 21300000, guid: e6390e88f89aa234e93cb9aed192bc57, type: 3}
   count: 3
   minSize: 22
   maxSize: 46

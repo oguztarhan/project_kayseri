@@ -46,11 +46,11 @@ namespace Game.UI
         [Tooltip("Kart çubuğunun yatağı ve dolgusu — Gostergeler/slider_yatak, bar_dolgu.")]
         [SerializeField] private Sprite barTrack;
         [SerializeField] private Sprite barFill;
-        [Tooltip("Üstteki iki gösterge — MaviSet/gosterge_grafit. HUD'un para ve elmas hapıyla aynı parça.")]
+        [Tooltip("Üstteki iki gösterge — AtolyeKiti/hap_cip, atölye ve deniz dostlarının mavi çipi.")]
         [SerializeField] private Sprite chipPill;
         [Tooltip("Bedelin solundaki elmas ikonu — Ikonlar/ikon_elmas.")]
         [SerializeField] private Sprite gemIcon;
-        [Tooltip("Kesenin solundaki elmas — HUD'un kullandığı diamond_128x128, artı rozetiyle birlikte.")]
+        [Tooltip("Kesenin çipinin içindeki elmas — AtolyeKiti/elmas.")]
         [SerializeField] private Sprite purseGem;
         [Tooltip("On beş portre, KADRO SIRASIYLA: her istasyonun Sıradan / Nadir / Efsanevi ustası " +
                  "arka arkaya — maden(3), depo(3), rafineri(3), liman(3), pazar(3). Game.Core.Foremen." +
@@ -128,7 +128,7 @@ namespace Game.UI
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
         private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
-        /// <summary>The two header chips are graphite, so their numbers go the other way.</summary>
+        /// <summary>The two header chips are blue, so their numbers are paper.</summary>
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
 
         /// <summary>
@@ -574,9 +574,9 @@ namespace Game.UI
                                    "Text", Loc.T("usta.baslik"), 38, TextAnchor.MiddleCenter);
             Fit(_titleLabel, 20, 38);
 
-            // Both chips are the HUD's own graphite pill. They sit on the same line as the HUD's
-            // money and gem counters and used to be white, so the top of the screen read as two
-            // different games stacked on each other.
+            // Both chips are the kit's blue chip, as on the workshop and the sea friends, not the HUD's
+            // graphite one: on this screen they sit under the kit ribbon, and the graphite pair read as
+            // two dark stones next to it.
             // The two chips are the same size and share the close button's centre line (0.969), and
             // the multiplier keeps the same outer margin on the left as the close button does on the
             // right, so the header reads as one row rather than three things at three heights.
@@ -590,13 +590,12 @@ namespace Game.UI
             // Right of the ribbon, not over its tail: it started at 0.625 and the gem sat on the ribbon.
             RectTransform sag = Chip(_root, "Kese",
                                      new Vector2(0.710f, ChipBottom), new Vector2(0.850f, ChipTop));
-            // The gem overhangs the pill's left cap, the way it does on the HUD — inside the capsule
-            // it would be a diamond in a dark box, and the plus badge would lose its edge. Its box is
-            // roughly square: preserveAspect draws the smaller side, and the old 0.32-wide box drew a
-            // 43px gem on an 84px pill.
+            // The gem sits INSIDE the chip's left cap, the way the sea friends' balance chips carry their
+            // icon. It used to hang off the cap, the way it does on the HUD; on the graphite chip that
+            // kept it out of a dark box, but on the blue one it just read as spilling out of it.
             Icon(sag, "Elmas", purseGem != null ? purseGem : gemIcon,
-                 new Vector2(-0.19f, 0.02f), new Vector2(0.29f, 0.98f));
-            _balance = UiBuild.Label(Slot(sag, "Yazi", new Vector2(0.32f, 0.08f), new Vector2(0.88f, 0.92f)),
+                 new Vector2(0.05f, 0.14f), new Vector2(0.33f, 0.86f));
+            _balance = UiBuild.Label(Slot(sag, "Yazi", new Vector2(0.36f, 0.08f), new Vector2(0.90f, 0.92f)),
                                      "Text", string.Empty, 30, TextAnchor.MiddleCenter);
             _balance.color = Paper;
             Fit(_balance, 16, 30);
@@ -796,6 +795,8 @@ namespace Game.UI
             Adopt(ready, upgradeBadgeIcon);
             if (mark != null) Adopt(FindIn<Image>(mark, "Ikon"), activeBadgeIcon);
             if (locked != null) Adopt(FindIn<Image>(locked, "Ikon"), lockedBadgeIcon);
+            Capsule(mark);
+            Capsule(locked);
             _activeLabel[station] = mark != null ? mark.GetComponentInChildren<Text>(true) : null;
             _lockLabel[station] = locked != null ? locked.GetComponentInChildren<Text>(true) : null;
 
@@ -830,6 +831,22 @@ namespace Game.UI
             target.preserveAspect = false;
             target.color = Color.white;
             PillFit.Wrap(target);
+        }
+
+        /// <summary>
+        /// Turns a prefab's flat state mark into a capsule of the same colour, held inside the portrait
+        /// frame above it: the prefab's rectangle is 0.60 of the card wide, which is wider than the
+        /// frame's rounded foot, so its square corners hung out past it.
+        /// </summary>
+        private static void Capsule(Transform mark)
+        {
+            var image = mark != null ? mark.GetComponent<Image>() : null;
+            if (image == null) return;
+            image.sprite = UiSkin.Capsule;
+            image.type = Image.Type.Sliced;
+            var rect = (RectTransform)mark;
+            rect.anchorMin = new Vector2(0.230f, rect.anchorMin.y);
+            rect.anchorMax = new Vector2(0.770f, rect.anchorMax.y);
         }
 
         /// <summary>Hands a spriteless prefab image its kit sprite, and hides it when there is none —
@@ -958,7 +975,7 @@ namespace Game.UI
             return UiBuild.Anchor((RectTransform)go.transform, aMin, aMax);
         }
 
-        /// <summary>A graphite capsule for the multiplier and the purse — the HUD's counter pill.</summary>
+        /// <summary>A capsule for the multiplier and the purse — <see cref="chipPill"/>, the kit's blue chip.</summary>
         private RectTransform Chip(RectTransform parent, string name, Vector2 aMin, Vector2 aMax)
         {
             Sprite art = chipPill != null ? chipPill : cardPanel;

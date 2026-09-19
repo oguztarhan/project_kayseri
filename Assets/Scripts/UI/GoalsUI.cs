@@ -39,6 +39,8 @@ namespace Game.UI
                        _barTrack, _chip, _gemIcon, _fillDaily, _fillWeekly, _fillLadder;
 
         private const string OpenerIconResource = "UI/Buttons/gorev";
+        private const float DailyCardHeight = 340f;
+        private const float DailyCardGap = 28f;
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
@@ -207,19 +209,23 @@ namespace Game.UI
 
         private void BuildDailyPage(RectTransform page)
         {
-            float height = 1f / Goals.DailySlots;
+            // Cards the height of what they hold, stacked from the top. Each used to take a third of the
+            // page (508 units) for a title, a bar and a reward line, and the text sat in a corner of it.
             for (int i = 0; i < Goals.DailySlots; i++)
             {
-                RectTransform row = Card(page, "Gunluk_" + i,
-                    new Vector2(0f, 1f - (i + 1) * height + 0.012f),
-                    new Vector2(1f, 1f - i * height - 0.012f));
-                _dailyText[i] = RowText(row, new Vector2(0f, 0.64f), new Vector2(0.60f, 0.96f), 32);
-                _dailyFillImage[i] = Bar(row, new Vector2(0f, 0.42f), new Vector2(0.58f, 0.54f), _fillDaily, dailyFill);
-                Icon(row, "Elmas", _gemIcon, new Vector2(0f, 0.06f), new Vector2(0.07f, 0.30f));
-                _dailyReward[i] = RowText(row, new Vector2(0.085f, 0.04f), new Vector2(0.60f, 0.32f), 26);
+                RectTransform row = Card(page, "Gunluk_" + i, new Vector2(0f, 1f), new Vector2(1f, 1f));
+                var outer = (RectTransform)row.parent;
+                float top = i * (DailyCardHeight + DailyCardGap);
+                outer.offsetMax = new Vector2(0f, -top);
+                outer.offsetMin = new Vector2(0f, -(top + DailyCardHeight));
+
+                _dailyText[i] = RowText(row, new Vector2(0f, 0.56f), new Vector2(0.60f, 0.97f), 34);
+                _dailyFillImage[i] = Bar(row, new Vector2(0f, 0.34f), new Vector2(0.58f, 0.48f), _fillDaily, dailyFill);
+                Icon(row, "Elmas", _gemIcon, new Vector2(0f, 0.04f), new Vector2(0.08f, 0.28f));
+                _dailyReward[i] = RowText(row, new Vector2(0.10f, 0.04f), new Vector2(0.60f, 0.30f), 28);
                 int captured = i;
                 _dailyBtn[i] = ClaimButton(row, () => ClaimDaily(captured), out _dailyBtnText[i]);
-                UiBuild.Anchor((RectTransform)_dailyBtn[i].transform, new Vector2(0.64f, 0.30f), new Vector2(1f, 0.70f));
+                UiBuild.Anchor((RectTransform)_dailyBtn[i].transform, new Vector2(0.64f, 0.22f), new Vector2(1f, 0.78f));
             }
         }
 

@@ -30,6 +30,11 @@ namespace Game.UI
         [Header("Renkler")]
         [SerializeField] private Color scrim = new Color(0f, 0f, 0f, 0.62f);
 
+        [Header("Yuva simgeleri")]
+        [Tooltip("MiningGear yuva sırasıyla: kazma, miğfer, çanta, fener. Simgesi olan yuvada simge kuyunun " +
+                 "üstünde durur, ad ve derece altına iner; boş bırakılan yuva eskisi gibi yalnızca yazıyla çizilir.")]
+        [SerializeField] private Sprite[] slotIcons = new Sprite[MiningGear.SlotCount];
+
         private const string OpenerIconResource = "UI/Buttons/maden";
         private const string OpenerButtonName = "BtnMaden";
 
@@ -53,10 +58,10 @@ namespace Game.UI
         /// <summary>
         /// A slot that is not the targeted one sits a shade back. The art is pre-coloured, so this is
         /// a gentle multiply, not a recolour — enough to point at the selected frame, not so much it
-        /// reads as locked.
+        /// reads as locked. It is the only cue: the picked frame used to be drawn 5% larger as well,
+        /// which put it off the grid the other three share.
         /// </summary>
-        private static readonly Color SlotResting = new Color(0.78f, 0.82f, 0.90f, 1f);
-        private static readonly Vector3 SlotPicked = new Vector3(1.05f, 1.05f, 1f);
+        private static readonly Color SlotResting = new Color(0.72f, 0.77f, 0.87f, 1f);
 
         /// <summary>The equipment slot art's own aspect (300×286) and its dark well, as fractions.</summary>
         private const float SlotAspect = 300f / 286f;
@@ -232,14 +237,21 @@ namespace Game.UI
                 select.onClick.AddListener(() => SelectSlot(picked));
 
                 RectTransform well = Zone(card.rectTransform, "Kuyu", WellMin, WellMax);
-                _slotName[i] = UiBuild.Label(Zone(well, "Ad", new Vector2(0.08f, 0.50f), new Vector2(0.92f, 0.86f)),
+                // With an icon the well holds three rows, the icon over the name over the grade; without
+                // one it is the two-row text stack it always was.
+                Sprite art = slotIcons != null && i < slotIcons.Length ? slotIcons[i] : null;
+                bool icon = art != null;
+                EkranKit.Icon(well, "Simge", art, new Vector2(0.14f, 0.42f), new Vector2(0.86f, 0.97f));
+                _slotName[i] = UiBuild.Label(Zone(well, "Ad", icon ? new Vector2(0.08f, 0.22f) : new Vector2(0.08f, 0.50f),
+                                                  icon ? new Vector2(0.92f, 0.42f) : new Vector2(0.92f, 0.86f)),
                                              "Text", Loc.T("madenci.yuva." + i), 32, TextAnchor.MiddleCenter);
                 _slotName[i].color = EkranKit.Paper;
-                Fit(_slotName[i], 16, 32);
+                Fit(_slotName[i], icon ? 14 : 16, 32);
 
-                _slotGrade[i] = UiBuild.Label(Zone(well, "Derece", new Vector2(0.08f, 0.16f), new Vector2(0.92f, 0.46f)),
+                _slotGrade[i] = UiBuild.Label(Zone(well, "Derece", icon ? new Vector2(0.08f, 0.02f) : new Vector2(0.08f, 0.16f),
+                                                   icon ? new Vector2(0.92f, 0.22f) : new Vector2(0.92f, 0.46f)),
                                               "Text", string.Empty, 26, TextAnchor.MiddleCenter);
-                Fit(_slotGrade[i], 14, 26);
+                Fit(_slotGrade[i], icon ? 12 : 14, 26);
             }
         }
 
@@ -377,7 +389,6 @@ namespace Game.UI
                 bool picked = i == _selectedSlot;
                 Image cardImage = _slotCard[i].GetComponent<Image>();
                 if (cardImage != null) cardImage.color = picked ? Color.white : SlotResting;
-                _slotCard[i].localScale = picked ? SlotPicked : Vector3.one;
 
                 int grade = _mining.WornGrade(i);
                 if (grade >= 0)

@@ -36,6 +36,10 @@ namespace Game.UI
         [SerializeField] private RectTransform runningCard;
         [SerializeField] private RectTransform nextSlot;
 
+        [Header("Teklif kartı simgeleri")]
+        [Tooltip("Süre için kum saati — Ikonlar/ikon_kumsaati. Elmas ve kart simgeleri kit atlasından gelir.")]
+        [SerializeField] private Sprite clockIcon;
+
         [Header("Kontrat kartı (sürmekte olan iş)")]
         [Tooltip("Kartın kökü. Boş bırakılırsa kart görselinin kendi nesnesi kullanılır. Teklifler " +
                  "gösterilirken ve gemi yokken bu kapanır.")]
@@ -466,14 +470,12 @@ namespace Game.UI
                 if (_offerTime[i] != null) _offerTime[i].text = ClockText(o.Seconds);
                 if (_offerPay[i] != null) _offerPay[i].text = "$" + NumberFormatter.Format(new BigDouble(o.Cash));
                 if (_offerGems[i] != null) _offerGems[i].text = "+" + o.Gems;
-                // The easy job pays one, and "+1 cards" is not something a shipped game says. Only
-                // the singular needs its own word: the plural row already covers every count above one,
-                // and the languages that inflect further than that do not agree on where.
+                // A job that pays no card shows no card icon either.
                 if (_offerCards[i] != null)
-                    _offerCards[i].text = o.Cards > 0
-                        ? "+" + o.Cards + " " + Loc.T(o.Cards == 1 ? "ustabasi.kart_tekil"
-                                                                  : "ustabasi.kart")
-                        : string.Empty;
+                {
+                    _offerCards[i].text = "+" + o.Cards;
+                    _offerCards[i].transform.parent.gameObject.SetActive(o.Cards > 0);
+                }
                 // The budget is per visit, not per card: once it is spent every swap goes, so the
                 // screen does not present a control that would only ever refuse.
                 if (_offerSwap[i] != null && _offerSwap[i].activeSelf != _contract.CanSwap)
@@ -568,7 +570,8 @@ namespace Game.UI
             // the card's own 2.9:1, with a 24-unit gap; the three portrait columns landscape used to get
             // would have stood the art on end. What landscape changes is how far in the rows start.
             bool landscape = Screen.width > Screen.height;
-            float left = landscape ? 0.20f : 0.055f;
+            // 0.085 keeps the rows clear of the gold rule inside the frame (0.055 laid their rims over it).
+            float left = landscape ? 0.20f : 0.085f;
             Color[] tints = { easyTint, normalTint, hardTint };
             for (int i = 0; i < ContractService.TierCount; i++)
             {
@@ -610,39 +613,41 @@ namespace Game.UI
             btn.onClick.AddListener(() => OnAccept(captured));
 
             _offerTier[tier] = Text(rt, "Zorluk", 28, TextAlignmentOptions.MidlineLeft,
-                                    new Vector2(0.085f, 0.655f), new Vector2(0.58f, 0.80f));
+                                    new Vector2(0.09f, 0.655f), new Vector2(0.53f, 0.80f));
             _offerTier[tier].color = tint;
 
             _offerPay[tier] = Text(rt, "Odul", 36, TextAlignmentOptions.MidlineLeft,
-                                   new Vector2(0.085f, 0.47f), new Vector2(0.58f, 0.655f));
+                                   new Vector2(0.09f, 0.47f), new Vector2(0.53f, 0.655f));
             _offerPay[tier].color = EkranKit.Paper;
 
             _offerTask[tier] = Text(rt, "Is", 24, TextAlignmentOptions.MidlineLeft,
-                                    new Vector2(0.085f, 0.335f), new Vector2(0.58f, 0.47f));
+                                    new Vector2(0.09f, 0.335f), new Vector2(0.53f, 0.47f));
             _offerTask[tier].color = EkranKit.Paper;
 
             // Clock, gems and foreman cards share the bottom band. The cards were the whole reason a
             // contract is worth running and the card never said so — a player comparing three jobs
             // could only see the cash. One row, so a layout group spaces whatever the three strings
-            // measure: three fixed columns left ragged gaps that changed with the language.
+            // measure: three fixed columns left ragged gaps that changed with the language. Each is an
+            // icon and its number: the icon is the label, which is also what keeps the row inside the
+            // well in the languages whose word for a card is long.
             var metaGo = new GameObject("Meta", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             var meta = (RectTransform)metaGo.transform;
             meta.SetParent(rt, false);
-            Stretch(meta, new Vector2(0.085f, 0.195f), new Vector2(0.58f, 0.335f));
+            Stretch(meta, new Vector2(0.09f, 0.195f), new Vector2(0.53f, 0.335f));
             var metaRow = metaGo.GetComponent<HorizontalLayoutGroup>();
             metaRow.spacing = 30f;
             metaRow.childAlignment = TextAnchor.MiddleLeft;
             metaRow.childControlWidth = metaRow.childControlHeight = true;
             metaRow.childForceExpandWidth = metaRow.childForceExpandHeight = false;
 
-            _offerTime[tier] = MetaText(meta, "Sure", EkranKit.PaperSoft);
-            _offerGems[tier] = MetaText(meta, "Elmas", new Color(0.45f, 0.82f, 1f));
-            _offerCards[tier] = MetaText(meta, "Kart", new Color(0.80f, 0.66f, 1f));
+            _offerTime[tier] = MetaText(meta, "Sure", EkranKit.PaperSoft, clockIcon);
+            _offerGems[tier] = MetaText(meta, "Elmas", new Color(0.45f, 0.82f, 1f), AtolyeKit.Get("elmas"));
+            _offerCards[tier] = MetaText(meta, "Kart", new Color(0.80f, 0.66f, 1f), LigKit.Get("usta_kart"));
 
             // The swap is a Button of its own on top of the card's Button: the raycast goes to the
             // topmost graphic, so pressing it never signs.
             Button swap = EkranKit.Capsule(rt, "Degistir", EkranKit.Get("btn_bos"),
-                                           new Vector2(0.60f, 0.57f), new Vector2(0.934f, 0.79f),
+                                           new Vector2(0.55f, 0.57f), new Vector2(0.93f, 0.79f),
                                            () => OnSwap(captured));
             _offerSwapLabel[tier] = Text((RectTransform)swap.transform, "Yazi", 24, TextAlignmentOptions.Center,
                                          EkranKit.CapsMin, EkranKit.CapsMax);
@@ -650,7 +655,7 @@ namespace Game.UI
 
             // Not a Button: a second press target on the card would only duplicate the card's own.
             Image accept = EkranKit.Sliced(rt, "Kabul", EkranKit.Get("btn_turuncu"),
-                                           new Vector2(0.60f, 0.20f), new Vector2(0.935f, 0.55f), true);
+                                           new Vector2(0.55f, 0.20f), new Vector2(0.93f, 0.55f), true);
             _offerTakeLabel[tier] = Text(accept.rectTransform, "Yazi", 26, TextAlignmentOptions.Center,
                                          EkranKit.InlayMin, EkranKit.InlayMax);
         }
@@ -670,7 +675,7 @@ namespace Game.UI
             // ribbon, so the empty pier reads as a state of the same screen rather than one line of type
             // floating on a bare sheet.
             Image card = EkranKit.Sliced(root, "Kart", EkranKit.Get("kart_lacivert"),
-                                         new Vector2(0.055f, 0.330f), new Vector2(0.945f, 0.5205f), false);
+                                         new Vector2(0.085f, 0.330f), new Vector2(0.915f, 0.5205f), false);
             _statusText = Text(card.rectTransform, "Yazi", 46, TextAlignmentOptions.Center,
                                new Vector2(0.08f, 0.21f), new Vector2(0.92f, 0.79f));
             _statusText.color = EkranKit.Paper;
@@ -730,11 +735,27 @@ namespace Game.UI
             return t;
         }
 
-        /// <summary>A fixed-size label for the meta row: auto-size would make its preferred width, and so the
-        /// row's spacing, depend on the largest size instead of the one drawn.</summary>
-        private TMP_Text MetaText(RectTransform row, string name, Color color)
+        private const float MetaIconSize = 38f;
+
+        /// <summary>An icon and a fixed-size label for the meta row, as one child of it: auto-size would make
+        /// the label's preferred width, and so the row's spacing, depend on the largest size instead of the
+        /// one drawn. The label is the group's only Text — hiding the group hides the icon with it.</summary>
+        private TMP_Text MetaText(RectTransform row, string name, Color color, Sprite icon)
         {
-            TMP_Text t = Text(row, name, UiType.Body, TextAlignmentOptions.MidlineLeft, Vector2.zero, Vector2.one);
+            var groupGo = new GameObject(name + "Grubu", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            var group = (RectTransform)groupGo.transform;
+            group.SetParent(row, false);
+            var pair = groupGo.GetComponent<HorizontalLayoutGroup>();
+            pair.spacing = 8f;
+            pair.childAlignment = TextAnchor.MiddleLeft;
+            pair.childControlWidth = pair.childControlHeight = true;
+            pair.childForceExpandWidth = pair.childForceExpandHeight = false;
+
+            Image mark = EkranKit.Icon(group, "Simge", icon, Vector2.zero, Vector2.one);
+            var size = mark.gameObject.AddComponent<LayoutElement>();
+            size.preferredWidth = size.preferredHeight = MetaIconSize;
+
+            TMP_Text t = Text(group, name, UiType.Body, TextAlignmentOptions.MidlineLeft, Vector2.zero, Vector2.one);
             t.enableAutoSizing = false;
             t.fontSize = UiType.Body;
             t.overflowMode = TextOverflowModes.Overflow;

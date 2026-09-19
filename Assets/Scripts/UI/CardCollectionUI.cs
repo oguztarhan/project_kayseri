@@ -109,6 +109,14 @@ namespace Game.UI
         private const float GridTop = 0.438f, GridBottom = 0.030f;
         private const int GridColumns = 2;
 
+        /// <summary>The portrait sheet's inner window, in page units: the art's pale panel less a margin
+        /// that keeps the backing's square corners inside its rounded ones. The cards' viewport ends on
+        /// the same bottom line, so nothing draws over the ribbon and its paws below.</summary>
+        private const float WindowLeft = 71f, WindowTop = 262f, WindowWidth = 858f, WindowBottom = 1580f;
+        private const float ViewportTop = 1016f;
+        /// <summary>Sprite pixels of drop-shadow fringe under the sheet art, cut off its mesh.</summary>
+        private const float SheetShadowTrim = 16f;
+
         private CardCollectionService _cards;
         private LocalizationService _loc;
         private RectTransform _root;
@@ -709,6 +717,9 @@ namespace Game.UI
 
             _sortText.text = "↕ " + Loc.T("kadro.sirala." + (int)_sortMode);
             _filterText.text = "⌄ " + Loc.T("kadro.filtre." + (int)_filterMode);
+            // The three quick-filter chips already name All / Owned / Ready; the caption under them only
+            // earns its place for the one mode they have no chip for.
+            if (_portraitGrid != null) _filterText.gameObject.SetActive(_filterMode == RosterFilterMode.Locked);
             _emptyText.text = Loc.T("kadro.bos");
 
             RefreshTabs();
@@ -782,7 +793,9 @@ namespace Game.UI
                 if (_portraitGrid != null)
                 {
                     _tab[s].GetComponent<Image>().color = Color.clear;
-                    _tabText[s].color = selected ? new Color(0.04f, 0.20f, 0.35f, 1) : new Color(0.23f, 0.33f, 0.45f, 1);
+                    // The idle caption plate is a mid grey-blue (about 0.27 luminance); the old idle ink
+                    // was 2.4:1 on it, Ink is 4.7:1.
+                    _tabText[s].color = selected ? new Color(0.04f, 0.20f, 0.35f, 1) : Ink;
                     _tabText[s].fontStyle = selected ? FontStyle.Bold : FontStyle.Normal;
                     _tabText[s].text = SetName(s);
                     _tabBadge[s].SetActive(false);
@@ -895,7 +908,7 @@ namespace Game.UI
                     tile.anchoredPosition = new Vector2(left + (position % 2) * (_portraitCardWidth + _portraitCardGap), -8 - (position / 2) * (height + _portraitCardGap));
                     tile.gameObject.SetActive(true);
                 }
-                _portraitGrid.sizeDelta = new Vector2(0, Mathf.Max(622, ((shown + 1) / 2) * (height + _portraitCardGap) + 8));
+                _portraitGrid.sizeDelta = new Vector2(0, Mathf.Max(WindowBottom - ViewportTop, ((shown + 1) / 2) * (height + _portraitCardGap) + 8));
                 _emptyText.gameObject.SetActive(shown == 0);
                 return;
             }
@@ -1134,8 +1147,9 @@ namespace Game.UI
             // Every artwork surface is sized from its trimmed sprite bounds, never stretched.
             var background = (RectTransform)body.Find("Zemin");
             SetArtwork(background, "collection-collection-screen-background", 5, 65, 990);
+            background.GetComponent<PortraitSpriteMesh>().BottomTrim = SheetShadowTrim;
             var paper = UiBuild.Flat(body, "CollectionContentBacking", new Color(0.025f, 0.12f, 0.25f, 1), Vector2.zero, Vector2.one);
-            Place(paper, 59, 250, 882, 1407);
+            Place(paper, WindowLeft, WindowTop, WindowWidth, WindowBottom - WindowTop);
             paper.SetSiblingIndex(background.GetSiblingIndex() + 1);
             paper.GetComponent<Image>().raycastTarget = false;
 
@@ -1219,7 +1233,7 @@ namespace Game.UI
             }
 
             var viewport = UiBuild.Flat(body, "CardViewport", new Color(0, 0, 0, 0.001f), Vector2.zero, Vector2.one);
-            Place(viewport, 66, 1040, 868, 622);
+            Place(viewport, 66, ViewportTop, 868, WindowBottom - ViewportTop);
             viewport.gameObject.AddComponent<RectMask2D>();
             _portraitScroll = viewport.gameObject.AddComponent<ScrollRect>();
             _portraitScroll.horizontal = false; _portraitScroll.vertical = true;
@@ -1230,7 +1244,7 @@ namespace Game.UI
             _portraitGrid.pivot = new Vector2(0.5f, 1);
             _portraitScroll.content = _portraitGrid;
             var scrollTrack = UiBuild.Flat(viewport, "ScrollTrack", new Color(0.12f, 0.29f, 0.43f, 1), Vector2.zero, Vector2.one);
-            Place(scrollTrack, 855, 8, 8, 606);
+            Place(scrollTrack, 855, 8, 8, WindowBottom - ViewportTop - 16f);
             var scrollbar = scrollTrack.gameObject.AddComponent<Scrollbar>();
             var thumb = UiBuild.Flat(scrollTrack, "ScrollThumb", new Color(0.25f, 0.80f, 1f, 1), Vector2.zero, Vector2.one);
             thumb.GetComponent<Image>().raycastTarget = false;

@@ -8,6 +8,12 @@ namespace Game.UI
     public sealed class PortraitSpriteMesh : BaseMeshEffect
     {
         private Image _image;
+
+        /// <summary>Sprite pixels dropped from the bottom of the mesh. Some exports carry a drop-shadow
+        /// fringe under the frame that the importer's matte test cannot tell from artwork; it draws as a
+        /// dotted line on a dark screen.</summary>
+        public float BottomTrim { get; set; }
+
         protected override void Awake() { base.Awake(); _image = GetComponent<Image>(); }
 
         public override void ModifyMesh(VertexHelper helper)
@@ -29,6 +35,7 @@ namespace Game.UI
             for (int i = 0; i < mesh.Vertices.Length; i++)
             {
                 Vector2 px = mesh.Vertices[i] * sprite.pixelsPerUnit + sprite.pivot;
+                if (px.y < BottomTrim) px.y = BottomTrim;
                 var v = UIVertex.simpleVert;
                 v.position = origin + new Vector2(px.x / sprite.rect.width * width, px.y / sprite.rect.height * height);
                 v.uv0 = new Vector2((sprite.rect.x + px.x) / sprite.texture.width, (sprite.rect.y + px.y) / sprite.texture.height);

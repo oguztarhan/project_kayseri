@@ -454,6 +454,11 @@ namespace Game.UI
             float bottom = safeBottom + pitch * 0.5f;
             float band = Mathf.Max(pitch, top - bottom);
             float centre = (top + bottom) * 0.5f;
+            // A counter chip hangs RailChipDrop below its button, and at this pitch the gap under a
+            // button is 12: "3 JOBS" sat on the upgrade button below it. A column keeps its foot where
+            // this pitch puts it - the REPAIR ALL button sits just under the rail - and spreads upwards
+            // into the room under the top pills, up to the pitch that clears a chip.
+            float chipPitch = Mathf.Max(pitch, buttonSize + 12f + RailChipDrop);
 
             int perColumn = Mathf.Max(1, Mathf.FloorToInt(band / pitch) + 1);
             int columns = Mathf.CeilToInt(count / (float)perColumn);
@@ -475,12 +480,16 @@ namespace Game.UI
                 // The last column is usually short; centre each column on its own contents so the
                 // rail never ends in a ragged half-column hanging off the bottom.
                 int inColumn = Mathf.Min(perColumn, count - column * perColumn);
-                float columnSpan = (inColumn - 1) * pitch;
+                float foot = centre - (inColumn - 1) * pitch * 0.5f;
+                float spread = inColumn > 1 ? Mathf.Clamp((top - foot) / (inColumn - 1), pitch, chipPitch) : pitch;
 
                 rect.anchorMin = rect.anchorMax = new Vector2(edge, 0.5f);
                 rect.pivot = new Vector2(0.5f, 0.5f);
                 rect.anchoredPosition = new Vector2(dir * (safeEdgeInset + column * pitch),
-                                                    centre + columnSpan * 0.5f - row * pitch);
+                                                    foot + (inColumn - 1 - row) * spread);
+                for (int c = 0; c < rect.childCount; c++)
+                    if (offerTimerChip != null && rect.GetChild(c).name == offerTimerChip.name)
+                        HangChip((RectTransform)rect.GetChild(c));
                 placed++;
             }
 
@@ -582,34 +591,35 @@ namespace Game.UI
             chip.SetActive(true);
             // A rail button is a 150-unit square and the authored chip's own offsets land on it
             // correctly. A More row is a wide strip, so the same offsets would drop the chip somewhere
-            // in the middle of the label; pin it to the row's trailing edge instead.
+            // in the middle of the label; pin it to the icon's lower-right corner instead.
             if (_moreRows.Contains(owner.transform as RectTransform))
             {
                 var chipRect = (RectTransform)chip.transform;
-                chipRect.anchorMin = new Vector2(1f, 1f);
-                chipRect.anchorMax = new Vector2(1f, 1f);
-                chipRect.pivot = new Vector2(1f, 1f);
-                chipRect.anchoredPosition = new Vector2(-14f, -12f);
-                // The compact top-corner placement keeps the count visible without taking a whole
-                // text line from a two-column action card.
-                chipRect.localScale = new Vector3(0.68f, 0.68f, 1f);
-
-                // Reserve a sliver for the badge, not its whole width. It hangs on the row's top edge and the
-                // label is centred, so a one-line label never reaches it; the old 94 left "MEERESBEGLEITER"
-                // and "BERGBAUAUSRÜSTUNG" 170 wide, too narrow to fit even at the smallest size.
-                bool needsCounterSpace = owner.name == "BtnMaden"
-                                         || owner.name == CardCollectionUI.OpenerButtonName
-                                         || owner.name == "BtnDenizDostlari";
-                Transform label = needsCounterSpace ? owner.transform.Find("Ad") : null;
-                if (label != null)
-                {
-                    var labelRect = label as RectTransform;
-                    if (labelRect != null) labelRect.offsetMax = new Vector2(-40f, labelRect.offsetMax.y);
-                    var labelText = label.GetComponent<Text>();
-                    if (labelText != null) labelText.fontSize = 20;
-                }
+                chipRect.anchorMin = new Vector2(0f, 0.5f);
+                chipRect.anchorMax = new Vector2(0f, 0.5f);
+                chipRect.pivot = new Vector2(0.5f, 0.5f);
+                chipRect.sizeDelta = new Vector2(MoreChipWidth, chipRect.sizeDelta.y);
+                chipRect.anchoredPosition = MoreChipOffset;
+                // Full size and fully inside the plate. At 0.68 on the row's top corner the count was
+                // 17 units tall and sat half on the plate's rim; the "50" hung off the frame.
+                chipRect.localScale = Vector3.one;
+                TMP_Text count = chip.GetComponentInChildren<TMP_Text>(true);
+                if (count != null) count.fontSize = 22f;
             }
+            else HangChip((RectTransform)chip.transform);
             return chip;
+        }
+
+        // How far a counter chip hangs below its rail button. The authored chips overlapped the button
+        // by 13 and hung 37-43 below it, into a 12-unit gap; they now straddle the button's foot (the
+        // plate's rim and shadow) and the rail pitch leaves this much room under every button.
+        private const float RailChipDrop = 26f;
+
+        /// <summary>Pins a rail chip's top edge (its pivot) so its bottom ends RailChipDrop under the
+        /// button, whatever the chip's height.</summary>
+        private static void HangChip(RectTransform chip)
+        {
+            chip.anchoredPosition = new Vector2(chip.anchoredPosition.x, chip.sizeDelta.y - RailChipDrop);
         }
 
         // ---------------------------------------------------------------- more sheet
@@ -624,9 +634,15 @@ namespace Game.UI
         private const float MoreSheetWidth = 940f;
         private const float MoreSheetHeight = 1410f;
         private const float MoreRowHeight = 132f;
-        private const float MoreRowGap = 26f;
+        private const float MoreRowGap = 20f;
         private const float MoreRowPadding = 18f;
-        private const float MoreGridWidth = 818f;
+        // The sheet's cream inlay is about 795 wide; 818 ran the two columns over the blue frame.
+        private const float MoreGridWidth = 750f;
+        // The count badge: a compact pill on the icon's lower-right corner, inside the plate. Anywhere
+        // beside the label it costs label width, and the longest German word ("BERGBAUAUSRÜSTUNG")
+        // needs about 210 of the 215 a row leaves it.
+        private const float MoreChipWidth = 48f;
+        private static readonly Vector2 MoreChipOffset = new Vector2(100f, -22f);
         private const float MoreGridTop = 300f;
         private const float MoreGridBottom = 150f;
         private const float MoreBareIconScale = 0.76f;   // main-menu icons draw their glyph at ~76% of the canvas

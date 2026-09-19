@@ -132,6 +132,8 @@ namespace Game.UI
         private RectTransform _root, _stage, _panel;
         private GameObject _scrim, _bannerBack;
         private Material _outlined;   // one shared copy, so every outlined stage text still batches
+        private Material _outlinedName;   // the threat's name: same look, a heavier rim
+        private const float NameRimWidth = 0.42f;
 
         private RectTransform _shipRoot, _threatRoot;
         private CanvasGroup _threatGroup;
@@ -304,6 +306,7 @@ namespace Game.UI
         {
             if (_pets != null) _pets.Changed -= OnPetsChanged;
             if (_outlined != null) Destroy(_outlined);
+            if (_outlinedName != null) Destroy(_outlinedName);
         }
 
         /// <summary>The strip and the sheet together: the half-second probe only re-inks when POWER
@@ -374,7 +377,16 @@ namespace Game.UI
             _threatName = Line(_stage, "TehditAdi", 30f, Vector2.zero, Vector2.one);
             _threatName.rectTransform.anchorMin = _threatName.rectTransform.anchorMax = Vector2.zero;
             _threatName.rectTransform.sizeDelta = new Vector2(560f, 60f);
-            Outlined(_threatName);
+            // The name hangs over pale sky and clouds; the shared 0.24 rim left it a white smudge.
+            if (_threatName.fontSharedMaterial != null)
+            {
+                ShaderUtilities.GetShaderPropertyIDs();
+                _outlinedName = new Material(_threatName.fontSharedMaterial) { name = "DenizYazi (Ad)" };
+                _outlinedName.EnableKeyword(ShaderUtilities.Keyword_Outline);
+                _outlinedName.SetFloat(ShaderUtilities.ID_OutlineWidth, NameRimWidth);
+                _outlinedName.SetColor(ShaderUtilities.ID_OutlineColor, Outline);
+                _threatName.fontSharedMaterial = _outlinedName;
+            }
 
             _nerveTrack = BarTrack("Cesaret", out _nerveFill, NerveFillTint);
         }
@@ -591,27 +603,38 @@ namespace Game.UI
             _captainLabel = Line(_panel, "Kaptan", 22f, new Vector2(0.145f, 0.244f), new Vector2(0.50f, 0.336f));
             BuildPetSlots();
 
-            // The kit's energy pill: the bolt rides its left cap, the count reads after it.
+            // The kit's energy pill: the bolt rides its left cap, the count reads after it. It ends where
+            // SEARCH ends, so the "+" and its caption get AUTO's column.
             Image pill = SeaKit.Sliced(_panel, "EnerjiHapi", "enerji_pili", new Vector2(0.035f, 0.166f),
-                                       new Vector2(0.835f, 0.236f), true);
+                                       new Vector2(0.645f, 0.236f), true);
             if (pill.sprite == UiSkin.Flat) pill.color = Chrome;
             _energyLabel = Line(pill.rectTransform, "Yazi", 24f, new Vector2(0.13f, 0.12f), new Vector2(0.96f, 0.88f));
             _energyLabel.color = EnergyTint;
 
             // The reference game's "extra stamina" grab, sat where the wait is read rather than
             // behind a popup: the pill says how long the pool takes, the kit's "+" beside it says what
-            // an ad would skip — its caption on a small plate across the button's foot.
-            Image plus = SeaKit.Square(_panel, "EnerjiReklam", "enerji_ekle", new Vector2(0.952f, 0.952f),
-                                       new Vector2(0.160f, 0.242f), 1f);
+            // an ad would skip. The caption used to be a plate across the button's foot: it covered a
+            // third of the "+", ran to the frame's edge and best-fit its words down to 11 points. It
+            // now reads beside the button. The square takes its side from the panel's WIDTH here, so
+            // the caption's column is a fixed share of the width too (a height-driven side left it
+            // anywhere from 1.8 to 2.6 sides of room between 21:9 and 16:9); 0.078 of the width is
+            // the band's own height on a 16:9 phone and a little less on anything taller.
+            Image plus = SeaKit.Square(_panel, "EnerjiReklam", "enerji_ekle", new Vector2(0.685f, 0.763f),
+                                       new Vector2(0.201f, 0.201f), 0f);
+            plus.GetComponent<AspectRatioFitter>().aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
+            // Square's own height-driven pass has already written a width offset (minus the whole
+            // anchor span, since the band has no height); cleared, the width is the anchors' again.
+            plus.rectTransform.sizeDelta = Vector2.zero;
             plus.raycastTarget = true;
             _energyAd = plus.gameObject.AddComponent<Button>();
             _energyAd.targetGraphic = plus;
             _energyAd.colors = Opaque(_energyAd.colors);
             _energyAd.onClick.AddListener(OnEnergyAd);
-            Image tag = SeaKit.Sliced(plus.rectTransform, "Etiket", "stat", new Vector2(-0.26f, -0.10f),
-                                      new Vector2(1.14f, 0.28f), true);
-            tag.color = Outline;
-            _energyAdLabel = Line(tag.rectTransform, "Yazi", 17f, new Vector2(0.08f, 0.06f), new Vector2(0.92f, 0.94f));
+            _energyAdLabel = Line(_panel, "EnerjiReklamYazi", 26f, new Vector2(0.775f, 0.160f), new Vector2(0.965f, 0.242f));
+            _energyAdLabel.alignment = TextAlignmentOptions.Left;
+            _energyAdLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            _energyAdLabel.fontSizeMin = UiType.MinSize;
+            _energyAdLabel.lineSpacing = 0f;
             _energyAdLabel.fontStyle = FontStyles.Bold;
 
             _search = PanelButton("Ara", "ana_buton", new Vector2(0.035f, 0.030f),
@@ -937,6 +960,11 @@ namespace Game.UI
             => KitButton(_panel, name, art, aMin, aMax, onClick, out label, size, labelLeft);
 
         // ------------------------------------------------------------ the cards
+        // Where every card ends: the seam between the sheet's stat grid (0.508 of the sheet) and its
+        // gear row (0.500), in root fractions — the sheet spans 0.020-0.535 of the root. A card that
+        // ended at 0.31 cut the grid's last row in half, and "PLUNDER 8%" read on under its border.
+        private const float CardFloor = 0.020f + (0.535f - 0.020f) * 0.504f;
+
         /// <summary>
         /// A card on the kit's info panel — opaque, so the sheet under it no longer reads through — with
         /// the kit's title plate straddling its top edge, carrying the title. Returns the card; the
@@ -977,7 +1005,7 @@ namespace Game.UI
         /// does, whether it outguns us, and the one decision: SAVAŞ! or VAZGEÇ.</summary>
         private void BuildFoundCard()
         {
-            _foundCard = Card("DetayKarti", new Vector2(0.06f, 0.31f), new Vector2(0.94f, 0.69f), out _foundTitle);
+            _foundCard = Card("DetayKarti", new Vector2(0.06f, CardFloor), new Vector2(0.94f, 0.69f), out _foundTitle);
 
             // The signature chip: a dark kit stat card with the signature written in its own colour —
             // tinting the slate card itself turned CRIT's yellow into olive.
@@ -1040,7 +1068,7 @@ namespace Game.UI
         /// the worn thing beside the dropped thing, row by row, delta on top.</summary>
         private void BuildLootCard()
         {
-            _lootCard = Card("GanimetKarti", new Vector2(0.05f, 0.32f), new Vector2(0.95f, 0.68f), out _lootTitle);
+            _lootCard = Card("GanimetKarti", new Vector2(0.05f, CardFloor), new Vector2(0.95f, 0.68f), out _lootTitle);
 
             _lootDelta = Line(_lootCard, "Fark", 27f, new Vector2(0.05f, 0.78f), new Vector2(0.95f, 0.86f));
             _lootDelta.fontStyle = FontStyles.Bold;
@@ -1076,7 +1104,7 @@ namespace Game.UI
         /// <summary>The worn-item popup off the sheet's slots: what it does, SÖK for salvage.</summary>
         private void BuildGearCard()
         {
-            _gearCard = Card("TakiKarti", new Vector2(0.14f, 0.32f), new Vector2(0.86f, 0.68f), out _gearTitle);
+            _gearCard = Card("TakiKarti", new Vector2(0.14f, CardFloor), new Vector2(0.86f, 0.68f), out _gearTitle);
 
             // The slot's own kit icon, so the card says which slot it is before a word is read.
             var icon = new GameObject("Ikon", typeof(RectTransform), typeof(Image));
@@ -1428,6 +1456,11 @@ namespace Game.UI
             }
         }
 
+        // Numbers pop from the target's hull, not from over its masthead. They rise 0.11 of the stage in
+        // their life, and from +0.30 every one ran through the health bar (0.668-0.732 of the stage).
+        // From here the highest - a proc word 0.07 up at 1.1 size - tops out near 0.64.
+        private const float FloatLift = 0.09f;
+
         /// <summary>
         /// The ring's narration into pictures: numbers that float, flashes on the hit frame, a
         /// wobble for an unbraced hit. This is the only reader of the fight's events.
@@ -1439,7 +1472,7 @@ namespace Game.UI
             {
                 EncounterController.FightEvent ev = _fights.EventAt(_seenEvent);
                 Vector2 at = (ev.OnUs ? _shipRoot.anchoredPosition : _threatRoot.anchoredPosition)
-                           + new Vector2(0f, h * 0.30f);
+                           + new Vector2(0f, h * FloatLift);
                 switch (ev.Kind)
                 {
                     case EncounterController.EvHit:
@@ -1470,7 +1503,7 @@ namespace Game.UI
                         // The vampiric ball: the heal floats over whoever fired it.
                         Float("+" + N(ev.Amount), StealTint,
                               (ev.OnUs ? _shipRoot.anchoredPosition : _threatRoot.anchoredPosition)
-                              + new Vector2(-w * 0.02f, h * 0.36f), 0.9f);
+                              + new Vector2(-w * 0.02f, h * (FloatLift + 0.06f)), 0.9f);
                         break;
                     case EncounterController.EvStunProc:
                         Float(Loc.T("deniz.sersem"), StunTint, at + new Vector2(0f, h * 0.07f), 1.1f);
@@ -1483,11 +1516,11 @@ namespace Game.UI
                         break;
                     case EncounterController.EvPlunder:
                         Float("+" + (long)ev.Amount + " " + Loc.T("sefer.hurda"), PlunderTint,
-                              _threatRoot.anchoredPosition + new Vector2(0f, h * 0.38f), 0.9f);
+                              _threatRoot.anchoredPosition + new Vector2(0f, h * (FloatLift + 0.08f)), 0.9f);
                         break;
                     case EncounterController.EvSalvo:
                         Float(Loc.T("deniz.salvovur"), CritTint,
-                              _shipRoot.anchoredPosition + new Vector2(0f, h * 0.38f), 1f);
+                              _shipRoot.anchoredPosition + new Vector2(0f, h * (FloatLift + 0.08f)), 1f);
                         break;
                     case EncounterController.EvHeld:
                         Float(Loc.T("deniz.sersem"), StunTint, at, 1.1f);
@@ -1806,6 +1839,10 @@ namespace Game.UI
                 else
                 {
                     label = string.Format(Loc.T("deniz.enerjiEkle"), energyAdReward);
+                    // "+10" over the word: every language puts the amount first, and a best-fit wrap
+                    // could split the word itself ("+10 NĂNG / LƯỢNG").
+                    int space = label.IndexOf(' ');
+                    if (space > 0) label = label.Substring(0, space) + "\n" + label.Substring(space + 1);
                     ready = _free.AdsRemoved || (_ad != null && _ad.Available);
                 }
             }

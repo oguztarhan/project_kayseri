@@ -349,11 +349,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1182577095755913881, guid: 2871e810768cd3e46a0c3dc58c47b3b3, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1182577095755913881, guid: 2871e810768cd3e46a0c3dc58c47b3b3, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1182577095755913881, guid: 2871e810768cd3e46a0c3dc58c47b3b3, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -1096,11 +1096,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5369816238717800573, guid: f7f7193b72330dd4484d18c85ea64f9b, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5369816238717800573, guid: f7f7193b72330dd4484d18c85ea64f9b, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5369816238717800573, guid: f7f7193b72330dd4484d18c85ea64f9b, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -12722,11 +12722,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2905761626018673085, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2905761626018673085, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3629123056734212166, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -14426,6 +14426,10 @@ PrefabInstance:
       propertyPath: tapHand
       value: 
       objectReference: {fileID: 21300000, guid: cabfe808cb8b7324a8e2073e0f0aa400, type: 3}
+    - target: {fileID: 291868371051772653, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
+      propertyPath: m_fontSize
+      value: 42.15
+      objectReference: {fileID: 0}
     - target: {fileID: 661646733631015625, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
       propertyPath: m_Sprite
       value: 
@@ -14587,8 +14591,16 @@ PrefabInstance:
       value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 7766570725324934674, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4283708179
+      objectReference: {fileID: 0}
+    - target: {fileID: 7766570725324934674, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 8832452208745934293, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
+      propertyPath: m_fontSize
+      value: 42.15
       objectReference: {fileID: 0}
     - target: {fileID: 9183540974215456122, guid: e7a907ac232b4a54890b5c97dbf0fa6f, type: 3}
       propertyPath: m_AdditionalShaderChannelsFlag
@@ -14813,9 +14825,9 @@ MonoBehaviour:
   closeIcon: {fileID: 21300000, guid: aa205c2083f46b74a9bd7e1fa5a2183f, type: 3}
   barTrack: {fileID: 21300000, guid: 696a899d16e5119418ea7ad4d8756826, type: 3}
   barFill: {fileID: 21300000, guid: e9d2f24e40d781a46ac7f99a5c83863e, type: 3}
-  chipPill: {fileID: 21300000, guid: c18d7c8c854bb6d42b94e1c00b8d7afd, type: 3}
+  chipPill: {fileID: 21300000, guid: 620faea6bd8e0df44b814a7e74891012, type: 3}
   gemIcon: {fileID: 21300000, guid: 9a0ed1473fb90ee48b4dc79cd5eecbe2, type: 3}
-  purseGem: {fileID: 21300000, guid: 9a0ed1473fb90ee48b4dc79cd5eecbe2, type: 3}
+  purseGem: {fileID: 21300000, guid: 02c54fe1b2b1a014b8a2fb1dce891102, type: 3}
   portraits:
   - {fileID: 21300000, guid: 5ee7610930e8c204ab7cb508f619c194, type: 3}
   - {fileID: 21300000, guid: d8ae80e4d776d1d48b422ab02e34c08b, type: 3}
@@ -15015,6 +15027,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.UI::Game.UI.MiningGearUI
   sortingOrder: 111
   scrim: {r: 0, g: 0, b: 0, a: 0.62}
+  slotIcons:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
 --- !u!114 &1815842468
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15030,13 +15047,13 @@ MonoBehaviour:
   sortingOrder: 116
   _usePortraitArtwork: 1
   _portraitFont: {fileID: 12800000, guid: 5f5956c0d5552fc42aa021559d395806, type: 3}
-  _portraitCardWidth: 392
+  _portraitCardWidth: 364
   _portraitCardGap: 28
-  cardPanel: {fileID: 0}
-  ribbon: {fileID: 0}
-  actionButton: {fileID: 0}
-  closeIcon: {fileID: 0}
-  chipPill: {fileID: 0}
+  cardPanel: {fileID: 21300000, guid: 1125b2190619d4442a365e93b38a1e89, type: 3}
+  ribbon: {fileID: 21300000, guid: d207130faa601b6419b96a5c83de301b, type: 3}
+  actionButton: {fileID: 21300000, guid: 345a67c51b7da264691760f1b48fb44c, type: 3}
+  closeIcon: {fileID: 21300000, guid: c2f09f179f4db9249b3b975e79af645d, type: 3}
+  chipPill: {fileID: 21300000, guid: c18d7c8c854bb6d42b94e1c00b8d7afd, type: 3}
   scrim: {r: 0.04, g: 0.05, b: 0.08, a: 0.92}
   backdrop: {r: 0.15, g: 0.18, b: 0.26, a: 1}
   track: {r: 0.1, g: 0.11, b: 0.16, a: 1}
@@ -15059,12 +15076,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.PetRosterUI
   sortingOrder: 118
-  cardPanel: {fileID: 0}
-  ribbon: {fileID: 0}
-  actionButton: {fileID: 0}
-  closeIcon: {fileID: 0}
   scrim: {r: 0.04, g: 0.05, b: 0.08, a: 0.92}
-  backdrop: {r: 0.15, g: 0.18, b: 0.26, a: 1}
 --- !u!1 &1832180452
 GameObject:
   m_ObjectHideFlags: 0
@@ -16748,11 +16760,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4109400249995131556, guid: 35e9f4a0e3c637f489addbdcdb870c4f, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4109400249995131556, guid: 35e9f4a0e3c637f489addbdcdb870c4f, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4109400249995131556, guid: 35e9f4a0e3c637f489addbdcdb870c4f, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -17480,11 +17492,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 479377327155615435, guid: 1ca26afc0c1c20b498d719cfb9ab1d32, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 479377327155615435, guid: 1ca26afc0c1c20b498d719cfb9ab1d32, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 479377327155615435, guid: 1ca26afc0c1c20b498d719cfb9ab1d32, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -18356,15 +18368,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6417278273871961479, guid: 1e2fced072c13284db4ddb27fb30c27f, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 2340
+      value: 1920
       objectReference: {fileID: 0}
     - target: {fileID: 6417278273871961479, guid: 1e2fced072c13284db4ddb27fb30c27f, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6417278273871961479, guid: 1e2fced072c13284db4ddb27fb30c27f, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6417278273871961479, guid: 1e2fced072c13284db4ddb27fb30c27f, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -19677,11 +19689,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6620466822109084963, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6620466822109084963, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9058216
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6620466822109084963, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
       propertyPath: m_AnchoredPosition.x

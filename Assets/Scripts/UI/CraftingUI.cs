@@ -65,7 +65,6 @@ namespace Game.UI
 
         private static readonly Color Ink = new Color(0.09f, 0.14f, 0.24f, 1f);
         private static readonly Color InkSoft = new Color(0.36f, 0.42f, 0.52f, 1f);
-        private static readonly Color InkFaint = new Color(0.58f, 0.63f, 0.71f, 1f);
         private static readonly Color Paper = new Color(0.96f, 0.97f, 1f, 1f);
         private static readonly Color Good = new Color(0.24f, 0.68f, 0.36f, 1f);
         private static readonly Color Bad = new Color(0.86f, 0.30f, 0.26f, 1f);
@@ -86,7 +85,7 @@ namespace Game.UI
         private Button _craftBtn;
         private Button _autoCraftAdBtn;
         private Text _autoCraftAdLabel;
-        private RectTransform _gateCard;
+        private RectTransform _gateCard, _xpTrack, _depoRect;
 
         private readonly Image[] _oddsStripe = new Image[Captains.GradeCount];
         private readonly Text[] _oddsName = new Text[Captains.GradeCount];
@@ -241,22 +240,25 @@ namespace Game.UI
             RectTransform card = Art(_root, "Tezgah", _panel, new Vector2(0.035f, 0.030f), new Vector2(0.475f, 0.890f));
             RectTransform c = AtolyeKit.Inner(card, _panel, 20f);
 
-            _levelLabel = UiBuild.Label(Zone(c, "Seviye", new Vector2(0f, 0.915f), new Vector2(1f, 0.990f)),
-                                        "Text", string.Empty, 40, TextAnchor.MiddleCenter);
+            // The stack runs the card's whole height with even gaps. It was packed into the top 60% and
+            // the card stood half empty below the depo button.
+            _levelLabel = UiBuild.Label(Zone(c, "Seviye", new Vector2(0f, 0.925f), new Vector2(1f, 0.995f)),
+                                        "Text", string.Empty, 44, TextAnchor.MiddleCenter);
             _levelLabel.color = Ink;
 
-            _tierLabel = UiBuild.Label(Zone(c, "Kademe", new Vector2(0f, 0.862f), new Vector2(1f, 0.910f)),
-                                       "Text", string.Empty, 24, TextAnchor.MiddleCenter);
+            _tierLabel = UiBuild.Label(Zone(c, "Kademe", new Vector2(0f, 0.875f), new Vector2(1f, 0.925f)),
+                                       "Text", string.Empty, 26, TextAnchor.MiddleCenter);
             _tierLabel.color = InkSoft;
 
-            RectTransform track = Bar(c, "XpCubuk", new Vector2(0.02f, 0.785f), new Vector2(0.98f, 0.835f), out _xpFill);
+            RectTransform track = Bar(c, "XpCubuk", new Vector2(0.02f, 0.770f), new Vector2(0.98f, 0.830f), out _xpFill);
+            _xpTrack = track;
             _xpLabel = UiBuild.Label(track, "Yazi", string.Empty, 22, TextAnchor.MiddleCenter);
             _xpLabel.color = Paper;
 
             _craftBtn = UiBuild.Btn(c, "Uret", string.Empty,
                                     _btnGreen != null ? _btnGreen : UiSkin.ButtonGreen,
                                     Color.white, 30, OnCraft);
-            UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0f, 0.625f), new Vector2(1f, 0.735f));
+            UiBuild.Anchor((RectTransform)_craftBtn.transform, new Vector2(0f, 0.580f), new Vector2(1f, 0.730f));
             PillFit.Wrap(_craftBtn.GetComponent<Image>());
             _craftLabel = _craftBtn.GetComponentInChildren<Text>();
             // The price names its currency now — "3 CRAFT POINTS", not "3 PTS" — so it takes a line of
@@ -270,7 +272,7 @@ namespace Game.UI
                                           _btnBlue != null ? _btnBlue : UiSkin.ButtonBlue,
                                           Color.white, 20, OnAutoCraftAd);
             UiBuild.Anchor((RectTransform)_autoCraftAdBtn.transform,
-                           new Vector2(0f, 0.530f), new Vector2(1f, 0.590f));
+                           new Vector2(0f, 0.465f), new Vector2(1f, 0.540f));
             PillFit.Wrap(_autoCraftAdBtn.GetComponent<Image>());
             // The longest string on the screen ("WATCH AD · 15 MIN AUTO-CRAFT") in the shortest pill.
             _autoCraftAdLabel = AtolyeKit.Label(_autoCraftAdBtn, 10, 20);
@@ -281,7 +283,8 @@ namespace Game.UI
             Button depo = UiBuild.Btn(c, "Depo", string.Empty,
                                       _btnBlue != null ? _btnBlue : UiSkin.ButtonBlue,
                                       Color.white, 22, OnDepo);
-            UiBuild.Anchor((RectTransform)depo.transform, new Vector2(0f, 0.445f), new Vector2(1f, 0.505f));
+            UiBuild.Anchor((RectTransform)depo.transform, new Vector2(0f, 0.350f), new Vector2(1f, 0.425f));
+            _depoRect = (RectTransform)depo.transform;
             PillFit.Wrap(depo.GetComponent<Image>());
             _depoLabel = AtolyeKit.Label(depo, 11, 24);
 
@@ -294,7 +297,7 @@ namespace Game.UI
             // barely wider than it was tall — the two end caps met and it drew as a blue egg. Full
             // card width and about half the height is what makes it read as a strip; the three lines
             // it carries still fit, kept inside the caps.
-            _gateCard = Art(c, "Durak", _gatePill, new Vector2(0f, 0.270f), new Vector2(1f, 0.405f));
+            _gateCard = Art(c, "Durak", _gatePill, new Vector2(0f, 0.170f), new Vector2(1f, 0.310f));
             var gateImage = _gateCard.GetComponent<Image>();
             gateImage.type = Image.Type.Sliced;
             gateImage.preserveAspect = false;
@@ -310,8 +313,31 @@ namespace Game.UI
 
             _sourceLabel = UiBuild.Label(Zone(c, "Nereden", new Vector2(0f, 0f), new Vector2(1f, 0.120f)),
                                          "Text", Loc.T("atolye.nereden"), 20, TextAnchor.LowerCenter);
-            _sourceLabel.color = InkFaint;
+            _sourceLabel.color = InkSoft;
             Fit(_sourceLabel, 12, 20);
+
+            // Off until RefreshGate says otherwise, so its first pass always applies the matching layout.
+            _gateCard.gameObject.SetActive(false);
+            ArrangeBench(false);
+        }
+
+        /// <summary>
+        /// The bench stack's rows. With a retooling strip up they pack toward the top to leave it room
+        /// (its slot is 0.17-0.31); without one they spread down the card, which otherwise stood a third
+        /// empty below the depo button.
+        /// </summary>
+        private void ArrangeBench(bool gated)
+        {
+            Place(_xpTrack, gated ? 0.770f : 0.775f, gated ? 0.830f : 0.850f);
+            Place((RectTransform)_craftBtn.transform, gated ? 0.580f : 0.565f, gated ? 0.730f : 0.715f);
+            Place((RectTransform)_autoCraftAdBtn.transform, gated ? 0.465f : 0.400f, gated ? 0.540f : 0.495f);
+            Place(_depoRect, gated ? 0.350f : 0.245f, gated ? 0.425f : 0.340f);
+        }
+
+        private static void Place(RectTransform rect, float yMin, float yMax)
+        {
+            rect.anchorMin = new Vector2(rect.anchorMin.x, yMin);
+            rect.anchorMax = new Vector2(rect.anchorMax.x, yMax);
         }
 
         /// <summary>The odds table: one row per grade, straight off <see cref="Crafting.LevelOdds"/>.</summary>
@@ -597,10 +623,10 @@ namespace Game.UI
                 else
                 {
                     int unlock = Crafting.UnlockLevelOf(g);
-                    _oddsName[g].color = InkFaint;
+                    _oddsName[g].color = InkSoft;
                     _oddsStripe[g].color = new Color(GradeTint[g].r, GradeTint[g].g, GradeTint[g].b, 0.25f);
                     _oddsValue[g].text = unlock > 0 ? string.Format(Loc.T("atolye.acilir"), unlock) : "—";
-                    _oddsValue[g].color = InkFaint;
+                    _oddsValue[g].color = InkSoft;
                 }
             }
 
@@ -657,7 +683,11 @@ namespace Game.UI
         private void RefreshGate()
         {
             bool gated = _crafting.IsGated;
-            if (_gateCard.gameObject.activeSelf != gated) _gateCard.gameObject.SetActive(gated);
+            if (_gateCard.gameObject.activeSelf != gated)
+            {
+                _gateCard.gameObject.SetActive(gated);
+                ArrangeBench(gated);
+            }
             _writtenClock = null;
             if (gated) RefreshGateClock();
         }

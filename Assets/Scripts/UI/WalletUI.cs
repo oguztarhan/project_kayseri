@@ -245,8 +245,10 @@ namespace Game.UI
             var viewportGo = new GameObject("Gorunum", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
             viewportGo.transform.SetParent(sheet, false);
             RectTransform viewport = (RectTransform)viewportGo.transform;
-            viewport.anchorMin = new Vector2(0.07f, 0.065f);
-            viewport.anchorMax = new Vector2(0.93f, 0.815f);
+            // Inside the frame's inlay with a margin: at 0.07-0.93 x 0.065 the cards' rims sat on the
+            // frame at both sides and the last row leaned on its bottom edge.
+            viewport.anchorMin = new Vector2(0.09f, 0.090f);
+            viewport.anchorMax = new Vector2(0.91f, 0.815f);
             viewport.offsetMin = Vector2.zero;
             viewport.offsetMax = Vector2.zero;
             viewportGo.GetComponent<Image>().color = Color.clear;
@@ -287,7 +289,7 @@ namespace Game.UI
                     {
                         Text header = UiBuild.Label(cell, "Grup", Loc.T(GroupKey(category)), 23, TextAnchor.MiddleLeft);
                         header.color = groupColor;
-                        UiBuild.Anchor(header.rectTransform, new Vector2(0.025f, 0.80f), new Vector2(0.975f, 1f));
+                        UiBuild.Anchor(header.rectTransform, new Vector2(0.05f, 0.80f), new Vector2(0.975f, 1f));
                         Fit(header, 18, 23);
                         _groupLabels[groupIndex] = header;
                         _builtGroups++;
@@ -337,18 +339,21 @@ namespace Game.UI
 
             Text name = UiBuild.Label(row, "Ad", Loc.T(definition.LocalizedNameKey), 22, TextAnchor.MiddleLeft);
             name.color = Color.white;
-            UiBuild.Anchor(name.rectTransform, new Vector2(0.32f, 0.64f), new Vector2(0.93f, 0.86f));
+            // Text block centred on the card's inlay, off the top rim, and stopping short of the right one:
+            // it used to start at 0.64 and run to 0.93, on the rim at both ends.
+            UiBuild.Anchor(name.rectTransform, new Vector2(0.32f, definition.Regenerates ? 0.60f : 0.56f),
+                                               new Vector2(0.90f, 0.82f));
             Fit(name, 17, 22);
 
             Text value = UiBuild.Label(row, "Deger", "0", 36, TextAnchor.MiddleLeft);
             value.color = balanceColor;
-            UiBuild.Anchor(value.rectTransform, new Vector2(0.32f, definition.Regenerates ? 0.35f : 0.24f),
-                                               new Vector2(0.93f, 0.63f));
+            UiBuild.Anchor(value.rectTransform, new Vector2(0.32f, definition.Regenerates ? 0.36f : 0.14f),
+                                               new Vector2(0.90f, definition.Regenerates ? 0.60f : 0.56f));
             Fit(value, 20, 36);
 
             Text timer = UiBuild.Label(row, "Sure", string.Empty, 17, TextAnchor.MiddleLeft);
             timer.color = groupColor;
-            UiBuild.Anchor(timer.rectTransform, new Vector2(0.32f, 0.16f), new Vector2(0.93f, 0.34f));
+            UiBuild.Anchor(timer.rectTransform, new Vector2(0.32f, 0.12f), new Vector2(0.90f, 0.36f));
             Fit(timer, 14, 17);
 
             _badge[index] = mark;

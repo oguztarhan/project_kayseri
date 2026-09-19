@@ -86,6 +86,38 @@ namespace Game.UI
             }
         }
 
+        private static Sprite _capsule;
+
+        /// <summary>
+        /// A white capsule, generated and nine-sliced so its ends stay round at any length. The kit's
+        /// pill art is pre-coloured and tinting it turns every colour muddy, so a state pill that takes
+        /// its colour from a tint — green for posted, grey for locked — draws on this instead.
+        /// </summary>
+        public static Sprite Capsule
+        {
+            get
+            {
+                if (_capsule != null) return _capsule;
+                const int size = 32, radius = 15;
+                var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                var px = new Color32[size * size];
+                for (int y = 0; y < size; y++)
+                    for (int x = 0; x < size; x++)
+                    {
+                        float cx = Mathf.Clamp(x + 0.5f, radius, size - radius);
+                        float cy = Mathf.Clamp(y + 0.5f, radius, size - radius);
+                        float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                        float d = Mathf.Sqrt(dx * dx + dy * dy) - radius;
+                        px[y * size + x] = new Color32(255, 255, 255, (byte)((1f - Mathf.Clamp01(d + 0.5f)) * 255f));
+                    }
+                tex.SetPixels32(px);
+                tex.Apply();
+                _capsule = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
+                                         SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+                return _capsule;
+            }
+        }
+
         private static Sprite Pick(Sprite s) => s != null ? s : Flat;
 
         public static Sprite Panel { get { Ensure(); return Pick(_panel); } }

@@ -3206,6 +3206,7 @@ MonoBehaviour:
   pageBackground: {fileID: 3068184116350062282}
   runningCard: {fileID: 8027578463243607104}
   nextSlot: {fileID: 8035091927250538943}
+  clockIcon: {fileID: 21300000, guid: ba0a9257f109af54cacebfd5e2679dc8, type: 3}
   cardRoot: {fileID: 0}
   cardImage: {fileID: 8843038536753483705}
   doneBadge: {fileID: 36116507164681052}

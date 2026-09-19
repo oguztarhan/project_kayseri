@@ -200,7 +200,11 @@ namespace Game.UI
         {
             bool portrait = Screen.width <= Screen.height;
             _portraitPanelStyle = portrait;
-            if (dim != null) dim.color = new Color(0.015f, 0.035f, 0.08f, 0.90f);
+            // Opaque, like every code-built screen's scrim (UiBuild.Opaque). This screen covers the HUD
+            // and carries its own gold pill, but 0.90 in a linear-space project lets about a quarter of
+            // what is behind through: the ribbon sat on the HUD's gold and gem pills and the rail
+            // buttons showed down both sides of the tray.
+            if (dim != null) dim.color = new Color(0.015f, 0.035f, 0.08f, 1f);
             Image sheetImage = sheet != null ? sheet.GetComponent<Image>() : null;
             if (portrait)
             {
@@ -259,7 +263,8 @@ namespace Game.UI
             if (titleText != null) titleText.color = portrait ? EkranKit.Paper : Color.white;
             if (goldValue != null)
             {
-                goldValue.color = new Color(0.03f, 0.10f, 0.25f);
+                // The wallet pill is dark navy, so the amount takes the paper ink; navy on it vanished.
+                goldValue.color = EkranKit.Paper;
                 goldValue.rectTransform.anchorMin = new Vector2(0.44f, 0.08f);
                 goldValue.rectTransform.anchorMax = new Vector2(0.91f, 0.92f);
                 goldValue.rectTransform.offsetMin = Vector2.zero;

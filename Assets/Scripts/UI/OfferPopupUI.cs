@@ -149,6 +149,7 @@ namespace Game.UI
         private void Awake()
         {
             ApplyLandscapeLayout();
+            ApplyPortraitTitle();
         }
 
         /// <summary>Whether a pack is armed and buyable — what the HUD's clock chip rides on.</summary>
@@ -235,6 +236,24 @@ namespace Game.UI
                     new Vector2(300f, -275f), new Vector2(520f, 150f));
             SetRect(closeButton != null ? closeButton.transform as RectTransform : null,
                     new Vector2(1000f, 360f), new Vector2(84f, 84f));
+        }
+
+        /// <summary>
+        /// The island name sat on the frame's top border: 62-point type in a strip a third as tall. The
+        /// title plate the More sheet and the wallet use hangs over that border instead. The prefab's
+        /// own ribbon (serit_baslik) stays off — it is orange, wider than the card, and covers the
+        /// frame's gold corners.
+        /// </summary>
+        private void ApplyPortraitTitle()
+        {
+            if (Screen.width > Screen.height || islandTitle == null) return;
+            RectTransform ribbon = islandTitle.rectTransform.parent as RectTransform;
+            Image plate = ribbon != null ? ribbon.GetComponent<Image>() : null;
+            if (plate == null || PortraitUiArt.Get("general-title-plate") == null) return;
+
+            PortraitUiArt.Apply(plate, "general-title-plate");
+            SetRect(ribbon, new Vector2(0f, 512f), new Vector2(780f, 194f));
+            SetRect(islandTitle.rectTransform, new Vector2(0f, 6f), new Vector2(560f, 100f));
         }
 
         private static void SetRect(RectTransform rect, Vector2 position, Vector2 size)
