@@ -37,8 +37,17 @@ namespace Game.UI
         /// <summary>The openers compact mode keeps on the rail itself. Everything else it moves into
         /// the More sheet — see <see cref="AttachBottomButton"/>.</summary>
         private static bool IsCompactOpener(string name)
-            => name == SailButtonName || name == MasterButtonName || name == CaptainButtonName
-               || name == BalloonButtonName || name == MoreButtonName || name == "BtnPazarGelistir";
+        {
+            // The 3:4 portrait rail has room for every compact opener except the sailboat.
+            // Sending that destination to More prevents a second column over the world; wider portrait
+            // phones and landscape keep the primary sailboat shortcut on the rail.
+            bool crampedPortrait = Screen.width > 0 && Screen.height > 0
+                                   && Screen.height >= Screen.width
+                                   && (float)Screen.height / Screen.width < 1.5f;
+            if (name == SailButtonName && crampedPortrait) return false;
+            return name == SailButtonName || name == MasterButtonName || name == CaptainButtonName
+                   || name == BalloonButtonName || name == MoreButtonName || name == "BtnPazarGelistir";
+        }
 
         [Header("Dikey tersane sade HUD")]
         [Tooltip("Yalnızca Inspector'daki dört ana eylemi kenar rayında tutar; eski bölüm bildirimi ve yinelenen kısayolları gizler.")]

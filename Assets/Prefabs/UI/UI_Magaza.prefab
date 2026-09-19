@@ -3006,7 +3006,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 3f78252ec44d42b084c9f5c27d7a94b3, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 4a9c3decbf0b5154b82f9a148df58dd7, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -5184,6 +5184,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.UI::Game.UI.LetterboxRoot
   designSize: {x: 1080, y: 2340}
   landscapeFit: 4
+  portraitFit: 4
   content: {fileID: 9046671622269224523}
   card: {fileID: 0}
   edgePadding: 24

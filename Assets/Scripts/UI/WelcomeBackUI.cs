@@ -69,6 +69,9 @@ namespace Game.UI
         private TMP_Text _adLabel;
         private float _delay;
         private bool _shown;
+        private GameObject _hudRoot;
+        private bool _hudWasActive;
+        private bool _hudHiddenByWelcome;
 
         public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
 
@@ -106,6 +109,7 @@ namespace Game.UI
         {
             if (_report == null || panelRoot == null) return;
             _shown = true;
+            HideHudWhileOpen();
             if (amountText != null) amountText.text = "$" + NumberFormatter.Format(_report.Amount);
             if (durationText != null) durationText.text = DurationText(_report.AwaySeconds);
             if (capNoteText != null) capNoteText.text = RuleText();
@@ -158,6 +162,29 @@ namespace Game.UI
         {
             if (_report != null) _report.Pending = false;
             if (panelRoot != null) panelRoot.SetActive(false);
+            RestoreHudAfterClose();
+        }
+
+        private void OnDisable()
+        {
+            RestoreHudAfterClose();
+        }
+
+        private void HideHudWhileOpen()
+        {
+            if (_hudHiddenByWelcome) return;
+            _hudRoot = GameObject.Find("UI_HUD");
+            if (_hudRoot == null) return;
+            _hudWasActive = _hudRoot.activeSelf;
+            _hudRoot.SetActive(false);
+            _hudHiddenByWelcome = true;
+        }
+
+        private void RestoreHudAfterClose()
+        {
+            if (!_hudHiddenByWelcome) return;
+            if (_hudRoot != null) _hudRoot.SetActive(_hudWasActive);
+            _hudHiddenByWelcome = false;
         }
 
         /// <summary>"3 SA 12 DK" / "45 DK" — under a minute still reads as 1 DK, never "0".</summary>

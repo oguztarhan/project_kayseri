@@ -66,7 +66,8 @@ namespace Game.UI
 
         [Tooltip("How to use the extra width when the screen is landscape. Portrait always uses Uniform.")]
         [SerializeField] private LandscapeFit landscapeFit = LandscapeFit.Auto;
-
+        [Tooltip("How to use the available width on portrait screens. Uniform preserves the authored sheet; Stretch fills the screen for full-bleed lists.")]
+        [SerializeField] private LandscapeFit portraitFit = LandscapeFit.Uniform;
         [Tooltip("The node whose direct children are the screen's blocks. Empty picks the SafeArea child, " +
                  "or this rect itself if there isn't one.")]
         [SerializeField] private RectTransform content;
@@ -190,7 +191,7 @@ namespace Game.UI
         private LandscapeFit Resolve(Vector2 avail)
         {
             // Portrait is what the sheets were drawn for; there is nothing to win and plenty to break.
-            if (avail.x <= avail.y) return LandscapeFit.Uniform;
+            if (avail.x <= avail.y) return portraitFit;
 
             // Folding writes to nodes that live in the prefab. Doing that outside Play mode would have
             // the editor serialise the folded layout over the authored one the next time the prefab is
