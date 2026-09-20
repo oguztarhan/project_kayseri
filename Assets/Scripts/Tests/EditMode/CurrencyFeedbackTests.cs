@@ -19,14 +19,20 @@ namespace Game.Tests
         private GameObject _host;
         private Texture2D _texture;
         private LocalizationService _loc;
-        private string _originalLanguage;
+        private bool _hadLanguage;
+        private string _previousLanguage;
+        private bool _hadChoiceMarker;
+        private int _previousChoiceMarker;
 
         [SetUp]
         public void SetUp()
         {
+            _hadLanguage = PlayerPrefs.HasKey(LocalizationService.PrefKey);
+            _previousLanguage = PlayerPrefs.GetString(LocalizationService.PrefKey, "");
+            _hadChoiceMarker = PlayerPrefs.HasKey(LocalizationService.UserChoicePrefKey);
+            _previousChoiceMarker = PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0);
             ServiceLocator.Clear();
             _loc = new LocalizationService();
-            _originalLanguage = _loc.Code;
             ServiceLocator.Register(_loc);
         }
 
@@ -35,8 +41,12 @@ namespace Game.Tests
         {
             if (_host != null) Object.DestroyImmediate(_host);
             if (_texture != null) Object.DestroyImmediate(_texture);
-            _loc.SetLanguage(_originalLanguage);   // SetLanguage writes PlayerPrefs
             ServiceLocator.Clear();
+            if (_hadLanguage) PlayerPrefs.SetString(LocalizationService.PrefKey, _previousLanguage);
+            else PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+            if (_hadChoiceMarker) PlayerPrefs.SetInt(LocalizationService.UserChoicePrefKey, _previousChoiceMarker);
+            else PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+            PlayerPrefs.Save();
         }
 
         // ------------------------------------------------------------------ wording

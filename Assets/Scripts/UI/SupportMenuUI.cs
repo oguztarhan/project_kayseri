@@ -43,7 +43,6 @@ namespace Game.UI
         // Arkadaki ayarlar penceresiyle AYNI yükseklik. Kısa bir panel denendiğinde altından ayarların
         // son satırları görünüyordu; karartma bir pencereyi silmeye yetmiyor, üstünü örtmek gerekiyor.
         private const float PanelHeight = 1782f;
-        private const float PanelTop = -430f;
         private const float LandscapePanelWidth = 1900f;
         private const float LandscapePanelHeight = 900f;
 
@@ -134,11 +133,11 @@ namespace Game.UI
             panel.SetParent(icerik, false);
             panel.anchorMin = panel.anchorMax = panel.pivot = landscape
                 ? new Vector2(0.5f, 0.5f)
-                : new Vector2(0.5f, 1f);
+                : new Vector2(0.5f, 0.5f);
             panel.sizeDelta = landscape
                 ? new Vector2(LandscapePanelWidth, LandscapePanelHeight)
                 : new Vector2(PanelWidth, PanelHeight);
-            panel.anchoredPosition = landscape ? Vector2.zero : new Vector2(0f, PanelTop);
+            panel.anchoredPosition = Vector2.zero;
             Art(panelGO.GetComponent<Image>(), _art ? _skin.Panel : UiSkin.Panel,
                 _art ? Color.white : new Color(0.10f, 0.13f, 0.20f, 1f));
             panelGO.AddComponent<Button>().transition = Selectable.Transition.None;
@@ -184,24 +183,34 @@ namespace Game.UI
             // makes obvious, because TMP had already dropped the line by then (see below).
             TMP_Text idLabel = Label(idRow, Loc.T("ayarlar.oyuncu_no"), width);
             var lrt = (RectTransform)idLabel.transform;
-            lrt.anchorMin = lrt.anchorMax = new Vector2(0f, 1f);
-            lrt.pivot = new Vector2(0f, 1f);
-            lrt.sizeDelta = new Vector2(width - PillWidth - LabelLeft - 40f, 62f);
-            lrt.anchoredPosition = new Vector2(LabelLeft, -24f);
+            lrt.anchorMin = lrt.anchorMax = new Vector2(0.5f, 0.5f);
+            lrt.pivot = new Vector2(0.5f, 0.5f);
+            lrt.sizeDelta = new Vector2(width - 80f, 42f);
+            lrt.anchoredPosition = new Vector2(0f, 25f);
+            idLabel.alignment = TextAlignmentOptions.Center;
+            idLabel.fontSizeMin = 24f;
+            idLabel.fontSizeMax = 32f;
             Localize(idLabel, "ayarlar.oyuncu_no");
 
-            // 64 TALL, NOT 56. TMP with Ellipsis overflow does not clip a line that is one unit too
-            // tall for its box — it drops the line entirely and draws nothing. At 36pt this font's line
-            // box is a shade under 56, which is how the id came out invisible with every property
-            // otherwise correct: right text, right colour, enabled, on screen, and not drawn.
-            _idText = Text(idRow, "Numara", "", 36f, TextAlignmentOptions.Left,
-                           new Vector2(0f, 0f), new Vector2(0f, 0f));
+            // The number owns the lower half of the row. A separate non-overlapping band keeps it
+            // readable at every CanvasScaler result instead of relying on TMP to resolve two stacked
+            // lines that physically occupy the same pixels.
+            _idText = Text(idRow, "Numara", "", 36f, TextAlignmentOptions.Center,
+                           new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             var irt = (RectTransform)_idText.transform;
-            irt.pivot = new Vector2(0f, 0f);
-            irt.sizeDelta = new Vector2(width - PillWidth - LabelLeft - 40f, 64f);
-            irt.anchoredPosition = new Vector2(LabelLeft, 20f);
-            _idText.color = Faint;
+            irt.pivot = new Vector2(0.5f, 0.5f);
+            irt.sizeDelta = new Vector2(width - 80f, 48f);
+            irt.anchoredPosition = new Vector2(0f, -27f);
+            _idText.color = Ink;
+            _idText.enableAutoSizing = true;
+            _idText.fontSizeMin = 28f;
+            _idText.fontSizeMax = 36f;
             _copyLabel = Pill(idRow, Loc.T("ayarlar.kopyala"), OnCopy);
+            var copy = (RectTransform)_copyLabel.transform.parent;
+            copy.SetParent(panel, false);
+            copy.anchorMin = copy.anchorMax = new Vector2(0.5f, 1f);
+            copy.pivot = new Vector2(0.5f, 1f);
+            copy.anchoredPosition = new Vector2(0f, y);
 
             // Sürüm satırı panelin altında, satırların değil: bir düğme değil, bir künye.
             var version = Text(panel, "Surum", PlayerIdentity.VersionLine(), 30f, TextAlignmentOptions.Left,

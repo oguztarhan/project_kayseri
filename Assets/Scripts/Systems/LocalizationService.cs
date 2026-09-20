@@ -82,18 +82,20 @@ namespace Game.Systems
         {
             if (string.IsNullOrEmpty(code)) code = FallbackCode;
             if (IndexOf(code) < 0) code = FallbackCode;
-            if (code == _code) return;
-
-            _code = code;
-            Fill(_text, code);
-            Fill(_fallback, FallbackCode);
+            bool changed = code != _code;
+            if (changed)
+            {
+                _code = code;
+                Fill(_text, code);
+                Fill(_fallback, FallbackCode);
+            }
             if (persist)
             {
                 PlayerPrefs.SetString(PrefKey, code);
                 PlayerPrefs.SetInt(UserChoicePrefKey, 1);
                 PlayerPrefs.Save();
             }
-            if (Changed != null) Changed();
+            if (changed && Changed != null) Changed();
         }
 
         // ------------------------------------------------------------------ table
@@ -165,13 +167,13 @@ namespace Game.Systems
 
         // ------------------------------------------------------------------ first run
 
-        /// <summary>Explicitly saved choice, else English. Legacy automatic device-language values are
-        /// ignored once so old installs also start in English.</summary>
+        /// <summary>A valid saved language, else English. Older builds did not record whether the saved
+        /// value was automatic or manual, so preserving it is the only migration that cannot overwrite
+        /// a real player choice. New installs have no value and therefore start in English.</summary>
         private string Stored()
         {
             string saved = PlayerPrefs.GetString(PrefKey, "");
-            return PlayerPrefs.GetInt(UserChoicePrefKey, 0) == 1
-                   && !string.IsNullOrEmpty(saved) && IndexOf(saved) >= 0
+            return !string.IsNullOrEmpty(saved) && IndexOf(saved) >= 0
                 ? saved : FallbackCode;
         }
     }

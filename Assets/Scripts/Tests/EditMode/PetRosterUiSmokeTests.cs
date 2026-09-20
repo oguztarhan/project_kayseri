@@ -13,10 +13,18 @@ namespace Game.Tests
     public sealed class PetRosterUiSmokeTests
     {
         private GameObject _root;
+        private bool _hadLanguage;
+        private string _previousLanguage;
+        private bool _hadChoiceMarker;
+        private int _previousChoiceMarker;
 
         [SetUp]
         public void SetUp()
         {
+            _hadLanguage = PlayerPrefs.HasKey(LocalizationService.PrefKey);
+            _previousLanguage = PlayerPrefs.GetString(LocalizationService.PrefKey, "");
+            _hadChoiceMarker = PlayerPrefs.HasKey(LocalizationService.UserChoicePrefKey);
+            _previousChoiceMarker = PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0);
             ServiceLocator.Clear();
             _root = new GameObject("PetRosterUiSmokeRoot");
             ServiceLocator.Register(new LocalizationService());
@@ -29,6 +37,11 @@ namespace Game.Tests
             if (_root != null) Object.DestroyImmediate(_root);
             var eventSystem = Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>();
             if (eventSystem != null) Object.DestroyImmediate(eventSystem.gameObject);
+            if (_hadLanguage) PlayerPrefs.SetString(LocalizationService.PrefKey, _previousLanguage);
+            else PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+            if (_hadChoiceMarker) PlayerPrefs.SetInt(LocalizationService.UserChoicePrefKey, _previousChoiceMarker);
+            else PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+            PlayerPrefs.Save();
         }
 
         private static PetService Register(SaveData data)

@@ -106,6 +106,7 @@ namespace Game.Systems
         public ForemanService Foremen { get; private set; }
         public GoalService Goals { get; private set; }
         public ChapterService Chapters { get; private set; }
+        public StageService Stages { get; private set; }
         public CaptainService Captains { get; private set; }
         public ExpeditionService Expeditions { get; private set; }
         public CraftingService Crafting { get; private set; }
@@ -320,6 +321,12 @@ namespace Game.Systems
             // observes and pays, this one opens the next namespace and writes the save. Registered so
             // the screens can offer the advance; nothing calls it on its own.
             ServiceLocator.Register(new ChapterProgressionService(Data, Chapters, () => Save?.Save(Data)));
+
+            // The approved 8x4 business-stage catalogue is a read-only projection over chapter beats.
+            // It deliberately has no save rows or reward ledger of its own: progression remains observed
+            // from the chapter namespace, and later content assets only enrich these fixed coordinates.
+            Stages = new StageService(Chapters);
+            ServiceLocator.Register(Stages);
 
             Maintenance.Goals = Goals;   // built before this, and evaluated before this on purpose
 

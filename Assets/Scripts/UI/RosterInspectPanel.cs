@@ -92,7 +92,7 @@ namespace Game.UI
             // The three skills take the same band the current/next pair does, because only one of the
             // two ever shows: a master has three numbers to read and a captain has a before and after.
             _skills = Label(sheet, "Beceriler", 24, new Vector2(0.10f, 0.385f), new Vector2(0.90f, 0.64f));
-            _skills.alignment = TextAnchor.MiddleLeft;
+            _skills.alignment = TextAnchor.MiddleCenter;
             _skills.color = Color.white;
             _current.color = Color.white;
             _next.color = Color.white;

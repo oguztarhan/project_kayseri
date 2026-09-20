@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Game.Systems;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Game.Tests
 {
@@ -138,8 +139,11 @@ namespace Game.Tests
         /// writes PlayerPrefs, and a test has no business leaving the editor in another language.</summary>
         private static void ForEachLanguage(System.Action<LocalizationService, string> check)
         {
+            bool hadLanguage = PlayerPrefs.HasKey(LocalizationService.PrefKey);
+            string previousLanguage = PlayerPrefs.GetString(LocalizationService.PrefKey, "");
+            bool hadChoiceMarker = PlayerPrefs.HasKey(LocalizationService.UserChoicePrefKey);
+            int previousChoiceMarker = PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0);
             var loc = new LocalizationService();
-            string original = loc.Code;
             try
             {
                 for (int language = 0; language < loc.Languages.Count; language++)
@@ -151,7 +155,11 @@ namespace Game.Tests
             }
             finally
             {
-                loc.SetLanguage(original);
+                if (hadLanguage) PlayerPrefs.SetString(LocalizationService.PrefKey, previousLanguage);
+                else PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+                if (hadChoiceMarker) PlayerPrefs.SetInt(LocalizationService.UserChoicePrefKey, previousChoiceMarker);
+                else PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+                PlayerPrefs.Save();
             }
         }
     }

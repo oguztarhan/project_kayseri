@@ -11,12 +11,30 @@ namespace Game.Tests
     public class InventoryResourceCatalogueTests
     {
         private GameObject _host;
+        private bool _hadLanguage;
+        private string _previousLanguage;
+        private bool _hadChoiceMarker;
+        private int _previousChoiceMarker;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _hadLanguage = PlayerPrefs.HasKey(LocalizationService.PrefKey);
+            _previousLanguage = PlayerPrefs.GetString(LocalizationService.PrefKey, "");
+            _hadChoiceMarker = PlayerPrefs.HasKey(LocalizationService.UserChoicePrefKey);
+            _previousChoiceMarker = PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0);
+        }
 
         [TearDown]
         public void TearDown()
         {
             if (_host != null) Object.DestroyImmediate(_host);
             ServiceLocator.Clear();
+            if (_hadLanguage) PlayerPrefs.SetString(LocalizationService.PrefKey, _previousLanguage);
+            else PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+            if (_hadChoiceMarker) PlayerPrefs.SetInt(LocalizationService.UserChoicePrefKey, _previousChoiceMarker);
+            else PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+            PlayerPrefs.Save();
         }
 
         [Test]

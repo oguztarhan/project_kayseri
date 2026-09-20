@@ -184,9 +184,10 @@ namespace Game.Core
         /// of a chapter — how long it takes, what it can afford next — the same as the first one,
         /// which is exactly what the retired ore ladder used its x3.2 tier step for.
         ///
-        /// Nothing reads this yet. The island takes its cost and value multipliers from its own
-        /// serialized fields; wiring them through here belongs with the change that gives the island
-        /// its chapter, and is deliberately not smuggled in ahead of it.
+        /// CoalOperation applies this scale to its own serialized cost and value multipliers when it
+        /// binds itself to the active chapter. The same scale also carries the island's income ceiling
+        /// and the market yard prices derived from that ceiling, keeping the whole chapter affordable
+        /// at the same relative pace.
         /// </summary>
         public static double EconomyScale(int chapter, in Tuning t)
         {

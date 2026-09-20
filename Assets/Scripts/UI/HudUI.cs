@@ -53,6 +53,10 @@ namespace Game.UI
         [Tooltip("Yalnızca Inspector'daki dört ana eylemi kenar rayında tutar; eski bölüm bildirimi ve yinelenen kısayolları gizler.")]
         [SerializeField] private bool compactShipyardHud = true;
         [Header("Üst bar")]
+        [Tooltip("Nakit ve elmas göstergelerinin özgün oranını bozmadan uygulanan ortak ölçek.")]
+        [SerializeField, Range(0.6f, 1f)] private float currencyIndicatorScale = 0.76f;
+        [Tooltip("Küçültülmüş nakit ve elmas göstergeleri arasındaki tasarım boşluğu.")]
+        [SerializeField, Min(0f)] private float currencyIndicatorGap = 18f;
         [SerializeField] private TMP_Text goldValue;
         [SerializeField] private TMP_Text gemsValue;
         [SerializeField] private TMP_Text rateValue;
@@ -174,6 +178,7 @@ namespace Game.UI
         [SerializeField] private float gemRollSpeed = 5.5f;
 
         private WalletService _wallet;
+        private StageService _stages;
         private ContractService _contract;
         private FoundryFestivalService _festival;
         private HarborFestivalService _harborFestival;
@@ -210,6 +215,13 @@ namespace Game.UI
         private GameObject _balloonTimerChip;
         private TMP_Text _balloonTimerValue;
 
+        // The stage chip is a live clone of the authored rate pill: cloning preserves the HUD's
+        // existing material, border, font and spacing without adding a scene-only prefab dependency.
+        // It remains a label rather than a second chapter opener; ChapterUI owns NEXT CHAPTER.
+        private RectTransform _stageIndicator;
+        private TMP_Text _stageIndicatorLabel;
+        private string _shownStageLabel;
+
         // The objective strip under the currency bar. Its position is solved from the authored rects
         // above it rather than authored itself, so it is re-solved whenever the sheet changes size.
         private RectTransform _topStrip;
@@ -223,6 +235,7 @@ namespace Game.UI
         private void Start()
         {
             _wallet = ServiceLocator.Get<WalletService>();
+            _stages = ServiceLocator.Get<StageService>();
             _contract = ServiceLocator.Get<ContractService>();
             _festival = ServiceLocator.Get<FoundryFestivalService>();
             _harborFestival = ServiceLocator.Get<HarborFestivalService>();
@@ -251,6 +264,7 @@ namespace Game.UI
                 _boostSlot = ((RectTransform)boostIndicator.transform).anchoredPosition;
             BindEnabledOp();
             ApplyMainHudIcons();
+            LayoutCurrencyIndicators();
 
             if (storeButton != null) storeButton.onClick.AddListener(OnStore);
             if (goldButton != null) goldButton.onClick.AddListener(OnStore);
@@ -291,6 +305,8 @@ namespace Game.UI
                 InsertBottom(PromoOrder + 1, offerButton != null ? (RectTransform)offerButton.transform : null);
             }
             ApplySafeArea();
+            BuildStageIndicator();
+            PlaceStageIndicator();
             LayoutBottomRow();
             if (!compactShipyardHud)
                 BuildObjectiveStrip();
@@ -314,6 +330,30 @@ namespace Game.UI
 
             // HUD hiç açılıp kapanmaz — sadece tıklama sesi, whoosh yok.
             UiPanelSound.AttachButtonsOnly(gameObject);
+        }
+
+        /// <summary>
+        /// Shrinks the two large currency plates as one proportional pair. Their children are
+        /// stretch-anchored inside the authored rectangles, so changing both axes by the same factor
+        /// preserves the icon, plate and type proportions without introducing a second art layout.
+        /// </summary>
+        private void LayoutCurrencyIndicators()
+        {
+            if (goldButton == null || gemsButton == null) return;
+
+            var gold = goldButton.transform as RectTransform;
+            var gems = gemsButton.transform as RectTransform;
+            if (gold == null || gems == null) return;
+
+            float scale = Mathf.Clamp(currencyIndicatorScale, 0.6f, 1f);
+            gold.sizeDelta *= scale;
+            gems.sizeDelta *= scale;
+
+            // Both plates use a top-left pivot. Keep the cash plate in its authored slot and solve the
+            // gem plate from its new right edge, so shrinking cannot leave the oversized old gap.
+            gems.anchoredPosition = new Vector2(gold.anchoredPosition.x + gold.sizeDelta.x
+                                                + Mathf.Max(0f, currencyIndicatorGap),
+                                                gold.anchoredPosition.y);
         }
 
         private void OnDestroy()
@@ -442,6 +482,12 @@ namespace Game.UI
                 return;
             }
 
+            if (compactShipyardHud && Screen.height >= Screen.width)
+            {
+                LayoutBalancedPortraitRails(buttonSize);
+                return;
+            }
+
             int count = 0;
             for (int i = 0; i < _bottomRects.Count; i++) if (_bottomRects[i] != null) count++;
             if (count == 0) return;
@@ -508,6 +554,86 @@ namespace Game.UI
         }
 
         /// <summary>
+        /// Portrait uses both empty side margins instead of stacking every opener on the left. Store
+        /// and Daily keep the first two right-hand positions players already know; the remaining
+        /// openers are divided as evenly as possible and both rails share one size, inset and pitch.
+        /// </summary>
+        private void LayoutBalancedPortraitRails(float buttonSize)
+        {
+            RectTransform authored = FirstAuthored();
+            RectTransform host = authored != null ? authored.parent as RectTransform : null;
+            if (host == null) return;
+
+            RectTransform storeRect = storeButton != null ? storeButton.transform as RectTransform : null;
+            RectTransform dailyRect = dailyButton != null ? dailyButton.transform as RectTransform : null;
+            if (storeRect != null && storeRect.parent != host) storeRect.SetParent(host, false);
+            if (dailyRect != null && dailyRect.parent != host) dailyRect.SetParent(host, false);
+            if (storeRect != null) storeRect.sizeDelta = new Vector2(buttonSize, buttonSize);
+            if (dailyRect != null) dailyRect.sizeDelta = new Vector2(buttonSize, buttonSize);
+
+            int openerCount = 0;
+            for (int i = 0; i < _bottomRects.Count; i++)
+                if (_bottomRects[i] != null && _bottomRects[i].gameObject.activeSelf) openerCount++;
+            int fixedRight = (storeRect != null && storeRect.gameObject.activeSelf ? 1 : 0)
+                           + (dailyRect != null && dailyRect.gameObject.activeSelf ? 1 : 0);
+            int total = openerCount + fixedRight;
+            if (total == 0) return;
+
+            int leftTarget = total / 2;
+            int rightTarget = total - leftTarget;
+            var left = new List<RectTransform>(leftTarget);
+            var right = new List<RectTransform>(rightTarget);
+            if (storeRect != null && storeRect.gameObject.activeSelf) right.Add(storeRect);
+            if (dailyRect != null && dailyRect.gameObject.activeSelf) right.Add(dailyRect);
+
+            for (int i = 0; i < _bottomRects.Count; i++)
+            {
+                RectTransform rect = _bottomRects[i];
+                if (rect == null || !rect.gameObject.activeSelf) continue;
+                if (left.Count < leftTarget) left.Add(rect);
+                else right.Add(rect);
+            }
+
+            float height = host.rect.height > 100f ? host.rect.height : 2340f;
+            float width = host.rect.width > 100f ? host.rect.width : 1080f;
+            Rect safe = Screen.safeArea;
+            float screenWidth = Mathf.Max(1f, Screen.width);
+            float screenHeight = Mathf.Max(1f, Screen.height);
+            float safeTop = (safe.yMax / screenHeight - 0.5f) * height;
+            float safeBottom = (safe.yMin / screenHeight - 0.5f) * height;
+            float top = safeTop - railTopReserve - buttonSize * 0.5f;
+            float bottom = safeBottom + buttonSize * 0.5f;
+            float minPitch = buttonSize + 12f + RailChipDrop;
+            int rows = Mathf.Max(left.Count, right.Count);
+            float pitch = rows > 1
+                ? Mathf.Clamp((top - bottom) / (rows - 1), minPitch, minPitch + 24f)
+                : minPitch;
+            float inset = (safe.xMin / screenWidth) * width + railInset;
+            float rightInset = ((screenWidth - safe.xMax) / screenWidth) * width + railInset;
+
+            PlacePortraitRail(left, 0f, inset, pitch);
+            PlacePortraitRail(right, 1f, -rightInset, pitch);
+            _railWidth = Mathf.Max(inset, rightInset) + buttonSize * 0.5f;
+            SolveTopStrip(transform as RectTransform);
+        }
+
+        private void PlacePortraitRail(List<RectTransform> rail, float anchorX, float x, float pitch)
+        {
+            if (rail == null || rail.Count == 0) return;
+            float firstY = (rail.Count - 1) * pitch * 0.5f;
+            for (int i = 0; i < rail.Count; i++)
+            {
+                RectTransform rect = rail[i];
+                rect.anchorMin = rect.anchorMax = new Vector2(anchorX, 0.5f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.anchoredPosition = new Vector2(x, firstY - i * pitch);
+                for (int c = 0; c < rect.childCount; c++)
+                    if (offerTimerChip != null && rect.GetChild(c).name == offerTimerChip.name)
+                        HangChip((RectTransform)rect.GetChild(c));
+            }
+        }
+
+        /// <summary>
         /// Height of the rect the rail is laid out in. Falls back to the canvas design height: at boot
         /// the safe-area rect can still be zero-sized on the frame Start runs, and a rail solved
         /// against zero stacks every button on one spot.
@@ -558,6 +684,7 @@ namespace Game.UI
             ClampToSafeArea(gemsButton != null ? (RectTransform)gemsButton.transform : null, safe, margin);
             ClampToSafeArea(rateButton != null ? (RectTransform)rateButton.transform : null, safe, margin);
             ClampToSafeArea(settingsButton != null ? (RectTransform)settingsButton.transform : null, safe, margin);
+            PlaceStageIndicator();
             ClampToSafeArea(boostIndicator != null ? (RectTransform)boostIndicator.transform : null, safe, margin);
             ClampToSafeArea(shieldIndicator != null ? (RectTransform)shieldIndicator.transform : null, safe, margin);
         }
@@ -584,6 +711,52 @@ namespace Game.UI
             else if (maxY > safe.yMax - margin) dy = safe.yMax - margin - maxY;
             if (Mathf.Abs(dx) > 0.01f || Mathf.Abs(dy) > 0.01f)
                 rect.position += new Vector3(dx, dy, 0f);
+        }
+
+        /// <summary>
+        /// Creates the compact stage label directly beneath Settings. Reusing the authored rate-pill
+        /// hierarchy keeps future UI restyles in one place and means no HUD prefab needs a new wire.
+        /// </summary>
+        private void BuildStageIndicator()
+        {
+            if (_stageIndicator != null || settingsButton == null || rateButton == null) return;
+
+            Transform topBar = settingsButton.transform.parent;
+            if (topBar == null) return;
+
+            GameObject clone = Instantiate(rateButton.gameObject, topBar, false);
+            clone.name = "AsamaGostergesi";
+            var button = clone.GetComponent<Button>();
+            if (button != null) button.enabled = false;
+            var touchPad = clone.GetComponent<TouchPad>();
+            if (touchPad != null) Destroy(touchPad);
+
+            _stageIndicator = clone.transform as RectTransform;
+            _stageIndicatorLabel = clone.GetComponentInChildren<TMP_Text>(true);
+            if (_stageIndicatorLabel != null)
+            {
+                _stageIndicatorLabel.enableAutoSizing = true;
+                _stageIndicatorLabel.fontSizeMin = Mathf.Min(_stageIndicatorLabel.fontSizeMin,
+                                                             _stageIndicatorLabel.fontSize * 0.75f);
+                _stageIndicatorLabel.fontSizeMax = _stageIndicatorLabel.fontSize;
+            }
+        }
+
+        /// <summary>Positions the copied pill under the live Settings button after safe-area layout.</summary>
+        private void PlaceStageIndicator()
+        {
+            if (_stageIndicator == null || settingsButton == null) return;
+
+            RectTransform settingsRect = (RectTransform)settingsButton.transform;
+            // The indicator and Settings are siblings in the authored top bar. Work in that shared
+            // local coordinate system rather than measuring world corners: the latter are not yet
+            // resolved in the first Start frame of a new canvas.
+            _stageIndicator.anchorMin = settingsRect.anchorMin;
+            _stageIndicator.anchorMax = settingsRect.anchorMax;
+            _stageIndicator.pivot = new Vector2(1f, 1f);
+            _stageIndicator.anchoredPosition = new Vector2(settingsRect.anchoredPosition.x,
+                                                            settingsRect.anchoredPosition.y
+                                                            - settingsRect.rect.height - 12f);
         }
 
         /// <summary>
@@ -1036,6 +1209,7 @@ namespace Game.UI
             clear = Mathf.Min(clear, BottomOf(sheet, gemsValue));
             clear = Mathf.Min(clear, BottomOf(sheet, rateValue));
             clear = Mathf.Min(clear, BottomOf(sheet, settingsButton));
+            clear = Mathf.Min(clear, BottomOf(sheet, _stageIndicator));
             clear = Mathf.Min(clear, BottomOf(sheet, boostIndicator));
             clear = Mathf.Min(clear, BottomOf(sheet, shieldIndicator));
 
@@ -1127,6 +1301,7 @@ namespace Game.UI
         private void Update()
         {
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
+            if (_stages == null) _stages = ServiceLocator.Get<StageService>();
             if (_op == null || !_op.enabled) BindEnabledOp();
             if (SafeAreaChanged())
             {
@@ -1266,6 +1441,7 @@ namespace Game.UI
 
         private void Refresh()
         {
+            RefreshStageIndicator();
             if (rateValue != null && _market != null && _market.MiningShopBusiness != null)
                 rateValue.text = ShopStatus(_market.MiningShopBusiness.View);
             else if (rateValue != null && _op != null)
@@ -1302,6 +1478,24 @@ namespace Game.UI
                         boosted ? _shieldSlot : _boostSlot;
                 }
             }
+        }
+
+        /// <summary>
+        /// Stage completion is observed from the existing chapter objectives, so polling alongside
+        /// the HUD's normal quarter-second refresh advances the label without a button, save write,
+        /// or duplicate reward path.
+        /// </summary>
+        private void RefreshStageIndicator()
+        {
+            if (_stageIndicator == null) return;
+
+            string label = _stages != null ? _stages.CurrentLabel() : string.Empty;
+            bool visible = !string.IsNullOrEmpty(label);
+            if (_stageIndicator.gameObject.activeSelf != visible) _stageIndicator.gameObject.SetActive(visible);
+            if (!visible || _stageIndicatorLabel == null || _shownStageLabel == label) return;
+
+            _shownStageLabel = label;
+            _stageIndicatorLabel.text = label;
         }
 
         /// <summary>

@@ -1,5 +1,6 @@
 using Game.Systems;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Game.Tests
 {
@@ -15,20 +16,35 @@ namespace Game.Tests
         [Test]
         public void SharedRosterCopyExistsInEveryLaunchLanguage()
         {
-            var loc = new LocalizationService();
-            for (int language = 0; language < loc.Languages.Count; language++)
+            bool hadLanguage = PlayerPrefs.HasKey(LocalizationService.PrefKey);
+            string previousLanguage = PlayerPrefs.GetString(LocalizationService.PrefKey, "");
+            bool hadChoiceMarker = PlayerPrefs.HasKey(LocalizationService.UserChoicePrefKey);
+            int previousChoiceMarker = PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0);
+            try
             {
-                loc.SetLanguage(loc.Languages[language].Code);
-                for (int key = 0; key < Keys.Length; key++)
+                var loc = new LocalizationService();
+                for (int language = 0; language < loc.Languages.Count; language++)
                 {
-                    string value = loc.Get(Keys[key]);
-                    Assert.That(value, Is.Not.Empty, loc.Languages[language].Code + ": " + Keys[key]);
-                    Assert.That(value, Is.Not.EqualTo(Keys[key]), loc.Languages[language].Code + ": " + Keys[key]);
-                }
+                    loc.SetLanguage(loc.Languages[language].Code);
+                    for (int key = 0; key < Keys.Length; key++)
+                    {
+                        string value = loc.Get(Keys[key]);
+                        Assert.That(value, Is.Not.Empty, loc.Languages[language].Code + ": " + Keys[key]);
+                        Assert.That(value, Is.Not.EqualTo(Keys[key]), loc.Languages[language].Code + ": " + Keys[key]);
+                    }
 
-                Assert.DoesNotThrow(() => string.Format(loc.Get("kadro.simdi"), "+25%"));
-                Assert.DoesNotThrow(() => string.Format(loc.Get("kadro.sonraki"), "+30%"));
-                Assert.DoesNotThrow(() => string.Format(loc.Get("kadro.ilerleme"), 3, 6));
+                    Assert.DoesNotThrow(() => string.Format(loc.Get("kadro.simdi"), "+25%"));
+                    Assert.DoesNotThrow(() => string.Format(loc.Get("kadro.sonraki"), "+30%"));
+                    Assert.DoesNotThrow(() => string.Format(loc.Get("kadro.ilerleme"), 3, 6));
+                }
+            }
+            finally
+            {
+                if (hadLanguage) PlayerPrefs.SetString(LocalizationService.PrefKey, previousLanguage);
+                else PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+                if (hadChoiceMarker) PlayerPrefs.SetInt(LocalizationService.UserChoicePrefKey, previousChoiceMarker);
+                else PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+                PlayerPrefs.Save();
             }
         }
     }

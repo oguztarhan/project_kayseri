@@ -1142,6 +1142,8 @@ namespace Game.UI
             SetRightMiddle(ObjectRect(row.badgeGO), new Vector2(-14f, 0f), buySize);
             FitCardText(row.name, nameSize, 24f);
             FitCardText(row.detail, detailSize, UiType.MinSize);
+            if (row.name != null) row.name.alignment = TextAlignmentOptions.Center;
+            if (row.detail != null) row.detail.alignment = TextAlignmentOptions.Center;
             // upgrade_buy has no coin: its cream inlay is 0.17-0.86 of the box, so the price sits there and
             // not in the coin-art zone LayoutPriceText insets for (which put "$174.55" on the right cap).
             LayoutButtonText(row.price, buySize.x * BuyInlayMin, buySize.x * (1f - BuyInlayMax), 34f, UiType.MinSize);
@@ -1504,9 +1506,9 @@ namespace Game.UI
                     row.detail.text = string.Format(Loc.T("gelisim.istasyon_ilerleme"),
                         _op.StationLevelTotal(row.station), _op.StationLevelCap(row.station));
                 if (row.price != null) row.price.text = "$" + NumberFormatter.Format(cost);
-                if (row.buyImg != null) row.buyImg.sprite = afford ? priceGreen : priceGrey;
-                // This control is navigation, not a purchase. It remains useful when cash is short.
-                if (row.buyBtn != null) row.buyBtn.interactable = !_busy;
+                // This control is navigation, not a purchase. It remains useful when cash is short, but
+                // keeps the same button art and only dims it when the next upgrade is unaffordable.
+                PaintBuyButton(row, afford, !_busy);
             }
         }
 
@@ -1545,8 +1547,7 @@ namespace Game.UI
             BigDouble cost = _op.AxisCost(_station, r.axis);
             bool afford = _wallet != null && _wallet.CanAfford(cost);
             if (r.price != null) r.price.text = "$" + NumberFormatter.Format(cost);
-            if (r.buyImg != null) r.buyImg.sprite = afford ? priceGreen : priceGrey;
-            if (r.buyBtn != null) r.buyBtn.interactable = afford && !_busy;
+            PaintBuyButton(r, afford, afford && !_busy);
         }
 
         private void RefreshUnlock(Row r)
@@ -1573,8 +1574,7 @@ namespace Game.UI
             BigDouble cost = _op.UnlockCost(r.unlock);
             bool afford = _wallet != null && _wallet.CanAfford(cost);
             if (r.price != null) r.price.text = "$" + NumberFormatter.Format(cost);
-            if (r.buyImg != null) r.buyImg.sprite = afford ? priceGreen : priceGrey;
-            if (r.buyBtn != null) r.buyBtn.interactable = afford && !_busy;
+            PaintBuyButton(r, afford, afford && !_busy);
         }
 
         // ---------- what a level is worth ----------
@@ -1677,6 +1677,28 @@ namespace Game.UI
             if (r.lockGO != null && r.lockGO.activeSelf != locked) r.lockGO.SetActive(locked);
         }
 
+        private void PaintBuyButton(Row row, bool affordable, bool interactable)
+        {
+            if (row == null) return;
+
+            Color tint = affordable ? Color.white : new Color(0.62f, 0.67f, 0.74f, 1f);
+            if (row.buyBtn != null)
+            {
+                ColorBlock colors = row.buyBtn.colors;
+                colors.disabledColor = tint;
+                row.buyBtn.colors = colors;
+                row.buyBtn.interactable = interactable;
+            }
+
+            if (row.buyImg != null)
+            {
+                // Keep the authored button art. Swapping to the grey replacement sprite changed the
+                // apparent proportions after purchase and made the control look like a different UI.
+                if (priceGreen != null) row.buyImg.sprite = priceGreen;
+                row.buyImg.color = tint;
+            }
+        }
+
         // ---------- buying ----------
         private void Buy(Row row)
         {
@@ -1743,6 +1765,8 @@ namespace Game.UI
         {
             RectTransform btn = row.buyGO != null ? (RectTransform)row.buyGO.transform : null;
             RectTransform lvl = row.level != null ? row.level.rectTransform : null;
+            Vector3 buttonScale = btn != null ? btn.localScale : Vector3.one;
+            Vector3 levelScale = lvl != null ? lvl.localScale : Vector3.one;
             if (halo != null) { halo.gameObject.SetActive(true); halo.rectTransform.localScale = Vector3.one * 0.3f; }
 
             float t = 0f;
@@ -1756,8 +1780,8 @@ namespace Game.UI
                 // shape a stamped foundation makes, which is what a bought level is supposed to be.
                 if (_model != null)
                     _model.localScale = new Vector3(1f + pop * 0.055f, 1f + pop * 0.10f, 1f + pop * 0.055f);
-                if (btn != null) btn.localScale = Vector3.one * (1f + pop * 0.13f);
-                if (lvl != null) lvl.localScale = Vector3.one * (1f + pop * 0.18f);
+                if (btn != null) btn.localScale = buttonScale * (1f + pop * 0.13f);
+                if (lvl != null) lvl.localScale = levelScale * (1f + pop * 0.18f);
                 if (halo != null)
                 {
                     halo.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.3f, 1.55f, k);
@@ -1767,8 +1791,8 @@ namespace Game.UI
             }
 
             if (_model != null) _model.localScale = Vector3.one;
-            if (btn != null) btn.localScale = Vector3.one;
-            if (lvl != null) lvl.localScale = Vector3.one;
+            if (btn != null) btn.localScale = buttonScale;
+            if (lvl != null) lvl.localScale = levelScale;
             if (halo != null) halo.gameObject.SetActive(false);
         }
 

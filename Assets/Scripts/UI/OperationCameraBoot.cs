@@ -91,8 +91,6 @@ namespace Game.UI
         [Tooltip("HUD yan rayinin kapladigi ekran genisligi orani. Genislik cozumunden dusuluyor ve " +
                  "ada rayin karsi tarafina kaydiriliyor.")]
         [SerializeField] private float hudSideFraction = 0.09f;
-        [Tooltip("Yan ray solda mi? Ada her zaman rayin karsi tarafina kayiyor.")]
-        [SerializeField] private bool hudRailOnLeft = true;
         [Tooltip("Genislik cozumune eklenen pay. 1 = ada tam ekrana siginir, kenar boslugu yok.")]
         [SerializeField] private float widthMargin = 0.74f;
 
@@ -238,24 +236,19 @@ namespace Game.UI
 
             Quaternion rot = Quaternion.Euler(pitch, useYaw, 0f);
             float surveyDist = FitDistance(b, rot, cam.aspect);
-            // Below one is intentional for this art: the measurable building bounds include long
-            // overhangs and route props, so a mathematically exact 1.0 fit still leaves a wide ocean
-            // gutter. 0.74 keeps only a small strip of side water and lets length be explored by the
-            // portrait-only vertical drag.
+            // The portrait opening view must show the complete island. The old width-only fit made the
+            // camera readable for the buildings but cropped the island's long north/south span.
             float widthDist = FitWidthDistance(b, rot, cam.aspect) * Mathf.Clamp(widthMargin, .65f, 1.5f);
-            float dist = verticalShipyard ? widthDist : surveyDist * defaultZoomFraction;
+            float dist = verticalShipyard ? surveyDist : surveyDist * defaultZoomFraction;
             Vector3 pos = b.center - rot * Vector3.forward * dist;
 
             float vTan = Mathf.Tan(fieldOfView * 0.5f * Mathf.Deg2Rad);
             if (verticalShipyard)
             {
-                // The HUD is a rail down one side now, so what it eats is width, not height. Sliding
-                // the camera toward the rail pushes the island away from it, into the middle of the
-                // free area - moving the camera one way moves the subject the other, same as the
-                // vertical lift below.
-                float hTan = vTan * Mathf.Max(0.1f, cam.aspect);
-                float away = hudRailOnLeft ? 1f : -1f;      // camera left => subject right
-                pos -= rot * Vector3.right * (away * hudSideFraction * dist * hTan);
+                // Balanced portrait rails leave the visual centre on the screen centre. The top bar
+                // is slightly deeper than the gesture margin, so lower the subject by that difference.
+                float centreOffset = (0.04f - hudTopFraction) * 0.5f;
+                pos -= rot * Vector3.up * (centreOffset * 2f * dist * vTan);
             }
             else
             {
@@ -275,10 +268,9 @@ namespace Game.UI
             float safeCentreDistance = (b.extents.y + cam.nearClipPlane + 8f) / down;
             float minCentreDistance = Mathf.Max(surveyDist * zoomInFactor, safeCentreDistance);
             float minZoom = minCentreDistance + groundToCentre;
-            // Zooming out stops just past the width fit. Beyond that the sea takes over and the
-            // playfield becomes the diagram PORTRAIT_SHIPYARD_PLAN rules out; the 12% is only so a
-            // pinch outward from the opening shot is not a dead gesture.
-            float outerDist = verticalShipyard ? widthDist * 1.12f : surveyDist * zoomOutFactor;
+            // Keep a small breathing margin beyond the full-island opening shot so the player can still
+            // pinch outward without immediately reaching the zoom limit.
+            float outerDist = verticalShipyard ? surveyDist * 1.12f : surveyDist * zoomOutFactor;
             float maxZoom = Mathf.Max(minZoom, outerDist + groundToCentre);
             cam.farClipPlane = RequiredFarClip(rot, fieldOfView, cam.aspect, maxZoom, b.size.y);
 
@@ -348,10 +340,16 @@ namespace Game.UI
             float vTan = Mathf.Tan(fieldOfView * 0.5f * Mathf.Deg2Rad);
             float hTan = vTan * Mathf.Max(0.1f, aspect);
 
-            float usable = Mathf.Clamp(1f - hudTopFraction - hudBottomFraction, 0.25f, 1f);
+            // The portrait HUD now occupies equal rails on both sides and has no bottom bar. Reserve
+            // both rails symmetrically and keep only a small gesture-area margin at the foot.
+            float bottomReserve = verticalShipyard ? 0.04f : hudBottomFraction;
+            float usable = Mathf.Clamp(1f - hudTopFraction - bottomReserve, 0.25f, 1f);
+            float horizontalUsable = verticalShipyard
+                ? Mathf.Clamp(1f - hudSideFraction * 2f, 0.5f, 1f)
+                : 1f;
             float keep = Mathf.Clamp01(1f - edgeMargin);
             float vSafe = Mathf.Max(0.01f, vTan * usable * keep);
-            float hSafe = Mathf.Max(0.01f, hTan * keep);
+            float hSafe = Mathf.Max(0.01f, hTan * horizontalUsable * keep);
 
             Quaternion inv = Quaternion.Inverse(rot);
             Vector3 e = b.extents;
@@ -421,6 +419,11 @@ namespace Game.UI
                     if (!ch.gameObject.activeSelf) continue;
                     foreach (Transform district in ch)
                     {
+                        if (district.name == "02_Terrain")
+                        {
+                            AccumulateAuthoredTerraces(district, ref b, ref have);
+                            continue;
+                        }
                         if (Skip(district.name) || SkipDistrict(district.name)) continue;
                         Accumulate(district, ref b, ref have);
                     }
@@ -440,6 +443,18 @@ namespace Game.UI
                 if (!have) { b = rs[i].bounds; have = true; }
                 else b.Encapsulate(rs[i].bounds);
             }
+        }
+
+        /// <summary>
+        /// The authored terrain group also contains hundreds of shore stones and foam pieces. The
+        /// terraces are the island silhouette the player expects to see; measuring only those keeps
+        /// the complete landmass in frame without pulling back to fit scattered shoreline dressing.
+        /// </summary>
+        private static void AccumulateAuthoredTerraces(Transform terrain, ref Bounds b, ref bool have)
+        {
+            foreach (Transform part in terrain)
+                if (part.name.StartsWith("Terrace_", System.StringComparison.OrdinalIgnoreCase))
+                    Accumulate(part, ref b, ref have);
         }
 
         private static bool SkipDistrict(string n)

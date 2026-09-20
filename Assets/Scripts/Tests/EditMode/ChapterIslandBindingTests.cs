@@ -109,6 +109,17 @@ namespace Game.Tests
         }
 
         // ------------------------------------------------------------------ the economy
+        [Test]
+        public void ANewIslandsDefaultCeilingMatchesTheMeasuredCoalMaximum()
+        {
+            ServiceLocator.Clear();
+            _host = new GameObject("ChapterIslandDefaultCeiling");
+            var island = _host.AddComponent<CoalOperation>();
+
+            Assert.That(((IIslandSaleTerms)island).IncomeCapPerMinuteRaw,
+                        Is.EqualTo(EconomyCurve.MaxedCoalPerMin).Within(1e-6));
+        }
+
         /// <summary>
         /// The ceiling is a MEASURED number for a maxed island. It has to ride the chapter's scale or
         /// every chapter after the first is clamped back to chapter one's income while its costs climb.
@@ -150,6 +161,54 @@ namespace Game.Tests
 
             Assert.That(((IIslandSaleTerms)second).UpgradeTreeCostRaw,
                         Is.EqualTo(expected).Within(expected * 1e-6));
+        }
+
+        /// <summary>
+        /// A stage reset preserves the wallet, so every cash-facing term must move by the exact same
+        /// chapter factor. These are the terms a player actually meets: a bar's sale value, the next
+        /// island upgrade, a building unlock, the income ceiling, and the yard upgrade that staffs
+        /// stage three. Any one drifting would turn a later chapter into either a cash wall or a skip.
+        /// </summary>
+        [Test]
+        public void EveryCashFacingTermMovesTogetherAcrossTheWholeChapterLadder()
+        {
+            CoalOperation first = Island(0);
+            var firstTerms = (IIslandSaleTerms)first;
+            var firstMarket = ServiceLocator.Get<MarketService>();
+            double baseBarPrice = firstTerms.BarPriceRaw;
+            double baseAxisCost = first.AxisCost(0, 0).ToDouble();
+            double baseUnlockCost = first.UnlockCost(CoalOperation.UnlockSecondMine).ToDouble();
+            double baseCeiling = firstTerms.IncomeCapPerMinuteRaw;
+            double baseYardCost = firstMarket.Cost(first.ProgressionKey, YardUpgrade.HireCarry);
+            Object.DestroyImmediate(_host);
+
+            Assert.That(baseBarPrice, Is.GreaterThan(0d));
+            Assert.That(baseAxisCost, Is.GreaterThan(0d));
+            Assert.That(baseUnlockCost, Is.GreaterThan(0d));
+            Assert.That(baseCeiling, Is.GreaterThan(0d));
+            Assert.That(baseYardCost, Is.GreaterThan(0d));
+
+            for (int chapter = 1; chapter < Chapters.Count; chapter++)
+            {
+                CoalOperation island = Island(chapter);
+                var terms = (IIslandSaleTerms)island;
+                var market = ServiceLocator.Get<MarketService>();
+                double scale = Chapters.EconomyScale(chapter, T);
+
+                Assert.That(terms.BarPriceRaw, Is.EqualTo(baseBarPrice * scale).Within(baseBarPrice * scale * 1e-5),
+                            "bar value, chapter " + chapter);
+                Assert.That(island.AxisCost(0, 0).ToDouble(), Is.EqualTo(baseAxisCost * scale).Within(baseAxisCost * scale * 1e-5),
+                            "island upgrade, chapter " + chapter);
+                Assert.That(island.UnlockCost(CoalOperation.UnlockSecondMine).ToDouble(),
+                            Is.EqualTo(baseUnlockCost * scale).Within(baseUnlockCost * scale * 1e-5),
+                            "building unlock, chapter " + chapter);
+                Assert.That(terms.IncomeCapPerMinuteRaw, Is.EqualTo(baseCeiling * scale).Within(baseCeiling * scale * 1e-5),
+                            "income ceiling, chapter " + chapter);
+                Assert.That(market.Cost(island.ProgressionKey, YardUpgrade.HireCarry),
+                            Is.EqualTo(baseYardCost * scale).Within(baseYardCost * scale * 1e-5),
+                            "yard staffing, chapter " + chapter);
+                Object.DestroyImmediate(_host);
+            }
         }
 
         // ------------------------------------------------------------------ the goods

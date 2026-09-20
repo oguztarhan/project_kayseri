@@ -146,7 +146,7 @@ namespace Game.Tests.EditMode
         }
 
         [Test]
-        public void FirstLaunchDefaultsToEnglishAndIgnoresLegacyAutomaticLanguage()
+        public void FirstLaunchDefaultsToEnglishAndPreservesLegacySavedLanguage()
         {
             bool hadLanguage = PlayerPrefs.HasKey(LocalizationService.PrefKey);
             string previousLanguage = PlayerPrefs.GetString(LocalizationService.PrefKey, "");
@@ -159,6 +159,9 @@ namespace Game.Tests.EditMode
                 Assert.That(new LocalizationService().Code, Is.EqualTo("en"));
 
                 PlayerPrefs.SetString(LocalizationService.PrefKey, "vi");
+                Assert.That(new LocalizationService().Code, Is.EqualTo("vi"));
+
+                PlayerPrefs.SetString(LocalizationService.PrefKey, "not-a-language");
                 Assert.That(new LocalizationService().Code, Is.EqualTo("en"));
             }
             finally
@@ -185,7 +188,35 @@ namespace Game.Tests.EditMode
                 var first = new LocalizationService();
                 first.SetLanguage("vi");
 
+                Assert.That(PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0), Is.EqualTo(1));
                 Assert.That(new LocalizationService().Code, Is.EqualTo("vi"));
+            }
+            finally
+            {
+                if (hadLanguage) PlayerPrefs.SetString(LocalizationService.PrefKey, previousLanguage);
+                else PlayerPrefs.DeleteKey(LocalizationService.PrefKey);
+                if (hadChoiceMarker) PlayerPrefs.SetInt(LocalizationService.UserChoicePrefKey, previousChoiceMarker);
+                else PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+                PlayerPrefs.Save();
+            }
+        }
+
+        [Test]
+        public void SelectingTheActiveLanguageStillRecordsAnExplicitChoice()
+        {
+            bool hadLanguage = PlayerPrefs.HasKey(LocalizationService.PrefKey);
+            string previousLanguage = PlayerPrefs.GetString(LocalizationService.PrefKey, "");
+            bool hadChoiceMarker = PlayerPrefs.HasKey(LocalizationService.UserChoicePrefKey);
+            int previousChoiceMarker = PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0);
+            try
+            {
+                PlayerPrefs.SetString(LocalizationService.PrefKey, "vi");
+                PlayerPrefs.DeleteKey(LocalizationService.UserChoicePrefKey);
+                var localization = new LocalizationService();
+
+                localization.SetLanguage("vi");
+
+                Assert.That(PlayerPrefs.GetInt(LocalizationService.UserChoicePrefKey, 0), Is.EqualTo(1));
             }
             finally
             {

@@ -23,6 +23,9 @@ namespace Game.UI
         [SerializeField] private float shopScreenLift = 0.08f;
         [Tooltip("Downward tilt of the shop shot. Steeper than the island shot so the market roof does not hide the loop.")]
         [SerializeField, Range(40f, 89f)] private float shopPitch = 72f;
+        [Tooltip("Açılışta ada kamerasını dükkân yakın planıyla değiştirir. Ana ekranda adanın tamamı " +
+                 "görünsün diye varsayılan olarak kapalıdır.")]
+        [SerializeField] private bool focusShopOnOpen;
         [Tooltip("Screen width the HUD's left button rail covers. The shop is fitted into the width between the rails.")]
         [SerializeField, Range(0f, 0.4f)] private float hudLeftFraction = 0.15f;
         [Tooltip("Screen width the HUD's right-hand buttons cover.")]
@@ -97,7 +100,11 @@ namespace Game.UI
 
         private void Update()
         {
-            if (!_framed) FrameShop();
+            if (!_framed)
+            {
+                if (focusShopOnOpen) FrameShop();
+                else _framed = true;
+            }
 
             Pointer pointer = Pointer.current;
             if (pointer != null)

@@ -124,12 +124,11 @@ namespace Game.Gameplay
         [SerializeField] private float valueMultiplier = 1f;       // ore tier value (GDD §5: ~×3.2 per tier)
         [SerializeField] private float costMultiplier = 1f;        // every upgrade + unlock cost on this island
         [SerializeField] private int axisLevelCap = 50;            // per-axis level cap — ends the upgrade track
-        // What a fully upgraded island actually produces, measured rather than guessed: coal at every axis
-        // 50 and every ghost building bought meters 27.3k–29k $/min, so its ceiling is 29000 and the rest of
-        // the ladder is that number times valueMultiplier. Setting it anywhere ABOVE the measured output is
-        // what made the old 50000 pointless — it never bound, and its only live effect was quietly eating
-        // rewarded-ad boosts. Keep the two in step: change axisEffectScale and this has to be re-measured.
-        [SerializeField] private double incomeCapPerMin = 29000d;
+        // What a fully upgraded island actually produces, measured rather than guessed. The default and the
+        // authored Main scene must stay together: chapter scaling multiplies this ceiling alongside costs
+        // and value. Setting it above the measured output makes the cap meaningless; setting it below the
+        // measurement silently deletes earned income. Re-measure it if axisEffectScale changes.
+        [SerializeField] private double incomeCapPerMin = EconomyCurve.MaxedCoalPerMin;
 
         [Tooltip("Sahne yüklenirken cevher ve külçe depoları bu oranda dolu başlar. 0 = bomboş başla.")]
         [SerializeField, Range(0f, 1f)] private float warmStartFill = 0.5f;
