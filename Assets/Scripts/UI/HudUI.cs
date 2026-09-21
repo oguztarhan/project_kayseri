@@ -60,6 +60,25 @@ namespace Game.UI
         [SerializeField] private TMP_Text goldValue;
         [SerializeField] private TMP_Text gemsValue;
         [SerializeField] private TMP_Text rateValue;
+        [Header("Gelir / hızlandırıcı / kalkan hapları")]
+        [Tooltip("Hapların sol kenardan uzaklığı. Nakit plakasının kendi boşluğuna yakın tutulur.")]
+        [SerializeField, Min(0f)] private float infoPillLeft = 30f;
+        [SerializeField, Min(24f)] private float infoPillHeight = 48f;
+        [SerializeField, Min(10f)] private float infoPillFont = 25f;
+        [Tooltip("Yazının iki yanındaki toplam boşluk. Genişlik yazıya göre hesaplanır.")]
+        [SerializeField, Min(0f)] private float infoPillPadding = 36f;
+        [Tooltip("En dar ve en geniş hap. Yazı en geniş olana sığmazsa küçülür.")]
+        [SerializeField] private Vector2 infoPillWidth = new Vector2(96f, 340f);
+        [Tooltip("Alt alta dizilen hapların arasındaki boşluk.")]
+        [SerializeField, Min(0f)] private float infoPillGap = 12f;
+
+        [Header("Bölüm hapı (sağ üst)")]
+        [Tooltip("Hapın sağ kenardan uzaklığı.")]
+        [SerializeField, Min(0f)] private float stagePillRight = 10f;
+        [SerializeField, Min(24f)] private float stagePillHeight = 40f;
+        [SerializeField, Min(10f)] private float stagePillFont = 30f;
+        [SerializeField, Min(0f)] private float stagePillPadding = 40f;
+        [SerializeField] private Vector2 stagePillWidth = new Vector2(104f, 220f);
         [SerializeField] private Button settingsButton;
         [Tooltip("Altın hapının kendisi. Üstündeki + rozeti mağazayı vaat ediyor, o yüzden hap da mağazayı açar.")]
         [SerializeField] private Button goldButton;
@@ -221,6 +240,7 @@ namespace Game.UI
         private RectTransform _stageIndicator;
         private TMP_Text _stageIndicatorLabel;
         private string _shownStageLabel;
+        private string _fitRate, _fitBoost, _fitShield, _fitStage;   // the text each pill was last sized to
 
         // The objective strip under the currency bar. Its position is solved from the authored rects
         // above it rather than authored itself, so it is re-solved whenever the sheet changes size.
@@ -258,13 +278,15 @@ namespace Game.UI
                 rateValue.enableAutoSizing = true;
             }
             _world = FindAnyObjectByType<WorldIslands>();
+            BindEnabledOp();
+            ApplyMainHudIcons();
+            LayoutCurrencyIndicators();
+            // Before the slots are read: they are where the chips actually sit, not where they were authored.
+            LayoutTopInfoIndicators();
             if (shieldIndicator != null)
                 _shieldSlot = ((RectTransform)shieldIndicator.transform).anchoredPosition;
             if (boostIndicator != null)
                 _boostSlot = ((RectTransform)boostIndicator.transform).anchoredPosition;
-            BindEnabledOp();
-            ApplyMainHudIcons();
-            LayoutCurrencyIndicators();
 
             if (storeButton != null) storeButton.onClick.AddListener(OnStore);
             if (goldButton != null) goldButton.onClick.AddListener(OnStore);
@@ -354,6 +376,74 @@ namespace Game.UI
             gems.anchoredPosition = new Vector2(gold.anchoredPosition.x + gold.sizeDelta.x
                                                 + Mathf.Max(0f, currencyIndicatorGap),
                                                 gold.anchoredPosition.y);
+        }
+
+        /// <summary>
+        /// Puts the rate, boost and shield chips in one column under cash, hard against the left edge.
+        /// The pills are nine-sliced and <see cref="PillFit"/> keeps their caps round at any height, so
+        /// they are resized rather than scaled: scaling shrank the text along with the plate, which is
+        /// the opposite of what a chip this small needs.
+        /// </summary>
+        private void LayoutTopInfoIndicators()
+        {
+            RectTransform rate = rateButton != null ? rateButton.transform as RectTransform : null;
+            RectTransform boost = boostIndicator != null ? boostIndicator.transform as RectTransform : null;
+            RectTransform shield = shieldIndicator != null ? shieldIndicator.transform as RectTransform : null;
+            if (rate == null) return;
+
+            float y = rate.anchoredPosition.y + Mathf.Max(0f, infoPillGap);
+            float pitch = infoPillHeight + infoPillGap;
+            PlaceInfoPill(rate, y);
+            PlaceInfoPill(boost, y - pitch);
+            PlaceInfoPill(shield, y - pitch * 2f);
+            FitInfoPills();
+        }
+
+        private void PlaceInfoPill(RectTransform pill, float y)
+        {
+            if (pill == null) return;
+            pill.localScale = Vector3.one;
+            pill.anchoredPosition = new Vector2(infoPillLeft, y);
+        }
+
+        /// <summary>Re-fits each chip to its text, but only when the text has actually changed.</summary>
+        private void FitInfoPills()
+        {
+            FitPill(rateButton != null ? rateButton.transform as RectTransform : null, rateValue,
+                    ref _fitRate, infoPillHeight, infoPillFont, infoPillPadding, infoPillWidth);
+            FitPill(boostIndicator != null ? boostIndicator.transform as RectTransform : null, boostValue,
+                    ref _fitBoost, infoPillHeight, infoPillFont, infoPillPadding, infoPillWidth);
+            FitPill(shieldIndicator != null ? shieldIndicator.transform as RectTransform : null, shieldValue,
+                    ref _fitShield, infoPillHeight, infoPillFont, infoPillPadding, infoPillWidth);
+        }
+
+        /// <summary>
+        /// Sizes a pill to hug its label at a fixed font size. The width steps in eights so a ticking
+        /// countdown does not make the plate twitch as its digits change width; a label longer than the
+        /// widest allowed pill falls back to auto-sizing instead of overflowing the caps.
+        /// </summary>
+        private static void FitPill(RectTransform pill, TMP_Text label, ref string shown,
+                                    float height, float font, float padding, Vector2 widthRange)
+        {
+            if (pill == null || label == null) return;
+            string text = label.text;
+            if (shown == text) return;
+            shown = text;
+
+            label.enableAutoSizing = false;
+            label.fontSize = font;
+            float wanted = label.GetPreferredValues(text).x + padding;
+            wanted = Mathf.Ceil(wanted / 8f) * 8f;
+            bool tooWide = wanted > widthRange.y;
+            if (tooWide)
+            {
+                label.enableAutoSizing = true;
+                label.fontSizeMax = font;
+                label.fontSizeMin = font * 0.6f;
+            }
+            pill.sizeDelta = new Vector2(Mathf.Clamp(wanted, widthRange.x, widthRange.y), height);
+            var labelRect = (RectTransform)label.transform;
+            labelRect.sizeDelta = new Vector2(-padding, labelRect.sizeDelta.y);
         }
 
         private void OnDestroy()
@@ -732,14 +822,15 @@ namespace Game.UI
             if (touchPad != null) Destroy(touchPad);
 
             _stageIndicator = clone.transform as RectTransform;
+            _stageIndicator.localScale = Vector3.one;
             _stageIndicatorLabel = clone.GetComponentInChildren<TMP_Text>(true);
-            if (_stageIndicatorLabel != null)
-            {
-                _stageIndicatorLabel.enableAutoSizing = true;
-                _stageIndicatorLabel.fontSizeMin = Mathf.Min(_stageIndicatorLabel.fontSizeMin,
-                                                             _stageIndicatorLabel.fontSize * 0.75f);
-                _stageIndicatorLabel.fontSizeMax = _stageIndicatorLabel.fontSize;
-            }
+        }
+
+        /// <summary>The chapter pill hugs its number: "1-1" gets a small plate, "12-3" a slightly longer one.</summary>
+        private void FitStagePill()
+        {
+            FitPill(_stageIndicator, _stageIndicatorLabel, ref _fitStage,
+                    stagePillHeight, stagePillFont, stagePillPadding, stagePillWidth);
         }
 
         /// <summary>Positions the copied pill under the live Settings button after safe-area layout.</summary>
@@ -754,7 +845,7 @@ namespace Game.UI
             _stageIndicator.anchorMin = settingsRect.anchorMin;
             _stageIndicator.anchorMax = settingsRect.anchorMax;
             _stageIndicator.pivot = new Vector2(1f, 1f);
-            _stageIndicator.anchoredPosition = new Vector2(settingsRect.anchoredPosition.x,
+            _stageIndicator.anchoredPosition = new Vector2(-stagePillRight,
                                                             settingsRect.anchoredPosition.y
                                                             - settingsRect.rect.height - 12f);
         }
@@ -1478,6 +1569,7 @@ namespace Game.UI
                         boosted ? _shieldSlot : _boostSlot;
                 }
             }
+            FitInfoPills();
         }
 
         /// <summary>
@@ -1496,6 +1588,7 @@ namespace Game.UI
 
             _shownStageLabel = label;
             _stageIndicatorLabel.text = label;
+            FitStagePill();
         }
 
         /// <summary>
@@ -1695,8 +1788,11 @@ namespace Game.UI
         {
             Sprite icon = balloonIcon;
             if (icon == null && adButton != null && adButton.image != null) icon = adButton.image.sprite;
+            // The fifth rail button is the single rewarded-ad entry point. Keep the balloon service
+            // behind its own rules, but open the same centred ad panel instead of silently claiming
+            // one of its rewards on tap.
             _balloonButton = AttachBottomButton(3, BalloonButtonName,
-                                                icon != null ? icon : UiSkin.ButtonBlue, OnBalloon);
+                                                icon != null ? icon : UiSkin.ButtonBlue, OnAds);
             if (_balloonButton == null) return;
             _balloonTimerChip = AttachCounterChip(_balloonButton);
             if (_balloonTimerChip != null)

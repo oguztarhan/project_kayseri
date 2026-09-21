@@ -42,6 +42,8 @@ namespace Game.UI
                  "liman kadraj dışıyken düğme HUD gibi peşten gelmesin.")]
         [SerializeField] private float viewportMargin = 24f;
         [SerializeField] private Color tint = new Color(0.16f, 0.18f, 0.24f, 0.94f);
+        [Tooltip("Dünya üzerindeki koyu DENİZE AÇIL rozetini gösterir. HUD'daki kalıcı gemi kısayolu ayrı kalır.")]
+        [SerializeField] private bool showContextButton = false;
 
         /// <summary>The sea's accent — the same blue the dock panel and the curtain used for it.</summary>
         private static readonly Color SeaBlue = new Color(0.36f, 0.74f, 0.99f, 1f);
@@ -99,7 +101,7 @@ namespace Game.UI
             _rect.pivot = new Vector2(0.5f, 0.5f);
             _rect.sizeDelta = buttonSize;
             _root = button.gameObject;
-            _root.SetActive(false);
+            _root.SetActive(showContextButton);
 
             _label = button.GetComponentInChildren<Text>();
             _loc = ServiceLocator.Get<LocalizationService>();
@@ -187,6 +189,11 @@ namespace Game.UI
                 _rebindIn = 1f;
                 Rebind();
                 PlaceHull();
+            }
+            if (!showContextButton)
+            {
+                Hide();
+                return;
             }
             if (_op == null || !_op.isActiveAndEnabled || _cam == null || !_cam.isActiveAndEnabled
                 || _hull == null) { Hide(); return; }

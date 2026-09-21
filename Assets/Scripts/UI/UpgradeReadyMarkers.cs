@@ -38,6 +38,8 @@ namespace Game.UI
         [SerializeField] private Sprite badge;
         [Tooltip("Rozetin kenar uzunluğu, referans çözünürlükte piksel.")]
         [SerializeField] private float size = 104f;
+        [Tooltip("Mavi yükseltme rozetinin ekran üzerindeki ortak ölçeği.")]
+        [SerializeField, Range(0.65f, 1f)] private float displayScale = 0.84f;
         [Tooltip("Rozetin binanın tepesinden ne kadar yukarıda duracağı, dünya birimi.")]
         [SerializeField] private float worldLift = 10f;
         [Tooltip("HUD 100, satış yazıları 95, istasyon çipleri 90. Rozet çiplerin üstünde ama " +
@@ -155,6 +157,7 @@ namespace Game.UI
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = new Vector2(size, size);
+            rect.localScale = Vector3.one * Mathf.Clamp(displayScale, 0.65f, 1f);
 
             var img = go.GetComponent<Image>();
             img.sprite = badge;

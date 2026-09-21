@@ -38,6 +38,8 @@ namespace Game.UI
         [SerializeField] private TMP_FontAsset _font;
         [Tooltip("Yazı boyu, referans çözünürlükte piksel.")]
         [SerializeField] private float _fontSize = 30f;
+        [Tooltip("Tabela ve yazının ortak, orantılı ölçeği.")]
+        [SerializeField, Range(0.7f, 1f)] private float _displayScale = 0.9f;
         [Tooltip("Tabelanın binanın tepesinden ne kadar yukarıda duracağı, dünya birimi.")]
         [SerializeField] private float _worldLift = 2f;
         // The upgrade badge hovers over the same buildings, off the same anchor. Dropping the sign
@@ -177,7 +179,7 @@ namespace Game.UI
             _rebindIn = 0f;
         }
 
-        private void Update()
+        private void LateUpdate()
         {
             Rebind();
             if (_suppressed)
@@ -328,6 +330,7 @@ namespace Game.UI
                 ? new Vector2(text.x + 58f, Mathf.Max(62f, text.y + 30f))
                 : new Vector2(text.x + 44f, Mathf.Max(52f, text.y + 22f));
 
+            rect.localScale = Vector3.one * Mathf.Clamp(_displayScale, 0.7f, 1f);
             return rect;
         }
 
@@ -416,7 +419,8 @@ namespace Game.UI
                 sign.anchoredPosition = new Vector2(x, y);
             }
 
-            SeparateOverlappingSigns();
+            // Keep each sign at its deterministic world anchor. The old overlap pass made labels
+            // jump to a different screen position whenever the camera reached the lower HUD edge.
         }
 
         /// <summary>

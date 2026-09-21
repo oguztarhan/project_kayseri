@@ -2093,9 +2093,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.HudUI
   compactShipyardHud: 1
+  currencyIndicatorScale: 0.76
+  currencyIndicatorGap: 18
   goldValue: {fileID: 291868371051772653}
   gemsValue: {fileID: 8832452208745934293}
   rateValue: {fileID: 7766570725324934674}
+  infoPillLeft: 30
+  infoPillHeight: 48
+  infoPillFont: 25
+  infoPillPadding: 36
+  infoPillWidth: {x: 96, y: 340}
+  infoPillGap: 12
+  stagePillRight: 10
+  stagePillHeight: 40
+  stagePillFont: 30
+  stagePillPadding: 40
+  stagePillWidth: {x: 104, y: 220}
   settingsButton: {fileID: 3443428803239149448}
   goldButton: {fileID: 83218880010614195}
   gemsButton: {fileID: 5463706685346437783}
