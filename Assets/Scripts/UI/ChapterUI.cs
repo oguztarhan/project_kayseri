@@ -62,6 +62,7 @@ namespace Game.UI
         private int[] _visible;
 
         private ChapterService _chapters;
+        private StageBossProgressService _bossProgress;
         private ChapterProgressionService _progression;
         private LocalizationService _loc;
         private RectTransform _root;
@@ -91,11 +92,13 @@ namespace Game.UI
         private void Awake()
         {
             _chapters = ServiceLocator.Get<ChapterService>();
+            _bossProgress = ServiceLocator.Get<StageBossProgressService>();
             _progression = ServiceLocator.Get<ChapterProgressionService>();
             LoadKit();
             Build();
             BuildOpener();
             if (_chapters != null) _chapters.Changed += OnChanged;
+            if (_bossProgress != null) _bossProgress.Changed += OnBossChanged;
             _loc = ServiceLocator.Get<LocalizationService>();
             if (_loc != null) _loc.Changed += OnLanguageChanged;
             Hide();
@@ -105,6 +108,7 @@ namespace Game.UI
         private void OnDestroy()
         {
             if (_chapters != null) _chapters.Changed -= OnChanged;
+            if (_bossProgress != null) _bossProgress.Changed -= OnBossChanged;
             if (_loc != null) _loc.Changed -= OnLanguageChanged;
         }
 
@@ -116,6 +120,7 @@ namespace Game.UI
         }
 
         private void OnChanged() { Refresh(); RefreshOpener(); }
+        private void OnBossChanged() { Refresh(); RefreshOpener(); }
 
         /// <summary>
         /// Opens on the chapter the player is actually in rather than on chapter one. An eight-island
@@ -470,7 +475,11 @@ namespace Game.UI
             _storyTitle.text = EtkinlikKit.OneLine(string.Format("{0} {1}   ·   {2}",
                                              Loc.T("bolum.bolum"), _shown + 1, Loc.Id("ada", island)));
             // A chapter the player has not reached keeps its line back — it is the reason to get there.
-            _storyLine.text = KeepTail(owned ? Loc.T("bolum.hikaye." + island) : Loc.T("bolum.kilitli"));
+            string story = owned ? Loc.T("bolum.hikaye." + island) : Loc.T("bolum.kilitli");
+            if (owned && _progression != null && _shown == _progression.Current
+                && _chapters.Complete(_shown) && _progression.FinalStageBossesRemaining > 0)
+                story += "  ·  BOSS " + (2 - _progression.FinalStageBossesRemaining) + "/2";
+            _storyLine.text = KeepTail(story);
 
             int owed = 0;
             for (int b = 0; b < Chapters.BeatCount; b++) if (_chapters.CanClaim(_shown, b)) owed++;

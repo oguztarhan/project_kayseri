@@ -107,6 +107,7 @@ namespace Game.Systems
         public GoalService Goals { get; private set; }
         public ChapterService Chapters { get; private set; }
         public StageService Stages { get; private set; }
+        public StageBossProgressService StageBosses { get; private set; }
         public CaptainService Captains { get; private set; }
         public ExpeditionService Expeditions { get; private set; }
         public CraftingService Crafting { get; private set; }
@@ -317,16 +318,16 @@ namespace Game.Systems
                 chapterConfig != null ? chapterConfig.ToTuning() : Game.Core.Chapters.Tuning.Default);
             ServiceLocator.Register(Chapters);
 
-            // Moving BETWEEN chapters, which is a different job from reading one: the chapter service
-            // observes and pays, this one opens the next namespace and writes the save. Registered so
-            // the screens can offer the advance; nothing calls it on its own.
-            ServiceLocator.Register(new ChapterProgressionService(Data, Chapters, () => Save?.Save(Data)));
-
             // The approved 8x4 business-stage catalogue is a read-only projection over chapter beats.
             // It deliberately has no save rows or reward ledger of its own: progression remains observed
             // from the chapter namespace, and later content assets only enrich these fixed coordinates.
-            Stages = new StageService(Chapters);
+            StageBosses = new StageBossProgressService(Data, Chapters, () => Save?.Save(Data));
+            ServiceLocator.Register(StageBosses);
+            Stages = new StageService(Chapters, StageBosses);
             ServiceLocator.Register(Stages);
+            // Chapter movement uses the exact same stage-clear gate as the HUD and boss challenge.
+            ServiceLocator.Register(new ChapterProgressionService(Data, Chapters,
+                () => Save?.Save(Data), Stages));
 
             Maintenance.Goals = Goals;   // built before this, and evaluated before this on purpose
 
@@ -368,6 +369,7 @@ namespace Game.Systems
                                         : Game.Core.SeaCombat.Tuning.Default,
                 Save, ServiceLocator.Get<IAnalytics>());
             ServiceLocator.Register(Expeditions);
+            Expeditions.BossProgress = StageBosses;
             Expeditions.Crafting = Crafting;   // scraps teach the bench, wins can drop a point
             Crafting.Expeditions = Expeditions;   // wearing a crafted item goes through the sea's Equip
 

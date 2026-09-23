@@ -38,7 +38,7 @@ Four are [VOYAGES.md](VOYAGES.md) §3, unchanged. The fifth comes from `MarketFl
 
 | | Rule | Why |
 |---|---|---|
-| **R1** | Nothing new pays **cash**. | `MarketService.Earn` is the only faucet. Two faucets compete, and whichever pays less becomes pointless. |
+| **R1** | Sea combat may pay **cash** as a bounded active-play reward. | `MarketService` remains the production faucet. Combat payouts are tied to island income and limited by saved energy; stage bosses pay once. |
 | **R2** | Nothing new pays a **rate**. Rewards are items, cards or **ceiling lifts**. | Every island is clamped by `incomeCapPerMin`, so a rate bonus does nothing for exactly the player who earned it. `Foremen.cs` already solves this by lifting the ceiling too. |
 | **R3** | Nothing **expires**. | `ContractService`: an idle game must never punish a player for looking away. |
 | **R4** | Costs are **fractions of delivery**, never absolute bars. | The ore ladder multiplies output ×3.2 per tier. |
@@ -63,17 +63,16 @@ default-initialise plus its own `Normalise()`, the precedent `ForemanService` an
 
 ---
 
-## 4. The one rule for the sea *(Stage 3, not yet built)*
+## 4. The one rule for the sea *(Stage 3)*
 
 > **Active sailing can only improve a voyage's outcome, never worsen it.**
 
-Sail idly and you get today's behaviour exactly. Sail actively and you fight encounters for loot
-**on top**; lose every fight and you still get the idle result. This is the relationship §20 already
-established for hand-carrying — *"the automatic share is what the dock manages on its own, and the
-player is the pair of hands on top"* — and it is what keeps R3 intact when combat lands.
+Combat is active play, paid only after a confirmed win. Regular fights use one saved energy each;
+boss cash is a first-clear reward. Losses and declined encounters pay no cash. The energy limit and
+income-relative amounts keep combat useful when the wallet is low without replacing island income.
 
-**No stamina.** The reference game gates exploration on it; berths (max 4) and hold-fill time already
-limit us, at no new currency and no new nag. Deliberate difference, recorded rather than discovered.
+Energy regenerates on wall time, including while the app is closed. The sea uses the existing energy
+pool; cash rewards add no currency or separate progression ledger.
 
 ---
 
@@ -100,7 +99,8 @@ anyway, now named and paid for.
 | 4 **FULL STEAM** | levels **and** buildings | 200 · 8 |
 
 Rewards are gems and foreman cards, `Base + Step × chapter`, with FULL STEAM worth ×3 gems and ×2
-cards. **No cash** — R1.
+cards. Chapter milestones still pay no cash; repeatable sea victories and first boss clears use the
+separate combat reward rule in §9.
 
 ### Files
 
@@ -612,7 +612,18 @@ then goes quiet, keyed on the `VoyageState` object itself. `AClearedCrossingStay
 asserts the summed loot of a fully fought crossing stays **under** what the hold itself brings home
 — the pair of hands on top, never a second faucet. Loot is a *share* of the voyage's own tier tables
 (R4 one layer up), banked through `ExpeditionService.RegisterKill` — the layer's single write, aimed
-away from the voyage into the two closed loops (charts, salvage). **Never cash** (R1).
+away from the voyage into the closed loops (charts, salvage). Sea combat's later cash reward is paid
+through the shared wallet and does not change voyage payouts.
+
+### Active combat cash (2026-09-23)
+
+Confirmed repeatable encounter wins award 0.75 minutes of the current island's unboosted cash rate;
+the reward rises 10% per route tier and 5% per stage after the first. A zero-rate fallback starts at
+250 cash in chapter one and follows the existing chapter economy scale. The two stage bosses award
+4 and 6 income-minutes on their first clear only, using the same route and stage modifiers. Every
+encounter still costs one saved energy. Payouts enter `WalletService`, and the resolved balance is
+saved with the win or boss clear. This intentionally reverses the old “no combat cash” decision;
+voyages themselves still do not pay cash.
 
 ### Files
 

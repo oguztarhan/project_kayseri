@@ -77,6 +77,20 @@ namespace Game.Data
         [SerializeField] private double encounterChartShare = 0.12d;
         [SerializeField] private double encounterSalvageShare = 0.12d;
 
+        [Header("Savaş nakit ödülü")]
+        [Tooltip("Normal zaferin yükseltilmemiş ada gelirine göre kaç dakikalık nakit ödediği.")]
+        [SerializeField, Min(0f)] private double encounterCashMinutes = 0.75d;
+        [Tooltip("Birinci patronun ilk zafer ödülü, ada gelirinin dakikası olarak.")]
+        [SerializeField, Min(0f)] private double bossFirstCashMinutes = 4d;
+        [Tooltip("İkinci patronun ilk zafer ödülü, ada gelirinin dakikası olarak.")]
+        [SerializeField, Min(0f)] private double bossSecondCashMinutes = 6d;
+        [Tooltip("Rota kademesi başına nakit artışı.")]
+        [SerializeField, Min(0f)] private double cashTierStep = 0.10d;
+        [Tooltip("Bölüm içindeki aşama başına nakit artışı.")]
+        [SerializeField, Min(0f)] private double cashStageStep = 0.05d;
+        [Tooltip("Gelir henüz ölçülmemişse normal zafer tabanı. Bölüm ekonomisiyle ölçeklenir.")]
+        [SerializeField, Min(0f)] private double cashFloorBase = 250d;
+
         [Header("Teçhizat düşüşü — derece ağırlıkları")]
         [SerializeField] private double dropCommon = 0.52d;
         [SerializeField] private double dropRare = 0.27d;
@@ -88,6 +102,16 @@ namespace Game.Data
                  "daha uzağa dövüş.")]
         [SerializeField] private double dropTierBonus = 0.35d;
         [SerializeField] private double dropLuckBonus = 0.04d;
+        [SerializeField, Min(0f)] private double dropBossWinBonus = 0.01d;
+        [SerializeField, Min(0f)] private double dropCrewLevelBonus = 0.015d;
+        [SerializeField, Min(0)] private int dropCrewLevelCap = 20;
+        [SerializeField, Min(1f)] private double dropBumpCap = 4.2d;
+
+        [Header("Aşama patronları")]
+        [SerializeField, Min(0f)] private double bossWithinBandScale = 0.045d;
+        [SerializeField, Min(0.1f)] private double bossFirstMultiplier = 1.20d;
+        [SerializeField, Min(0.1f)] private double bossSecondMultiplier = 1.38d;
+        [SerializeField, Min(0f)] private double bossSpeedPerStage = 0.015d;
 
         [Header("GÜÇ göstergesi — bir okuma, asla bir kural")]
         [SerializeField] private double powerHullWeight = 0.55d;
@@ -130,6 +154,12 @@ namespace Game.Data
             GhostMend             = ghostMend,
             EncounterChartShare   = encounterChartShare,
             EncounterSalvageShare = encounterSalvageShare,
+            EncounterCashMinutes  = encounterCashMinutes,
+            BossFirstCashMinutes  = bossFirstCashMinutes,
+            BossSecondCashMinutes = bossSecondCashMinutes,
+            CashTierStep          = cashTierStep,
+            CashStageStep         = cashStageStep,
+            CashFloorBase         = cashFloorBase,
             DropCommon            = dropCommon,
             DropRare              = dropRare,
             DropEpic              = dropEpic,
@@ -137,6 +167,14 @@ namespace Game.Data
             DropMythic            = dropMythic,
             DropTierBonus         = dropTierBonus,
             DropLuckBonus         = dropLuckBonus,
+            DropBossWinBonus      = dropBossWinBonus,
+            DropCrewLevelBonus    = dropCrewLevelBonus,
+            DropCrewLevelCap      = dropCrewLevelCap,
+            DropBumpCap           = dropBumpCap,
+            BossWithinBandScale   = bossWithinBandScale,
+            BossFirstMultiplier   = bossFirstMultiplier,
+            BossSecondMultiplier  = bossSecondMultiplier,
+            BossSpeedPerStage     = bossSpeedPerStage,
             PowerHullWeight       = powerHullWeight,
             PowerShotWeight       = powerShotWeight,
             PowerDefWeight        = powerDefWeight,

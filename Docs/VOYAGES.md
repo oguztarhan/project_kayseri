@@ -2,6 +2,10 @@
 
 **Date:** 2026-08-26 · **Status:** spec, nothing implemented · **Restore point:** `Backups/pre_voyages/` + git tag `pre-voyages` (f73d939)
 
+> **Historical design note:** this document describes the voyage payout loop, not the later sea
+> combat rewards. Voyages still pay charts and salvage only. Repeatable combat wins and first boss
+> clears now also award bounded cash through the shared wallet; see [FIVE_LAYERS.md](FIVE_LAYERS.md) §9.
+
 > Every number in this document is a **DEFAULT**, in the sense GDD §14 means it: it lives in a
 > ScriptableObject and is edited in the Inspector. The numbers here describe the *shape* of the
 > curve. The actual values get set by measurement, the way REMAKE_PLAN §P7 set the island ladder —
@@ -59,10 +63,9 @@ balance risk to the main economy**. This is the reference game's "equip your hun
 
 These are load-bearing. Breaking any one of them collapses the feature into something we already have.
 
-**R1 — A voyage never pays cash.** Cash has one faucet, `MarketService`, and that is the one good
-architectural decision in the income path. If voyages paid cash they would compete with the counter
-for the same reward, and whichever paid better would make the other pointless. Different currency,
-different track, no overlap.
+**R1 — A voyage never pays cash.** This remains true for voyage payouts. Sea combat later added a
+separate, energy-limited cash reward priced against the current island income; it does not change
+the voyage's chart and salvage payout.
 
 **R2 — A voyage never pays a rate.** Every island's income is clamped by `incomeCapPerMin`, so
 anything that lifts throughput gets swallowed for exactly the player who has been playing long
@@ -356,8 +359,9 @@ Diverted throughput must stay below the point where sending a voyage feels like 
 
 ## 16. Deliberately not in this feature
 
-- **Combat / auto-battle.** §1 explains why: the risk roll buys the same decision.
-- **Cash payouts.** R1.
+- **Combat / auto-battle.** The original voyage spec excluded this; sea combat was added separately.
+- **Cash payouts.** Voyage payouts remain cash-free under R1. Sea combat later added a bounded cash
+  reward; see [FIVE_LAYERS.md](FIVE_LAYERS.md) §9.
 - **Charts gating island unlocks.** Considered and dropped — a new resource in front of the island
   ladder can stall a player behind a system they have not engaged with. Risk stays inside the feature.
 - **Gacha rarity and pity.** V1 grants uniformly at random via the existing `GrantRandomDuplicates`.

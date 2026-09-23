@@ -32,6 +32,7 @@ namespace Game.Systems
     {
         private readonly SaveData _data;
         private readonly ChapterService _chapters;
+        private readonly StageService _stages;
 
         /// <summary>
         /// How this asks for the save to be written. A callback rather than the
@@ -47,11 +48,12 @@ namespace Game.Systems
         /// </summary>
         public event Action<int> Advanced;
 
-        public ChapterProgressionService(SaveData data, ChapterService chapters, Action save)
+        public ChapterProgressionService(SaveData data, ChapterService chapters, Action save, StageService stages = null)
         {
             _data = data ?? throw new ArgumentNullException(nameof(data));
             _chapters = chapters ?? throw new ArgumentNullException(nameof(chapters));
             _save = save;
+            _stages = stages;
         }
 
         /// <summary>The chapter being played: the furthest one the save says is owned.</summary>
@@ -63,6 +65,16 @@ namespace Game.Systems
         /// <summary>True when there is no chapter after this one.</summary>
         public bool IsFinalChapter => Current >= Chapters.Count - 1;
 
+        public int FinalStageBossesRemaining
+        {
+            get
+            {
+                if (_stages == null) return 0;
+                int stage = Stages.PerChapter;
+                return _stages.BossesRemaining(Current, stage);
+            }
+        }
+
         /// <summary>
         /// Whether the player may move on: this chapter is finished, and there is another.
         ///
@@ -70,7 +82,8 @@ namespace Game.Systems
         /// would let a player who ignored the rewards sit on a completed chapter with no way forward,
         /// and the sweep in <see cref="TryAdvance"/> means they lose nothing by not having tapped.
         /// </summary>
-        public bool CanAdvance => !IsFinalChapter && _chapters.Complete(Current);
+        public bool CanAdvance => !IsFinalChapter && _chapters.Complete(Current)
+            && (_stages == null || _stages.IsComplete(Current, Stages.PerChapter));
 
         /// <summary>
         /// Collects anything still owed on this chapter, opens the next one, and writes the save.

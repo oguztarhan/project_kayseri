@@ -21,8 +21,8 @@ namespace Game.Core
     /// THE RULE STILL HOLDS (Docs/FIVE_LAYERS.md §4): nothing here can touch the voyage. A lost
     /// fight costs the energy it cost and nothing else. ENERGY IS THE GOVERNOR — one search, one
     /// energy, wall-clock refill. GEAR IS A CLOSED LOOP — an item's stats exist only inside this
-    /// file's fights (the one honest exception: YAĞMA pays salvage, which is already the sea's own
-    /// closed currency).
+    /// file's fights. YAĞMA pays salvage to the sea loop; confirmed wins also pay bounded cash through
+    /// the shared wallet, without changing voyage payouts.
     ///
     /// WHERE POWER COMES FROM, unchanged in spirit: DERIVED, never stored. The ship's stat block is
     /// rebuilt every fight from the crew track, the captain (each ROLE carries its own
@@ -210,9 +210,16 @@ namespace Game.Core
             /// <summary>A win's chart/salvage trickle, as a share of a full hold.</summary>
             public double EncounterChartShare, EncounterSalvageShare;
 
+            /// <summary>Cash rewards in unboosted income-minutes. Floors scale with chapter economy.</summary>
+            public double EncounterCashMinutes, BossFirstCashMinutes, BossSecondCashMinutes;
+            public double CashTierStep, CashStageStep, CashFloorBase;
+
             /// <summary>Grade odds for a drop, shifted up by tier and by spyglass luck.</summary>
             public double DropCommon, DropRare, DropEpic, DropLegendary, DropMythic;
             public double DropTierBonus, DropLuckBonus;
+            public double DropBossWinBonus, DropCrewLevelBonus, DropBumpCap;
+            public int DropCrewLevelCap;
+            public double BossWithinBandScale, BossFirstMultiplier, BossSecondMultiplier, BossSpeedPerStage;
 
             /// <summary>The POWER formula's weights — the one number the panel leads with, and what
             /// the TEHLİKELİ label compares. A label, never a mechanic.</summary>
@@ -257,10 +264,16 @@ namespace Game.Core
                 GhostDodge = 0.30d, GhostMend = 0.03d,
 
                 EncounterChartShare = 0.12d, EncounterSalvageShare = 0.12d,
+                EncounterCashMinutes = 0.75d, BossFirstCashMinutes = 4d, BossSecondCashMinutes = 6d,
+                CashTierStep = 0.10d, CashStageStep = 0.05d, CashFloorBase = 250d,
 
                 DropCommon = 0.52d, DropRare = 0.27d, DropEpic = 0.13d,
                 DropLegendary = 0.06d, DropMythic = 0.02d,
                 DropTierBonus = 0.35d, DropLuckBonus = 0.04d,
+                DropBossWinBonus = 0.01d, DropCrewLevelBonus = 0.015d,
+                DropCrewLevelCap = 20, DropBumpCap = 4.2d,
+                BossWithinBandScale = 0.045d, BossFirstMultiplier = 1.20d,
+                BossSecondMultiplier = 1.38d, BossSpeedPerStage = 0.015d,
 
                 PowerHullWeight = 0.55d, PowerShotWeight = 3.2d,
                 PowerDefWeight = 2.2d, PowerSpdWeight = 0.8d, PowerSecWeight = 0.9d,
@@ -496,12 +509,15 @@ namespace Game.Core
         /// <summary>The drop's grade. Tier and spyglass luck push weight UP the table — the grind
         /// loop in one function: fight where you can, find better glass, fight further.</summary>
         public static int RollGrade(double roll, int tier, double luck, in Tuning t)
+            => RollGrade(roll, tier, luck, 0, 0, t);
+
+        public static int RollGrade(double roll, int tier, double luck, int uniqueBossWins,
+                                    int crewLevel, in Tuning t)
         {
             if (roll < 0d) roll = 0d;
             if (roll >= 1d) roll = 0.9999999999d;
 
-            double bump = 1d + Math.Max(0d, t.DropTierBonus) * Clamp(tier, 0, Voyages.TierCount - 1)
-                             + Math.Max(0d, t.DropLuckBonus) * Math.Max(0d, luck);
+            double bump = DropBump(tier, luck, uniqueBossWins, crewLevel, t);
             double c = Math.Max(0d, t.DropCommon);
             double r = Math.Max(0d, t.DropRare) * bump;
             double e = Math.Max(0d, t.DropEpic) * bump;
@@ -531,12 +547,15 @@ namespace Game.Core
         /// returns in that case — the two must never disagree about a degenerate config.
         /// </summary>
         public static void GradeOdds(int tier, double luck, in Tuning t, double[] into)
+            => GradeOdds(tier, luck, 0, 0, t, into);
+
+        public static void GradeOdds(int tier, double luck, int uniqueBossWins, int crewLevel,
+                                     in Tuning t, double[] into)
         {
             if (into == null || into.Length < GradeMult.Length) return;
             for (int g = 0; g < GradeMult.Length; g++) into[g] = 0d;
 
-            double bump = 1d + Math.Max(0d, t.DropTierBonus) * Clamp(tier, 0, Voyages.TierCount - 1)
-                             + Math.Max(0d, t.DropLuckBonus) * Math.Max(0d, luck);
+            double bump = DropBump(tier, luck, uniqueBossWins, crewLevel, t);
             into[0] = Math.Max(0d, t.DropCommon);
             into[1] = Math.Max(0d, t.DropRare) * bump;
             into[2] = Math.Max(0d, t.DropEpic) * bump;
@@ -546,6 +565,16 @@ namespace Game.Core
             double total = into[0] + into[1] + into[2] + into[3] + into[4];
             if (total <= 0d) { into[0] = 1d; return; }
             for (int g = 0; g < GradeMult.Length; g++) into[g] /= total;
+        }
+
+        public static double DropBump(int tier, double luck, int uniqueBossWins, int crewLevel, in Tuning t)
+        {
+            double bump = 1d + Math.Max(0d, t.DropTierBonus) * Clamp(tier, 0, Voyages.TierCount - 1)
+                             + Math.Max(0d, t.DropLuckBonus) * Math.Max(0d, luck)
+                             + Math.Max(0d, t.DropBossWinBonus) * Clamp(uniqueBossWins, 0, StageBosses.Count)
+                             + Math.Max(0d, t.DropCrewLevelBonus) * Clamp(crewLevel, 0, Math.Max(0, t.DropCrewLevelCap));
+            double cap = t.DropBumpCap > 1d ? t.DropBumpCap : double.MaxValue;
+            return Math.Min(bump, cap);
         }
 
         /// <summary>
@@ -610,6 +639,47 @@ namespace Game.Core
             return n < 1 ? 1 : n;
         }
 
+        /// <summary>
+        /// Cash from a confirmed victory. Regular encounters repeat; a boss index of 0 or 1 uses
+        /// its one-time clear value. Economy scale is already present in island income, so it only
+        /// scales the zero-income floor and is never multiplied into the rate a second time.
+        /// </summary>
+        public static double CashReward(double cashPerMinute, double chapterEconomyScale,
+                                       int tier, int stage, int bossIndex, in Tuning t)
+        {
+            double minutes;
+            double floorMultiplier;
+            if (bossIndex == 0)
+            {
+                minutes = Math.Max(0d, t.BossFirstCashMinutes);
+                floorMultiplier = minutes;
+            }
+            else if (bossIndex == 1)
+            {
+                minutes = Math.Max(0d, t.BossSecondCashMinutes);
+                floorMultiplier = minutes;
+            }
+            else
+            {
+                minutes = Math.Max(0d, t.EncounterCashMinutes);
+                floorMultiplier = minutes;
+            }
+
+            int route = Clamp(tier, 0, Voyages.TierCount - 1);
+            int stageIndex = Clamp(stage - 1, 0, Stages.PerChapter - 1);
+            double multiplier = 1d + Math.Max(0d, t.CashTierStep) * route
+                                  + Math.Max(0d, t.CashStageStep) * stageIndex;
+            double safeRate = double.IsNaN(cashPerMinute) || double.IsInfinity(cashPerMinute)
+                ? 0d : Math.Max(0d, cashPerMinute);
+            double rateReward = safeRate * minutes * multiplier;
+            double economy = chapterEconomyScale > 0d && !double.IsInfinity(chapterEconomyScale)
+                && !double.IsNaN(chapterEconomyScale) ? chapterEconomyScale : 1d;
+            double floor = Math.Max(0d, t.CashFloorBase) * economy * floorMultiplier * multiplier;
+            double reward = Math.Max(rateReward, floor);
+            if (double.IsNaN(reward) || double.IsInfinity(reward)) return 0d;
+            return Math.Round(reward, MidpointRounding.AwayFromZero);
+        }
+
         /// <summary>What one of our YAĞMA procs grabs on this route.</summary>
         public static long PlunderFor(int tier)
             => PlunderScrap[Clamp(tier, 0, PlunderScrap.Length - 1)];
@@ -670,6 +740,13 @@ namespace Game.Core
             int row = Clamp(tier, 0, Voyages.TierCount - 1);
             int k = Clamp(kind, 0, KindCount - 1);
             Stats theirs = ThreatStats(row, k, t);
+            return BeginAgainst(row, k, ours, theirs);
+        }
+
+        public static Fight BeginAgainst(int tier, int kind, in Stats ours, in Stats theirs)
+        {
+            int row = Clamp(tier, 0, Voyages.TierCount - 1);
+            int k = Clamp(kind, 0, KindCount - 1);
             return new Fight
             {
                 Tier = row,

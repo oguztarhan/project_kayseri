@@ -95,6 +95,10 @@ namespace Game.Systems
         /// not wired. Referenced as <c>Game.Core.Pets</c> (fully qualified) wherever this property's
         /// own name would otherwise shadow the static maths class of the same name.</summary>
         public PetService Pets { get; set; }
+        public StageBossProgressService BossProgress { get; set; }
+
+        public int CrewLevel => _data != null && _data.shipLevels != null
+            && _data.shipLevels.Length > Voyages.Crew ? _data.shipLevels[Voyages.Crew] : 0;
 
         public ExpeditionService(TimeService time,
                                  SaveData data = null, CaptainService captains = null,
@@ -846,6 +850,8 @@ namespace Game.Systems
             int slot = SeaCombat.RollSlot(_random.NextDouble());
             int grade = SeaCombat.RollGrade(_random.NextDouble(), tier,
                                             SeaCombat.SpyglassLuck(GearGrade(SeaCombat.SlotSpyglass)),
+                                            BossProgress != null ? BossProgress.UniqueBossesDefeated : 0,
+                                            CrewLevel,
                                             _combat);
             return SeaCombat.ItemFor(slot, tier, grade, _random.NextDouble(), _combat);
         }

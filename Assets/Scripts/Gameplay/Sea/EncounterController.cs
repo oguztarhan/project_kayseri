@@ -55,6 +55,15 @@ namespace Game.Gameplay
         [SerializeField, Min(0.5f)] private float autoLootSeconds = 1.6f;
 
         private ExpeditionService _sea;
+        private StageBossProgressService _bossProgress;
+        private StageService _stages;
+        private ChapterService _chapters;
+        private WalletService _wallet;
+        private MarketService _market;
+        private SaveService _save;
+        private SaveData _saveData;
+        private bool _bossChallenge;
+        private int _bossChapter, _bossStage, _bossIndex;
 
         private Phase _phase = Phase.Idle;
         private Step _step = Step.OurAim;
@@ -80,12 +89,32 @@ namespace Game.Gameplay
         /// <summary>Bumped when a fight ends, so the UI can catch the result without an event pair.</summary>
         public int Stamp { get; private set; }
         public bool LastWon { get; private set; }
+        public bool LastBossFirstClear { get; private set; }
+        public bool IsBossEncounter => _bossChallenge;
+        public string BossEncounterLabel => StageBosses.TryGet(_bossChapter, _bossStage, _bossIndex, out var boss)
+            ? boss.Label : string.Empty;
+        public int BossChapter => _bossChapter;
+        public int BossStage => _bossStage;
+        public int BossIndex => _bossIndex;
         /// <summary>The last win's receipt, as banked: after the collection's lift, and with the
         /// fight's YAĞMA grabs inside the salvage, since they are banked in the same call.</summary>
         public long LastCharts { get; private set; }
         public long LastSalvage { get; private set; }
         public long LastCraftPoints { get; private set; }
         public long LastPearls { get; private set; }
+        public double LastCashReward { get; private set; }
+
+        /// <summary>Cash promised for the current found encounter, before confirming the fight.</summary>
+        public double CashRewardPreview => _sea == null ? 0d : CashRewardForEncounter();
+
+        public double BossCashRewardPreview(int bossIndex)
+        {
+            if (_chapters == null || _stages == null) return 0d;
+            int chapter = _chapters.Current;
+            int stage = _stages.CurrentStage(chapter);
+            return StageBosses.TryGet(chapter, stage, bossIndex, out var boss)
+                ? CashRewardFor(chapter, stage, boss.RewardTier, bossIndex) : 0d;
+        }
 
         /// <summary>Total fight events ever emitted; read the tail with <see cref="EventAt"/>.</summary>
         public int EventCount { get; private set; }
@@ -121,6 +150,13 @@ namespace Game.Gameplay
         public void Init()
         {
             _sea = ServiceLocator.Get<ExpeditionService>();
+            _bossProgress = ServiceLocator.Get<StageBossProgressService>();
+            _stages = ServiceLocator.Get<StageService>();
+            _chapters = ServiceLocator.Get<ChapterService>();
+            _wallet = ServiceLocator.Get<WalletService>();
+            _market = ServiceLocator.Get<MarketService>();
+            _save = ServiceLocator.Get<SaveService>();
+            _saveData = ServiceLocator.Get<SaveData>();
         }
 
         // ------------------------------------------------------------------ orders
@@ -129,9 +165,65 @@ namespace Game.Gameplay
         {
             if (_phase != Phase.Idle || _sea == null || !_sea.Active) return false;
             if (!_sea.TrySpendEnergy()) return false;
+            _bossChallenge = false;
             _spawnKind = SeaCombat.KindFor(_sea.SailedUnix, _sea.Finds);
             _sea.CountFind();
             Enter(Phase.Searching);
+            return true;
+        }
+
+        public bool BossAvailable(int bossIndex)
+        {
+            if (_sea == null || _bossProgress == null || _stages == null || _chapters == null) return false;
+            int chapter = _chapters.Current;
+            int stage = _stages.CurrentStage(chapter);
+            return _bossProgress.IsAvailable(chapter, stage, bossIndex);
+        }
+
+        public bool BossDefeated(int bossIndex)
+        {
+            if (_bossProgress == null || _chapters == null || _stages == null) return false;
+            return _bossProgress.IsDefeated(_chapters.Current, _stages.CurrentStage(_chapters.Current), bossIndex);
+        }
+
+        public int BossesRemaining
+        {
+            get
+            {
+                if (_bossProgress == null || _chapters == null || _stages == null) return 0;
+                return (BossDefeated(0) ? 0 : 1) + (BossDefeated(1) ? 0 : 1);
+            }
+        }
+
+        public string BossStageLabel => _stages != null && _chapters != null
+            ? Game.Core.Stages.Label(_chapters.Current, _stages.CurrentStage(_chapters.Current)) : string.Empty;
+
+        public string BossEntryLabel(int bossIndex)
+        {
+            if (_chapters == null || _stages == null
+                || !StageBosses.TryGet(_chapters.Current, _stages.CurrentStage(_chapters.Current), bossIndex, out var boss))
+                return string.Empty;
+            return boss.Label + " · " + Loc.T("deniz.tehdit." + boss.Kind);
+        }
+
+        public bool TryStartBoss(int bossIndex)
+        {
+            if (_phase != Phase.Idle || _sea == null || !_sea.Active || !BossAvailable(bossIndex)) return false;
+            if (!_sea.TrySpendEnergy()) return false;
+            _bossChapter = _chapters.Current;
+            _bossStage = _stages.CurrentStage(_bossChapter);
+            _bossIndex = bossIndex;
+            _bossChallenge = true;
+            _auto = false;
+            if (!StageBosses.TryGet(_bossChapter, _bossStage, bossIndex, out var boss)) return false;
+            _spawnKind = boss.Kind;
+            _previewOurs = _sea.ShipStats();
+            _previewTheirs = StageBosses.Stats(boss, _sea.Combat);
+            _previewTheirPower = SeaCombat.PowerFor(_previewTheirs, _sea.Combat);
+            _previewOurPower = SeaCombat.PowerFor(_previewOurs, _sea.Combat);
+            _fight = default;
+            _plunder = 0L;
+            Enter(Phase.Found);
             return true;
         }
 
@@ -140,7 +232,10 @@ namespace Game.Gameplay
         public bool Confirm()
         {
             if (_phase != Phase.Found || _sea == null || !_sea.Active) return false;
-            _fight = SeaCombat.Begin(_sea.Tier, _spawnKind, _previewOurs, _sea.Combat);
+            if (_bossChallenge && StageBosses.TryGet(_bossChapter, _bossStage, _bossIndex, out var boss))
+                _fight = SeaCombat.BeginAgainst(boss.RewardTier, _spawnKind, _previewOurs, _previewTheirs);
+            else
+                _fight = SeaCombat.Begin(_sea.Tier, _spawnKind, _previewOurs, _sea.Combat);
             _plunder = 0L;
             Enter(Phase.Fight);
             EnterStep(_fight.UsOpen ? Step.OurAim : Step.TheirAim);
@@ -382,6 +477,8 @@ namespace Game.Gameplay
             LastSalvage = 0L;
             LastCraftPoints = 0L;
             LastPearls = 0L;
+            LastCashReward = 0d;
+            LastBossFirstClear = false;
             _hasDrop = false;
 
             if (_sea != null)
@@ -404,6 +501,29 @@ namespace Game.Gameplay
                     }
                     _sea.RegisterWin(_fight.Tier, _fight.Kind); // confirmed win only; pet payout needs both
                     LastPearls = _sea.LastWinPearls;
+                    if (_bossChallenge && _bossProgress != null)
+                    {
+                        double bossCash = CashRewardFor(_bossChapter, _bossStage, _fight.Tier, _bossIndex);
+                        LastBossFirstClear = _bossProgress.RecordVictory(_bossChapter, _bossStage, _bossIndex,
+                            () =>
+                            {
+                                if (_wallet != null)
+                                {
+                                    _wallet.AddCash(new BigDouble(bossCash));
+                                    LastCashReward = bossCash;
+                                }
+                            });
+                    }
+                    else if (!_bossChallenge)
+                    {
+                        double cash = CashRewardForEncounter();
+                        if (_wallet != null)
+                        {
+                            _wallet.AddCash(new BigDouble(cash));
+                            LastCashReward = cash;
+                        }
+                        _save?.Save(_saveData);
+                    }
                     _drop = _sea.RollDrop(_fight.Tier);
                     _hasDrop = true;
                 }
@@ -418,6 +538,26 @@ namespace Game.Gameplay
 
             Stamp++;
             Enter(_fight.Won ? Phase.Sunk : Phase.Driven);
+        }
+
+        private double CashRewardForEncounter()
+        {
+            int chapter = _chapters != null ? _chapters.Current : 0;
+            int stage = _stages != null ? _stages.CurrentStage(chapter) : 1;
+            int tier = _sea != null ? _sea.Tier : 0;
+            if (_bossChallenge && StageBosses.TryGet(chapter, stage, _bossIndex, out var boss))
+                tier = boss.RewardTier;
+            int bossIndex = _bossChallenge ? _bossIndex : -1;
+            return CashRewardFor(chapter, stage, tier, bossIndex);
+        }
+
+        private double CashRewardFor(int chapter, int stage, int tier, int bossIndex)
+        {
+            double incomePerMinute = _market != null && _sea != null
+                ? _market.RatePerMin(_sea.IslandKey) : 0d;
+            double economyScale = _chapters != null
+                ? Chapters.EconomyScale(chapter, _chapters.Tuning) : 1d;
+            return SeaCombat.CashReward(incomePerMinute, economyScale, tier, stage, bossIndex, Combat);
         }
 
         private void AfterResolve()

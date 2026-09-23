@@ -14,6 +14,7 @@ namespace Game.Systems
     public sealed class StageService
     {
         private readonly ChapterService _chapters;
+        private readonly StageBossProgressService _bosses;
         private readonly Dictionary<string, StageDefinition> _stages = new Dictionary<string, StageDefinition>();
 
         /// <summary>
@@ -24,6 +25,12 @@ namespace Game.Systems
         public StageService(ChapterService chapters)
         {
             _chapters = chapters ?? throw new ArgumentNullException(nameof(chapters));
+        }
+
+        public StageService(ChapterService chapters, StageBossProgressService bosses) : this(chapters)
+        {
+            _bosses = bosses;
+            if (_bosses != null) _bosses.Stages = this;
         }
 
         public StageService(ChapterService chapters, StageDefinition[] definitions, string[] mapAnchors)
@@ -88,7 +95,10 @@ namespace Game.Systems
         {
             if (!Stages.IsValid(chapter, stage) || !_chapters.Owned(chapter)) return false;
             for (int beat = 1; beat < stage; beat++)
+            {
                 if (!_chapters.Satisfied(chapter, beat) && !_chapters.Claimed(chapter, beat)) return false;
+                if (_bosses != null && !_bosses.IsStageCleared(chapter, beat)) return false;
+            }
             return true;
         }
 
@@ -97,8 +107,19 @@ namespace Game.Systems
         {
             if (!IsUnlocked(chapter, stage)) return false;
             int beat = Stages.CompletionBeat(stage);
-            return _chapters.Satisfied(chapter, beat) || _chapters.Claimed(chapter, beat);
+            return (_chapters.Satisfied(chapter, beat) || _chapters.Claimed(chapter, beat))
+                && (_bosses == null || _bosses.IsStageCleared(chapter, stage));
         }
+
+        public bool IsObjectiveComplete(int chapter, int stage)
+            => Stages.IsValid(chapter, stage)
+            && (_chapters.Satisfied(chapter, stage) || _chapters.Claimed(chapter, stage));
+
+        public bool IsBossComplete(int chapter, int stage)
+            => _bosses == null || _bosses.IsStageCleared(chapter, stage);
+
+        public int BossesRemaining(int chapter, int stage)
+            => _bosses != null ? _bosses.BossesRemaining(chapter, stage) : 0;
 
         public bool IsUnlocked(string id)
         {

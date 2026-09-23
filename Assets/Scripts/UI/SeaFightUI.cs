@@ -162,6 +162,9 @@ namespace Game.UI
 
         private Button _search, _autoBtn;
         private TMP_Text _searchLabel, _autoLabel;
+        private readonly Button[] _bossButtons = new Button[StageBosses.BossesPerStage];
+        private readonly TMP_Text[] _bossButtonLabels = new TMP_Text[StageBosses.BossesPerStage];
+        private float _bossRefresh;
         private Image _autoImage;
 
         // The route strip and what it promises: which waters the fights are priced for, what a
@@ -217,6 +220,7 @@ namespace Game.UI
         private readonly Vector2[] _floatFrom = new Vector2[FloatPool];
 
         private int _seenStamp, _seenEvent, _seenBall, _seenKind = -1;
+        private string _seenBossLabel;
         private EncounterController.Phase _seenPhase = EncounterController.Phase.Idle;
         private float _toast, _shipWobble, _threatWobble, _energyTick, _sheetTick;
         private double _sheetPowerSeen = -1d;
@@ -273,6 +277,7 @@ namespace Game.UI
             _threatImage = _threatRoot.GetChild(0).GetComponent<Image>();
             BuildBars();
             BuildPools();
+            BuildBossControls();
 
             // The result toast sits on a dark plate: the painted sky behind it is too light for the
             // win green to read on its own.
@@ -389,6 +394,30 @@ namespace Game.UI
             }
 
             _nerveTrack = BarTrack("Cesaret", out _nerveFill, NerveFillTint);
+        }
+
+        private void BuildBossControls()
+        {
+            for (int i = 0; i < _bossButtons.Length; i++)
+            {
+                int captured = i;
+                float x0 = i == 0 ? 0.025f : 0.515f;
+                float x1 = i == 0 ? 0.485f : 0.975f;
+                Image plate = SeaKit.Sliced(_stage, "Boss" + (i + 1), "oto_buton",
+                    new Vector2(x0, 0.015f), new Vector2(x1, 0.205f), true);
+                plate.color = new Color(0.07f, 0.12f, 0.20f, 0.94f);
+                plate.raycastTarget = true;
+                var button = plate.gameObject.AddComponent<Button>();
+                button.targetGraphic = plate;
+                button.onClick.AddListener(() => OnBoss(captured));
+                _bossButtons[i] = button;
+                TMP_Text label = Line(plate.rectTransform, "Yazi", 19f,
+                    new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f));
+                label.alignment = TextAlignmentOptions.Center;
+                label.fontStyle = FontStyles.Bold;
+                label.textWrappingMode = TextWrappingModes.Normal;
+                _bossButtonLabels[i] = label;
+            }
         }
 
         /// <summary>
@@ -1036,8 +1065,8 @@ namespace Game.UI
             Image block = Inset(_foundCard, "BlokKuyusu", new Vector2(0.07f, 0.380f), new Vector2(0.93f, 0.600f));
             _foundStats = Line(block.rectTransform, "Blok", 23f, new Vector2(0.04f, 0.06f), new Vector2(0.96f, 0.94f));
 
-            // What a win pays, as the kit's three loot icons over the words that name them — gear
-            // (the cannon stands for the whole loadout), charts, salvage — in the words' own order.
+            // What a win pays, as the kit's loot icons over the words that name them — gear
+            // (the cannon stands for the whole loadout), charts, salvage, and cash.
             string[] loot = { "top", "harita", "hurda" };
             for (int i = 0; i < loot.Length; i++)
             {
@@ -1129,6 +1158,13 @@ namespace Game.UI
         private void OnSearch()
         {
             if (_fights == null || !_fights.TrySearch()) return;
+            ServiceLocator.Get<HapticService>()?.Medium();
+        }
+
+        private void OnBoss(int bossIndex)
+        {
+            if (_fights == null || !_fights.TryStartBoss(bossIndex)) return;
+            RefreshPreview();
             ServiceLocator.Get<HapticService>()?.Medium();
         }
 
@@ -1257,6 +1293,12 @@ namespace Game.UI
         {
             if (_fights == null || _stage == null) return;
             float dt = Time.deltaTime;
+            _bossRefresh -= dt;
+            if (_bossRefresh <= 0f)
+            {
+                _bossRefresh = 0.25f;
+                RefreshBossControls();
+            }
             EncounterController.Phase phase = _fights.State;
 
             if (_fights.Stamp != _seenStamp)
@@ -1266,8 +1308,11 @@ namespace Game.UI
                 _banner.color = _fights.LastWon ? Win : Loss;
                 _banner.text = _fights.LastWon
                     ? Loc.T("deniz.batti") + "  " + WinReceipt(_fights.LastCharts, _fights.LastSalvage,
-                                                               _fights.LastCraftPoints, _fights.LastPearls)
+                                                               _fights.LastCraftPoints, _fights.LastPearls,
+                                                               _fights.LastCashReward)
                     : Loc.T("deniz.yenildik");
+                if (_fights.LastWon && _fights.IsBossEncounter)
+                    _banner.text += _fights.LastBossFirstClear ? "  ·  İLK ZAFER" : "  ·  BOSS";
             }
             if (_toast > 0f) { _toast -= dt; if (_toast <= 0f) _banner.text = string.Empty; }
             bool toasting = _toast > 0f;
@@ -1307,6 +1352,25 @@ namespace Game.UI
             DriveSheet(phase, dt);
         }
 
+        private void RefreshBossControls()
+        {
+            if (_fights == null || _bossButtons[0] == null) return;
+            bool idle = _fights.State == EncounterController.Phase.Idle;
+            bool visible = _sea != null && _sea.Active;
+            string stage = _fights.BossStageLabel;
+            for (int i = 0; i < _bossButtons.Length; i++)
+            {
+                bool defeated = _fights.BossDefeated(i);
+                _bossButtons[i].gameObject.SetActive(visible);
+                _bossButtons[i].interactable = idle && !defeated && _sea.Energy > 0 && _fights.BossAvailable(i);
+                string status = defeated ? "✓" : (_fights.BossAvailable(i) ? "⚔" : "🔒");
+                _bossButtonLabels[i].text = stage + "  " + status + "  " + _fights.BossEntryLabel(i);
+                if (!defeated)
+                    _bossButtonLabels[i].text += "\n" + CashDisplay(_fights.BossCashRewardPreview(i));
+                _bossButtonLabels[i].color = defeated ? Win : (_bossButtons[i].interactable ? Paper : Faded);
+            }
+        }
+
         private void DriveShip(float w, float h, float t, float dt)
         {
             _shipWobble = Mathf.MoveTowards(_shipWobble, 0f, dt * 26f);
@@ -1325,16 +1389,18 @@ namespace Game.UI
                         || phase == EncounterController.Phase.Fight
                         || phase == EncounterController.Phase.Sunk
                         || phase == EncounterController.Phase.Driven;
-            if (visible && kind != _seenKind)
+            string bossLabel = _fights.IsBossEncounter ? _fights.BossEntryLabel(_fights.BossIndex) : null;
+            if (visible && (kind != _seenKind || bossLabel != _seenBossLabel))
             {
                 _seenKind = kind;
+                _seenBossLabel = bossLabel;
                 bool raider;
                 Sprite art = ThreatArt(kind, out raider);
                 if (art != null) _threatImage.sprite = art;
                 // Every older threat sprite faces right and is mirrored to face us; the kit's pirate
                 // ship is drawn already facing left, so mirroring it would turn its stern on us.
                 _threatImage.rectTransform.localScale = new Vector3(raider ? 1f : -1f, 1f, 1f);
-                _threatName.text = Loc.T("deniz.tehdit." + kind);
+                _threatName.text = !string.IsNullOrEmpty(bossLabel) ? bossLabel : Loc.T("deniz.tehdit." + kind);
             }
 
             _threatWobble = Mathf.MoveTowards(_threatWobble, 0f, Time.deltaTime * 26f);
@@ -1786,6 +1852,9 @@ namespace Game.UI
         {
             if (_sea == null || _threatLine == null) return;
             int tier = _sea.Tier;
+            if (_fights.IsBossEncounter
+                && StageBosses.TryGet(_fights.BossChapter, _fights.BossStage, _fights.BossIndex, out var boss))
+                tier = boss.RewardTier;
             SeaCombat.Tuning t = _sea.Combat;
 
             double lo = double.MaxValue, hi = 0d;
@@ -1807,7 +1876,8 @@ namespace Game.UI
             _threatLine.color = menace == 2 ? Danger : (menace == 0 ? Easy : Paper);
 
             SeaCombat.GradeOdds(tier, SeaCombat.SpyglassLuck(_sea.GearGrade(SeaCombat.SlotSpyglass)),
-                                t, _odds);
+                                _sea.BossProgress != null ? _sea.BossProgress.UniqueBossesDefeated : 0,
+                                _sea.CrewLevel, t, _odds);
             _lootText.Clear();
             _lootText.Append(Loc.T("deniz.ganimetSinif"));
             for (int g = 0; g < _odds.Length; g++)
@@ -1855,15 +1925,19 @@ namespace Game.UI
         /// <summary>The win banner's loot line: every balance the win moved, each by name and as
         /// banked. The workshop point and the pearls ride the same win, so they are said here too —
         /// they used to land with no word at all.</summary>
-        private static string WinReceipt(long charts, long salvage, long craftPoints, long pearls)
+        private static string WinReceipt(long charts, long salvage, long craftPoints, long pearls, double cash)
         {
             string line = string.Empty;
             if (charts > 0L) line = CurrencyText.Gain(CurrencyId.Charts, charts);
             if (salvage > 0L) line = Joined(line, CurrencyText.Gain(CurrencyId.Salvage, salvage));
             if (craftPoints > 0L) line = Joined(line, CurrencyText.Gain(CurrencyId.CraftPoints, craftPoints));
             if (pearls > 0L) line = Joined(line, CurrencyText.Gain(CurrencyId.Pearls, pearls));
+            if (cash > 0d) line = Joined(line, CashDisplay(cash));
             return line;
         }
+
+        private static string CashDisplay(double amount)
+            => "+" + NumberFormatter.Format(new BigDouble(amount), 0) + " " + CurrencyText.Name(CurrencyId.Cash);
 
         private static string Joined(string head, string tail) => head.Length > 0 ? head + " · " + tail : tail;
 
@@ -1922,7 +1996,8 @@ namespace Game.UI
                              + Loc.T("deniz.st.savunma") + "  " + D(them.Def)
                              + "      " + Loc.T("deniz.st.surat") + "  " + D(them.Spd) + "\n"
                              + Loc.T("deniz.ilkatis") + ": " + opener;
-            _foundReward.text = Loc.T("deniz.odul") + ": " + Loc.T("deniz.odulsatir");
+            _foundReward.text = Loc.T("deniz.odul") + ": " + Loc.T("deniz.odulsatir")
+                              + " · " + CashDisplay(_fights.CashRewardPreview);
         }
 
         /// <summary>The compare card: what is worn beside what fell, row by row, delta on top.</summary>

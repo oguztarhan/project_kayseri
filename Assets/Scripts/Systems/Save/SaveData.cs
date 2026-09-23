@@ -290,6 +290,11 @@ namespace Game.Systems
         // reported (see ChapterService), their existing islands light up whatever they already earned.
         public List<ChapterState> chapters = new List<ChapterState>();
 
+        // Two first clears per stage. Stage IDs key the rows so appending or reordering content can
+        // never reassign a saved victory. Missing data is normalized without a save-version bump.
+        public List<StageBossState> stageBosses = new List<StageBossState>();
+        public bool stageBossesInitialised;
+
         // ---- usta sandigi (ForemanService) ------------------------------------------------------
         // The master chest's two pieces of state. Added WITHOUT a save-version bump, on the same
         // precedent as every block above — a chest count and a claim stamp mean the same thing before
@@ -695,6 +700,15 @@ namespace Game.Systems
         public string id;                 // island key: "coal", "copper", …
         public bool[] claimed = new bool[Game.Core.Chapters.BeatCount];
         public bool introSeen;            // the chapter's opening card has been shown once
+    }
+
+    [Serializable]
+    public class StageBossState
+    {
+        public string stageId;
+        public bool firstDefeated;
+        public bool secondDefeated;
+        public bool legacyCleared;
     }
 
     [Serializable]
