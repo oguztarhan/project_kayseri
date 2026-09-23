@@ -225,8 +225,10 @@ namespace Game.UI
         private float _toast, _shipWobble, _threatWobble, _energyTick, _sheetTick;
         private double _sheetPowerSeen = -1d;
         private string _lastEnergy, _lastSearch, _lastPower, _lastCaptain, _lastThreat, _lastLoot,
-                       _lastEnergyAd;
+                       _lastEnergyAd, _lastAutoText;
         private bool _lastAuto;
+        private float _tutorialCooldown;
+        private bool _pendingRewardTutorial;
 
         private static Sprite S(string name) => Resources.Load<Sprite>("UI/Sea/" + name);
 
@@ -1171,8 +1173,23 @@ namespace Game.UI
         private void OnAuto()
         {
             if (_fights == null) return;
-            _fights.SetAuto(!_fights.Auto);
-            ServiceLocator.Get<HapticService>()?.Light();
+            if (_fights.Auto)
+            {
+                _fights.SetAuto(false);
+                ServiceLocator.Get<HapticService>()?.Light();
+                return;
+            }
+            if (_sea == null || !_sea.Active || _fights.AutoSecondsLeft > 0L
+                || _ad == null || !_ad.Available) return;
+            _ad.ShowRewarded(StartRewardedAutoBattle);
+        }
+
+        private void StartRewardedAutoBattle()
+        {
+            if (_fights == null || !_fights.StartRewardedAutoBattle()) return;
+            ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
+            ServiceLocator.Get<HapticService>()?.Medium();
+            _energyTick = 0f;
         }
 
         /// <summary>
@@ -1313,8 +1330,22 @@ namespace Game.UI
                     : Loc.T("deniz.yenildik");
                 if (_fights.LastWon && _fights.IsBossEncounter)
                     _banner.text += _fights.LastBossFirstClear ? "  ·  İLK ZAFER" : "  ·  BOSS";
+                if (_fights.LastWon && _data != null && _data.tutorialStep >= 100
+                    && !TutorialSeen("sea.reward")) _pendingRewardTutorial = true;
             }
-            if (_toast > 0f) { _toast -= dt; if (_toast <= 0f) _banner.text = string.Empty; }
+            if (_toast > 0f)
+            {
+                _toast -= dt;
+                if (_toast <= 0f)
+                {
+                    _banner.text = string.Empty;
+                    if (_pendingRewardTutorial)
+                    {
+                        _pendingRewardTutorial = false;
+                        ShowTutorialToast("sea.reward", "egitim.ipucu_sea_reward_m");
+                    }
+                }
+            }
             bool toasting = _toast > 0f;
             if (_bannerBack.activeSelf != toasting) _bannerBack.SetActive(toasting);
 
@@ -1710,6 +1741,9 @@ namespace Game.UI
         {
             if (_sea == null || !_sea.Active) return;
 
+            _tutorialCooldown = Mathf.Max(0f, _tutorialCooldown - dt);
+            TickSeaTutorial(phase);
+
             _energyTick -= dt;
             if (_energyTick <= 0f)
             {
@@ -1736,6 +1770,14 @@ namespace Game.UI
                     _autoLabel.color = auto ? CritTint : Color.white;
                 }
 
+                string autoText = auto
+                    ? Loc.T("deniz.oto") + "\n" + UiBuild.Clock(_fights.AutoSecondsLeft)
+                    : string.Format(Loc.T("deniz.oto_reklam"), "5");
+                Push(_autoLabel, autoText, ref _lastAutoText);
+                _autoBtn.interactable = auto || (_sea.Active && _fights.AutoSecondsLeft <= 0L
+                                                 && _ad != null && _ad.Available);
+                _autoBtn.targetGraphic.color = _autoBtn.interactable ? Color.white : new Color(0.72f, 0.75f, 0.80f, 1f);
+
                 RefreshEnergyAd(have);
                 // Cheap on every tick but the ones that matter: the strip re-inks only when the
                 // pick or the fleet's furthest route has actually moved.
@@ -1750,6 +1792,41 @@ namespace Game.UI
             if (System.Math.Abs(power - _sheetPowerSeen) < 0.25d) return;
             _sheetPowerSeen = power;
             RefreshSheet();
+        }
+
+        private void TickSeaTutorial(EncounterController.Phase phase)
+        {
+            if (_data == null || _data.tutorialStep < 100 || _toast > 0f || _tutorialCooldown > 0f
+                || phase != EncounterController.Phase.Idle) return;
+
+            if (!TutorialSeen("sea.combat"))
+            {
+                ShowTutorialToast("sea.combat", "egitim.ipucu_sea_combat_m");
+                _tutorialCooldown = 30f;
+                return;
+            }
+
+            if (_fights != null && _fights.BossAvailable(0) && !TutorialSeen("sea.boss"))
+            {
+                ShowTutorialToast("sea.boss", "egitim.ipucu_sea_boss_m");
+                _tutorialCooldown = 30f;
+            }
+        }
+
+        private bool TutorialSeen(string id)
+            => _data != null && _data.tutorialTipsSeen != null && _data.tutorialTipsSeen.Contains(id);
+
+        private void ShowTutorialToast(string id, string textKey)
+        {
+            if (_data == null) return;
+            if (_data.tutorialTipsSeen == null) _data.tutorialTipsSeen = new System.Collections.Generic.List<string>();
+            if (_data.tutorialTipsSeen.Contains(id)) return;
+            _data.tutorialTipsSeen.Add(id);
+            _save?.Save(_data);
+            _banner.color = Paper;
+            _banner.text = Loc.T(textKey);
+            _toast = 7f;
+            _bannerBack.SetActive(true);
         }
 
         /// <summary>Every derived number on the panel, re-read. Called on the half-second and after

@@ -12,12 +12,14 @@ namespace Game.Systems
     {
         bool Available { get; }
         void ShowRewarded(Action onReward);
+        void ShowRewarded(Action onReward, Action onClosedWithoutReward);
     }
 
     public sealed class StubAdService : IAdService
     {
         public bool Available => true;
         public void ShowRewarded(Action onReward) => onReward?.Invoke();
+        public void ShowRewarded(Action onReward, Action onClosedWithoutReward) => onReward?.Invoke();
     }
 
     public interface IIAPService

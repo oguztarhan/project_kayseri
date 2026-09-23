@@ -210,6 +210,7 @@ namespace Game.UI
             if (_lastPullLabel != null) _lastPullLabel.text = string.Empty;
             _lastCountdown = -1L;
             Refresh();
+            TutorialUI.NotifyFeatureOpened("collection");
         }
 
         public void Hide()

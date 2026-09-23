@@ -164,6 +164,7 @@ namespace Game.UI
             _root.gameObject.SetActive(true);
             _tick = 0f;
             Refresh();
+            TutorialUI.NotifyFeatureOpened("events");
         }
 
         public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }

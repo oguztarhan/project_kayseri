@@ -137,6 +137,7 @@ namespace Game.UI
             }
             _root.gameObject.SetActive(true);
             Refresh();
+            TutorialUI.NotifyFeatureOpened("stage");
         }
 
         public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }

@@ -15,8 +15,8 @@ namespace Game.UI
     ///
     /// Three parts, in this order, and only the first two are ever seen back to back:
     ///
-    ///   1. THE TOUR — the camera walks the production chain, one stop per stage, with a caption. This
-    ///      coal leaves the mountain and comes back as money. The HUD is off and only DEVAM advances.
+    ///   1. THE TOUR — short captions point out the production chain in the player's current island view.
+    ///      The HUD is off and only DEVAM advances.
     ///   2. THE CONTROLS — the HUD comes back and Usta Max points at each relevant control. The control
     ///      stays visible inside the spotlight, but a full-screen blocker keeps it visual-only; DEVAM
     ///      remains the one active input until the onboarding finishes.
@@ -79,21 +79,14 @@ namespace Game.UI
         [Header("Tur simgeleri (maden, tren, depo, izabe, pazar, nakit)")]
         [SerializeField] private Sprite[] tourIcons = new Sprite[6];
 
+        [Header("Dikey eğitim yerleşimi")]
+        [SerializeField, Min(520f)] private float cardWidth = 650f;
+        [SerializeField, Min(240f)] private float cardHeight = 290f;
+        [SerializeField, Range(0.60f, 0.75f)] private float maxCardWidthFraction = 0.72f;
+        [SerializeField, Range(0.25f, 0.36f)] private float narratorWidthFraction = 0.30f;
+        [SerializeField, Min(240f)] private float narratorMaxHeight = 600f;
+
         [Header("Zamanlama")]
-        [Tooltip("Kameranın bir duraktan diğerine süzülme süresi.")]
-        [SerializeField] private float flySeconds = 1.15f;
-        [Tooltip("Bir durakta ekranın dikeyde kapsadığı EN AZ dünya birimi. Bölgesi ölçülebilen " +
-                 "duraklar kendi sınırlarından daha genişini isteyebilir; bu taban, tren gibi tek " +
-                 "gövdeli durakların da fazla yakın çekilmemesi için.")]
-        [SerializeField] private float beatSpan = 110f;
-        [Tooltip("Bölge sınırının yatay çapı bu katsayıyla çarpılıp kadraj ona açılır — kenarlarda " +
-                 "nefes payı. Depo 76 birim; 1.5 ile 114'lük kadraja oturur ve tamamı görünür.")]
-        [SerializeField] private float focusPadding = 1.6f;
-        [Tooltip("Durağın ekranın ne kadar yukarısına oturacağı, ekran yüksekliğinin oranı olarak. " +
-                 "Kart alt üçte biri kaplıyor; bölge merkezi kartın ÜSTÜNDE kalan alanın ortasına " +
-                 "oturmalı — kapladığı oranın yarısı. DİKKAT: bu alanlar UI_HUD prefabında serileşmiş " +
-                 "durumda; buradaki varsayılanı değiştirmek yetmez, prefabı da güncellemek gerekir.")]
-        [SerializeField] private float beatRise = 0.15f;
         [Tooltip("Bağlamsal ipucu kartının ekranda kalma süresi.")]
         [SerializeField] private float tipSeconds = 5.5f;
         [Tooltip("Elin bir dokunuşunun süresi. Yavaş olsun: hızlısı dokunmuyor, titriyor gibi duruyor.")]
@@ -105,25 +98,23 @@ namespace Game.UI
         [SerializeField] private Color ringColor = new Color32(0xFF, 0xC8, 0x3C, 0xFF);
 
         // ------------------------------------------------------------------ ölçüler
-        private const float CanvasWidth = 1920f;
-        private const float CanvasHeight = 1080f;
+        private const float CanvasWidth = 1080f;
+        private const float CanvasHeight = 1920f;
         private const int SortingOrder = 250;      // hoş geldin ekranı 200; eğitim her şeyin üstünde
 
         // panel_ayarlar'ın dilim kenarı 120 px; çarpansız 940×330'luk kartta üst+alt kenar 240 px yer
         // yiyor ve iç kapsül bir şeride iniyordu — madalyon da yazı da süslü kenarın üstüne taşıyordu.
         // Ayarlar penceresinin kendi çözümü neyse o: çarpan 2, kenar 60'a iner, içerik 60'ın içinde kalır.
         private const float CardPpu = 2f;
-        private const float CardInset = 60f;
-        private const float CardWidth = 1160f;
-        private const float CardHeight = 455f;
-        private const float RibbonWidth = 660f;
-        private const float RibbonHeight = 124f;
-        private const float MedalSize = 126f;
-        private const float PipSize = 22f;
-        private const float ContinueWidth = 300f;
-        private const float ContinueHeight = 112f;
-        private const float CardBottomY = 34f;
-        private const float CardTopY = -34f;
+        private const float CardInset = 34f;
+        private const float RibbonWidth = 440f;
+        private const float RibbonHeight = 80f;
+        private const float MedalSize = 82f;
+        private const float PipSize = 16f;
+        private const float ContinueWidth = 200f;
+        private const float ContinueHeight = 70f;
+        private const float CardBottomY = 48f;
+        private const float CardTopY = -48f;
         private const float RingPad = 26f;         // deliğin kenarından halkanın dışına
         private const float CardGap = 44f;         // halkanın dışından kartın kenarına — kalan nefes payı
         private const float RibbonRise = 12f;
@@ -135,7 +126,7 @@ namespace Game.UI
             public int station;    // -1 = geniş açı, tek bir istasyon değil
             public string key;     // egitim.tur_<key>
             public int icon;
-            public bool ride;      // kamera duran bir noktayı değil, hareket eden treni izler
+            public bool ride;      // işaretçi hareket eden treni izler
         }
 
         private static readonly Beat[] Tour =
@@ -147,6 +138,8 @@ namespace Game.UI
             new Beat { station = IslandEconomy.Market,  key = "pazar",  icon = 4 },
             new Beat { station = -1,                    key = "zincir", icon = 5 },
         };
+
+        private static readonly string[] ShopOverview = { "production", "sale", "growth" };
 
         /// <summary>One stop of the closing button pass. <see cref="StopRect"/> holds the matching rect.</summary>
         private struct Stop
@@ -228,11 +221,21 @@ namespace Game.UI
         private float _wait;                   // açılışta her şeyin oturmasını bekleme sayacı
         private float _tipTimer = 6f;
         private bool _tipShowing;
+        private float _featureTipCooldown;
+        private MiningShopView _shopView;
+        private static TutorialUI _instance;
+
+        /// <summary>Lets feature screens request a one-shot explanation when the player opens them.</summary>
+        public static void NotifyFeatureOpened(string id)
+        {
+            if (_instance != null) _instance.OnFeatureOpened(id);
+        }
 
         // ------------------------------------------------------------------ giriş
 
         private void Start()
         {
+            _instance = this;
             _data = ServiceLocator.Get<SaveData>();
             _save = ServiceLocator.Get<SaveService>();
             _wallet = ServiceLocator.Get<WalletService>();
@@ -247,7 +250,13 @@ namespace Game.UI
 
         private void Update()
         {
-            if (_running || ShopActive) return;
+            if (_running) return;
+
+            if (ShopActive)
+            {
+                ShopTutorialTick();
+                return;
+            }
 
             if (_op == null || !_op.enabled) BindOp();
 
@@ -276,7 +285,7 @@ namespace Game.UI
 
         private void BindOp()
         {
-            var ops = FindObjectsByType<CoalOperation>(FindObjectsSortMode.None);
+            var ops = FindObjectsByType<CoalOperation>();
             for (int i = 0; i < ops.Length; i++)
                 if (ops[i].enabled) { _op = ops[i]; return; }
             if (_op == null && ops.Length > 0) _op = ops[0];
@@ -296,8 +305,173 @@ namespace Game.UI
         {
             if (_running || _data == null) return;
             _data.tutorialStep = StepFresh;
+            for (int i = 0; i < ShopOverview.Length; i++)
+                RemoveTutorialId("core.shop.overview." + ShopOverview[i]);
             _wait = 0f;
             _skipped = false;
+            _save?.Save(_data);
+        }
+
+        private void ShopTutorialTick()
+        {
+            if (_data == null) return;
+            if (_shopView == null) _shopView = FindAnyObjectByType<MiningShopView>();
+
+            if (_featureTipCooldown > 0f) _featureTipCooldown -= Time.unscaledDeltaTime;
+            if (_data.tutorialStep >= StepDone)
+            {
+                TipTick();
+                return;
+            }
+
+            if (HasShopExperience())
+            {
+                _data.tutorialStep = StepDone;
+                MarkTutorialId("core.shop.experienced");
+                return;
+            }
+
+            if (_shopView == null || Camera.main == null) return;
+            var report = ServiceLocator.Get<OfflineReport>();
+            if (report != null && report.Pending) return;
+            var boot = FindAnyObjectByType<OperationCameraBoot>();
+            if (boot != null && !boot.Framed) return;
+
+            _wait += Time.unscaledDeltaTime;
+            if (_wait > 1.2f) StartCoroutine(PlayShopTutorial());
+        }
+
+        private bool HasShopExperience()
+        {
+            if (_data == null || _data.miningShopBusinesses == null) return false;
+            for (int i = 0; i < _data.miningShopBusinesses.Count; i++)
+            {
+                MiningShopState state = _data.miningShopBusinesses[i];
+                if (state == null || state.Business == null || state.Business.Lines == null) continue;
+                if (state.Business.ReceiptSequence >= 5) return true;
+                int builtLines = 0;
+                for (int line = 0; line < state.Business.Lines.Count; line++)
+                {
+                    MiningShopProductLineState product = state.Business.Lines[line];
+                    if (product == null) continue;
+                    if (product.TableBuilt) builtLines++;
+                    if (product.SpeedLevel > 1 || product.ValueLevel > 1) return true;
+                }
+                if (builtLines > 1) return true;
+            }
+            return false;
+        }
+
+        private IEnumerator PlayShopTutorial()
+        {
+            _running = true;
+            _skipped = false;
+            _tapped = false;
+            Build();
+            _root.gameObject.SetActive(true);
+            _targetRect = null;
+            _tapAdvances = true;
+            BlockInput(false);
+            ShadeBlocks(false);
+            SetHole(new Rect());
+            ShowRing(false);
+            ShowPips(false);
+            ShowSkip(true);
+            yield return null; // Let the portrait canvas settle before sizing the guide.
+
+            for (int i = 0; i < ShopOverview.Length && !_skipped; i++)
+            {
+                string key = ShopOverview[i];
+                string id = "core.shop.overview." + key;
+                if (HasTutorialId(id)) continue;
+                ShowCard(Loc.T("egitim.shop_overview_" + key + "_b"),
+                         Loc.T("egitim.shop_overview_" + key + "_m"), null,
+                         CardBottomY, true, i == 0 && narratorFirstEntry != null
+                             ? narratorFirstEntry : narratorWelcome);
+                Sound(SoundId.PanelOpen);
+                yield return WaitContinue();
+                if (!_skipped) MarkTutorialId(id);
+                yield return HideCard();
+            }
+
+            if (_skipped) MarkTutorialId("core.shop.skipped");
+            _data.tutorialStep = StepDone;
+            _save?.Save(_data);
+
+            ClearGuide();
+            _running = false;
+            _tipTimer = 10f;
+        }
+
+        private void ClearGuide()
+        {
+            _targetRect = null;
+            ShowRing(false);
+            ShowSkip(false);
+            if (_pin != null) _pin.gameObject.SetActive(false);
+            if (_card != null) _card.gameObject.SetActive(false);
+            ShadeBlocks(false);
+            BlockInput(false);
+            if (_root != null) _root.gameObject.SetActive(false);
+        }
+
+        private void MarkTutorialId(string id)
+        {
+            if (_data == null || string.IsNullOrEmpty(id)) return;
+            if (_data.tutorialTipsSeen == null) _data.tutorialTipsSeen = new System.Collections.Generic.List<string>();
+            if (!_data.tutorialTipsSeen.Contains(id)) _data.tutorialTipsSeen.Add(id);
+            _save?.Save(_data);
+        }
+
+        private bool HasTutorialId(string id)
+            => _data != null && _data.tutorialTipsSeen != null && _data.tutorialTipsSeen.Contains(id);
+
+        private void RemoveTutorialId(string id)
+        {
+            if (_data != null && _data.tutorialTipsSeen != null) _data.tutorialTipsSeen.Remove(id);
+        }
+
+        private void OnFeatureOpened(string id)
+        {
+            if (_running || _tipShowing || _featureTipCooldown > 0f || _data == null
+                || _data.tutorialStep < StepDone || string.IsNullOrEmpty(id)) return;
+            var report = ServiceLocator.Get<OfflineReport>();
+            if (report != null && report.Pending) return;
+            if (FindAnyObjectByType<RewardRevealUI>() != null) return;
+            if (!FeatureReady(id)) return;
+            if (HasTutorialId("feature." + id)) return;
+            MarkTutorialId("feature." + id);
+            _featureTipCooldown = 20f;
+            StartCoroutine(TipCard(id, null));
+        }
+
+        private bool FeatureReady(string id)
+        {
+            if (id == "stage") return true;
+            if (id == "crafting")
+            {
+                CraftingService crafting = ServiceLocator.Get<CraftingService>();
+                return crafting != null && (crafting.Points > 0L || crafting.CurrentTier > 0);
+            }
+            if (id == "captain")
+            {
+                CaptainService captains = ServiceLocator.Get<CaptainService>();
+                return captains != null && captains.OwnedCount > 0;
+            }
+            if (id == "pets")
+            {
+                PetService pets = ServiceLocator.Get<PetService>();
+                if (pets == null) return false;
+                for (int species = 0; species < Pets.SpeciesCount; species++)
+                    if (pets.Owned(species)) return true;
+                return false;
+            }
+            if (id == "collection")
+            {
+                CardCollectionService collection = ServiceLocator.Get<CardCollectionService>();
+                return collection != null && (collection.UnopenedPackCount > 0 || collection.OwnedCardCount > 0);
+            }
+            return true;
         }
 
         // ------------------------------------------------------------------ akış
@@ -349,16 +523,10 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// Part 1. The HUD is switched off and the camera is taken off the player for the duration, so
-        /// what is on screen is only the island and one line of text about the part of it being looked at.
+        /// Part 1. Keep the player's current island view while each station is introduced.
         /// </summary>
         private IEnumerator TourPart()
         {
-            var cam = Camera.main;
-            var cc = FindAnyObjectByType<CameraController>();
-            Vector3 home = cam.transform.position;
-            Quaternion rot = cam.transform.rotation;
-            if (cc != null) cc.enabled = false;
             HudVisible(false);
 
             SetHole(new Rect());
@@ -369,23 +537,10 @@ namespace Game.UI
 
             for (int i = 0; i < Tour.Length && !_skipped; i++)
             {
-                // Son durak tek bir istasyon değil, zincirin tamamı: açılış çerçevesine geri süzülür.
-                // Bölgesi ölçülebilen duraklarda hedef bölgenin MERKEZİ, kadraj bölgenin çapı — nokta
-                // hedefler (zemin hizasındaki işaretçiler) depoyu iki yığın ve yarım baraka yapıyordu.
                 Vector3 look = Vector3.zero;
-                float span = beatSpan;
                 bool onStation = Tour[i].station >= 0 && _op.StationAnchor(Tour[i].station, out look);
-                Bounds area;
-                if (onStation && _op.StationFocus(Tour[i].station, out area))
-                {
-                    look = area.center;
-                    span = Mathf.Max(span, Mathf.Max(area.size.x, area.size.z) * focusPadding);
-                }
                 _ride = Tour[i].ride ? _op.TrainEngine : null;
                 if (_ride != null) look = _ride.position;
-
-                if (onStation) yield return Fly(cam, rot, look, span);
-                else yield return FlyHome(cam, home);
 
                 SetPips(i);
                 _targetWorld = look;
@@ -394,7 +549,7 @@ namespace Game.UI
                          Loc.T("egitim.tur_" + Tour[i].key + "_m"),
                          Icon(Tour[i].icon), CardBottomY, true, TourNarrator(i));
                 Sound(SoundId.PanelOpen);
-                yield return _ride != null ? Ride(cam, rot) : WaitContinue();
+                yield return WaitContinue();
                 _ride = null;
                 if (_pin != null) _pin.gameObject.SetActive(false);
                 if (i < Tour.Length - 1) yield return HideCard();
@@ -402,8 +557,6 @@ namespace Game.UI
 
             ShowPips(false);
             if (!_skipped) yield return HideCard();
-            yield return FlyHome(cam, home);
-            if (cc != null) { cc.enabled = true; cc.FrameTo(home, rot, cc.CurrentZoom); }
             HudVisible(true);
             _tapAdvances = false;
         }
@@ -589,8 +742,9 @@ namespace Game.UI
             if (_contract != null && _contract.Claimable && Tip("kontrat", _hud != null ? _hud.ContractRect : null)) return;
             if (_hud != null && _hud.BoostReady && Tip("boost", _hud.BoostRect)) return;
             if (_daily != null && _daily.CanClaim() && Tip("gunluk", _hud != null ? _hud.DailyRect : null)) return;
-            if (PhaseMoved() && Tip("faz", null)) return;
-            if (_op != null && _op.StationLevelTotal(IslandEconomy.Mine) >= 6 && Tip("genisletme", null)) return;
+            if (!ShopActive && PhaseMoved() && Tip("faz", null)) return;
+            if (!ShopActive && _op != null && _op.StationLevelTotal(IslandEconomy.Mine) >= 6
+                && Tip("genisletme", null)) return;
         }
 
         /// <summary>True once any station has been carried past its first phase — the island visibly rebuilt.</summary>
@@ -604,6 +758,8 @@ namespace Game.UI
 
         private bool Tip(string id, RectTransform target)
         {
+            if (_data.tutorialTipsSeen == null)
+                _data.tutorialTipsSeen = new System.Collections.Generic.List<string>();
             if (_data.tutorialTipsSeen.Contains(id)) return false;
             _data.tutorialTipsSeen.Add(id);
             if (_save != null) _save.Save(_data);
@@ -619,10 +775,13 @@ namespace Game.UI
             BlockInput(false);
             SetHole(new Rect());
             ShadeBlocks(false);              // ipucu hiçbir şeyi engellemez
+            _tapAdvances = true;
+            ShowSkip(false);
             _targetRect = target;
             ShowRing(target != null);
 
-            ShowCard(Loc.T("egitim.ipucu_" + id + "_b"), Loc.T("egitim.ipucu_" + id + "_m"),
+            string localizationId = "ipucu_" + id;
+            ShowCard(Loc.T("egitim." + localizationId + "_b"), Loc.T("egitim." + localizationId + "_m"),
                      null, PlaceFor(target), false);
             Sound(SoundId.Tick);
             yield return WaitTap(tipSeconds);
@@ -634,67 +793,7 @@ namespace Game.UI
             _root.gameObject.SetActive(false);
             _tipTimer = 8f;
             _tipShowing = false;
-        }
-
-        // ------------------------------------------------------------------ kamera
-
-        /// <summary>Eases the camera onto a world point, framing <paramref name="span"/> world units vertically.</summary>
-        private IEnumerator Fly(Camera cam, Quaternion rot, Vector3 look, float span)
-        {
-            yield return Glide(cam, cam.transform.position, Framing(cam, rot, look, span), flySeconds);
-        }
-
-        /// <summary>
-        /// Where the camera has to stand to hold <paramref name="look"/> above the caption card. Sliding
-        /// down the camera's own up-axis pushes the subject up the screen without tilting — the same trick
-        /// <see cref="OperationCameraBoot"/> uses to keep the island clear of the HUD.
-        /// </summary>
-        private Vector3 Framing(Camera cam, Quaternion rot, Vector3 look, float span)
-        {
-            float vTan = Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
-            float dist = span / (2f * vTan);
-            return look - rot * Vector3.forward * dist - rot * Vector3.up * (beatRise * 2f * dist * vTan);
-        }
-
-        /// <summary>
-        /// The TRAIN beat: the camera holds the locomotive while the caption is up. Eased rather than
-        /// pinned — a camera welded to a moving object reads as the world sliding past, and the whole
-        /// point of the shot is that the train is the thing moving.
-        /// </summary>
-        private IEnumerator Ride(Camera cam, Quaternion rot)
-        {
-            _tapped = false;
-            while (!_tapped && !_skipped)
-            {
-                if (_ride != null)
-                {
-                    _targetWorld = _ride.position;
-                    Vector3 want = Framing(cam, rot, _targetWorld, beatSpan);
-                    cam.transform.position = Vector3.Lerp(cam.transform.position, want,
-                                                          1f - Mathf.Exp(-3.2f * Time.unscaledDeltaTime));
-                }
-                yield return null;
-            }
-            _tapped = false;
-        }
-
-        private IEnumerator FlyHome(Camera cam, Vector3 home)
-        {
-            yield return Glide(cam, cam.transform.position, home, flySeconds);
-        }
-
-        private IEnumerator Glide(Camera cam, Vector3 from, Vector3 to, float seconds)
-        {
-            if ((to - from).sqrMagnitude < 0.01f) yield break;
-            float t = 0f;
-            while (t < 1f && !_skipped)
-            {
-                t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds);
-                float e = t >= 1f ? 1f : t * t * (3f - 2f * t);   // smoothstep: iki uçta da yumuşak
-                cam.transform.position = Vector3.LerpUnclamped(from, to, e);
-                yield return null;
-            }
-            cam.transform.position = to;
+            _tapAdvances = false;
         }
 
         // ------------------------------------------------------------------ kart
@@ -710,11 +809,15 @@ namespace Game.UI
             _cardBody.text = newPanel ? "<b>" + title + "</b>\n" + body : body;
             _cardIcon.transform.parent.gameObject.SetActive(icon != null);
             _cardIcon.sprite = icon;
+            float canvasWidth = _canvasRect != null ? _canvasRect.rect.width : CanvasWidth;
+            float actualWidth = Mathf.Min(cardWidth, canvasWidth * maxCardWidthFraction);
+            _card.sizeDelta = new Vector2(actualWidth, cardHeight);
+            if (_pips != null) _pips.sizeDelta = new Vector2(actualWidth, 30f);
             // Simgesiz kartta (ipuçları) yazı madalyonun boşluğuna kadar genişler.
             var brt = (RectTransform)_cardBody.transform;
-            brt.offsetMin = new Vector2(icon != null ? CardInset + MedalSize + 24f : CardInset + 26f,
+            brt.offsetMin = new Vector2(icon != null ? CardInset + MedalSize + 16f : CardInset + 12f,
                                         brt.offsetMin.y);
-            brt.offsetMax = new Vector2(-(_tapAdvances ? CardInset + ContinueWidth + 34f : CardInset + 26f),
+            brt.offsetMax = new Vector2(-(CardInset + 8f),
                                         brt.offsetMax.y);
             _next.gameObject.SetActive(_tapAdvances);
 
@@ -751,9 +854,11 @@ namespace Game.UI
             if (sprite == null) return;
 
             RectTransform rect = _narrator.rectTransform;
-            float height = Mathf.Min(canvasHeight * 0.82f, 780f);
+            float height = Mathf.Min(canvasHeight * 0.38f, narratorMaxHeight);
             float width = height * sprite.rect.width / Mathf.Max(1f, sprite.rect.height);
-            float maxWidth = canvasWidth * 0.36f;
+            // Leave room for the card and a visible gap, even on taller portrait screens.
+            float availableBesideCard = canvasWidth - Mathf.Min(cardWidth, canvasWidth * maxCardWidthFraction) - 60f;
+            float maxWidth = Mathf.Max(1f, Mathf.Min(canvasWidth * narratorWidthFraction, availableBesideCard));
             if (width > maxWidth)
             {
                 height *= maxWidth / width;
@@ -776,9 +881,9 @@ namespace Game.UI
             {
                 t += Time.unscaledDeltaTime / 0.34f;
                 float e = t >= 1f ? 1f : 1f - Mathf.Pow(1f - t, 3f);           // ease-out-cubic
-                float pop = t >= 1f ? 1f : 1f + 0.10f * Mathf.Sin(e * Mathf.PI);  // sona doğru hafif şişer
+                float pop = t >= 1f ? 1f : 1f + 0.02f * Mathf.Sin(e * Mathf.PI);
                 _cardFade.alpha = Mathf.Clamp01(t * 1.6f);
-                _card.anchoredPosition = home + new Vector2(0f, (1f - e) * 110f * dir);
+                _card.anchoredPosition = home + new Vector2(0f, (1f - e) * 20f * dir);
                 _card.localScale = new Vector3(pop, pop, 1f);
                 yield return null;
             }
@@ -842,9 +947,9 @@ namespace Game.UI
         private void CardBand(float y, out float lo, out float hi)
         {
             float h = _canvasRect != null ? _canvasRect.rect.height : CanvasHeight;
-            float bottom = y < 0f ? h + y - CardHeight : y;   // eksi y = üstten sarkar
+            float bottom = y < 0f ? h + y - cardHeight : y;   // eksi y = üstten sarkar
             lo = bottom - PipDrop;
-            hi = bottom + CardHeight + RibbonRise;
+            hi = bottom + cardHeight + RibbonRise;
         }
 
         private IEnumerator WaitTap(float seconds)
@@ -872,6 +977,8 @@ namespace Game.UI
         private void LateUpdate()
         {
             if (_root == null || !_root.gameObject.activeSelf) return;
+
+            if (_ride != null) _targetWorld = _ride.position;
 
             if (_targetRect != null)
             {
@@ -1109,6 +1216,7 @@ namespace Game.UI
 
         private void OnDestroy()
         {
+            if (_instance == this) _instance = null;
             if (_root != null) Destroy(_root.gameObject);
         }
 
@@ -1253,7 +1361,7 @@ namespace Game.UI
             var go = new GameObject("Kart", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
             _card = (RectTransform)go.transform;
             _card.SetParent(_root, false);
-            _card.sizeDelta = new Vector2(CardWidth, CardHeight);
+            _card.sizeDelta = new Vector2(cardWidth, cardHeight);
             _cardFade = go.GetComponent<CanvasGroup>();
             var body = go.GetComponent<Image>();
             body.sprite = newPanel ? tutorialPanel : (cardPanel != null ? cardPanel : UiSkin.Panel);
@@ -1271,8 +1379,8 @@ namespace Game.UI
             {
                 rrt.anchorMin = rrt.anchorMax = new Vector2(0f, 1f);
                 rrt.pivot = new Vector2(0f, 1f);
-                rrt.sizeDelta = new Vector2(338f, 88f);
-                rrt.anchoredPosition = new Vector2(84f, -22f);
+                rrt.sizeDelta = new Vector2(230f, 64f);
+                rrt.anchoredPosition = new Vector2(48f, -14f);
                 ribImg.enabled = false;
             }
             else
@@ -1284,15 +1392,15 @@ namespace Game.UI
                 ribImg.type = Image.Type.Sliced;
             }
             ribImg.raycastTarget = false;
-            _cardTitle = Text(rrt, "Baslik", newPanel ? 40f : 52f, TextAlignmentOptions.Center,
+            _cardTitle = Text(rrt, "Baslik", newPanel ? 28f : 32f, TextAlignmentOptions.Center,
                               newPanel ? new Color32(0x58, 0x32, 0x0B, 0xFF) : Color.white);
             var trt = (RectTransform)_cardTitle.transform;
-            trt.offsetMin = newPanel ? new Vector2(24f, 14f) : new Vector2(120f, 26f);
-            trt.offsetMax = newPanel ? new Vector2(-24f, -10f) : new Vector2(-120f, -12f);
+            trt.offsetMin = newPanel ? new Vector2(18f, 8f) : new Vector2(60f, 14f);
+            trt.offsetMax = newPanel ? new Vector2(-18f, -8f) : new Vector2(-60f, -8f);
             _cardTitle.enableAutoSizing = true;
-            _cardTitle.fontSize = newPanel ? 40f : 52f;
-            _cardTitle.fontSizeMin = newPanel ? 26f : 30f;
-            _cardTitle.fontSizeMax = newPanel ? 40f : 52f;
+            _cardTitle.fontSize = newPanel ? 28f : 32f;
+            _cardTitle.fontSizeMin = newPanel ? 22f : 24f;
+            _cardTitle.fontSizeMax = newPanel ? 30f : 34f;
 
             // madalyon + simge
             var med = new GameObject("Madalyon", typeof(RectTransform), typeof(Image));
@@ -1302,7 +1410,7 @@ namespace Game.UI
             mrt.sizeDelta = new Vector2(MedalSize, MedalSize);
             // Merkez = kenar + yarıçap: madalyon iç kapsülün İÇİNDE durur, çizgisine binmez.
             // -20: şerit üstten pay yediği için içeriğin görsel ortası kart ortasının azıcık altında.
-            mrt.anchoredPosition = new Vector2(CardInset + MedalSize * 0.5f, -20f);
+            mrt.anchoredPosition = new Vector2(CardInset + MedalSize * 0.5f, -5f);
             var medImg = med.GetComponent<Image>();
             medImg.sprite = medallion;
             medImg.raycastTarget = false;
@@ -1320,26 +1428,24 @@ namespace Game.UI
             _cardIcon.preserveAspect = true;
 
             // gövde yazısı — sol kenarı simgeye göre ShowCard ayarlıyor (ipuçlarının simgesi yok)
-            _cardBody = Text(_card, "Metin", 42f, TextAlignmentOptions.Left,
+            _cardBody = Text(_card, "Metin", 30f, TextAlignmentOptions.Left,
                              newPanel ? Color.white : inkColor);
             var brt = (RectTransform)_cardBody.transform;
-            brt.offsetMin = new Vector2(CardInset + MedalSize + 24f, newPanel ? 72f : CardInset - 4f);
-            brt.offsetMax = new Vector2(-(CardInset + 26f), newPanel ? -116f : -(RibbonHeight * 0.5f + 8f + 22f));
+            brt.offsetMin = new Vector2(CardInset + MedalSize + 16f, 100f);
+            brt.offsetMax = new Vector2(-(CardInset + 8f), -72f);
             _cardBody.enableAutoSizing = true;
-            _cardBody.fontSize = 42f;
-            _cardBody.fontSizeMin = 28f;
-            _cardBody.fontSizeMax = 44f;
+            _cardBody.fontSize = 30f;
+            _cardBody.fontSizeMin = 24f;
+            _cardBody.fontSizeMax = 32f;
 
             // Referanstaki gibi açık bir DEVAM düğmesi; bütün diğer girişler kilitliyken tek ilerleme yolu.
             var nx = new GameObject("BtnDevam", typeof(RectTransform), typeof(Image), typeof(Button));
             _next = (RectTransform)nx.transform;
             _next.SetParent(_card, false);
-            _next.anchorMin = _next.anchorMax = newPanel ? new Vector2(1f, 0f) : new Vector2(1f, 0.5f);
-            _next.pivot = newPanel ? new Vector2(1f, 0f) : new Vector2(0.5f, 0.5f);
+            _next.anchorMin = _next.anchorMax = new Vector2(1f, 0f);
+            _next.pivot = new Vector2(1f, 0f);
             _next.sizeDelta = new Vector2(ContinueWidth, ContinueHeight);
-            _next.anchoredPosition = newPanel
-                ? new Vector2(-54f, 48f)
-                : new Vector2(-(CardInset + ContinueWidth * 0.5f - 8f), -20f);
+            _next.anchoredPosition = new Vector2(-32f, 20f);
             var nimg = nx.GetComponent<Image>();
             nimg.sprite = tutorialButton != null ? tutorialButton : UiSkin.ButtonBlue;
             nimg.type = tutorialButton != null ? Image.Type.Simple : Image.Type.Sliced;
@@ -1348,11 +1454,11 @@ namespace Game.UI
             nextButton.targetGraphic = nimg;
             nextButton.onClick.AddListener(OnContinue);
             TapBounce.Attach(nextButton);
-            _nextText = Text(_next, "Yazi", 46f, TextAlignmentOptions.Center, Color.white);
+            _nextText = Text(_next, "Yazi", 32f, TextAlignmentOptions.Center, Color.white);
             _nextText.text = Loc.T("egitim.devam");
             _nextText.enableAutoSizing = true;
-            _nextText.fontSizeMin = 30f;
-            _nextText.fontSizeMax = 46f;
+            _nextText.fontSizeMin = 24f;
+            _nextText.fontSizeMax = 34f;
             _next.gameObject.SetActive(false);
 
             BuildPips();
@@ -1366,7 +1472,7 @@ namespace Game.UI
             _pips.SetParent(_card, false);
             _pips.anchorMin = _pips.anchorMax = new Vector2(0.5f, 0f);
             _pips.pivot = new Vector2(0.5f, 1f);
-            _pips.sizeDelta = new Vector2(CardWidth, 40f);
+            _pips.sizeDelta = new Vector2(cardWidth, 30f);
             _pips.anchoredPosition = new Vector2(0f, -18f);
             var lay = go.GetComponent<HorizontalLayoutGroup>();
             lay.spacing = 14f;
@@ -1435,7 +1541,7 @@ namespace Game.UI
 
         private static TMP_FontAsset FindFont()
         {
-            var any = FindObjectsByType<TMP_Text>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var any = FindObjectsByType<TMP_Text>(FindObjectsInactive.Include);
             for (int i = 0; i < any.Length; i++)
                 if (any[i].font != null) return any[i].font;
             return null;

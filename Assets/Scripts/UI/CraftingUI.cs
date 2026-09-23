@@ -142,7 +142,12 @@ namespace Game.UI
             RefreshOpener();
         }
 
-        public void Show() { if (_root != null) _root.gameObject.SetActive(true); Refresh(); }
+        public void Show()
+        {
+            if (_root != null) _root.gameObject.SetActive(true);
+            Refresh();
+            TutorialUI.NotifyFeatureOpened("crafting");
+        }
         public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }
 
         /// <summary>Only the retooling clock needs a pulse, and only while someone is looking.</summary>

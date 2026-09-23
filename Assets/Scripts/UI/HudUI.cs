@@ -233,6 +233,9 @@ namespace Game.UI
         private Button _balloonButton;
         private GameObject _balloonTimerChip;
         private TMP_Text _balloonTimerValue;
+        private RectTransform _rewardBadge;
+        private RectTransform _authoredRewardBadge;
+        private float _rewardBadgeTime;
 
         // The stage chip is a live clone of the authored rate pill: cloning preserves the HUD's
         // existing material, border, font and spacing without adding a scene-only prefab dependency.
@@ -312,6 +315,8 @@ namespace Game.UI
             if (bottomRow != null)
                 for (int i = 0; i < bottomRow.Length; i++) InsertBottom(AuthoredOrder + i, bottomRow[i]);
             BuildBalloonButton();
+            _rewardBadge = BuildRewardBadge(_balloonButton);
+            _authoredRewardBadge = BuildRewardBadge(adButton);
             // Ad and offer were pinned down the top-left edge, which is where the rail now runs. Left
             // out of it they would sit on top of it; folded in they are just the two lowest-priority
             // openers, which is what they are. Their counter chips are their own children, so both
@@ -1391,6 +1396,12 @@ namespace Game.UI
 
         private void Update()
         {
+            _rewardBadgeTime += Time.unscaledDeltaTime;
+            float badgeScale = 1f + 0.08f * Mathf.Sin(_rewardBadgeTime * 4f);
+            if (_rewardBadge != null && _rewardBadge.gameObject.activeSelf)
+                _rewardBadge.localScale = new Vector3(badgeScale, badgeScale, 1f);
+            if (_authoredRewardBadge != null && _authoredRewardBadge.gameObject.activeSelf)
+                _authoredRewardBadge.localScale = new Vector3(badgeScale, badgeScale, 1f);
             if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
             if (_stages == null) _stages = ServiceLocator.Get<StageService>();
             if (_op == null || !_op.enabled) BindEnabledOp();
@@ -1502,8 +1513,21 @@ namespace Game.UI
                 for (int i = 0; i < _world.Count; i++) if (_world.IsOwned(i)) sum += _world.RatePerMin(i);
                 if (sum > 0d) return sum;
             }
+            // The live mining-shop business replaces the market's island meter on Main. Its receipts
+            // are the current unboosted income, and the HUD already keeps the same rolling window to
+            // show the rate pill above.
+            if (_market != null && _market.MiningShopBusiness != null && shopRateWindow > 0f)
+            {
+                double recent = 0d;
+                float since = Time.time - shopRateWindow;
+                for (int i = 0; i < _saleCount; i++) if (_saleTimes[i] >= since) recent += _saleCash[i];
+                if (recent > 0d) return recent * 60d / shopRateWindow;
+            }
             return _op != null ? _op.CashPerMinute : 0d;
         }
+
+        /// <summary>Unboosted empire income per minute for other HUD reward offers.</summary>
+        public double CurrentUnboostedIncomePerMinute => IncomePerMinute();
 
         /// <summary>A shop receipt, remembered only for the rate pill. MarketService has already paid the wallet.</summary>
         private void OnShopSold(MiningShopBusinessSimulation.Sale sale)
@@ -1553,6 +1577,7 @@ namespace Game.UI
             }
             RefreshBoostButton(boosted);
             RefreshBalloonButton();
+            RefreshRewardBadge();
 
             bool shielded = _maintenance != null && _maintenance.ShieldActive;
             if (shieldIndicator != null)
@@ -1797,6 +1822,34 @@ namespace Game.UI
             _balloonTimerChip = AttachCounterChip(_balloonButton);
             if (_balloonTimerChip != null)
                 _balloonTimerValue = _balloonTimerChip.GetComponentInChildren<TMP_Text>(true);
+        }
+
+        private static RectTransform BuildRewardBadge(Button opener)
+        {
+            if (opener == null) return null;
+            GameObject badge = new GameObject("ReadyRewardBadge", typeof(RectTransform),
+                typeof(CanvasRenderer), typeof(Image));
+            RectTransform rect = badge.GetComponent<RectTransform>();
+            rect.SetParent(opener.transform, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.88f, 0.88f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(42f, 42f);
+            Image image = badge.GetComponent<Image>();
+            image.sprite = Resources.Load<Sprite>("UI/Portrait/general-notification-badge");
+            image.preserveAspect = true;
+            image.color = new Color(0.96f, 0.12f, 0.15f, 1f);
+            image.raycastTarget = false;
+            badge.SetActive(false);
+            return rect;
+        }
+
+        private void RefreshRewardBadge()
+        {
+            bool ready = adScreen != null && adScreen.HasAvailableReward;
+            if (_rewardBadge != null && _rewardBadge.gameObject.activeSelf != ready)
+                _rewardBadge.gameObject.SetActive(ready);
+            if (_authoredRewardBadge != null && _authoredRewardBadge.gameObject.activeSelf != ready)
+                _authoredRewardBadge.gameObject.SetActive(ready);
         }
 
         private bool BalloonAdReady => (_freeRewards != null && _freeRewards.AdsRemoved)

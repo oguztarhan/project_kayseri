@@ -11,8 +11,8 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The free-rewards screen (GDD §10, Figma "ekran_reklam"): a short list of rewarded-ad slots, each
-    /// with a few charges a day and a cooldown between watches. Editor-authored — the hierarchy lives in
+    /// The free-rewards screen (GDD §10, Figma "ekran_reklam"): daily gem charges and a recurring
+    /// cash offer share the same panel. Editor-authored — the hierarchy lives in
     /// the UI_Reklam prefab and every reference below is wired in the Inspector, so rows can be added,
     /// reordered or retuned without touching code.
     ///
@@ -26,8 +26,8 @@ namespace Game.UI
     /// </summary>
     public sealed class AdRewardUI : MonoBehaviour
     {
-        /// <summary>What a slot pays out. Exactly one of the three is normally non-zero.</summary>
-        public enum RewardKind { Gems, IncomeMinutes, Boost }
+        /// <summary>Which reward flow a prefab row represents.</summary>
+        public enum RewardKind { Gems, RecurringCash, Boost }
 
         [Serializable]
         public sealed class Slot
@@ -38,8 +38,6 @@ namespace Game.UI
 
             [Header("Ödül")]
             public long gems = 5;
-            [Tooltip("Kaç dakikalık gelir verilecek.")]
-            public float incomeMinutes = 15f;
             public double boostMultiplier = 2d;
             public float boostSeconds = 300f;
 
@@ -71,6 +69,11 @@ namespace Game.UI
         [Header("Yuvalar")]
         [SerializeField] private List<Slot> slots = new List<Slot>();
 
+        [Header("Tekrarlanan nakit ödülü")]
+        [SerializeField, Min(1f)] private float cashCooldownSeconds = 300f;
+        [Tooltip("Ödülün reklamsız bir dakikalık toplam gelire oranı.")]
+        [SerializeField, Min(0f)] private float cashIncomeMinutes = 1f;
+
         [Tooltip("Bekleme sayaçları akarken ekranın yenilenme aralığı (saniye).")]
         [SerializeField] private float refreshInterval = 0.25f;
 
@@ -81,8 +84,10 @@ namespace Game.UI
         private SaveService _save;
         private SaveData _data;
         private WorldIslands _world;
+        private HudUI _hud;
         private CoalOperation _op;
         private float _timer;
+        private bool _cashAdInFlight;
 
         private void Start()
         {
@@ -93,6 +98,7 @@ namespace Game.UI
             _save = ServiceLocator.Get<SaveService>();
             _data = ServiceLocator.Get<SaveData>();
             _world = FindAnyObjectByType<WorldIslands>();
+            _hud = FindAnyObjectByType<HudUI>();
 
             for (int i = 0; i < slots.Count; i++)
             {
@@ -100,6 +106,12 @@ namespace Game.UI
                 if (slot == null || slot.watchButton == null) continue;
                 Slot captured = slot;
                 slot.watchButton.onClick.AddListener(() => Watch(captured));
+                if (slot.kind == RewardKind.RecurringCash && slot.label != null)
+                {
+                    slot.label.enableAutoSizing = true;
+                    slot.label.fontSizeMin = 18f;
+                    slot.label.fontSizeMax = slot.label.fontSize;
+                }
             }
             if (closeButton != null) closeButton.onClick.AddListener(Hide);
             if (dimmer != null)
@@ -116,6 +128,11 @@ namespace Game.UI
 
         private void Update()
         {
+            if (_free == null) _free = ServiceLocator.Get<FreeRewardService>();
+            if (_wallet == null) _wallet = ServiceLocator.Get<WalletService>();
+            if (_ad == null) _ad = ServiceLocator.Get<IAdService>();
+            if (_save == null) _save = ServiceLocator.Get<SaveService>();
+            if (_data == null) _data = ServiceLocator.Get<SaveData>();
             if (panelRoot == null || !panelRoot.activeSelf) return;
             _timer -= Time.unscaledDeltaTime;
             if (_timer > 0f) return;
@@ -151,18 +168,20 @@ namespace Game.UI
                 Slot slot = slots[i];
                 if (slot == null) continue;
 
-                int charges = Charges(slot);
-                int left = _free.ChargesLeft(slot.id, charges);
-                float cooldown = _free.CooldownLeft(slot.id, slot.cooldownSeconds);
+                bool cash = slot.kind == RewardKind.RecurringCash;
+                int charges = cash ? 0 : Charges(slot);
+                int left = cash ? 0 : _free.ChargesLeft(slot.id, charges);
+                float cooldown = cash ? CashCooldownLeft : _free.CooldownLeft(slot.id, slot.cooldownSeconds);
                 // AdReady de şart: hak ve bekleme uygunken bile yüklü reklam yoksa Watch() sessizce
                 // geri dönüyordu, yani düğme etkin görünüp hiçbir şey yapmıyordu. HUD kısayolu
                 // (BoostReady) bu kontrolü zaten yapıyordu; satırların yapmaması bir gözden kaçmaydı.
-                bool ready = left > 0 && cooldown <= 0f && AdReady;
+                bool ready = (cash ? CashReady && !_cashAdInFlight : left > 0 && cooldown <= 0f)
+                             && AdReady;
 
                 if (slot.background != null && slot.backgroundReady != null && slot.backgroundSpent != null)
                     slot.background.sprite = ready ? slot.backgroundReady : slot.backgroundSpent;
 
-                if (slot.charges != null)
+                if (!cash && slot.charges != null)
                     for (int c = 0; c < slot.charges.Length; c++)
                     {
                         if (slot.charges[c] == null) continue;
@@ -173,7 +192,7 @@ namespace Game.UI
                         if (exists) slot.charges[c].sprite = c < left ? slot.chargeFull : slot.chargeEmpty;
                     }
 
-                if (slot.label != null) slot.label.text = LabelFor(slot, left, cooldown);
+                if (slot.label != null) slot.label.text = cash ? CashLabel(cooldown) : LabelFor(slot, left, cooldown);
 
                 if (slot.watchButton != null) slot.watchButton.interactable = ready;
                 if (slot.watchImage != null && slot.watchReady != null && slot.watchWaiting != null)
@@ -201,8 +220,6 @@ namespace Game.UI
             {
                 case RewardKind.Gems:
                     return string.Format(Loc.T("reklam.elmas"), slot.gems);
-                case RewardKind.IncomeMinutes:
-                    return "+$" + NumberFormatter.Format(new BigDouble(IncomePerMinute() * slot.incomeMinutes));
                 default:
                     return string.Format(Loc.T("reklam.gelir"),
                         slot.boostMultiplier.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture),
@@ -251,6 +268,26 @@ namespace Game.UI
             }
         }
 
+        /// <summary>At least one visible reward has a remaining claim, even while an ad is loading.</summary>
+        public bool HasAvailableReward
+        {
+            get
+            {
+                for (int i = 0; i < slots.Count; i++)
+                {
+                    Slot slot = slots[i];
+                    if (slot == null || slot.background == null || !slot.background.gameObject.activeSelf) continue;
+                    if (slot.kind == RewardKind.RecurringCash)
+                    {
+                        if (CashReady) return true;
+                    }
+                    else if (_free != null && _free.CanWatch(slot.id, Charges(slot), slot.cooldownSeconds))
+                        return true;
+                }
+                return false;
+            }
+        }
+
         /// <summary>Seconds until the boost is watchable again; 0 when it is ready or out for the day.</summary>
         public float BoostCooldown
         {
@@ -285,7 +322,9 @@ namespace Game.UI
 
         private void Watch(Slot slot)
         {
-            if (_free == null || slot == null) return;
+            if (slot == null) return;
+            if (slot.kind == RewardKind.RecurringCash) { WatchCash(); return; }
+            if (_free == null) return;
             if (!_free.CanWatch(slot.id, Charges(slot), slot.cooldownSeconds)) return;
 
             if (_free.AdsRemoved) { Payout(slot); return; }
@@ -300,9 +339,6 @@ namespace Game.UI
             {
                 case RewardKind.Gems:
                     if (_wallet != null) _wallet.AddGems(slot.gems);
-                    break;
-                case RewardKind.IncomeMinutes:
-                    if (_wallet != null) _wallet.AddCash(new BigDouble(IncomePerMinute() * slot.incomeMinutes));
                     break;
                 default:
                     if (_boost != null) _boost.AddRewardedAdBoost(slot.boostMultiplier);
@@ -329,10 +365,68 @@ namespace Game.UI
             }
             if (_op == null || !_op.enabled)
             {
-                var ops = FindObjectsByType<CoalOperation>(FindObjectsSortMode.None);
+                var ops = FindObjectsByType<CoalOperation>();
                 for (int i = 0; i < ops.Length; i++) if (ops[i].enabled) { _op = ops[i]; break; }
             }
             return _op != null ? _op.CashPerMinute : 0d;
+        }
+
+        private bool CashReady => _data != null && _free != null && _wallet != null
+                                  && _data.rewardedCashNextAvailableUnix <= DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        private float CashCooldownLeft
+        {
+            get
+            {
+                if (_data == null) return 0f;
+                long left = _data.rewardedCashNextAvailableUnix - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                return left > 0L ? left : 0f;
+            }
+        }
+
+        private string CashLabel(float cooldown)
+        {
+            if (cooldown > 0f) return string.Format(Loc.T("reklam.sonra"), ContractUI.ClockText(cooldown));
+            if (!AdReady || _cashAdInFlight) return Loc.T("reklam.hazir_degil");
+            return "+$" + NumberFormatter.Format(CashAmount());
+        }
+
+        private BigDouble CashAmount()
+        {
+            double income = _hud != null ? _hud.CurrentUnboostedIncomePerMinute : 0d;
+            if (income <= 0d) income = IncomePerMinute();
+            if (income <= 0d && _data != null) income = _data.incomeRatePerSec * 60d;
+            return new BigDouble(System.Math.Max(0d, income * cashIncomeMinutes));
+        }
+
+        private void WatchCash()
+        {
+            if (!CashReady || _cashAdInFlight || _wallet == null || _free == null) return;
+            if (_free.AdsRemoved) { PayoutCash(); return; }
+            if (_ad == null || !_ad.Available) return;
+            _cashAdInFlight = true;
+            Refresh();
+            _ad.ShowRewarded(PayoutCash, OnCashAdWithoutReward);
+        }
+
+        private void PayoutCash()
+        {
+            if (!CashReady || _wallet == null || _data == null) return;
+            BigDouble amount = CashAmount();
+            _data.rewardedCashNextAvailableUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                                                   + Mathf.Max(1, Mathf.CeilToInt(cashCooldownSeconds));
+            _cashAdInFlight = false;
+            _wallet.AddCash(amount);
+            _save?.Save(_data);
+            ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
+            ServiceLocator.Get<HapticService>()?.Medium();
+            Refresh();
+        }
+
+        private void OnCashAdWithoutReward()
+        {
+            _cashAdInFlight = false;
+            Refresh();
         }
     }
 }

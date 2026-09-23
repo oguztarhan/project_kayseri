@@ -88,6 +88,20 @@ namespace Game.Gameplay
         /// <summary>The pickaxe bench's tap target, which the camera waits for. Null until the shop is built.</summary>
         public Collider TableCollider => _lines[0] != null ? _lines[0].tableCollider : null;
 
+        /// <summary>World position used by the first-time guide to point at the pickaxe bench.</summary>
+        public bool TryGetTutorialBench(out Vector3 position)
+        {
+            Collider target = TableCollider;
+            if (target == null || !target.gameObject.activeInHierarchy)
+            {
+                position = Vector3.zero;
+                return false;
+            }
+
+            position = target.bounds.center;
+            return true;
+        }
+
         /// <summary>Everything the offered lines use — benches to the customers' entry — for the camera to fit.</summary>
         public Bounds ShopBounds { get; private set; }
 

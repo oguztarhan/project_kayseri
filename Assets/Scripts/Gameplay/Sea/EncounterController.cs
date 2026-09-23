@@ -31,6 +31,8 @@ namespace Game.Gameplay
         public enum Phase { Idle, Searching, Approach, Found, Fight, Sunk, Driven, Loot }
         public enum Step { OurAim, OurBall, TheirAim, TheirBall }
 
+        public const int RewardedAutoBattleSeconds = 300;
+
         /// <summary>One thing the fight did, for the theater's floating numbers. Kind is Ev*.</summary>
         public struct FightEvent
         {
@@ -62,6 +64,7 @@ namespace Game.Gameplay
         private MarketService _market;
         private SaveService _save;
         private SaveData _saveData;
+        private TimeService _time;
         private bool _bossChallenge;
         private int _bossChapter, _bossStage, _bossIndex;
 
@@ -133,6 +136,9 @@ namespace Game.Gameplay
         public int ThreatKind => _phase == Phase.Fight ? _fight.Kind : _spawnKind;
         public SeaCombat.Tuning Combat => _sea != null ? _sea.Combat : SeaCombat.Tuning.Default;
         public bool Auto => _auto;
+        public long AutoSecondsLeft => _saveData == null || _saveData.seaAutoEndUnix <= 0L
+            ? 0L : System.Math.Max(0L, _saveData.seaAutoEndUnix -
+                (_time != null ? _time.NowUnix() : System.DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
 
         public SeaCombat.Item DropItem => _drop;
         public bool HasDrop => _hasDrop;
@@ -157,6 +163,7 @@ namespace Game.Gameplay
             _market = ServiceLocator.Get<MarketService>();
             _save = ServiceLocator.Get<SaveService>();
             _saveData = ServiceLocator.Get<SaveData>();
+            _time = ServiceLocator.Get<TimeService>();
         }
 
         // ------------------------------------------------------------------ orders
@@ -214,7 +221,7 @@ namespace Game.Gameplay
             _bossStage = _stages.CurrentStage(_bossChapter);
             _bossIndex = bossIndex;
             _bossChallenge = true;
-            _auto = false;
+            SetAuto(false);
             if (!StageBosses.TryGet(_bossChapter, _bossStage, bossIndex, out var boss)) return false;
             _spawnKind = boss.Kind;
             _previewOurs = _sea.ShipStats();
@@ -251,8 +258,26 @@ namespace Game.Gameplay
             return true;
         }
 
-        /// <summary>OTOMATİK. Turns itself off when the pool runs dry.</summary>
-        public void SetAuto(bool on) => _auto = on;
+        /// <summary>Starts the five-minute auto-battle window after the rewarded ad callback.</summary>
+        public bool StartRewardedAutoBattle()
+        {
+            if (_sea == null || !_sea.Active || _saveData == null || AutoSecondsLeft > 0L) return false;
+            long now = _time != null ? _time.NowUnix() : System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            _saveData.seaAutoEndUnix = now + RewardedAutoBattleSeconds;
+            _auto = true;
+            _save?.Save(_saveData);
+            return true;
+        }
+
+        /// <summary>Only stops automation; starting it requires StartRewardedAutoBattle.</summary>
+        public void SetAuto(bool on)
+        {
+            if (on) return;
+            _auto = false;
+            if (_saveData == null || _saveData.seaAutoEndUnix <= 0L) return;
+            _saveData.seaAutoEndUnix = 0L;
+            _save?.Save(_saveData);
+        }
 
         /// <summary>Wear the drop. Whatever the slot held is scrapped into salvage on the way out.</summary>
         public bool EquipDrop()
@@ -289,13 +314,17 @@ namespace Game.Gameplay
             }
             _wasActive = true;
 
+            // Restore a still-live window when returning to the sea. The deadline is wall-clock
+            // based, but searches and rewards only run while this scene is active.
+            if (AutoSecondsLeft > 0L) _auto = true;
+            else if (_auto && _phase == Phase.Idle) SetAuto(false);
+
             float dt = Time.deltaTime;
             _phaseTime += dt;
             switch (_phase)
             {
                 case Phase.Idle:
-                    if (_auto && _phaseTime >= autoSearchSeconds && !TrySearch() && _sea.Energy <= 0)
-                        _auto = false;
+                    if (_auto && AutoSecondsLeft > 0L && _phaseTime >= autoSearchSeconds) TrySearch();
                     break;
                 case Phase.Searching:
                     if (_phaseTime >= (float)_sea.Combat.SearchSeconds) Enter(Phase.Approach);

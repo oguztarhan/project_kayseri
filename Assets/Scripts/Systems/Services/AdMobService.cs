@@ -32,6 +32,7 @@ namespace Game.Systems
 
         private RewardedAd _ad;
         private Action _pendingReward;
+        private Action _pendingClosedWithoutReward;
         private float _waitLeft;
         private float _retryLeft;
         private float _retryDelay = FirstRetrySeconds;
@@ -82,17 +83,23 @@ namespace Game.Systems
 
         public void ShowRewarded(Action onReward)
         {
+            ShowRewarded(onReward, null);
+        }
+
+        public void ShowRewarded(Action onReward, Action onClosedWithoutReward)
+        {
             if (!Available) return;
 
             if (_ad != null && _ad.CanShowAd())
             {
-                Show(onReward);
+                Show(onReward, onClosedWithoutReward);
                 return;
             }
 
             // Nothing in memory yet. Park the callback and let the load hand it straight to the ad the
             // moment it lands; the alternative is a dead button for the first seconds of every session.
-            _pendingReward = onReward;
+            _pendingReward = () => Show(onReward, onClosedWithoutReward);
+            _pendingClosedWithoutReward = onClosedWithoutReward;
             _waitLeft = _showTimeout;
             _retryLeft = 0f;
             Load();
@@ -113,7 +120,10 @@ namespace Game.Systems
             if (_waitLeft > 0f) return;
 
             _pendingReward = null;
+            Action closedWithoutReward = _pendingClosedWithoutReward;
+            _pendingClosedWithoutReward = null;
             Debug.LogWarning("[Ads] ödüllü reklam zamanında hazır olmadı; ödül verilmedi, hak harcanmadı.");
+            closedWithoutReward?.Invoke();
         }
 
         private void Load()
@@ -160,15 +170,17 @@ namespace Game.Systems
 
             Action waiting = _pendingReward;
             _pendingReward = null;
-            Show(waiting);
+            _pendingClosedWithoutReward = null;
+            waiting();
         }
 
-        private void Show(Action onReward)
+        private void Show(Action onReward, Action onClosedWithoutReward)
         {
             RewardedAd ad = _ad;
             _ad = null;                 // one show per ad; the next is loaded once this one closes
             _showing = true;
             _pendingReward = null;
+            _pendingClosedWithoutReward = null;
 
             // Unity keeps running behind an Android fullscreen ad, so without this the soundtrack
             // plays over it. AudioListener rather than AudioService: the mix is the player's saved
@@ -176,14 +188,24 @@ namespace Game.Systems
             ad.OnAdFullScreenContentOpened += () =>
                 MobileAdsEventExecutor.ExecuteInUpdate(() => AudioListener.pause = true);
 
+            bool rewarded = false;
             ad.OnAdFullScreenContentClosed += () =>
-                MobileAdsEventExecutor.ExecuteInUpdate(() => Finish(ad, null));
+                MobileAdsEventExecutor.ExecuteInUpdate(() =>
+                {
+                    Finish(ad, null);
+                    if (!rewarded) onClosedWithoutReward?.Invoke();
+                });
 
             ad.OnAdFullScreenContentFailed += error =>
-                MobileAdsEventExecutor.ExecuteInUpdate(() => Finish(ad, error));
+                MobileAdsEventExecutor.ExecuteInUpdate(() =>
+                {
+                    Finish(ad, error);
+                    if (!rewarded) onClosedWithoutReward?.Invoke();
+                });
 
             ad.Show(reward => MobileAdsEventExecutor.ExecuteInUpdate(() =>
             {
+                rewarded = true;
                 if (onReward != null) onReward();
             }));
         }

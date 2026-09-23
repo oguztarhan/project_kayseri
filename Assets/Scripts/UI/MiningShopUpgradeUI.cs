@@ -67,6 +67,13 @@ namespace Game.UI
         private Vector2 _pressAt;
         private float _refresh;
 
+        /// <summary>Whether the player has the product upgrade panel open.</summary>
+        public bool TutorialPanelOpen => _panel != null && _panel.gameObject.activeSelf;
+        public RectTransform TutorialSpeedRect => _speed != null ? _speed.transform as RectTransform : null;
+        public RectTransform TutorialValueRect => _value != null ? _value.transform as RectTransform : null;
+        public bool TutorialSpeedAvailable => _speed != null && _speed.interactable;
+        public bool TutorialValueAvailable => _value != null && _value.interactable;
+
         private void Awake()
         {
             _view = GetComponent<MiningShopView>();

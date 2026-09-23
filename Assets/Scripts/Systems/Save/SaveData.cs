@@ -56,6 +56,8 @@ namespace Game.Systems
         public List<IslandRate> islandRates = new List<IslandRate>();       // what each idle island pays while you are away
         public int freeRewardDay;                    // UTC day number the free-reward charges were last reset on
         public List<FreeRewardState> freeRewards = new List<FreeRewardState>();  // rewarded-ad slots (GDD §10)
+        // Wall-clock cooldown for the recurring rewarded cash offer; 0 means ready.
+        public long rewardedCashNextAvailableUnix;
         public bool adsRemoved;                      // the remove-ads purchase, so it survives a restart
         public List<string> purchasedOffers = new List<string>();  // one-time offer skus already owned
         // StoreKit/Play can redeliver an unconfirmed order after an app kill or network failure. The
@@ -189,6 +191,9 @@ namespace Game.Systems
         // shows a returning player should not be a wait.
         public int seaEnergy = -1;
         public long seaEnergyStampUnix;
+        // Rewarded auto-battle ends at this wall-clock deadline; 0 means inactive.
+        // Older saves without this field naturally start with automation off.
+        public long seaAutoEndUnix;
         // Won fights, lifetime. This is what opens the further routes — see
         // Voyages.TierFightsRequired and ExpeditionService.MaxTier. It replaces voyagesCompleted,
         // which only the dock could ever move; a save from before this field starts at zero, so a

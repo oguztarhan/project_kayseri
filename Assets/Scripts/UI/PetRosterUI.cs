@@ -198,6 +198,7 @@ namespace Game.UI
                 if (_pets.TryGrantBootstrap()) PresentPearls(_pets.Pearls - before);
             }
             Refresh();
+            TutorialUI.NotifyFeatureOpened("pets");
         }
 
         /// <summary>Closes everything this screen owns. A reveal cut short is only dismissed — the
