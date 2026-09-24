@@ -67,6 +67,9 @@ namespace Game.Systems
         [SerializeField] private MiningShopCampaignConfig miningShopCampaign;
         [Tooltip("Kazma tezgâhı süreleri ve fiyatı. Boş bırakılırsa varsayılanlarla ÇALIŞIR.")]
         [SerializeField] private MiningShopConfig miningShopConfig;
+        [Tooltip("Dükkân açıkken çevrimdışı kazanç ödenir mi. Kapalıyken ne ödeme yapılır ne de bildirimde tutar yazar; " +
+                 "gelir-dakikası ödülleri etkilenmez.")]
+        [SerializeField] private bool miningShopOfflineEarnings = true;
         [SerializeField] private string miningShopBusinessId = "mining-shop.island-01-01";
         [SerializeField] private bool loadMainOnStart = true;
         [Tooltip("Boşsa Main tek karede yüklenir ve açılış görseli görünmez.")]
@@ -496,8 +499,8 @@ namespace Game.Systems
             Offline = new OfflineReport();
             ServiceLocator.Register(Offline);
             GrantOffline();
-            // After the grant: the absence that ended with this launch is still paid once from the legacy
-            // rate. Opening the shop zeroes that rate, so no later launch pays it again.
+            // After the grant: the absence that ended with this launch is paid from the rate the last session
+            // saved. Opening the shop replaces that rate with its own, so an ore rate is never paid twice.
             if (miningShopOnMain) OpenMiningShop();
 
             // Prices the first ship's offers off the rate the last session persisted, so a returning
@@ -508,16 +511,22 @@ namespace Game.Systems
             // queue is built in OnApplicationPause and torn down again on the way back.
             _notifications = new NotificationService(Data, offlineConfig, _time,
                                                      ServiceLocator.Get<INotifications>(), contract,
-                                                     notificationTestSpacingSeconds);
+                                                     notificationTestSpacingSeconds, OfflineEarningsAllowed);
             ServiceLocator.Register(_notifications);
             _notifications.RefreshOpenedTarget();
 
             ServiceLocator.Get<IAnalytics>()?.Log("session_start");
         }
 
+        /// <summary>False only while a saved shop business owns the economy and the shop switch is off. A save that
+        /// has not reached the shop yet is still paid its ore absence once.</summary>
+        private bool OfflineEarningsAllowed =>
+            miningShopOfflineEarnings || Data == null || string.IsNullOrEmpty(Data.activeMiningShopBusinessId);
+
         private void GrantOffline()
         {
-            if (offlineConfig == null || !offlineConfig.Enabled || Data.savedUnixSeconds <= 0L) return;
+            if (offlineConfig == null || !offlineConfig.Enabled || Data.savedUnixSeconds <= 0L ||
+                !OfflineEarningsAllowed) return;
             long elapsed = _time.ElapsedSince(Data.savedUnixSeconds);
 
             // The store sells permanent offline upgrades (the "Gece Vardiyasi" offer), so the config is

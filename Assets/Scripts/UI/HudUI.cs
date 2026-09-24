@@ -1514,16 +1514,9 @@ namespace Game.UI
                 for (int i = 0; i < _world.Count; i++) if (_world.IsOwned(i)) sum += _world.RatePerMin(i);
                 if (sum > 0d) return sum;
             }
-            // The live mining-shop business replaces the market's island meter on Main. Its receipts
-            // are the current unboosted income, and the HUD already keeps the same rolling window to
-            // show the rate pill above.
-            if (_market != null && _market.MiningShopBusiness != null && shopRateWindow > 0f)
-            {
-                double recent = 0d;
-                float since = Time.time - shopRateWindow;
-                for (int i = 0; i < _saleCount; i++) if (_saleTimes[i] >= since) recent += _saleCash[i];
-                if (recent > 0d) return recent * 60d / shopRateWindow;
-            }
+            // The live mining-shop business replaces the market's island meter on Main. Its steady-state rate is
+            // the unboosted income offline earnings are paid from; the receipt window below only drives the pill.
+            if (_market != null && _market.MiningShopBusiness != null) return _market.MiningShopIncomePerSec * 60d;
             return _op != null ? _op.CashPerMinute : 0d;
         }
 

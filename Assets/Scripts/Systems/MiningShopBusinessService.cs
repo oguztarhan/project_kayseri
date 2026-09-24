@@ -10,17 +10,19 @@ namespace Game.Systems
         private readonly WalletService _wallet;
         private readonly SaveService _save;
         private readonly SaveData _data;
+        private readonly GoalService _goals;
         private bool _busy;
 
         public event Action Changed;
 
         internal MiningShopBusinessService(MiningShopState state, int availableProductCount,
             MiningShopBusinessSimulation.Tuning tuning, WalletService wallet, SaveService save, SaveData data,
-            Action<MiningShopBusinessSimulation.Sale> settle)
+            Action<MiningShopBusinessSimulation.Sale> settle, GoalService goals = null)
         {
             _wallet = wallet;
             _save = save;
             _data = data;
+            _goals = goals;
             _simulation = new MiningShopBusinessSimulation(state, availableProductCount, tuning, settle);
         }
 
@@ -29,6 +31,7 @@ namespace Game.Systems
         public double CraftSeconds(int productIndex) => _simulation.CraftSeconds(productIndex);
         public double UnitPrice(int productIndex) => _simulation.UnitPrice(productIndex);
         public double UpgradeCost(int productIndex, bool speed) => _simulation.UpgradeCost(productIndex, speed);
+        public double SteadyStateRate() => _simulation.SteadyStateRate();
 
         public bool TryBuildTable(int productIndex)
         {
@@ -40,6 +43,9 @@ namespace Game.Systems
             {
                 if (!_simulation.BuildTable(productIndex)) return false;
                 _wallet.TrySpendCash(new BigDouble(cost));
+                // A build counts as an upgrade, as a station purchase does on the ore islands. Recorded before
+                // the save so the count lands on disk with the purchase.
+                _goals?.Record(Goals.Upgrades);
                 _save?.Save(_data);
                 Changed?.Invoke();
                 return true;
@@ -57,6 +63,7 @@ namespace Game.Systems
             {
                 if (!_simulation.Upgrade(productIndex, speed)) return false;
                 _wallet.TrySpendCash(new BigDouble(cost));
+                _goals?.Record(Goals.Upgrades);
                 _save?.Save(_data);
                 Changed?.Invoke();
                 return true;

@@ -83,6 +83,26 @@ namespace Game.Systems
 
         public MiningShopService MiningShop => _miningShop;
         public MiningShopBusinessService MiningShopBusiness => _miningBusiness;
+
+        /// <summary>
+        /// The live shop's unboosted cash per second: the figure published to <see cref="SaveData.incomeRatePerSec"/>
+        /// and the one income-minute rewards are sized from. Zero without the business model — the pickaxe-only
+        /// slice is never opened by the game and keeps failing closed.
+        /// </summary>
+        public double MiningShopIncomePerSec => _miningBusiness != null
+            ? _miningBusiness.SteadyStateRate() * ShopStandingMultiplier
+            : 0d;
+
+        /// <summary>
+        /// What every shop sale is worth on top of its price, bar the timed boost: the permanent Maden Patronu
+        /// purchase and the mining loadout. Both land on PRICE rather than on the shop's clock, because the shared
+        /// carrier already caps how fast goods move and a faster bench would earn nothing more. The timed boost is
+        /// left out here because offline earnings add it themselves for the part of the absence it covered.
+        /// Both reads are cached fields, so this is safe on the per-frame path.
+        /// </summary>
+        private double ShopStandingMultiplier =>
+            (_boost != null ? _boost.PermanentMultiplier : 1d) * (_miningGear != null ? _miningGear.IncomeMultiplier : 1d);
+
         public event Action<MiningShopSimulation.Sale> MiningShopSold;
         public event Action<MiningShopBusinessSimulation.Sale> MiningShopBusinessSold;
 
@@ -164,20 +184,28 @@ namespace Game.Systems
             bool created = state == null;
             if (created) state = new MiningShopState { BusinessId = businessId };
             var business = new MiningShopBusinessService(state, island.AvailableProductCount, tuning, _wallet, save, _data,
-                PayMiningShopBusinessSale);
+                PayMiningShopBusinessSale, _goals);
             if (created) _data.miningShopBusinesses.Add(state);
             _data.activeMiningShopBusinessId = businessId;
-            _data.incomeRatePerSec = 0d;
             _accum = 0f;
             _miningBusiness = business;
+            // Replaces whatever ore rate the save carried before anything reads it this session — contract
+            // seeding runs right after the shop opens.
+            _data.incomeRatePerSec = MiningShopIncomePerSec;
             save?.Save(_data);
             return business;
         }
 
         private void PayMiningShopBusinessSale(MiningShopBusinessSimulation.Sale sale)
         {
-            _wallet.AddCash(new BigDouble(sale.Cash));
-            MiningShopBusinessSold?.Invoke(sale);
+            // The receipt's own Cash stays the shop's figure (Earned counts price alone); listeners are told
+            // what the wallet actually took.
+            double paid = sale.Cash * ShopStandingMultiplier * (_boost != null ? _boost.ActiveMultiplier : 1d);
+            _wallet.AddCash(new BigDouble(paid));
+            // One item sold is one bar sold: the metric every goal, festival and league season already reads.
+            // It persists with the next save, as the ore market's count always has.
+            _goals?.Record(Game.Core.Goals.BarsSold);
+            MiningShopBusinessSold?.Invoke(sale.WithCash(paid));
         }
 
         private string _activeIsland;    // the one whose trucks are really driving; null in the market scene
@@ -536,10 +564,11 @@ namespace Game.Systems
             if (_data == null || _wallet == null) return;
             if (!string.IsNullOrEmpty(_data.activeMiningShopBusinessId))
             {
-                // Fail closed until this saved business is rebound. Never resume the ore payout by accident.
-                _data.incomeRatePerSec = 0d;
+                // Never resume the ore payout by accident: the shop's own rate replaces it, and a record not yet
+                // rebound publishes zero.
                 _miningShop?.Advance(deltaTime);
                 _miningBusiness?.Advance(deltaTime);
+                _data.incomeRatePerSec = MiningShopIncomePerSec;
                 return;
             }
             _accum += deltaTime;

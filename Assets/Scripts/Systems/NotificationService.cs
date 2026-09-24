@@ -31,6 +31,7 @@ namespace Game.Systems
         private readonly INotifications _sink;
         private readonly ContractService _contract;
         private readonly int _testSpacing;
+        private readonly bool _offlineAllowed;
         private readonly NotificationSlot[] _slots = new NotificationSlot[NotificationPlan.MaxSlots];
         private readonly NotificationCandidate[] _candidates =
             new NotificationCandidate[NotificationSchedulePlanner.MaxCandidates];
@@ -39,7 +40,7 @@ namespace Game.Systems
 
         public NotificationService(SaveData data, OfflineConfig config, TimeService time,
                                    INotifications sink, ContractService contract = null,
-                                   int testSpacingSeconds = 0)
+                                   int testSpacingSeconds = 0, bool offlineEarningsAllowed = true)
         {
             _data = data;
             _config = config;
@@ -47,6 +48,7 @@ namespace Game.Systems
             _sink = sink;
             _contract = contract;
             _testSpacing = testSpacingSeconds;
+            _offlineAllowed = offlineEarningsAllowed;
         }
 
         /// <summary>Queues the whole absence. Replaces anything already queued.</summary>
@@ -63,7 +65,8 @@ namespace Game.Systems
             // A brand-new player has no measured rate yet, and a build with offline earning switched off
             // has nothing to promise. Both fall back to lines that quote no figure at all, rather than
             // inviting the player back to collect $0.
-            bool pays = _config != null && _config.Enabled && efficiency > 0d && _data.incomeRatePerSec > 0d;
+            bool pays = _config != null && _config.Enabled && _offlineAllowed && efficiency > 0d &&
+                        _data.incomeRatePerSec > 0d;
             long boostLeft = _data.boostEndUnix - _time.NowUnix();
 
             DateTime leaveLocal = DateTime.Now;

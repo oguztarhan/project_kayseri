@@ -58,5 +58,29 @@ namespace Game.Tests.EditMode
 
             Assert.That(sink.Requests.Exists(n => n.Id == "away:NewDay" && n.Target == "goals:daily"), Is.True);
         }
+
+        [Test]
+        public void SwitchedOffOfflineEarningsAreNeverQuoted()
+        {
+            var config = UnityEngine.ScriptableObject.CreateInstance<Game.Data.OfflineConfig>();
+            try
+            {
+                var data = new SaveData { incomeRatePerSec = 100d };
+                var quoted = new Sink();
+                new NotificationService(data, config, new TimeService(), quoted, null, 1).ScheduleAway();
+                var silent = new Sink();
+                new NotificationService(data, config, new TimeService(), silent, null, 1, false).ScheduleAway();
+
+                // No localization service is registered here, so a line reads as its key: the quoting keys
+                // carry the figure, their "_sade" twins do not.
+                System.Predicate<LocalNotificationRequest> quotes = n =>
+                    n.Message == "bildirim.dolduruyor" || n.Message == "bildirim.dolduruyor_gec" ||
+                    n.Message == "bildirim.doldu";
+                Assert.That(quoted.Requests.Exists(quotes), Is.True);
+                Assert.That(silent.Requests.Exists(quotes), Is.False);
+                Assert.That(silent.Requests.Count, Is.EqualTo(quoted.Requests.Count), "the lines still go out");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(config); }
+        }
     }
 }

@@ -250,5 +250,41 @@ namespace Game.Tests
             bad.Products[3].UnitPrice = double.NaN;
             Assert.Throws<ArgumentException>(() => new MiningShopBusinessSimulation(Fresh(), 4, bad, _ => { }));
         }
+
+        [Test]
+        public void SteadyStateRateMatchesWhatTheShopActuallyEarns()
+        {
+            var config = ScriptableObject.CreateInstance<MiningShopConfig>();
+            try
+            {
+                // The code default and the Inspector default are both live somewhere: tests use the first, a
+                // Bootstrap with no config asset wired runs the second. Their carriers and arrivals differ.
+                var tunings = new[] { MiningShopBusinessSimulation.Tuning.Default, config.ToBusinessTuning() };
+                foreach (MiningShopBusinessSimulation.Tuning tuning in tunings)
+                    for (int built = 1; built <= MiningShopCampaign.ProductCount; built++)
+                        for (int level = 1; level <= 21; level += 10)
+                        {
+                            double cash = 0d;
+                            var simulation = new MiningShopBusinessSimulation(Fresh(), MiningShopCampaign.ProductCount,
+                                tuning, sale => cash += sale.Cash);
+                            for (int table = 1; table < built; table++) Assert.That(simulation.BuildTable(table), Is.True);
+                            for (int table = 0; table < built; table++)
+                                for (int step = 1; step < level; step++)
+                                {
+                                    Assert.That(simulation.Upgrade(table, true), Is.True);
+                                    Assert.That(simulation.Upgrade(table, false), Is.True);
+                                }
+
+                            for (int second = 0; second < 3600; second++) simulation.Advance(1d);
+                            double settled = cash;
+                            for (int second = 0; second < 7200; second++) simulation.Advance(1d);
+                            double measured = (cash - settled) / 7200d;
+
+                            Assert.That(measured, Is.EqualTo(simulation.SteadyStateRate()).Within(1).Percent,
+                                "built " + built + ", level " + level);
+                        }
+            }
+            finally { UnityEngine.Object.DestroyImmediate(config); }
+        }
     }
 }

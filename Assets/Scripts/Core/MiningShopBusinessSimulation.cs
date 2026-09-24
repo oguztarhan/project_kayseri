@@ -92,6 +92,9 @@ namespace Game.Core
                 Sequence = sequence;
                 Cash = cash;
             }
+
+            /// <summary>The same receipt at what the wallet was actually paid, once the payer's multipliers are in.</summary>
+            public Sale WithCash(double cash) => new Sale(BusinessId, ProductId, Sequence, cash);
         }
 
         public readonly struct ProductSnapshot
@@ -209,6 +212,30 @@ namespace Game.Core
         public double UnitPrice(int productIndex) => _tuning.Products[productIndex].UnitPrice *
             (1d + _tuning.ValuePerLevel * (Line(productIndex).ValueLevel - 1));
         public double TableCost(int productIndex) => _tuning.Products[productIndex].TableCost;
+
+        /// <summary>
+        /// Cash per second once the shop has settled, before any wallet multiplier. Customers are dealt to built tables
+        /// in turn, so every table sells the same share and the slowest one paces the rest; the arrival clock, the
+        /// seller and the one shared carrier each cap the total. Offline earnings and income-minute rewards are paid
+        /// from this rather than from a measured window, so it is right the moment the shop opens.
+        /// </summary>
+        public double SteadyStateRate()
+        {
+            int built = 0;
+            double slowest = double.MaxValue, prices = 0d;
+            for (int i = 0; i < _state.AvailableProductCount; i++)
+            {
+                if (!_state.Lines[i].TableBuilt) continue;
+                built++;
+                slowest = Math.Min(slowest, 1d / CraftSeconds(i));
+                prices += UnitPrice(i);
+            }
+            if (built == 0) return 0d;
+            double carrier = _tuning.CarrierLoad / (2d * (_tuning.HandlingSeconds + _tuning.TravelSeconds));
+            double sales = Math.Min(Math.Min(1d / _tuning.ArrivalSeconds, 1d / _tuning.ServiceSeconds),
+                                    Math.Min(carrier, built * slowest));
+            return sales * prices / built;
+        }
 
         public double UpgradeCost(int productIndex, bool speed)
         {

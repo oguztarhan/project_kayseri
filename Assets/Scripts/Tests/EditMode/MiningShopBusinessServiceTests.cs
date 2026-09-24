@@ -68,7 +68,91 @@ namespace Game.Tests
             Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(
                 _data.miningShopBusinesses[0].Business.Lines[0].Earned +
                 _data.miningShopBusinesses[0].Business.Lines[1].Earned).Within(1e-6));
-            Assert.That(_data.incomeRatePerSec, Is.Zero);
+            Assert.That(_data.incomeRatePerSec, Is.EqualTo(shop.SteadyStateRate()));
+        }
+
+        [Test]
+        public void SalesPayGearPermanentAndTimedBoostWhileThePublishedRateLeavesTheTimedBoostOut()
+        {
+            var time = new TimeService();
+            _data.stationSpeedMultiplier = 1.5d;
+            _data.boostMultiplier = 2d;
+            _data.boostEndUnix = time.NowUnix() + 3600L;
+            _data.miningGearGrade = new[] { 3, 4, 5, 2 };
+            var gear = new MiningGearService(_data, null, time);
+            Assert.That(gear.IncomeMultiplier, Is.GreaterThan(1d));
+            _market = new MarketService(_data, _wallet, new BoostService(_data, time), miningGear: gear);
+            double standing = 1.5d * gear.IncomeMultiplier;
+
+            MiningShopBusinessService shop = Open();
+            Assert.That(_data.incomeRatePerSec, Is.EqualTo(shop.SteadyStateRate() * standing).Within(1e-9),
+                "offline earnings add the timed boost themselves");
+
+            double heard = 0d;
+            _market.MiningShopBusinessSold += sale => heard += sale.Cash;
+            for (int i = 0; i < 120; i++) _market.Tick(1f);
+            MiningShopProductLineState pickaxe = _data.miningShopBusinesses[0].Business.Lines[0];
+            Assert.That(pickaxe.Earned, Is.GreaterThan(0d));
+            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(pickaxe.Earned * standing * 2d).Within(1e-6));
+            Assert.That(heard, Is.EqualTo(_wallet.Cash.ToDouble()).Within(1e-6), "listeners hear what the wallet took");
+
+            _data.boostEndUnix = time.NowUnix() - 1L;
+            double cashBefore = _wallet.Cash.ToDouble(), earnedBefore = pickaxe.Earned;
+            for (int i = 0; i < 120; i++) _market.Tick(1f);
+            double earned = pickaxe.Earned - earnedBefore;
+            Assert.That(earned, Is.GreaterThan(0d));
+            Assert.That(_wallet.Cash.ToDouble() - cashBefore, Is.EqualTo(earned * standing).Within(1e-6),
+                "an expired boost stops paying mid-session");
+        }
+
+        [Test]
+        public void ShopPurchasesAndSalesCountForGoalsAndTheLeagueAndRefusalsDoNot()
+        {
+            var goals = new GoalService(_data, _wallet, null, new TimeService());
+            var board = new LocalLeaderboardService(null, Leaderboards.SeasonEpochUnix, Leaderboards.ThreeDayCadenceSeconds);
+            var ladder = new LadderService(_data, null, goals, board, _wallet);
+            _market = new MarketService(_data, _wallet, null, goals: goals);
+            _wallet.AddCash(new BigDouble(400d));
+            MiningShopBusinessService shop = Open();
+            long score = ladder.Score;
+
+            Assert.That(shop.TryBuildTable(1), Is.True);
+            Assert.That(shop.TryBuyUpgrade(0, true), Is.True);
+            Assert.That(goals.TodayProgress(Goals.Upgrades), Is.EqualTo(2L), "a build and an upgrade");
+            Assert.That(shop.TryBuildTable(1), Is.False);
+            Assert.That(shop.TryBuyUpgrade(3, true), Is.False, "a table that is not built");
+            _wallet.TrySpendCash(_wallet.Cash);
+            Assert.That(shop.TryBuyUpgrade(0, false), Is.False, "nothing left to pay with");
+            Assert.That(goals.Lifetime(Goals.Upgrades), Is.EqualTo(2L), "refusals count nothing");
+
+            for (int i = 0; i < 240; i++) _market.Tick(1f);
+            MiningShopBusinessState business = _data.miningShopBusinesses[0].Business;
+            long sold = business.Lines[0].Sold + business.Lines[1].Sold;
+            Assert.That(sold, Is.GreaterThan(0L));
+            Assert.That(goals.Lifetime(Goals.BarsSold), Is.EqualTo(sold), "one per item sold");
+            Assert.That(goals.TodayProgress(Goals.BarsSold), Is.EqualTo(sold));
+
+            Assert.That(ladder.Score, Is.GreaterThan(score), "the league reads the same counts");
+            if (ladder.ScoresPoints)
+                foreach (Ladder.ScoringRule rule in Ladder.Scoring)
+                    if (rule.Metric == Goals.Upgrades) Assert.That(ladder.CountedActions(rule), Is.EqualTo(2L));
+        }
+
+        [Test]
+        public void OpeningPublishesTheShopRateInPlaceOfTheSavedOreRateAndUpgradesRaiseIt()
+        {
+            _data.incomeRatePerSec = 500d;
+            _wallet.AddCash(new BigDouble(1000d));
+            MiningShopBusinessService shop = Open();
+            double opened = shop.SteadyStateRate();
+            Assert.That(opened, Is.GreaterThan(0d));
+            Assert.That(_data.incomeRatePerSec, Is.EqualTo(opened), "published before the first tick");
+            Assert.That(_market.MiningShopIncomePerSec, Is.EqualTo(opened));
+
+            Assert.That(shop.TryBuyUpgrade(0, false), Is.True);
+            _market.Tick(1f);
+            Assert.That(_data.incomeRatePerSec, Is.GreaterThan(opened));
+            Assert.That(_data.incomeRatePerSec, Is.EqualTo(shop.SteadyStateRate()));
         }
 
         [Test]
