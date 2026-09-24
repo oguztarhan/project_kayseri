@@ -1111,6 +1111,7 @@ namespace Game.UI
                 case "BtnMaden": return "madenci.baslik";
                 case "BtnKartKoleksiyonu": return "koleksiyon.baslik";
                 case "BtnDenizDostlari": return "dost.baslik";
+                case SailButtonName: return "deniz.acil";
                 case "BtnCuzdan": return "wallet.open";
                 case "BtnPazarGelistir": return "hud.pazar_gelistir";
                 default: return name;
@@ -1723,26 +1724,41 @@ namespace Game.UI
         // Read-only rects, so the onboarding can cut a hole over a real control instead of drawing a
         // copy of it somewhere and hoping the two stay in the same place. Nothing here can move a
         // button; the screen the player taps is still this one's.
-        public RectTransform UpgradeRect => Rect(upgradeButton);
         public RectTransform ContractRect => Rect(contractButton);
         public RectTransform BoostRect => Rect(boostButton);
         public RectTransform DailyRect => Rect(dailyButton);
         public RectTransform GoldRect => Rect(goldButton);
         public RectTransform GemsRect => Rect(gemsButton);
-        public RectTransform SettingsRect => Rect(settingsButton);
-        public RectTransform StoreRect => Rect(storeButton);
-        public RectTransform AdRect => Rect(adButton);
-        public RectTransform OfferRect => Rect(offerButton);
-        /// <summary>The $/min pill, not the label inside it — the highlight has to sit on the art.</summary>
-        public RectTransform RateRect
+
+        /// <summary>
+        /// A code-built opener by its name, wherever this layout hung it: on the rail, or as a row in
+        /// the More sheet (<paramref name="inMore"/>). Null when no screen attached it.
+        /// </summary>
+        public RectTransform OpenerRect(string name, out bool inMore)
+        {
+            for (int i = 0; i < _moreRows.Count; i++)
+                if (_moreRows[i] != null && _moreRows[i].name == name) { inMore = true; return _moreRows[i]; }
+            inMore = false;
+            for (int i = 0; i < _bottomRects.Count; i++)
+                if (_bottomRects[i] != null && _bottomRects[i].name == name) return _bottomRects[i];
+            return null;
+        }
+
+        /// <summary>The rail button that opens the More sheet.</summary>
+        public RectTransform MoreButtonRect
         {
             get
             {
-                if (rateValue == null) return null;
-                var parent = rateValue.transform.parent as RectTransform;
-                return parent != null ? parent : (RectTransform)rateValue.transform;
+                for (int i = 0; i < _bottomRects.Count; i++)
+                    if (_bottomRects[i] != null && _bottomRects[i].name == MoreButtonName) return _bottomRects[i];
+                return null;
             }
         }
+
+        public bool MoreOpen => _moreScrim != null && _moreScrim.gameObject.activeInHierarchy;
+
+        /// <summary>Whether a UI object belongs to the More sheet's own canvas.</summary>
+        public bool InMoreSheet(Transform t) => _moreScrim != null && t != null && t.IsChildOf(_moreScrim.parent);
 
         /// <summary>Whether the ×2 shortcut has a charge — the tip about it waits for this.</summary>
         public bool BoostReady => adScreen != null && adScreen.BoostReady;

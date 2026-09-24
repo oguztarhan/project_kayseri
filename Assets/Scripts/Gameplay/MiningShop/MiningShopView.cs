@@ -102,6 +102,16 @@ namespace Game.Gameplay
             return true;
         }
 
+        /// <summary>The carrier, for the first-time guide to follow. Null until the shop is built.</summary>
+        public Transform TutorialCarrier => _carrier != null ? _carrier.body : null;
+
+        /// <summary>The shelf the customers buy from, for the first-time guide.</summary>
+        public Transform TutorialShelf => _shelf;
+
+        /// <summary>An offered bench's empty pad, where the player taps to build it. Null when there is none.</summary>
+        public Collider TutorialPad(int product)
+            => product >= 0 && product < _lines.Length && _lines[product] != null ? _lines[product].padCollider : null;
+
         /// <summary>Everything the offered lines use — benches to the customers' entry — for the camera to fit.</summary>
         public Bounds ShopBounds { get; private set; }
 

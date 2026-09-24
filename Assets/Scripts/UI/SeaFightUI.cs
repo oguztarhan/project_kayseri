@@ -227,14 +227,27 @@ namespace Game.UI
         private string _lastEnergy, _lastSearch, _lastPower, _lastCaptain, _lastThreat, _lastLoot,
                        _lastEnergyAd, _lastAutoText;
         private bool _lastAuto;
-        private float _tutorialCooldown;
-        private bool _pendingRewardTutorial;
+        private RectTransform _fightButton;
 
         private static Sprite S(string name) => Resources.Load<Sprite>("UI/Sea/" + name);
 
         /// <summary>The theater's threat art by kind. The raider is the kit's pirate ship
         /// (<see cref="ThreatArt"/>), so it has no entry here.</summary>
         private static readonly string[] KindSprite = { null, "canavar", "enkaz", "alev", "hayalet" };
+
+        // ------------------------------------------------------------------ what the sea lessons point at
+        /// <summary>DÜŞMAN ARA, on the sheet.</summary>
+        public RectTransform SearchRect => _search != null ? (RectTransform)_search.transform : null;
+
+        /// <summary>SAVAŞ! on the sighting's card; only on screen while a sighting waits.</summary>
+        public RectTransform FightRect => _fightButton;
+
+        public RectTransform BossRect(int index)
+            => index >= 0 && index < _bossButtons.Length && _bossButtons[index] != null
+                ? (RectTransform)_bossButtons[index].transform : null;
+
+        /// <summary>A fight's result is on the banner. A lesson waits it out rather than cover it.</summary>
+        public bool Toasting => _toast > 0f;
 
         public void Build(EncounterController fights)
         {
@@ -1086,8 +1099,8 @@ namespace Game.UI
             _foundReward.color = Faded;
 
             TMP_Text fightLabel, passLabel;
-            CardButton(_foundCard, "Savas", "ana_buton", new Vector2(0.07f, 0.04f),
-                       new Vector2(0.60f, 0.18f), OnConfirm, out fightLabel, CompassCard);
+            _fightButton = (RectTransform)CardButton(_foundCard, "Savas", "ana_buton", new Vector2(0.07f, 0.04f),
+                       new Vector2(0.60f, 0.18f), OnConfirm, out fightLabel, CompassCard).transform;
             fightLabel.text = Loc.T("deniz.savas");
             fightLabel.fontSize = 30f;
             CardButton(_foundCard, "Vazgec", "oto_buton", new Vector2(0.64f, 0.04f),
@@ -1329,22 +1342,12 @@ namespace Game.UI
                                                                _fights.LastCashReward)
                     : Loc.T("deniz.yenildik");
                 if (_fights.LastWon && _fights.IsBossEncounter)
-                    _banner.text += _fights.LastBossFirstClear ? "  ·  İLK ZAFER" : "  ·  BOSS";
-                if (_fights.LastWon && _data != null && _data.tutorialStep >= 100
-                    && !TutorialSeen("sea.reward")) _pendingRewardTutorial = true;
+                    _banner.text += "  ·  " + Loc.T(_fights.LastBossFirstClear ? "deniz.boss_ilk" : "deniz.boss");
             }
             if (_toast > 0f)
             {
                 _toast -= dt;
-                if (_toast <= 0f)
-                {
-                    _banner.text = string.Empty;
-                    if (_pendingRewardTutorial)
-                    {
-                        _pendingRewardTutorial = false;
-                        ShowTutorialToast("sea.reward", "egitim.ipucu_sea_reward_m");
-                    }
-                }
+                if (_toast <= 0f) _banner.text = string.Empty;
             }
             bool toasting = _toast > 0f;
             if (_bannerBack.activeSelf != toasting) _bannerBack.SetActive(toasting);
@@ -1741,9 +1744,6 @@ namespace Game.UI
         {
             if (_sea == null || !_sea.Active) return;
 
-            _tutorialCooldown = Mathf.Max(0f, _tutorialCooldown - dt);
-            TickSeaTutorial(phase);
-
             _energyTick -= dt;
             if (_energyTick <= 0f)
             {
@@ -1792,41 +1792,6 @@ namespace Game.UI
             if (System.Math.Abs(power - _sheetPowerSeen) < 0.25d) return;
             _sheetPowerSeen = power;
             RefreshSheet();
-        }
-
-        private void TickSeaTutorial(EncounterController.Phase phase)
-        {
-            if (_data == null || _data.tutorialStep < 100 || _toast > 0f || _tutorialCooldown > 0f
-                || phase != EncounterController.Phase.Idle) return;
-
-            if (!TutorialSeen("sea.combat"))
-            {
-                ShowTutorialToast("sea.combat", "egitim.ipucu_sea_combat_m");
-                _tutorialCooldown = 30f;
-                return;
-            }
-
-            if (_fights != null && _fights.BossAvailable(0) && !TutorialSeen("sea.boss"))
-            {
-                ShowTutorialToast("sea.boss", "egitim.ipucu_sea_boss_m");
-                _tutorialCooldown = 30f;
-            }
-        }
-
-        private bool TutorialSeen(string id)
-            => _data != null && _data.tutorialTipsSeen != null && _data.tutorialTipsSeen.Contains(id);
-
-        private void ShowTutorialToast(string id, string textKey)
-        {
-            if (_data == null) return;
-            if (_data.tutorialTipsSeen == null) _data.tutorialTipsSeen = new System.Collections.Generic.List<string>();
-            if (_data.tutorialTipsSeen.Contains(id)) return;
-            _data.tutorialTipsSeen.Add(id);
-            _save?.Save(_data);
-            _banner.color = Paper;
-            _banner.text = Loc.T(textKey);
-            _toast = 7f;
-            _bannerBack.SetActive(true);
         }
 
         /// <summary>Every derived number on the panel, re-read. Called on the half-second and after

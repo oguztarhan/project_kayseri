@@ -129,6 +129,7 @@ namespace Game.UI
             if (_root != null) _root.gameObject.SetActive(true);
             if (_resultLabel != null) _resultLabel.text = string.Empty;
             Refresh();
+            TutorialUI.NotifyFeatureOpened("gear");
         }
 
         public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }

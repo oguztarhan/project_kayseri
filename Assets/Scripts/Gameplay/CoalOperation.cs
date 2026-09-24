@@ -1126,14 +1126,6 @@ namespace Game.Gameplay
         }
 
         /// <summary>
-        /// The first line's locomotive while it is out of cover, else null. The tutorial's TRAIN beat
-        /// rides it: a caption about hauling over a shot of empty track teaches nothing, and the rake is
-        /// only on that stretch for part of its round trip.
-        /// </summary>
-        public Transform TrainEngine =>
-            _train1 != null && _train1.active && _train1.visible ? _train1.engine : null;
-
-        /// <summary>
         /// The whole district a station lives in, measured off its renderers — what the tutorial frames.
         /// <see cref="StationAnchor"/> is a point (and for the marker-object stations, a point on the
         /// GROUND), which told the camera where to aim but not how far to stand back: framed by anchor

@@ -84,6 +84,7 @@ namespace Game.UI
         private const float PinSize = 128f;
         private const float NarratorInset = 30f;    // Max's outer edge inside the card's end; the waving glove reaches past it
         private const float MinHole = 120f;         // smallest spotlight, either side
+        private const float WideTarget = 1.6f;      // width/height past which the hand presses off-centre
         private const float ScreenEdgeGap = 4f;     // the ring stops this far inside the screen
 
         // Where things are inside tutorial_panel_yeni, as shares of its own width and height, measured
@@ -98,10 +99,19 @@ namespace Game.UI
         public event Action Skipped;
         public event Action ShadeTapped;
 
+        /// <summary>
+        /// The overlay was switched off — by <see cref="Clear"/> at the end of a flow, or from outside,
+        /// when the island's scene is parked for the sea or the market. In that second case every
+        /// flow running on this object has just stopped, and its owner has to let go of it.
+        /// </summary>
+        public event Action Disabled;
+
         // ------------------------------------------------------------------ parts
         private Art _art;
         private Layout _layout;
         private RectTransform _root;
+        private Canvas _canvas;
+        private GraphicRaycaster _raycaster;
         private Image[] _shade;
         private Image _blocker;
         private Image _ring, _pulse;
@@ -138,6 +148,9 @@ namespace Game.UI
         /// <summary>The card, while it is up — for callers that need to keep other UI clear of it.</summary>
         public bool CardShowing => _showing;
 
+        /// <summary>Visible and not stepped aside for another screen (<see cref="SetSuspended"/>).</summary>
+        public bool OnScreen => Visible && _canvas != null && _canvas.enabled;
+
         /// <summary>The overlay canvas and this component on it. Nothing is visible until a card or shade is shown.</summary>
         public static TutorialPresenter Create(Art art, Layout layout, int sortingOrder)
         {
@@ -153,6 +166,8 @@ namespace Game.UI
             presenter._art = art;
             presenter._layout = layout;
             presenter._root = (RectTransform)go.transform;
+            presenter._canvas = canvas;
+            presenter._raycaster = go.GetComponent<GraphicRaycaster>();
             presenter.Build();
             go.SetActive(false);
             return presenter;
@@ -163,6 +178,17 @@ namespace Game.UI
         public void SetVisible(bool on)
         {
             if (_root != null && _root.gameObject.activeSelf != on) _root.gameObject.SetActive(on);
+        }
+
+        /// <summary>
+        /// Out of sight and out of the way of taps, with everything kept as it was: another screen is
+        /// over the island. Switching the canvas off rather than the object keeps the card's slide and
+        /// the shade where they were, so the lesson comes back exactly as the player left it.
+        /// </summary>
+        public void SetSuspended(bool on)
+        {
+            if (_canvas != null) _canvas.enabled = !on;
+            if (_raycaster != null) _raycaster.enabled = !on;
         }
 
         /// <summary>
@@ -196,6 +222,23 @@ namespace Game.UI
             _showing = true;
             if (_cardAnim != null) StopCoroutine(_cardAnim);
             _cardAnim = StartCoroutine(CardIn());
+        }
+
+        /// <summary>Rewrites the text of the card already up — a live counter — without sliding it again.</summary>
+        public void SetBody(string body)
+        {
+            _body.text = body ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Adds or removes DEVAM on the card already up. A lesson that waits on the game offers it
+        /// late, so a shop that stalls can never hold the player on one card.
+        /// </summary>
+        public void ShowContinue(bool on)
+        {
+            if (_continueOn == on) return;
+            _continueOn = on;
+            LayoutDock();
         }
 
         /// <summary>Slides the card out. Yield on it so the next card does not start under this one.</summary>
@@ -325,10 +368,13 @@ namespace Game.UI
             _dock.gameObject.SetActive(false);
             _pin.gameObject.SetActive(false);
             _arrow.gameObject.SetActive(false);
+            SetSuspended(false);
             SetVisible(false);
         }
 
         // ================================================================== per frame
+
+        private void OnDisable() => Disabled?.Invoke();
 
         private void LateUpdate()
         {
@@ -755,7 +801,11 @@ namespace Game.UI
             Sprite s = _art.TapHand;
             float aspect = s != null ? s.rect.width / Mathf.Max(1f, s.rect.height) : 0.75f;
             _hand.sizeDelta = new Vector2(hh * aspect, hh);
-            _hand.anchoredPosition = hole.center;
+            // On a wide button the middle is its label and price; the finger presses toward the right
+            // end instead, where it still lands on the button but covers none of the text.
+            _hand.anchoredPosition = hole.width > hole.height * WideTarget
+                ? new Vector2(hole.xMin + hole.width * 0.8f, hole.center.y)
+                : hole.center;
         }
 
         // ================================================================== taps

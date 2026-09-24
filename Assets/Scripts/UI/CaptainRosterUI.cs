@@ -199,7 +199,12 @@ namespace Game.UI
 
         private void OnChanged() { Refresh(); RefreshOpener(); }
 
-        public void Show() { if (_root != null) _root.gameObject.SetActive(true); Refresh(); }
+        public void Show()
+        {
+            if (_root != null) _root.gameObject.SetActive(true);
+            Refresh();
+            TutorialUI.NotifyFeatureOpened("captain");
+        }
         public void Hide()
         {
             if (_inspect != null) _inspect.Hide();

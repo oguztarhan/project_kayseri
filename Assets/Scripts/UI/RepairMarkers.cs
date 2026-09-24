@@ -356,6 +356,9 @@ namespace Game.UI
 
             _scanIn -= dt;
             if (_scanIn <= 0f) { _scanIn = scanSeconds; Scan(); }
+            // Bottom-left is where the tutorial docks its card; the button stays away until the card is done,
+            // rather than peeking out from beneath it.
+            if (_pillShown && TutorialUI.Blocking) ShowPill(false);
 
             Place();
         }
@@ -413,7 +416,7 @@ namespace Game.UI
             // charge nothing and start nothing. The fleets have no badge of their own, so they are
             // checked here directly — they are half of why this button exists.
             if (!anyIdleAndDirty) anyIdleAndDirty = FleetNeedsRepair(island);
-            if (!anyIdleAndDirty) { ShowPill(false); return; }
+            if (!anyIdleAndDirty || TutorialUI.Blocking) { ShowPill(false); return; }
 
             double all = _maintenance.RepairCostAll(island, rate);
             ShowPill(true);

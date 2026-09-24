@@ -314,5 +314,39 @@ namespace Game.Tests
             Assert.That(TutorialProgress.AlreadyDone(Goal.Carry, busyShop), Is.False);
             Assert.That(TutorialProgress.AlreadyDone(Goal.Sell, busyShop), Is.False);
         }
+
+        [Test]
+        public void LessonTextKeysFollowTheTableNaming()
+        {
+            Assert.That(TutorialProgress.TextKey("ftue.save_up", true), Is.EqualTo("egitim.ftue_save_up_b"));
+            Assert.That(TutorialProgress.TextKey("ftue.save_up", false), Is.EqualTo("egitim.ftue_save_up_m"));
+        }
+
+        [Test]
+        public void ReplayingTheBasicsDoesNotOweTheProgressionLessonsAgain()
+        {
+            var seen = new List<string>();
+            var progress = new TutorialProgress(seen, TutorialProgress.StepDone);
+            for (int i = 0; i < TutorialProgress.ProgressLessons.Length; i++)
+                progress.Complete(TutorialProgress.ProgressLessons[i]);
+
+            progress.ResetCore();
+
+            for (int i = 0; i < TutorialProgress.ProgressLessons.Length; i++)
+                Assert.That(progress.Has(TutorialProgress.ProgressLessons[i]), Is.True, TutorialProgress.ProgressLessons[i]);
+            Assert.That(progress.NextCoreIndex, Is.EqualTo(0));
+        }
+
+        /// <summary>The old sea hints wrote these ids into saves. A player who saw one must not be taught it again.</summary>
+        [Test]
+        public void SeaLessonsKeepTheIdsTheOldSeaHintsWrote()
+        {
+            Assert.That(TutorialProgress.SeaFightLesson, Is.EqualTo("sea.combat"));
+            Assert.That(TutorialProgress.SeaRewardLesson, Is.EqualTo("sea.reward"));
+            Assert.That(TutorialProgress.SeaBossLesson, Is.EqualTo("sea.boss"));
+
+            var progress = new TutorialProgress(new List<string> { "sea.combat" }, TutorialProgress.StepDone);
+            Assert.That(progress.DecideIntro(TutorialProgress.SeaFightLesson, true, false), Is.EqualTo(Intro.Done));
+        }
     }
 }

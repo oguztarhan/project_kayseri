@@ -69,6 +69,8 @@ namespace Game.UI
 
         /// <summary>Whether the player has the product upgrade panel open.</summary>
         public bool TutorialPanelOpen => _panel != null && _panel.gameObject.activeSelf;
+        /// <summary>Which bench the open panel is for — 0 the pickaxe bench, 1 the second.</summary>
+        public int TutorialProduct => _product;
         public RectTransform TutorialSpeedRect => _speed != null ? _speed.transform as RectTransform : null;
         public RectTransform TutorialValueRect => _value != null ? _value.transform as RectTransform : null;
         public bool TutorialSpeedAvailable => _speed != null && _speed.interactable;

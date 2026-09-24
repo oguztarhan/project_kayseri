@@ -126,6 +126,9 @@ namespace Game.UI
 
         public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }
 
+        /// <summary>The tutorial's Goals lesson ends when the player gets here.</summary>
+        public bool IsOpen => _root != null && _root.gameObject.activeSelf;
+
         /// <summary>Before <see cref="Build"/>, which reads every one of these.</summary>
         private void LoadKit()
         {

@@ -122,6 +122,7 @@ namespace Game.UI
 
         private LadderService _ladder;
         private PlayerProfileService _profiles;
+        private bool _autoOpenPending;   // profile or points card owed, held while a tutorial card is up
         private LocalizationService _loc;
         private RectTransform _root;
 
@@ -249,11 +250,25 @@ namespace Game.UI
             // Once each, the first time the league opens: the profile first, because the board is
             // about to show the player's name; then the points card. Most players never tap an info
             // button, and a score whose rules are never read is a number that moves at random.
+            // Max's introduction to the league comes first when it is owed; these cards wait for it.
+            TutorialUI.NotifyFeatureOpened("league");
+            _autoOpenPending = true;
+            RunAutoOpen();
+        }
+
+        private void RunAutoOpen()
+        {
+            if (!_autoOpenPending || TutorialUI.CardOnScreen) return;
+            _autoOpenPending = false;
             if (_profiles != null && !_profiles.Prompted) ShowProfile();
             else AutoOpenPoints();
         }
 
-        public void Hide() { if (_root != null) _root.gameObject.SetActive(false); }
+        public void Hide()
+        {
+            _autoOpenPending = false;
+            if (_root != null) _root.gameObject.SetActive(false);
+        }
 
         /// <summary>
         /// The countdown every second; the board once a minute. A board is an allocation per request —
@@ -262,6 +277,7 @@ namespace Game.UI
         private void Update()
         {
             if (_root == null || !_root.gameObject.activeSelf) return;
+            RunAutoOpen();
             _tick += Time.unscaledDeltaTime;
             if (_tick < 1f) return;
             _tick = 0f;

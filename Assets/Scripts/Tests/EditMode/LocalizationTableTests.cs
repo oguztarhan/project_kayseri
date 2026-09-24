@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Game.Core;
 using Game.Systems;
 using NUnit.Framework;
 using UnityEngine;
@@ -38,9 +39,6 @@ namespace Game.Tests.EditMode
         private static readonly string[] TutorialKeys =
         {
             "egitim.atla", "egitim.devam",
-            "egitim.shop_overview_production_b", "egitim.shop_overview_production_m",
-            "egitim.shop_overview_sale_b", "egitim.shop_overview_sale_m",
-            "egitim.shop_overview_growth_b", "egitim.shop_overview_growth_m",
             "egitim.ipucu_kontrat_b", "egitim.ipucu_kontrat_m",
             "egitim.ipucu_boost_b", "egitim.ipucu_boost_m",
             "egitim.ipucu_gunluk_b", "egitim.ipucu_gunluk_m",
@@ -50,7 +48,6 @@ namespace Game.Tests.EditMode
             "egitim.ipucu_pets_b", "egitim.ipucu_pets_m",
             "egitim.ipucu_collection_b", "egitim.ipucu_collection_m",
             "egitim.ipucu_events_b", "egitim.ipucu_events_m",
-            "egitim.ipucu_sea_combat_m", "egitim.ipucu_sea_boss_m", "egitim.ipucu_sea_reward_m",
         };
 
         private static string[] Lines()
@@ -146,6 +143,26 @@ namespace Game.Tests.EditMode
             CollectionAssert.IsEmpty(missing);
         }
 
+        /// <summary>The sea screen builds some keys from an index (one per gear slot) and asks for the
+        /// rest by name. Slot 4 and the auto button both shipped as raw keys before this test.</summary>
+        [Test]
+        public void SeaScreenFindsEveryKeyItAsksFor()
+        {
+            string[] lines = Lines();
+            var keys = new HashSet<string>();
+            for (int i = 1; i < lines.Length; i++)
+                if (IsRow(lines[i])) keys.Add(Cells(lines[i])[0]);
+
+            var wanted = new List<string> { "deniz.oto", "deniz.oto_reklam", "deniz.boss", "deniz.boss_ilk", "deniz.sok" };
+            for (int slot = 0; slot < SeaCombat.SlotCount; slot++) wanted.Add("deniz.slot." + slot);
+
+            var missing = new List<string>();
+            for (int i = 0; i < wanted.Count; i++)
+                if (!keys.Contains(wanted[i])) missing.Add(wanted[i]);
+
+            CollectionAssert.IsEmpty(missing, "these would reach the player as raw keys");
+        }
+
         [Test]
         public void TutorialFindsEveryKeyItAsksFor()
         {
@@ -157,8 +174,52 @@ namespace Game.Tests.EditMode
             var missing = new List<string>();
             for (int i = 0; i < TutorialKeys.Length; i++)
                 if (!keys.Contains(TutorialKeys[i])) missing.Add(TutorialKeys[i]);
+            for (int i = 0; i < TutorialProgress.CoreLessons.Length; i++)
+            {
+                string id = TutorialProgress.CoreLessons[i].Id;
+                if (!keys.Contains(TutorialProgress.TextKey(id, true))) missing.Add(TutorialProgress.TextKey(id, true));
+                if (!keys.Contains(TutorialProgress.TextKey(id, false))) missing.Add(TutorialProgress.TextKey(id, false));
+            }
+            for (int i = 0; i < TutorialProgress.ProgressLessons.Length; i++)
+            {
+                string id = TutorialProgress.ProgressLessons[i];
+                if (!keys.Contains(TutorialProgress.TextKey(id, true))) missing.Add(TutorialProgress.TextKey(id, true));
+                if (!keys.Contains(TutorialProgress.TextKey(id, false))) missing.Add(TutorialProgress.TextKey(id, false));
+            }
+            for (int i = 0; i < TutorialProgress.FeatureIntros.Length; i++)
+            {
+                string id = TutorialProgress.FeatureIntros[i];
+                if (!keys.Contains("egitim.ipucu_" + id + "_b")) missing.Add("egitim.ipucu_" + id + "_b");
+                if (!keys.Contains("egitim.ipucu_" + id + "_m")) missing.Add("egitim.ipucu_" + id + "_m");
+            }
+            for (int i = 0; i < TutorialProgress.SeaLessons.Length; i++)
+            {
+                string id = TutorialProgress.SeaLessons[i];
+                if (!keys.Contains(TutorialProgress.TextKey(id, true))) missing.Add(TutorialProgress.TextKey(id, true));
+                if (!keys.Contains(TutorialProgress.TextKey(id, false))) missing.Add(TutorialProgress.TextKey(id, false));
+            }
 
             CollectionAssert.IsEmpty(missing, "these would reach the player as raw keys");
+        }
+
+        /// <summary>The saving-up lesson prints the cash and the price into its text. A translation that
+        /// drops either one shows a sentence with a hole in it; one that drops "{1}" and keeps "{0}" is
+        /// worse, it shows the wrong number.</summary>
+        [Test]
+        public void SavingUpLessonKeepsBothCountersInEveryLanguage()
+        {
+            string key = TutorialProgress.TextKey("ftue.save_up", false);
+            string[] lines = Lines();
+            string[] row = null;
+            for (int i = 1; i < lines.Length; i++)
+                if (IsRow(lines[i]) && Cells(lines[i])[0] == key) row = Cells(lines[i]);
+            Assert.IsNotNull(row, key);
+
+            for (int c = 1; c < row.Length; c++)
+            {
+                StringAssert.Contains("{0}", row[c], "column " + c);
+                StringAssert.Contains("{1}", row[c], "column " + c);
+            }
         }
 
         /// <summary>Every language's own name, for the picker's rows — a language whose name is missing

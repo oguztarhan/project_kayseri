@@ -102,6 +102,7 @@ namespace Game.UI
             var fightUi = new GameObject("CarpismaHud").AddComponent<SeaFightUI>();
             fightUi.transform.SetParent(transform, false);
             fightUi.Build(fights);
+            fightUi.gameObject.AddComponent<SeaTutorialUI>().Init(fightUi, fights);
 
             // Who is at the wheel. Re-read on roster changes rather than per frame: the only thing
             // that can move it is a crate opened or a level bought, and both raise Changed.

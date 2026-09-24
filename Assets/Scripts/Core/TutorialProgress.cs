@@ -102,6 +102,36 @@ namespace Game.Core
             new Lesson("ftue.loop",        Goal.Tap),
         };
 
+        /// <summary>Early progression: each taught once, the first time it matters, never blocking.</summary>
+        public const string SecondBenchLesson = "progress.second_bench";
+        public const string GoalsLesson = "progress.goals";
+        public static readonly string[] ProgressLessons = { SecondBenchLesson, GoalsLesson };
+
+        /// <summary>
+        /// The sea, in the order a player meets it: the sail button on the island, then the fight,
+        /// the first win's spoils and the first boss out at sea. The last three keep the ids the old
+        /// sea hints wrote, so a player who saw those is not taught again.
+        /// </summary>
+        public const string SailLesson = "sea.sail";
+        public const string SeaFightLesson = "sea.combat";
+        public const string SeaRewardLesson = "sea.reward";
+        public const string SeaBossLesson = "sea.boss";
+        public static readonly string[] SeaLessons = { SailLesson, SeaFightLesson, SeaRewardLesson, SeaBossLesson };
+
+        /// <summary>
+        /// The screens that introduce themselves the first time they open once usable. Recorded as
+        /// "feature." + id; the card's text is "egitim.ipucu_" + id + "_b" / "_m".
+        /// </summary>
+        public static readonly string[] FeatureIntros =
+            { "stage", "crafting", "captain", "pets", "collection", "events", "league", "gear" };
+
+        /// <summary>
+        /// The text-table key for a lesson's title or body: "ftue.save_up" → "egitim.ftue_save_up_b".
+        /// One rule, so the table test can check every lesson without a second list to keep in step.
+        /// </summary>
+        public static string TextKey(string lessonId, bool title)
+            => "egitim." + lessonId.Replace('.', '_') + (title ? "_b" : "_m");
+
         private readonly List<string> _seen;
 
         public TutorialProgress(List<string> seen, int step)

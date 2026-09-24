@@ -101,7 +101,7 @@ namespace Game.UI
         {
             if (_shown || _report == null || !_report.Pending) return;
             _delay -= Time.unscaledDeltaTime;
-            if (_delay > 0f) return;
+            if (_delay > 0f || TutorialUI.Blocking) return;   // the tutorial waits for this screen at boot; this waits for a card already up
             Show();
         }
 

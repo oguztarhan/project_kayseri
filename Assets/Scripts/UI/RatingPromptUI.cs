@@ -72,7 +72,8 @@ namespace Game.UI
         }
 
         private bool IsAnotherPanelOpen()
-            => (_contracts != null && _contracts.IsOpen)
+            => TutorialUI.Blocking
+               || (_contracts != null && _contracts.IsOpen)
                || (_settings != null && _settings.IsOpen)
                || (_welcome != null && _welcome.IsOpen);
 
