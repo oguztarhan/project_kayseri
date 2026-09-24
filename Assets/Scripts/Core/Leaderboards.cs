@@ -61,13 +61,21 @@ namespace Game.Core
         public const long ThreeDayCadenceSeconds = 259200L;
 
         /// <summary>
-        /// How many entrants share one board. Fixed, and fixed at a number that fits a phone screen in
-        /// a few flicks: a cohort large enough to be a real contest and small enough that a mid-table
-        /// player can see both ends of it. It is a CONSTANT rather than a config because a cohort that
-        /// can be resized is a cohort that can be resized MID-SEASON, and moving somebody from a board
-        /// of 30 into a board of 50 halfway through invalidates every rank they had earned.
+        /// How many entrants share one board: the player and 49 others, a Top 50 that still fits a
+        /// phone screen in a few flicks. It is a CONSTANT rather than a config because a cohort that
+        /// can be resized is a cohort that can be resized MID-SEASON, and moving somebody between
+        /// boards of different sizes halfway through invalidates every rank they had earned.
+        ///
+        /// Raised from 30 on 2026-09-24. Only the top <see cref="RewardedRanks"/> are paid, so the
+        /// twenty places added below them change who is on the board, not what a season costs.
         /// </summary>
-        public const int CohortSize = 30;
+        public const int CohortSize = 50;
+
+        /// <summary>
+        /// The last rank a season pays. Deliberately NOT <see cref="CohortSize"/>: the payout table was
+        /// sized against a thirty-place board (RewardBudgetTests), and ranks 31-50 earn nothing.
+        /// </summary>
+        public const int RewardedRanks = 30;
 
         /// <summary>The most bands the matcher will split players across. See <see cref="BandOf"/>.</summary>
         public const int BandCount = 4;
@@ -187,7 +195,7 @@ namespace Game.Core
 
         /// <summary>
         /// Orders the first <paramref name="count"/> standings in place. Insertion sort, and not as an
-        /// apology: the cohort is thirty entries, it is already nearly sorted every time it is rebuilt
+        /// apology: the cohort is fifty entries, it is already nearly sorted every time it is rebuilt
         /// from the previous board, and it allocates nothing — which the comparator-taking overloads
         /// of Array.Sort cannot say.
         /// </summary>
@@ -225,11 +233,12 @@ namespace Game.Core
         // -------------------------------------------------------------------------- rewards
         /// <summary>
         /// The default payout brackets, as the LAST RANK each one covers: 1st, 2nd, 3rd, 4-10, 11-20,
-        /// 21-30. Six tiers over a cohort of thirty, which is the shape the reference screens showed —
-        /// a podium worth chasing and a tail that still pays, so a player who finishes 27th has been
-        /// given a reason to come back rather than a reason to stop.
+        /// 21-30. Six tiers, which is the shape the reference screens showed — a podium worth chasing
+        /// and a tail that still pays, so a player who finishes 27th has been given a reason to come
+        /// back rather than a reason to stop. Ranks past <see cref="RewardedRanks"/> fall outside every
+        /// bracket and pay nothing.
         /// </summary>
-        public static readonly int[] DefaultBracketEnds = { 1, 2, 3, 10, 20, CohortSize };
+        public static readonly int[] DefaultBracketEnds = { 1, 2, 3, 10, 20, RewardedRanks };
 
         /// <summary>
         /// Which bracket a rank falls in, or -1 for a rank outside every bracket (including rank 0,

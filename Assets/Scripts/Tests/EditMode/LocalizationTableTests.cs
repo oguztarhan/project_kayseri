@@ -32,6 +32,27 @@ namespace Game.Tests.EditMode
             "ayarlar.destek_konu", "ayarlar.destek_mesaj",
         };
 
+        /// <summary>Keys the tutorial builds at runtime from an id — "egitim.ipucu_" + id + "_b" — and
+        /// the sea screen's one-shot hints. Nothing greps these out of the source, and nine of them
+        /// were reaching players as their own names when this list was written.</summary>
+        private static readonly string[] TutorialKeys =
+        {
+            "egitim.atla", "egitim.devam",
+            "egitim.shop_overview_production_b", "egitim.shop_overview_production_m",
+            "egitim.shop_overview_sale_b", "egitim.shop_overview_sale_m",
+            "egitim.shop_overview_growth_b", "egitim.shop_overview_growth_m",
+            "egitim.ipucu_kontrat_b", "egitim.ipucu_kontrat_m",
+            "egitim.ipucu_boost_b", "egitim.ipucu_boost_m",
+            "egitim.ipucu_gunluk_b", "egitim.ipucu_gunluk_m",
+            "egitim.ipucu_stage_b", "egitim.ipucu_stage_m",
+            "egitim.ipucu_crafting_b", "egitim.ipucu_crafting_m",
+            "egitim.ipucu_captain_b", "egitim.ipucu_captain_m",
+            "egitim.ipucu_pets_b", "egitim.ipucu_pets_m",
+            "egitim.ipucu_collection_b", "egitim.ipucu_collection_m",
+            "egitim.ipucu_events_b", "egitim.ipucu_events_m",
+            "egitim.ipucu_sea_combat_m", "egitim.ipucu_sea_boss_m", "egitim.ipucu_sea_reward_m",
+        };
+
         private static string[] Lines()
         {
             var asset = Resources.Load<TextAsset>(ResourcePath);
@@ -123,6 +144,21 @@ namespace Game.Tests.EditMode
                 if (!keys.Contains(SettingsKeys[i])) missing.Add(SettingsKeys[i]);
 
             CollectionAssert.IsEmpty(missing);
+        }
+
+        [Test]
+        public void TutorialFindsEveryKeyItAsksFor()
+        {
+            string[] lines = Lines();
+            var keys = new HashSet<string>();
+            for (int i = 1; i < lines.Length; i++)
+                if (IsRow(lines[i])) keys.Add(Cells(lines[i])[0]);
+
+            var missing = new List<string>();
+            for (int i = 0; i < TutorialKeys.Length; i++)
+                if (!keys.Contains(TutorialKeys[i])) missing.Add(TutorialKeys[i]);
+
+            CollectionAssert.IsEmpty(missing, "these would reach the player as raw keys");
         }
 
         /// <summary>Every language's own name, for the picker's rows — a language whose name is missing

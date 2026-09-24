@@ -77,7 +77,7 @@ namespace Game.UI
 
             // Don't pan/zoom the world camera while the finger (or mouse) is over UI — otherwise dragging a
             // panel or tapping a button secretly drags the 3D camera underneath.
-            if (PointerOverUI()) { _dragging = false; _lastPinch = 0f; _panVel = Vector3.zero; }
+            if (InputLocked || PointerOverUI()) { _dragging = false; _lastPinch = 0f; _panVel = Vector3.zero; }
             else { Zoom(); Pan(dt); }
 
             // A released flick keeps gliding, then settles.
@@ -135,6 +135,13 @@ namespace Game.UI
             _shakeLeft = seconds;
             _shakeSeed += 13.31f;      // a different pattern each time, without Random
         }
+
+        /// <summary>
+        /// Ignores drag and pinch while set; the camera stays exactly where it is and nothing is eased
+        /// anywhere. The tutorial holds this while it points at something in the world, so a stray
+        /// swipe cannot carry the thing being explained off the screen.
+        /// </summary>
+        public bool InputLocked { get; set; }
 
         public static bool PointerOverUI()
         {

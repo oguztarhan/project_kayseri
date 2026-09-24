@@ -266,6 +266,12 @@ namespace Game.Systems
             int owned = _data.unlockedIslands != null ? _data.unlockedIslands.Count : 0;
             local.IslandsOwned = owned > 0 ? owned : 1;
 
+            // Who the player's row says they are. Read raw rather than through PlayerProfileService so
+            // the league needs no second service to be built first; the screen cleans it on the way out.
+            PlayerProfileData profile = _data.profile;
+            local.PlayerName = profile != null ? profile.name : string.Empty;
+            local.PlayerAvatar = profile != null ? PlayerProfiles.ClampAvatar(profile.avatar) : 0;
+
             if (_restored) return;
             _restored = true;
             // The double forgets which seasons score points across a restart, exactly as it forgets
@@ -364,13 +370,21 @@ namespace Game.Systems
             bool played = !string.IsNullOrEmpty(closing) && ladder.bestScore > 0L
                           && !AlreadySettled(ladder, closing);
 
+            // SETTLE ON THE SEASON'S BEST, NOT ON THE LAST NUMBER SUBMITTED. The hot path moves
+            // bestScore without submitting, so a season that ends mid-session — OnGoalsChanged noticing
+            // the rollover, before any read ran Track — would otherwise rank the player on a stale score.
+            // It used to be hidden by a stale zero still finishing 30th and being paid; with ranks 31-50
+            // unpaid it would cost the player the season. Restore merges, so replaying is harmless.
+            if (played && _leaderboard is LocalLeaderboardService local)
+                local.Restore(closing, ladder.bestScore, ladder.bestAchievedUnix);
+
             ladder.seasonId = current;
             ladder.baseline = _goals.Lifetime(ScoreMetric);
             ladder.points = true;
             if (ladder.baselines == null || ladder.baselines.Length != Goals.MetricCount)
                 ladder.baselines = new long[Goals.MetricCount];
             for (int m = 0; m < Goals.MetricCount; m++) ladder.baselines[m] = _goals.Lifetime(m);
-            if (_leaderboard is LocalLeaderboardService local) local.MarkPointsSeason(current);
+            if (_leaderboard is LocalLeaderboardService marking) marking.MarkPointsSeason(current);
             ladder.bestScore = 0L;
             ladder.bestAchievedUnix = 0L;
             _submitted = 0L;   // a fresh season has had nothing sent to it yet

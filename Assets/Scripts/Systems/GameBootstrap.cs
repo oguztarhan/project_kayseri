@@ -119,6 +119,7 @@ namespace Game.Systems
         public CannonProductionService CannonProduction { get; private set; }
         public ShipyardUnlockService ShipyardUnlocks { get; private set; }
         public LadderService Ladder { get; private set; }
+        public PlayerProfileService Profile { get; private set; }
         public LiveEventService LiveEvents { get; private set; }
         public FoundryFestivalService Festival { get; private set; }
         public HarborFestivalService HarborFestival { get; private set; }
@@ -430,6 +431,10 @@ namespace Game.Systems
             var ladder = new LocalLeaderboardService(_time, Leaderboards.SeasonEpochUnix,
                                                      Leaderboards.ThreeDayCadenceSeconds);
             ServiceLocator.Register<ILeaderboardService>(ladder);
+
+            // The name and avatar the league board shows for the player.
+            Profile = new PlayerProfileService(Data, Save);
+            ServiceLocator.Register(Profile);
 
             // What turns that ranking into a game: the score cursor, the settlement sweep and the
             // claim. After the goals because the score is a delta off their bars-sold tally, and after

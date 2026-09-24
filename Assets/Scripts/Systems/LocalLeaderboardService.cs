@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using Game.Core;
 
 namespace Game.Systems
@@ -21,10 +20,20 @@ namespace Game.Systems
     /// problem rather than a design opinion. Decision D4 in the document has to be answered before any
     /// screen shows this to anybody.
     ///
-    /// THE COHORT DOES NOT CHASE THE PLAYER. Opponent scores are drawn from the season id and the
-    /// player's progression band and from nothing else — never from the player's own score. A ladder
-    /// that quietly rescales itself so the player always sits eighth is a slot machine with a rank
-    /// painted on it, and it would make every test of the ranking meaningless besides.
+    /// THE COHORT DOES NOT CHASE THE PLAYER. Opponent scores are drawn from the season id, the
+    /// player's progression band and the clock, and from nothing else — never from the player's own
+    /// score. A ladder that quietly rescales itself so the player always sits eighth is a slot machine
+    /// with a rank painted on it, and it would make every test of the ranking meaningless besides.
+    ///
+    /// THE OPPONENTS ARE THE SAME 49 EVERY SEASON (<see cref="LeagueRivals"/>), each with a handle and
+    /// an avatar. The season seed decides only which of them draws which target.
+    ///
+    /// THEY PLAY THROUGH THE SEASON. A rival's score is their season target scaled by how much of the
+    /// season has gone, along a pace curve of their own — some start fast, some finish late — and it
+    /// moves in <see cref="ProgressSteps"/> steps, so the board changes about hourly on a three-day
+    /// season instead of every second. A closed season is always at the full target, so a settlement
+    /// ranks against exactly what it did before the curve existed. Every input is the season, the band
+    /// and the clock, so reloading a save rebuilds the same board.
     ///
     /// IT PERSISTS NOTHING. No SaveData field, no migration, not one line in SaveMigration. That is
     /// deliberate: a save schema for an unapproved feature is a schema that has to be supported
@@ -41,7 +50,7 @@ namespace Game.Systems
         private const string SeasonPrefix = "lig";
 
         /// <summary>What one board's worth of standings is built into. Allocated once and reused for
-        /// every request, so a screen refreshing on a countdown does not hand the GC thirty structs a
+        /// every request, so a screen refreshing on a countdown does not hand the GC fifty structs a
         /// second.</summary>
         private readonly Leaderboards.Standing[] _standings = new Leaderboards.Standing[Leaderboards.CohortSize];
 
@@ -55,7 +64,6 @@ namespace Game.Systems
         private readonly TimeService _time;
         private readonly long _epochUnix;
         private readonly long _cadenceSeconds;
-        private readonly string _playerName;
 
         /// <summary>The outbox, and it is ONE slot rather than a queue — see
         /// <see cref="Leaderboards.Supersedes"/> for why a queue here is a bug waiting for a long
@@ -68,14 +76,32 @@ namespace Game.Systems
 
         public LocalLeaderboardService(TimeService time = null,
                                        long epochUnix = Leaderboards.SeasonEpochUnix,
-                                       long cadenceSeconds = Leaderboards.WeeklyCadenceSeconds,
-                                       string playerName = "Sen")
+                                       long cadenceSeconds = Leaderboards.WeeklyCadenceSeconds)
         {
             _time = time;
             _epochUnix = epochUnix;
             _cadenceSeconds = cadenceSeconds;
-            _playerName = string.IsNullOrEmpty(playerName) ? "Sen" : playerName;
         }
+
+        /// <summary>
+        /// The player's profile as the board prints it. Set by whatever wires this up
+        /// (<c>LadderService</c>, from the save), for the same reason <see cref="IslandsOwned"/> is:
+        /// this double persists nothing and must not reach into the save. Empty means no profile yet,
+        /// and the screen prints its own "YOU".
+        /// </summary>
+        public string PlayerName { get; set; } = string.Empty;
+
+        public int PlayerAvatar { get; set; }
+
+        /// <summary>How many steps a rival's score climbs in over one season: hourly on three days.</summary>
+        public const int ProgressSteps = 72;
+
+        /// <summary>
+        /// A fixed "now" for this double, or 0 for the real clock. The same test-only seam as
+        /// <see cref="TimeOffsetSeconds"/>: rival scores now move with the clock, and a test that
+        /// compares two boards must not straddle a step boundary between them.
+        /// </summary>
+        public long ClockOverrideUnix { get; set; }
 
         /// <summary>
         /// Whether the imaginary record can be reached. A field a test flips, and the only way to
@@ -118,7 +144,11 @@ namespace Game.Systems
         public bool Synthetic => true;
 
         private long NowUnix()
-            => (_time != null ? _time.NowUnix() : DateTimeOffset.UtcNow.ToUnixTimeSeconds()) + TimeOffsetSeconds;
+        {
+            long now = ClockOverrideUnix > 0L ? ClockOverrideUnix
+                     : _time != null ? _time.NowUnix() : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            return now + TimeOffsetSeconds;
+        }
 
         private long CurrentIndex() => Leaderboards.SeasonIndex(_epochUnix, _cadenceSeconds, NowUnix());
 
@@ -293,10 +323,12 @@ namespace Game.Systems
             for (int i = 0; i < Leaderboards.CohortSize; i++)
             {
                 bool isPlayer = string.Equals(_standings[i].EntrantId, PlayerEntrantId, StringComparison.Ordinal);
+                int rival = isPlayer ? -1 : LeagueRivals.IndexOf(_standings[i].EntrantId);
                 entries[i] = new LeaderboardEntry
                 {
                     Rank = i + 1,
-                    Name = isPlayer ? _playerName : _standings[i].EntrantId,
+                    Name = isPlayer ? PlayerName ?? string.Empty : LeagueRivals.HandleOf(rival),
+                    Avatar = isPlayer ? PlayerProfiles.ClampAvatar(PlayerAvatar) : LeagueRivals.AvatarOf(rival),
                     Score = _standings[i].Score,
                     IsPlayer = isPlayer,
                 };
@@ -390,35 +422,54 @@ namespace Game.Systems
                 top = scale * 3d;
             }
 
-            for (int i = 0; i < Leaderboards.CohortSize - 1; i++)
+            // How far through the season the rivals are, in whole steps and never zero, so the first
+            // hour already has a board to read. A closed season is always the whole way through.
+            long elapsed = now - start;
+            double progress = 1d;
+            if (elapsed < _cadenceSeconds)
             {
-                // i * 7919 mod 9000 is a bijection over the cohort (7919 is prime, and shares no
-                // factor with 9000), so the generated handles cannot collide — two entrants with one
-                // id would break RankOf, which matches on it.
-                int suffix = 1000 + (int)((seed + i * 7919L) % 9000L);
+                long step = (elapsed > 0L ? elapsed : 0L) * ProgressSteps / _cadenceSeconds + 1L;
+                if (step < ProgressSteps) progress = step / (double)ProgressSteps;
+            }
 
+            // A SECOND STREAM for the pace curves. Drawing them from the stream above would move every
+            // later rival's target, and the targets are what the reward budget was measured against.
+            uint pace = (uint)seed ^ 0x9E3779B9u;
+            if (pace == 0u) pace = 1u;
+
+            for (int i = 0; i < LeagueRivals.Count; i++)
+            {
                 double decay = 1d;
                 for (int d = 0; d < i; d++) decay *= 0.93d;
 
                 // 0.55..1.0 of the decayed target, so the ladder has a gradient rather than steps.
                 double jitter = 0.55d + 0.45d * NextUnit(ref state);
-                long score = (long)(top * decay * jitter);
-                if (score < 0L) score = 0L;
+                long target = (long)(top * decay * jitter);
+                if (target < 0L) target = 0L;
+                long achieved = start + (long)(span * NextUnit(ref state));
+
+                // Exponent 0.7..1.3: under 1 banks points early, over 1 closes late. Every curve ends
+                // at the full target when the season does.
+                double curve = 0.7d + 0.6d * NextUnit(ref pace);
+                long score = progress >= 1d ? target : (long)(target * Math.Pow(progress, curve));
 
                 _standings[i] = new Leaderboards.Standing
                 {
-                    EntrantId = "Denizci-" + suffix.ToString(CultureInfo.InvariantCulture),
+                    EntrantId = LeagueRivals.IdOf(LeagueRivals.RivalInSlot(seed, i)),
                     Score = score,
-                    AchievedUnix = start + (long)(span * NextUnit(ref state)),
+                    AchievedUnix = achieved,
                 };
             }
 
+            // A player with no points ranks BEHIND every rival on zero, not ahead of them on the
+            // earliest-first tie-break — otherwise a season's first hour shows an idle player in first.
             long playerScore = AcceptedScore(seasonId);
             _standings[Leaderboards.CohortSize - 1] = new Leaderboards.Standing
             {
                 EntrantId = PlayerEntrantId,
                 Score = playerScore,
-                AchievedUnix = _achieved.TryGetValue(seasonId, out long at) ? at : start,
+                AchievedUnix = playerScore <= 0L ? long.MaxValue
+                             : _achieved.TryGetValue(seasonId, out long at) ? at : start,
             };
 
             Leaderboards.Rank(_standings, Leaderboards.CohortSize);

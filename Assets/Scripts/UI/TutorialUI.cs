@@ -5,7 +5,6 @@ using Game.Gameplay;
 using Game.Systems;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Game.UI
 {
@@ -24,13 +23,9 @@ namespace Game.UI
     ///      true: a contract falls due, a boost charges, an island becomes affordable. Never twice, and
     ///      never blocking.
     ///
-    /// Built in code rather than authored, because almost none of it is a static layout: the shade is
-    /// four quads solved every frame against a moving target rect, and the cards are the same card
-    /// re-dressed sixteen times. What IS art arrives through the Inspector slots below, so the look
-    /// stays tunable from the hierarchy like every other screen.
-    ///
-    /// Four shade quads leave a moving spotlight around the explained control. A separate transparent
-    /// blocker covers even that hole, so highlighted game controls can be seen but cannot be pressed.
+    /// This decides what to show and when. Drawing it — Max, his card, the spotlight — is
+    /// <see cref="TutorialPresenter"/>'s, built on first use from the art in the Inspector slots below,
+    /// so the look stays tunable from the hierarchy like every other screen.
     /// </summary>
     public sealed class TutorialUI : MonoBehaviour
     {
@@ -40,13 +35,9 @@ namespace Game.UI
         private const int StepDone = 100;
 
         [Header("Kart görselleri")]
-        [Tooltip("Kartın gövdesi — panel_ayarlar. Dilimli olduğu için her boya gerilir.")]
-        [SerializeField] private Sprite cardPanel;
-        [Tooltip("Kartın üstündeki başlık şeridi — serit_baslik.")]
-        [SerializeField] private Sprite cardRibbon;
-        [Tooltip("Yeni lacivert tutorial paneli. Atanırsa eski panel ve ayrı şerit yerine kullanılır.")]
+        [Tooltip("Lacivert tutorial paneli. Tek parça resim: oranı korunur, genişliği ekran belirler.")]
         [SerializeField] private Sprite tutorialPanel;
-        [Tooltip("Yeni altın çerçeveli mavi DEVAM butonu.")]
+        [Tooltip("Altın çerçeveli mavi DEVAM butonu. Oranı korunur.")]
         [SerializeField] private Sprite tutorialButton;
         [Tooltip("Simgenin oturduğu yuvarlak — madalyon.")]
         [SerializeField] private Sprite medallion;
@@ -54,7 +45,7 @@ namespace Game.UI
         [SerializeField] private Sprite skipPill;
         [SerializeField] private Sprite pipOn;         // pip_dolu
         [SerializeField] private Sprite pipOff;        // pip_bos
-        [Tooltip("Turda dünyadaki durağın üstünde duran iğne — rozet_buradasin.")]
+        [Tooltip("Dünyadaki hedefin üstünde duran iğne — rozet_buradasin.")]
         [SerializeField] private Sprite worldPin;
         [Tooltip("Oyuncunun gerçekten dokunması beklenen anlarda halkanın ortasında beliren el. "
                  + "Boş bırakılırsa el hiç çıkmaz, eğitim aynen çalışır.")]
@@ -73,18 +64,26 @@ namespace Game.UI
         [SerializeField] private Sprite narratorWarning;
         [Tooltip("Bütün tutorial tamamlandığında gösterilen mutlu poz.")]
         [SerializeField] private Sprite narratorHappy;
-        [Tooltip("Sola işaret pozu. Sağdaki hedefler için kod tarafından yatay çevrilir.")]
+        [Tooltip("Sola işaret pozu. Sağdaki hedefler için Max sola geçer ve poz yatay çevrilir.")]
         [SerializeField] private Sprite narratorPoint;
 
         [Header("Tur simgeleri (maden, tren, depo, izabe, pazar, nakit)")]
         [SerializeField] private Sprite[] tourIcons = new Sprite[6];
 
         [Header("Dikey eğitim yerleşimi")]
-        [SerializeField, Min(520f)] private float cardWidth = 650f;
-        [SerializeField, Min(240f)] private float cardHeight = 290f;
-        [SerializeField, Range(0.60f, 0.75f)] private float maxCardWidthFraction = 0.72f;
-        [SerializeField, Range(0.25f, 0.36f)] private float narratorWidthFraction = 0.30f;
-        [SerializeField, Min(240f)] private float narratorMaxHeight = 600f;
+        [Tooltip("Kartın en fazla genişliği. Telefonlarda güvenli alanın genişliği bundan dardır ve o kullanılır.")]
+        [SerializeField, Min(600f)] private float cardMaxWidth = 960f;
+        [Tooltip("Max'in boyu, ekran yüksekliğinin payı olarak. Aşağıdaki iki sınırla kırpılır.")]
+        [SerializeField, Range(0.2f, 0.36f)] private float narratorHeightShare = 0.28f;
+        [SerializeField, Min(240f)] private float narratorShortest = 420f;
+        [SerializeField, Min(300f)] private float narratorTallest = 600f;
+        [Tooltip("Max'in ayaklarının kartın ne kadar yukarısında durduğu, kart yüksekliğinin payı olarak. "
+                 + "Kartın altında kalan kısmı görünmez.")]
+        [SerializeField, Range(0f, 0.8f)] private float narratorSink = 0.35f;
+        [Tooltip("Kart ile güvenli alanın kenarları arasındaki boşluk.")]
+        [SerializeField, Min(0f)] private float edgeMargin = 24f;
+        [Tooltip("Üste yerleşince güvenli alanın tepesinde boş bırakılan yer: nakit ve elmas çubuğu.")]
+        [SerializeField, Min(0f)] private float topReserve = 190f;
 
         [Header("Zamanlama")]
         [Tooltip("Bağlamsal ipucu kartının ekranda kalma süresi.")]
@@ -94,31 +93,9 @@ namespace Game.UI
 
         [Header("Renkler")]
         [SerializeField] private Color shadeColor = new Color(0.02f, 0.04f, 0.09f, 0.80f);
-        [SerializeField] private Color inkColor = new Color32(0x2A, 0x3A, 0x5C, 0xFF);
         [SerializeField] private Color ringColor = new Color32(0xFF, 0xC8, 0x3C, 0xFF);
 
-        // ------------------------------------------------------------------ ölçüler
-        private const float CanvasWidth = 1080f;
-        private const float CanvasHeight = 1920f;
         private const int SortingOrder = 250;      // hoş geldin ekranı 200; eğitim her şeyin üstünde
-
-        // panel_ayarlar'ın dilim kenarı 120 px; çarpansız 940×330'luk kartta üst+alt kenar 240 px yer
-        // yiyor ve iç kapsül bir şeride iniyordu — madalyon da yazı da süslü kenarın üstüne taşıyordu.
-        // Ayarlar penceresinin kendi çözümü neyse o: çarpan 2, kenar 60'a iner, içerik 60'ın içinde kalır.
-        private const float CardPpu = 2f;
-        private const float CardInset = 34f;
-        private const float RibbonWidth = 440f;
-        private const float RibbonHeight = 80f;
-        private const float MedalSize = 82f;
-        private const float PipSize = 16f;
-        private const float ContinueWidth = 200f;
-        private const float ContinueHeight = 70f;
-        private const float CardBottomY = 48f;
-        private const float CardTopY = -48f;
-        private const float RingPad = 26f;         // deliğin kenarından halkanın dışına
-        private const float CardGap = 44f;         // halkanın dışından kartın kenarına — kalan nefes payı
-        private const float RibbonRise = 12f;
-        private const float PipDrop = 42f;
 
         // ------------------------------------------------------------------ tur
         private struct Beat
@@ -185,39 +162,13 @@ namespace Game.UI
         /// </summary>
         private bool ShopActive => _market != null && (_market.MiningShop != null || _market.MiningShopBusiness != null);
 
-        // ------------------------------------------------------------------ ekran
-        private RectTransform _root;
-        private RectTransform _canvasRect;
-        private Image[] _shade;
-        private Image _inputBlocker;
-        private Image _ring;
-        private Image _pulse;
-        private Image _narrator;
-        private bool _narratorLeft = true;
-        private RectTransform _card;
-        private CanvasGroup _cardFade;
-        private Image _cardIcon;
-        private TMP_Text _cardTitle;
-        private TMP_Text _cardBody;
-        private RectTransform _pips;
-        private Image[] _pip;
-        private RectTransform _next;
-        private TMP_Text _nextText;
-        private RectTransform _skip;
-        private TMP_Text _skipText;
-        private RectTransform _pin;
-        private RectTransform _hand;
-
-        private Sprite _ringSprite;
-
         // ------------------------------------------------------------------ durum
+        private TutorialPresenter _view;
         private bool _running;
         private bool _skipped;
         private bool _tapped;
         private bool _tapAdvances;
-        private RectTransform _targetRect;     // deliğin takip ettiği arayüz parçası
-        private Vector3 _targetWorld;          // ya da dünyadaki bir nokta (iğne için)
-        private Transform _ride;               // tren durağında kameranın kilitlendiği lokomotif
+        private bool _skipVisible;
         private float _wait;                   // açılışta her şeyin oturmasını bekleme sayacı
         private float _tipTimer = 6f;
         private bool _tipShowing;
@@ -298,7 +249,7 @@ namespace Game.UI
         /// still reading; the tips fire long after the tour is finished, so its step counter alone
         /// would not catch them.
         /// </summary>
-        public bool IsShowing => _root != null && _root.gameObject.activeSelf;
+        public bool IsShowing => _view != null && _view.Visible;
 
         /// <summary>Replays the whole thing — the settings screen's EĞİTİM row.</summary>
         public void Replay()
@@ -368,14 +319,12 @@ namespace Game.UI
             _skipped = false;
             _tapped = false;
             Build();
-            _root.gameObject.SetActive(true);
-            _targetRect = null;
             _tapAdvances = true;
-            BlockInput(false);
-            ShadeBlocks(false);
-            SetHole(new Rect());
-            ShowRing(false);
-            ShowPips(false);
+            _view.ClearTarget();
+            _view.SetRing(false, false);
+            _view.BlockInput(false);
+            _view.SetShadeActive(false);
+            _view.SetPips(0, 0);
             ShowSkip(true);
             yield return null; // Let the portrait canvas settle before sizing the guide.
 
@@ -384,14 +333,12 @@ namespace Game.UI
                 string key = ShopOverview[i];
                 string id = "core.shop.overview." + key;
                 if (HasTutorialId(id)) continue;
-                ShowCard(Loc.T("egitim.shop_overview_" + key + "_b"),
-                         Loc.T("egitim.shop_overview_" + key + "_m"), null,
-                         CardBottomY, true, i == 0 && narratorFirstEntry != null
-                             ? narratorFirstEntry : narratorWelcome);
+                Card(Loc.T("egitim.shop_overview_" + key + "_b"), Loc.T("egitim.shop_overview_" + key + "_m"), null,
+                     i == 0 && narratorFirstEntry != null ? narratorFirstEntry : narratorWelcome);
                 Sound(SoundId.PanelOpen);
                 yield return WaitContinue();
                 if (!_skipped) MarkTutorialId(id);
-                yield return HideCard();
+                yield return _view.HideCard();
             }
 
             if (_skipped) MarkTutorialId("core.shop.skipped");
@@ -405,14 +352,8 @@ namespace Game.UI
 
         private void ClearGuide()
         {
-            _targetRect = null;
-            ShowRing(false);
             ShowSkip(false);
-            if (_pin != null) _pin.gameObject.SetActive(false);
-            if (_card != null) _card.gameObject.SetActive(false);
-            ShadeBlocks(false);
-            BlockInput(false);
-            if (_root != null) _root.gameObject.SetActive(false);
+            if (_view != null) _view.Clear();
         }
 
         private void MarkTutorialId(string id)
@@ -484,14 +425,11 @@ namespace Game.UI
             Build();
             // Tekrar oynatıldığında ekran bir önceki turdan kapalı kalmış ve gölgeler bir ipucu kartı
             // yüzünden söndürülmüş olabilir; ikisini de baştan aç.
-            _root.gameObject.SetActive(true);
-            BlockInput(true);
+            _view.SetVisible(true);
+            _view.BlockInput(true);
             ShowSkip(false);
-            for (int i = 0; i < _shade.Length; i++)
-            {
-                _shade[i].enabled = true;
-                var c = _shade[i].color; c.a = 0f; _shade[i].color = c;
-            }
+            _view.SetShadeActive(true);
+            _view.SetShadeAlpha(0f);
             yield return null;                       // düzen bir kare otursun, ölçüler doğru çıksın
 
             yield return WelcomePart();
@@ -507,18 +445,16 @@ namespace Game.UI
         private IEnumerator WelcomePart()
         {
             HudVisible(false);
-            _targetRect = null;
             _tapAdvances = true;
-            ShowRing(false);
-            ShowPips(false);
-            SetHole(new Rect());
-            yield return Fade(_shade[0].color.a, shadeColor.a, 0.28f);
-            ShowCard(Loc.T("egitim.hosgeldin_b"), Loc.T("egitim.hosgeldin_m"), null,
-                     CardBottomY, true,
-                     narratorFirstEntry != null ? narratorFirstEntry : narratorWelcome);
+            _view.ClearTarget();
+            _view.SetRing(false, false);
+            _view.SetPips(0, 0);
+            yield return _view.FadeShade(shadeColor.a, 0.28f);
+            Card(Loc.T("egitim.hosgeldin_b"), Loc.T("egitim.hosgeldin_m"), null,
+                 narratorFirstEntry != null ? narratorFirstEntry : narratorWelcome);
             Sound(SoundId.PanelOpen);
             yield return WaitContinue();
-            yield return HideCard();
+            yield return _view.HideCard();
             _tapAdvances = false;
         }
 
@@ -529,34 +465,31 @@ namespace Game.UI
         {
             HudVisible(false);
 
-            SetHole(new Rect());
+            _view.ClearTarget();
             _tapAdvances = true;
             ShowSkip(false);
-            ShowPips(true);
-            yield return Fade(_shade[0].color.a, 0.34f, 0.3f);   // dünyayı hafifçe bastır, karartma değil
+            yield return _view.FadeShade(0.34f, 0.3f);   // dünyayı hafifçe bastır, karartma değil
 
             for (int i = 0; i < Tour.Length && !_skipped; i++)
             {
                 Vector3 look = Vector3.zero;
                 bool onStation = Tour[i].station >= 0 && _op.StationAnchor(Tour[i].station, out look);
-                _ride = Tour[i].ride ? _op.TrainEngine : null;
-                if (_ride != null) look = _ride.position;
+                Transform ride = Tour[i].ride ? _op.TrainEngine : null;
 
-                SetPips(i);
-                _targetWorld = look;
-                if (_pin != null) _pin.gameObject.SetActive(onStation && worldPin != null);
-                ShowCard(Loc.T("egitim.tur_" + Tour[i].key + "_b"),
-                         Loc.T("egitim.tur_" + Tour[i].key + "_m"),
-                         Icon(Tour[i].icon), CardBottomY, true, TourNarrator(i));
+                _view.SetPips(Tour.Length, i);
+                if (ride != null) _view.TargetWorldPoint(ride);
+                else if (onStation && worldPin != null) _view.TargetWorldPoint(look);
+                else _view.ClearTarget();
+                Card(Loc.T("egitim.tur_" + Tour[i].key + "_b"), Loc.T("egitim.tur_" + Tour[i].key + "_m"),
+                     Icon(Tour[i].icon), TourNarrator(i));
                 Sound(SoundId.PanelOpen);
                 yield return WaitContinue();
-                _ride = null;
-                if (_pin != null) _pin.gameObject.SetActive(false);
-                if (i < Tour.Length - 1) yield return HideCard();
+                _view.ClearTarget();
+                if (i < Tour.Length - 1) yield return _view.HideCard();
             }
 
-            ShowPips(false);
-            if (!_skipped) yield return HideCard();
+            _view.SetPips(0, 0);
+            if (!_skipped) yield return _view.HideCard();
             HudVisible(true);
             _tapAdvances = false;
         }
@@ -571,29 +504,28 @@ namespace Game.UI
             if (upgrade == null) yield break;
 
             _tapAdvances = true;
-            ShadeBlocks(true);
-            _targetRect = upgrade;
-            yield return Fade(_shade[0].color.a, shadeColor.a, 0.28f);
-            ShowRing(true);
-            ShowCard(Loc.T("egitim.adim1_b"), Loc.T("egitim.adim1_m"), Icon(5), PlaceFor(upgrade), false);
+            _view.SetShadeActive(true);
+            _view.TargetUi(upgrade);
+            yield return _view.FadeShade(shadeColor.a, 0.28f);
+            _view.SetRing(true, false);
+            Card(Loc.T("egitim.adim1_b"), Loc.T("egitim.adim1_m"), Icon(5), null);
             yield return WaitContinue();
             if (_skipped) yield break;
 
-            yield return HideCard();
+            yield return _view.HideCard();
             RectTransform rate = _hud != null ? _hud.RateRect : null;
-            _targetRect = rate;
-            ShowRing(rate != null);
-            ShowCard(Loc.T("egitim.adim3_b"), Loc.T("egitim.adim3_m"), Icon(5),
-                     rate != null ? PlaceFor(rate) : CardBottomY, false);
+            if (rate != null) _view.TargetUi(rate);
+            else _view.ClearTarget();
+            _view.SetRing(rate != null, false);
+            Card(Loc.T("egitim.adim3_b"), Loc.T("egitim.adim3_m"), Icon(5), null);
             Sound(SoundId.Coin);
             yield return WaitContinue();
             if (_skipped) yield break;
 
-            yield return HideCard();
-            _targetRect = null;
-            ShowRing(false);
-            SetHole(new Rect());
-            ShowCard(Loc.T("egitim.adim4_b"), Loc.T("egitim.adim4_m"), Icon(5), CardBottomY, true);
+            yield return _view.HideCard();
+            _view.ClearTarget();
+            _view.SetRing(false, false);
+            Card(Loc.T("egitim.adim4_b"), Loc.T("egitim.adim4_m"), Icon(5), null);
             yield return WaitContinue();
             _tapAdvances = false;
         }
@@ -627,7 +559,7 @@ namespace Game.UI
         private IEnumerator ButtonsPart()
         {
             if (_hud == null) yield break;
-            yield return HideCard();
+            yield return _view.HideCard();
             yield return new WaitForSecondsRealtime(0.2f);
 
             _tapAdvances = true;
@@ -637,15 +569,11 @@ namespace Game.UI
             for (int i = 0; i < Stops.Length && !_skipped; i++)
             {
                 RectTransform target = StopRect(i);
-                Rect r;
-                if (target == null || !CanvasRectOf(target, out r)) continue;
+                if (target == null || !target.gameObject.activeInHierarchy) continue;
 
-                _targetRect = target;
-                SetHole(r);
-                PlaceRing(r);
-                ShowRing(true);
-                ShowCard(Loc.T("egitim." + Stops[i].key + "_b"), Loc.T("egitim." + Stops[i].key + "_m"),
-                         null, PlaceFor(target), false);
+                _view.TargetUi(target);
+                _view.SetRing(true, false);
+                Card(Loc.T("egitim." + Stops[i].key + "_b"), Loc.T("egitim." + Stops[i].key + "_m"), null, null);
                 Sound(SoundId.Tick);
 
                 if (Stops[i].tip != null && _data != null && !_data.tutorialTipsSeen.Contains(Stops[i].tip))
@@ -655,32 +583,30 @@ namespace Game.UI
                 }
 
                 yield return WaitContinue();
-                yield return HideCard();
+                yield return _view.HideCard();
             }
 
             // Tek yazma: dokuz durak için dokuz kez şifreleyip diske yazmanın anlamı yok.
             if (wrote && _save != null) _save.Save(_data);
 
-            _targetRect = null;
-            ShowRing(false);
+            _view.ClearTarget();
+            _view.SetRing(false, false);
             ShowSkip(false);
-            SetHole(new Rect());
             _tapAdvances = false;
         }
 
         /// <summary>Son kontrol de anlatıldıktan sonra oyuncuyu mutlu pozla oyuna uğurlar.</summary>
         private IEnumerator FinalePart()
         {
-            _targetRect = null;
-            ShowRing(false);
-            ShowPips(false);
-            SetHole(new Rect());
+            _view.ClearTarget();
+            _view.SetRing(false, false);
+            _view.SetPips(0, 0);
             _tapAdvances = true;
-            ShowCard(Loc.T("egitim.bitti_b"), Loc.T("egitim.bitti_m"), null,
-                     CardBottomY, true, narratorHappy != null ? narratorHappy : narratorWelcome);
+            Card(Loc.T("egitim.bitti_b"), Loc.T("egitim.bitti_m"), null,
+                 narratorHappy != null ? narratorHappy : narratorWelcome);
             Sound(SoundId.PanelOpen);
             yield return WaitContinue();
-            yield return HideCard();
+            yield return _view.HideCard();
             _tapAdvances = false;
         }
 
@@ -698,13 +624,6 @@ namespace Game.UI
             }
         }
 
-        /// <summary>"$180 / $500" — the balance against the price of the level being waited for.</summary>
-        private string Progress(BigDouble price)
-        {
-            return string.Format(Loc.T("egitim.adim0_m"),
-                "$" + NumberFormatter.Format(_wallet.Cash) + " / $" + NumberFormatter.Format(price));
-        }
-
         private void Finish()
         {
             if (_data != null)
@@ -712,12 +631,8 @@ namespace Game.UI
                 _data.tutorialStep = StepDone;
                 if (_save != null) _save.Save(_data);
             }
-            ShowRing(false);
             ShowSkip(false);
-            ShowPips(false);
-            _targetRect = null;
-            if (_card != null) _card.gameObject.SetActive(false);
-            if (_root != null) _root.gameObject.SetActive(false);
+            if (_view != null) _view.Clear();
             HudVisible(true);
             _running = false;
             // Kapanış kartının hemen ardına bir ipucu yapıştırmak eğitimi bitirmemiş gibi gösteriyor.
@@ -770,27 +685,23 @@ namespace Game.UI
         private IEnumerator TipCard(string id, RectTransform target)
         {
             _tipShowing = true;
-            if (_root == null) Build();
-            _root.gameObject.SetActive(true);
-            BlockInput(false);
-            SetHole(new Rect());
-            ShadeBlocks(false);              // ipucu hiçbir şeyi engellemez
+            Build();
+            _view.BlockInput(false);
+            _view.SetShadeActive(false);              // ipucu hiçbir şeyi engellemez
+            _view.SetPips(0, 0);
             _tapAdvances = true;
             ShowSkip(false);
-            _targetRect = target;
-            ShowRing(target != null);
+            if (target != null) _view.TargetUi(target);
+            else _view.ClearTarget();
+            _view.SetRing(target != null, false);
 
             string localizationId = "ipucu_" + id;
-            ShowCard(Loc.T("egitim." + localizationId + "_b"), Loc.T("egitim." + localizationId + "_m"),
-                     null, PlaceFor(target), false);
+            Card(Loc.T("egitim." + localizationId + "_b"), Loc.T("egitim." + localizationId + "_m"), null, null);
             Sound(SoundId.Tick);
             yield return WaitTap(tipSeconds);
-            yield return HideCard();
+            yield return _view.HideCard();
 
-            ShowRing(false);
-            _targetRect = null;
-            ShadeBlocks(true);
-            _root.gameObject.SetActive(false);
+            _view.Clear();
             _tipTimer = 8f;
             _tipShowing = false;
             _tapAdvances = false;
@@ -798,158 +709,10 @@ namespace Game.UI
 
         // ------------------------------------------------------------------ kart
 
-        private void ShowCard(string title, string body, Sprite icon, float y, bool bottomAnchored,
-                              Sprite narratorOverride = null)
+        /// <summary>One card through the presenter, with this flow's DEVAM and ATLA state.</summary>
+        private void Card(string title, string body, Sprite icon, Sprite pose)
         {
-            if (_card == null) return;
-            PlaceNarrator(_targetRect, narratorOverride);
-            _card.gameObject.SetActive(true);
-            bool newPanel = tutorialPanel != null;
-            _cardTitle.text = newPanel ? "USTA MAX" : "USTA MAX  •  " + title;
-            _cardBody.text = newPanel ? "<b>" + title + "</b>\n" + body : body;
-            _cardIcon.transform.parent.gameObject.SetActive(icon != null);
-            _cardIcon.sprite = icon;
-            float canvasWidth = _canvasRect != null ? _canvasRect.rect.width : CanvasWidth;
-            float actualWidth = Mathf.Min(cardWidth, canvasWidth * maxCardWidthFraction);
-            _card.sizeDelta = new Vector2(actualWidth, cardHeight);
-            if (_pips != null) _pips.sizeDelta = new Vector2(actualWidth, 30f);
-            // Simgesiz kartta (ipuçları) yazı madalyonun boşluğuna kadar genişler.
-            var brt = (RectTransform)_cardBody.transform;
-            brt.offsetMin = new Vector2(icon != null ? CardInset + MedalSize + 16f : CardInset + 12f,
-                                        brt.offsetMin.y);
-            brt.offsetMax = new Vector2(-(CardInset + 8f),
-                                        brt.offsetMax.y);
-            _next.gameObject.SetActive(_tapAdvances);
-
-            bool top = y < 0f;
-            float side = _narratorLeft ? 1f : 0f;
-            _card.anchorMin = _card.anchorMax = new Vector2(side, top ? 1f : 0f);
-            _card.pivot = new Vector2(side, top ? 1f : 0f);
-            _card.anchoredPosition = new Vector2(_narratorLeft ? -28f : 28f, y);
-            if (_pips != null) _pips.gameObject.SetActive(_pipsOn && !top);
-            StopCoroutine("CardIn");
-            StartCoroutine("CardIn");
-        }
-
-        /// <summary>
-        /// Max stands opposite the highlighted control and points at it. The source pose points left;
-        /// placing him on the left flips it so one clean asset covers both screen directions.
-        /// </summary>
-        private void PlaceNarrator(RectTransform target, Sprite narratorOverride = null)
-        {
-            if (_narrator == null) return;
-
-            Rect targetRect = new Rect();
-            bool pointing = narratorOverride == null && target != null && narratorPoint != null &&
-                            CanvasRectOf(target, out targetRect);
-            float canvasWidth = _canvasRect != null ? _canvasRect.rect.width : CanvasWidth;
-            float canvasHeight = _canvasRect != null ? _canvasRect.rect.height : CanvasHeight;
-            _narratorLeft = !pointing || targetRect.center.x >= canvasWidth * 0.5f;
-
-            Sprite sprite = narratorOverride != null ? narratorOverride :
-                            (pointing ? narratorPoint : narratorWelcome);
-            if (sprite == null) sprite = narratorPoint;
-            _narrator.sprite = sprite;
-            _narrator.gameObject.SetActive(sprite != null);
-            if (sprite == null) return;
-
-            RectTransform rect = _narrator.rectTransform;
-            float height = Mathf.Min(canvasHeight * 0.38f, narratorMaxHeight);
-            float width = height * sprite.rect.width / Mathf.Max(1f, sprite.rect.height);
-            // Leave room for the card and a visible gap, even on taller portrait screens.
-            float availableBesideCard = canvasWidth - Mathf.Min(cardWidth, canvasWidth * maxCardWidthFraction) - 60f;
-            float maxWidth = Mathf.Max(1f, Mathf.Min(canvasWidth * narratorWidthFraction, availableBesideCard));
-            if (width > maxWidth)
-            {
-                height *= maxWidth / width;
-                width = maxWidth;
-            }
-
-            rect.sizeDelta = new Vector2(width, height);
-            rect.anchorMin = rect.anchorMax = new Vector2(_narratorLeft ? 0f : 1f, 0f);
-            rect.pivot = new Vector2(0.5f, 0f);
-            rect.anchoredPosition = new Vector2(_narratorLeft ? width * 0.5f + 8f : -width * 0.5f - 8f, 0f);
-            rect.localScale = new Vector3(pointing && _narratorLeft ? -1f : 1f, 1f, 1f);
-        }
-
-        private IEnumerator CardIn()
-        {
-            float t = 0f;
-            Vector2 home = _card.anchoredPosition;
-            float dir = _card.pivot.y > 0.5f ? 1f : -1f;
-            while (t < 1f)
-            {
-                t += Time.unscaledDeltaTime / 0.34f;
-                float e = t >= 1f ? 1f : 1f - Mathf.Pow(1f - t, 3f);           // ease-out-cubic
-                float pop = t >= 1f ? 1f : 1f + 0.02f * Mathf.Sin(e * Mathf.PI);
-                _cardFade.alpha = Mathf.Clamp01(t * 1.6f);
-                _card.anchoredPosition = home + new Vector2(0f, (1f - e) * 20f * dir);
-                _card.localScale = new Vector3(pop, pop, 1f);
-                yield return null;
-            }
-            _card.anchoredPosition = home;
-            _card.localScale = Vector3.one;
-            _cardFade.alpha = 1f;
-        }
-
-        private IEnumerator HideCard()
-        {
-            if (_card == null || !_card.gameObject.activeSelf) yield break;
-            StopCoroutine("CardIn");
-            float t = 0f;
-            Vector2 home = _card.anchoredPosition;
-            float dir = _card.pivot.y > 0.5f ? 1f : -1f;
-            while (t < 1f)
-            {
-                t += Time.unscaledDeltaTime / 0.18f;
-                float e = t >= 1f ? 1f : t * t;
-                _cardFade.alpha = 1f - e;
-                _card.anchoredPosition = home + new Vector2(0f, e * 70f * dir);
-                yield return null;
-            }
-            _card.gameObject.SetActive(false);
-            if (_narrator != null) _narrator.gameObject.SetActive(false);
-            _card.anchoredPosition = home;
-            _cardFade.alpha = 1f;
-        }
-
-        /// <summary>
-        /// Which end of the screen the card goes to so that it cannot cover the control it is talking
-        /// about. Halves were not enough: a button sitting just above the middle still ended up under a
-        /// card anchored to the top, and the daily-reward button — the one the card was pointing at —
-        /// was the one it hid. This measures both bands against the highlighted rect instead of guessing.
-        ///
-        /// The bottom is the default: that is where the thumb already is, and a card there covers the
-        /// world rather than the HUD.
-        /// </summary>
-        private float PlaceFor(RectTransform target)
-        {
-            Rect r;
-            if (!CanvasRectOf(target, out r)) return CardBottomY;
-
-            // Halka deliğin kenarından dışarı taşıyor; kart onun da dışında kalmalı.
-            float keepLo = r.yMin - RingPad - CardGap;
-            float keepHi = r.yMax + RingPad + CardGap;
-
-            float bLo, bHi, tLo, tHi;
-            CardBand(CardBottomY, out bLo, out bHi);
-            CardBand(CardTopY, out tLo, out tHi);
-
-            float bottomOver = Mathf.Min(bHi, keepHi) - Mathf.Max(bLo, keepLo);
-            if (bottomOver <= 0f) return CardBottomY;
-            float topOver = Mathf.Min(tHi, keepHi) - Mathf.Max(tLo, keepLo);
-            if (topOver <= 0f) return CardTopY;
-            // İkisi de çakışıyorsa (ekranı boydan boya kaplayan bir hedef) az olanı seç.
-            return bottomOver <= topOver ? CardBottomY : CardTopY;
-        }
-
-        /// <summary>The strip of canvas the card would occupy at <paramref name="y"/>, ribbon and pips included.</summary>
-        private void CardBand(float y, out float lo, out float hi)
-        {
-            float h = _canvasRect != null ? _canvasRect.rect.height : CanvasHeight;
-            float bottom = y < 0f ? h + y - cardHeight : y;   // eksi y = üstten sarkar
-            lo = bottom - PipDrop;
-            hi = bottom + cardHeight + RibbonRise;
+            _view.ShowCard(title, body, pose, icon, _tapAdvances, _skipVisible);
         }
 
         private IEnumerator WaitTap(float seconds)
@@ -972,178 +735,9 @@ namespace Game.UI
             _tapped = false;
         }
 
-        // ------------------------------------------------------------------ delik, halka, iğne
-
-        private void LateUpdate()
-        {
-            if (_root == null || !_root.gameObject.activeSelf) return;
-
-            if (_ride != null) _targetWorld = _ride.position;
-
-            if (_targetRect != null)
-            {
-                Rect r;
-                if (CanvasRectOf(_targetRect, out r))
-                {
-                    SetHole(r);
-                    PlaceRing(r);
-                }
-            }
-
-            if (_pulse != null && _pulse.enabled)
-            {
-                // Nabız: halka hafifçe büyüyüp soluyor. Duran bir çerçeve göze çarpmıyor.
-                float p = Mathf.PingPong(Time.unscaledTime * 1.25f, 1f);
-                float s = 1f + 0.09f * p;
-                _pulse.rectTransform.localScale = new Vector3(s, s, 1f);
-                var c = ringColor; c.a = 0.55f * (1f - p);
-                _pulse.color = c;
-            }
-
-            // El yalnız oyuncunun gerçekten o kontrole dokunması beklenirken çıkar. Kartın "devam"
-            // beklediği duraklarda ekranın her yeri geçerli bir dokunuş, orada el yanlış yeri gösterir.
-            if (_hand != null)
-            {
-                bool want = _targetRect != null && _ring != null && _ring.enabled && !_tapAdvances;
-                if (_hand.gameObject.activeSelf != want) _hand.gameObject.SetActive(want);
-                if (want)
-                {
-                    float p = Mathf.PingPong(Time.unscaledTime * (2f / Mathf.Max(0.1f, handTapSeconds)), 1f);
-                    float s = 1f - 0.13f * (p * p * (3f - 2f * p));
-                    _hand.localScale = new Vector3(s, s, 1f);
-                }
-            }
-
-            if (_pin != null && _pin.gameObject.activeSelf) PlacePin();
-        }
-
-        private void PlacePin()
-        {
-            var cam = Camera.main;
-            if (cam == null) return;
-            Vector3 sp = cam.WorldToScreenPoint(_targetWorld);
-            if (sp.z < 0f) { _pin.gameObject.SetActive(false); return; }
-            Vector2 local;
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRect, sp, null, out local);
-            float bob = Mathf.Sin(Time.unscaledTime * 2.6f) * 12f;
-            _pin.anchoredPosition = local + new Vector2(0f, 96f + bob);
-        }
-
-        /// <summary>The four quads that surround <paramref name="hole"/>. An empty hole shades the lot.</summary>
-        private void SetHole(Rect hole)
-        {
-            if (_shade == null) return;
-            float w = CanvasWidth, h = CanvasHeight;
-            if (_canvasRect != null) { w = _canvasRect.rect.width; h = _canvasRect.rect.height; }
-
-            if (hole.width <= 0f || hole.height <= 0f)
-                hole = new Rect(w * 0.5f, h * 0.5f, 0f, 0f);
-
-            float l = Mathf.Clamp(hole.xMin, 0f, w), r = Mathf.Clamp(hole.xMax, 0f, w);
-            float b = Mathf.Clamp(hole.yMin, 0f, h), t = Mathf.Clamp(hole.yMax, 0f, h);
-
-            Quad(_shade[0], 0f, t, w, h - t);        // üst
-            Quad(_shade[1], 0f, 0f, w, b);           // alt
-            Quad(_shade[2], 0f, b, l, t - b);        // sol
-            Quad(_shade[3], r, b, w - r, t - b);     // sağ
-        }
-
-        private static void Quad(Image img, float x, float y, float w, float h)
-        {
-            var rt = img.rectTransform;
-            rt.anchoredPosition = new Vector2(x, y);
-            rt.sizeDelta = new Vector2(Mathf.Max(0f, w), Mathf.Max(0f, h));
-        }
-
-        private void PlaceRing(Rect hole)
-        {
-            if (_ring == null) return;
-            var size = new Vector2(hole.width + RingPad * 2f, hole.height + RingPad * 2f);
-            _ring.rectTransform.anchoredPosition = hole.center;
-            _ring.rectTransform.sizeDelta = size;
-            _pulse.rectTransform.anchoredPosition = hole.center;
-            _pulse.rectTransform.sizeDelta = size;
-
-            if (_hand == null) return;
-            float hh = Mathf.Clamp(hole.height * 0.95f, 110f, 190f);
-            _hand.sizeDelta = new Vector2(hh * (256f / 340f), hh);
-            _hand.anchoredPosition = hole.center;
-        }
-
-        /// <summary>A UI rect in this canvas's own bottom-left-origin coordinates.</summary>
-        private bool CanvasRectOf(RectTransform target, out Rect result)
-        {
-            result = new Rect();
-            if (target == null || _canvasRect == null || !target.gameObject.activeInHierarchy) return false;
-
-            target.GetWorldCorners(_corners);
-            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
-            for (int i = 0; i < 4; i++)
-            {
-                Vector2 sp = RectTransformUtility.WorldToScreenPoint(null, _corners[i]);
-                Vector2 local;
-                if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRect, sp, null, out local)) return false;
-                local += _canvasRect.rect.size * 0.5f;
-                if (local.x < minX) minX = local.x;
-                if (local.y < minY) minY = local.y;
-                if (local.x > maxX) maxX = local.x;
-                if (local.y > maxY) maxY = local.y;
-            }
-            result = new Rect(minX, minY, maxX - minX, maxY - minY);
-            return result.width > 1f && result.height > 1f;
-        }
-
-        private readonly Vector3[] _corners = new Vector3[4];
-
         // ------------------------------------------------------------------ küçük anahtarlar
 
-        /// <summary>
-        /// Whether the four quads are drawn at all. Off means the tutorial is watching rather than
-        /// holding: no tint, and — the part that matters — no raycast target, so every control under
-        /// them works normally.
-        /// </summary>
-        private void ShadeBlocks(bool on)
-        {
-            if (_shade == null) return;
-            for (int i = 0; i < _shade.Length; i++) _shade[i].enabled = on;
-        }
-
-        private void BlockInput(bool on)
-        {
-            if (_inputBlocker == null) return;
-            _inputBlocker.enabled = on;
-            _inputBlocker.raycastTarget = on;
-        }
-
-        private void ShowRing(bool on)
-        {
-            if (_ring == null) return;
-            _ring.enabled = on;
-            _pulse.enabled = on;
-        }
-
-        private void ShowSkip(bool on)
-        {
-            if (_skip != null) _skip.gameObject.SetActive(on);
-        }
-
-        private bool _pipsOn;
-
-        private void ShowPips(bool on)
-        {
-            _pipsOn = on;
-            if (_pips != null) _pips.gameObject.SetActive(on);
-        }
-
-        private void SetPips(int live)
-        {
-            if (_pip == null) return;
-            for (int i = 0; i < _pip.Length; i++)
-            {
-                _pip[i].sprite = i <= live ? pipOn : pipOff;
-                if (_pip[i].sprite == null) _pip[i].color = i <= live ? ringColor : new Color(1f, 1f, 1f, 0.3f);
-            }
-        }
+        private void ShowSkip(bool on) => _skipVisible = on;
 
         private void HudVisible(bool on)
         {
@@ -1166,21 +760,6 @@ namespace Game.UI
                 yield return null;
             }
             _hudFade.alpha = 1f;
-        }
-
-        private IEnumerator Fade(float from, float to, float seconds)
-        {
-            float t = 0f;
-            while (t < 1f)
-            {
-                t += Time.unscaledDeltaTime / Mathf.Max(0.05f, seconds);
-                float a = Mathf.Lerp(from, to, t >= 1f ? 1f : t);
-                for (int i = 0; i < _shade.Length; i++)
-                {
-                    var c = _shade[i].color; c.a = a; _shade[i].color = c;
-                }
-                yield return null;
-            }
         }
 
         private Sprite Icon(int i)
@@ -1217,326 +796,46 @@ namespace Game.UI
         private void OnDestroy()
         {
             if (_instance == this) _instance = null;
-            if (_root != null) Destroy(_root.gameObject);
+            if (_view != null) Destroy(_view.gameObject);
         }
 
         // ══════════════════════════════════════════════════════════════════ kuruluş
 
         private void Build()
         {
-            if (_root != null) return;
+            if (_view != null) return;
             if (font == null) font = FindFont();
-            _ringSprite = MakeRing(112, 44f, 9f);
-
-            var go = new GameObject("UI_Egitim", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            var canvas = go.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = SortingOrder;
-            var scaler = go.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(CanvasWidth, CanvasHeight);
-            scaler.matchWidthOrHeight = 0.5f;
-            _root = (RectTransform)go.transform;
-            _canvasRect = _root;
-
-            BuildShade();
-            BuildInputBlocker();
-            BuildRing();
-            BuildPin();
-            BuildNarrator();
-            BuildCard();
-            BuildSkip();
-        }
-
-        private void BuildShade()
-        {
-            _shade = new Image[4];
-            for (int i = 0; i < 4; i++)
+            var art = new TutorialPresenter.Art
             {
-                var go = new GameObject("Golge_" + i, typeof(RectTransform), typeof(Image), typeof(Button));
-                var rt = (RectTransform)go.transform;
-                rt.SetParent(_root, false);
-                rt.anchorMin = rt.anchorMax = rt.pivot = Vector2.zero;
-                _shade[i] = go.GetComponent<Image>();
-                var c = shadeColor; c.a = 0f;
-                _shade[i].color = c;
-                var b = go.GetComponent<Button>();
-                b.transition = Selectable.Transition.None;
-                b.onClick.AddListener(OnShadeTap);
-            }
-            SetHole(new Rect());
-        }
-
-        /// <summary>
-        /// Sits above every game canvas and every spotlight hole, but below the tutorial artwork and
-        /// DEVAM button. This is what makes highlighted HUD controls visual-only until onboarding ends.
-        /// </summary>
-        private void BuildInputBlocker()
-        {
-            var go = new GameObject("GirisKilidi", typeof(RectTransform), typeof(Image));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(_root, false);
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            _inputBlocker = go.GetComponent<Image>();
-            _inputBlocker.color = new Color(0f, 0f, 0f, 0.001f);
-            _inputBlocker.raycastTarget = true;
-        }
-
-        private void BuildRing()
-        {
-            _pulse = RingImage("Nabiz");
-            _ring = RingImage("Halka");
-            var c = ringColor; c.a = 0.95f;
-            _ring.color = c;
-            ShowRing(false);
-            BuildHand();          // halkadan sonra: el her zaman halkanın üstünde çizilsin
-        }
-
-        /// <summary>
-        /// The hand that taps. Its pivot sits on the fingertip, so wherever the hand is put is where the
-        /// finger lands, and the press animation — shrinking towards that pivot — keeps the fingertip
-        /// still while the rest of the hand moves into it.
-        /// </summary>
-        private void BuildHand()
-        {
-            if (tapHand == null) return;
-            var go = new GameObject("El", typeof(RectTransform), typeof(Image));
-            _hand = (RectTransform)go.transform;
-            _hand.SetParent(_root, false);
-            _hand.anchorMin = _hand.anchorMax = Vector2.zero;
-            _hand.pivot = new Vector2(0.40f, 0.87f);     // parmak ucunun resim içindeki yeri
-            var img = go.GetComponent<Image>();
-            img.sprite = tapHand;
-            img.raycastTarget = false;
-            img.preserveAspect = true;
-            go.SetActive(false);
-        }
-
-        private Image RingImage(string name)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(_root, false);
-            rt.anchorMin = rt.anchorMax = Vector2.zero;
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            var img = go.GetComponent<Image>();
-            img.sprite = _ringSprite;
-            img.type = Image.Type.Sliced;
-            img.color = ringColor;
-            img.raycastTarget = false;
-            return img;
-        }
-
-        private void BuildPin()
-        {
-            var go = new GameObject("Igne", typeof(RectTransform), typeof(Image));
-            _pin = (RectTransform)go.transform;
-            _pin.SetParent(_root, false);
-            _pin.anchorMin = _pin.anchorMax = new Vector2(0.5f, 0.5f);
-            _pin.sizeDelta = new Vector2(128f, 128f);
-            var img = go.GetComponent<Image>();
-            img.sprite = worldPin;
-            img.raycastTarget = false;
-            img.preserveAspect = true;
-            _pin.gameObject.SetActive(false);
-        }
-
-        private void BuildNarrator()
-        {
-            var go = new GameObject("UstaMax", typeof(RectTransform), typeof(Image));
-            var rect = (RectTransform)go.transform;
-            rect.SetParent(_root, false);
-            _narrator = go.GetComponent<Image>();
-            _narrator.raycastTarget = false;
-            _narrator.preserveAspect = true;
-            go.SetActive(false);
-        }
-
-        private void BuildCard()
-        {
-            bool newPanel = tutorialPanel != null;
-            var go = new GameObject("Kart", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
-            _card = (RectTransform)go.transform;
-            _card.SetParent(_root, false);
-            _card.sizeDelta = new Vector2(cardWidth, cardHeight);
-            _cardFade = go.GetComponent<CanvasGroup>();
-            var body = go.GetComponent<Image>();
-            body.sprite = newPanel ? tutorialPanel : (cardPanel != null ? cardPanel : UiSkin.Panel);
-            body.type = newPanel ? Image.Type.Simple : Image.Type.Sliced;
-            body.pixelsPerUnitMultiplier = CardPpu;
-            body.color = newPanel || cardPanel != null ? Color.white : new Color(0.97f, 0.95f, 0.88f, 1f);
-            body.raycastTarget = false;
-
-            // Yeni panelin altın isimliği görselin kendi içinde. Eski panelde ayrı şerit kullanılır.
-            var rib = new GameObject("Serit", typeof(RectTransform), typeof(Image));
-            var rrt = (RectTransform)rib.transform;
-            rrt.SetParent(_card, false);
-            var ribImg = rib.GetComponent<Image>();
-            if (newPanel)
+                Panel = tutorialPanel,
+                Button = tutorialButton,
+                Medallion = medallion,
+                SkipPill = skipPill,
+                PipOn = pipOn,
+                PipOff = pipOff,
+                WorldPin = worldPin,
+                TapHand = tapHand,
+                PointPose = narratorPoint,
+                DefaultPose = narratorWelcome != null ? narratorWelcome : narratorPoint,
+                Font = font,
+                Shade = shadeColor,
+                Ring = ringColor,
+                HandTapSeconds = handTapSeconds
+            };
+            var layout = new TutorialPresenter.Layout
             {
-                rrt.anchorMin = rrt.anchorMax = new Vector2(0f, 1f);
-                rrt.pivot = new Vector2(0f, 1f);
-                rrt.sizeDelta = new Vector2(230f, 64f);
-                rrt.anchoredPosition = new Vector2(48f, -14f);
-                ribImg.enabled = false;
-            }
-            else
-            {
-                rrt.anchorMin = rrt.anchorMax = new Vector2(0.5f, 1f);
-                rrt.sizeDelta = new Vector2(RibbonWidth, RibbonHeight);
-                rrt.anchoredPosition = new Vector2(0f, 8f);
-                ribImg.sprite = cardRibbon != null ? cardRibbon : UiSkin.ButtonYellow;
-                ribImg.type = Image.Type.Sliced;
-            }
-            ribImg.raycastTarget = false;
-            _cardTitle = Text(rrt, "Baslik", newPanel ? 28f : 32f, TextAlignmentOptions.Center,
-                              newPanel ? new Color32(0x58, 0x32, 0x0B, 0xFF) : Color.white);
-            var trt = (RectTransform)_cardTitle.transform;
-            trt.offsetMin = newPanel ? new Vector2(18f, 8f) : new Vector2(60f, 14f);
-            trt.offsetMax = newPanel ? new Vector2(-18f, -8f) : new Vector2(-60f, -8f);
-            _cardTitle.enableAutoSizing = true;
-            _cardTitle.fontSize = newPanel ? 28f : 32f;
-            _cardTitle.fontSizeMin = newPanel ? 22f : 24f;
-            _cardTitle.fontSizeMax = newPanel ? 30f : 34f;
-
-            // madalyon + simge
-            var med = new GameObject("Madalyon", typeof(RectTransform), typeof(Image));
-            var mrt = (RectTransform)med.transform;
-            mrt.SetParent(_card, false);
-            mrt.anchorMin = mrt.anchorMax = new Vector2(0f, 0.5f);
-            mrt.sizeDelta = new Vector2(MedalSize, MedalSize);
-            // Merkez = kenar + yarıçap: madalyon iç kapsülün İÇİNDE durur, çizgisine binmez.
-            // -20: şerit üstten pay yediği için içeriğin görsel ortası kart ortasının azıcık altında.
-            mrt.anchoredPosition = new Vector2(CardInset + MedalSize * 0.5f, -5f);
-            var medImg = med.GetComponent<Image>();
-            medImg.sprite = medallion;
-            medImg.raycastTarget = false;
-            medImg.preserveAspect = true;
-            medImg.enabled = medallion != null;
-
-            var ico = new GameObject("Simge", typeof(RectTransform), typeof(Image));
-            var irt = (RectTransform)ico.transform;
-            irt.SetParent(mrt, false);
-            irt.anchorMin = new Vector2(0.5f, 0.5f);
-            irt.anchorMax = new Vector2(0.5f, 0.5f);
-            irt.sizeDelta = new Vector2(MedalSize * 0.62f, MedalSize * 0.62f);
-            _cardIcon = ico.GetComponent<Image>();
-            _cardIcon.raycastTarget = false;
-            _cardIcon.preserveAspect = true;
-
-            // gövde yazısı — sol kenarı simgeye göre ShowCard ayarlıyor (ipuçlarının simgesi yok)
-            _cardBody = Text(_card, "Metin", 30f, TextAlignmentOptions.Left,
-                             newPanel ? Color.white : inkColor);
-            var brt = (RectTransform)_cardBody.transform;
-            brt.offsetMin = new Vector2(CardInset + MedalSize + 16f, 100f);
-            brt.offsetMax = new Vector2(-(CardInset + 8f), -72f);
-            _cardBody.enableAutoSizing = true;
-            _cardBody.fontSize = 30f;
-            _cardBody.fontSizeMin = 24f;
-            _cardBody.fontSizeMax = 32f;
-
-            // Referanstaki gibi açık bir DEVAM düğmesi; bütün diğer girişler kilitliyken tek ilerleme yolu.
-            var nx = new GameObject("BtnDevam", typeof(RectTransform), typeof(Image), typeof(Button));
-            _next = (RectTransform)nx.transform;
-            _next.SetParent(_card, false);
-            _next.anchorMin = _next.anchorMax = new Vector2(1f, 0f);
-            _next.pivot = new Vector2(1f, 0f);
-            _next.sizeDelta = new Vector2(ContinueWidth, ContinueHeight);
-            _next.anchoredPosition = new Vector2(-32f, 20f);
-            var nimg = nx.GetComponent<Image>();
-            nimg.sprite = tutorialButton != null ? tutorialButton : UiSkin.ButtonBlue;
-            nimg.type = tutorialButton != null ? Image.Type.Simple : Image.Type.Sliced;
-            nimg.color = Color.white;
-            var nextButton = nx.GetComponent<Button>();
-            nextButton.targetGraphic = nimg;
-            nextButton.onClick.AddListener(OnContinue);
-            TapBounce.Attach(nextButton);
-            _nextText = Text(_next, "Yazi", 32f, TextAlignmentOptions.Center, Color.white);
-            _nextText.text = Loc.T("egitim.devam");
-            _nextText.enableAutoSizing = true;
-            _nextText.fontSizeMin = 24f;
-            _nextText.fontSizeMax = 34f;
-            _next.gameObject.SetActive(false);
-
-            BuildPips();
-            _card.gameObject.SetActive(false);
-        }
-
-        private void BuildPips()
-        {
-            var go = new GameObject("Adimlar", typeof(RectTransform), typeof(HorizontalLayoutGroup));
-            _pips = (RectTransform)go.transform;
-            _pips.SetParent(_card, false);
-            _pips.anchorMin = _pips.anchorMax = new Vector2(0.5f, 0f);
-            _pips.pivot = new Vector2(0.5f, 1f);
-            _pips.sizeDelta = new Vector2(cardWidth, 30f);
-            _pips.anchoredPosition = new Vector2(0f, -18f);
-            var lay = go.GetComponent<HorizontalLayoutGroup>();
-            lay.spacing = 14f;
-            lay.childAlignment = TextAnchor.MiddleCenter;
-            lay.childForceExpandWidth = false;
-            lay.childForceExpandHeight = false;
-
-            _pip = new Image[Tour.Length];
-            for (int i = 0; i < Tour.Length; i++)
-            {
-                var p = new GameObject("Pip_" + i, typeof(RectTransform), typeof(Image), typeof(LayoutElement));
-                p.transform.SetParent(_pips, false);
-                var le = p.GetComponent<LayoutElement>();
-                le.preferredWidth = PipSize;
-                le.preferredHeight = PipSize;
-                _pip[i] = p.GetComponent<Image>();
-                _pip[i].sprite = pipOff;
-                _pip[i].raycastTarget = false;
-                _pip[i].preserveAspect = true;
-            }
-            _pips.gameObject.SetActive(false);
-        }
-
-        private void BuildSkip()
-        {
-            var go = new GameObject("BtnAtla", typeof(RectTransform), typeof(Image), typeof(Button));
-            _skip = (RectTransform)go.transform;
-            _skip.SetParent(_root, false);
-            _skip.anchorMin = _skip.anchorMax = new Vector2(1f, 1f);
-            _skip.pivot = new Vector2(1f, 1f);
-            _skip.sizeDelta = new Vector2(240f, 96f);
-            _skip.anchoredPosition = new Vector2(-40f, -150f);
-            var img = go.GetComponent<Image>();
-            img.sprite = skipPill != null ? skipPill : UiSkin.Flat;
-            img.type = Image.Type.Sliced;
-            img.color = skipPill != null ? Color.white : new Color(0f, 0f, 0f, 0.55f);
-            var b = go.GetComponent<Button>();
-            b.targetGraphic = img;
-            b.onClick.AddListener(OnSkip);
-            // Yalnız bu butona: kalkanlar da Button ama onlar dokunuş yiyen görünmez levhalar,
-            // ölçeklenirlerse aralarından delik açılır.
-            TapBounce.Attach(b);
-            // Hap koyu lacivert; kartın mürekkebi de öyle. Bu yazı beyaz olmak zorunda.
-            _skipText = Text(_skip, "Yazi", 40f, TextAlignmentOptions.Center, Color.white);
-            _skipText.text = Loc.T("egitim.atla");
-            _skip.gameObject.SetActive(false);
-        }
-
-        private TMP_Text Text(RectTransform parent, string name, float size, TextAlignmentOptions align, Color ink)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var t = go.AddComponent<TextMeshProUGUI>();
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(parent, false);
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            if (font != null) t.font = font;
-            t.fontSize = size;
-            t.alignment = align;
-            t.color = ink;
-            t.raycastTarget = false;
-            return t;
+                CardMaxWidth = cardMaxWidth,
+                NarratorHeightShare = narratorHeightShare,
+                NarratorMinHeight = narratorShortest,
+                NarratorMaxHeight = Mathf.Max(narratorShortest, narratorTallest),
+                NarratorSink = narratorSink,
+                EdgeMargin = edgeMargin,
+                TopReserve = topReserve
+            };
+            _view = TutorialPresenter.Create(art, layout, SortingOrder);
+            _view.Continued += OnContinue;
+            _view.Skipped += OnSkip;
+            _view.ShadeTapped += OnShadeTap;
         }
 
         private static TMP_FontAsset FindFont()
@@ -1545,36 +844,6 @@ namespace Game.UI
             for (int i = 0; i < any.Length; i++)
                 if (any[i].font != null) return any[i].font;
             return null;
-        }
-
-        /// <summary>
-        /// The highlight outline, generated rather than authored: it has to fit a 1200-wide button and a
-        /// 150-wide pill equally well, which a stretched PNG cannot do. A rounded-rect stroke drawn from
-        /// its signed distance field, then 9-sliced past the corner radius so the corners never squash.
-        /// </summary>
-        private static Sprite MakeRing(int size, float radius, float stroke)
-        {
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-            tex.wrapMode = TextureWrapMode.Clamp;
-            var px = new Color32[size * size];
-            float half = size * 0.5f;
-            float inner = half - radius;
-            for (int y = 0; y < size; y++)
-                for (int x = 0; x < size; x++)
-                {
-                    float dx = Mathf.Abs(x + 0.5f - half) - inner;
-                    float dy = Mathf.Abs(y + 0.5f - half) - inner;
-                    float qx = Mathf.Max(dx, 0f), qy = Mathf.Max(dy, 0f);
-                    float d = Mathf.Sqrt(qx * qx + qy * qy) + Mathf.Min(Mathf.Max(dx, dy), 0f) - radius;
-                    // |d| kenardan uzaklık; şeridin içinde 1, dışında 0, arada bir piksellik yumuşama
-                    float a = 1f - Mathf.Clamp01((Mathf.Abs(d) - stroke * 0.5f) / 1.5f);
-                    px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
-                }
-            tex.SetPixels32(px);
-            tex.Apply();
-            float border = radius + stroke;
-            return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
-                                 SpriteMeshType.FullRect, new Vector4(border, border, border, border));
         }
     }
 }

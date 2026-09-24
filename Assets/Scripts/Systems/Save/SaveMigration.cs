@@ -20,8 +20,8 @@ namespace Game.Systems
     /// entitlements, but keeping the local copy prevents a migration from briefly removing them, and none
     /// of them shortcut the progression this reset exists to re-test. A running gem boost is not
     /// kept — it is a time-limited effect mid-flight, and starting a fresh economy already
-    /// multiplied would misreport the pacing. The support id survives too, which is not a payment but
-    /// is not progress either — see <see cref="SaveData.playerId"/>.
+    /// multiplied would misreport the pacing. The support id and the league profile survive too, which
+    /// are not payments but are not progress either — see <see cref="SaveData.playerId"/>.
     /// </summary>
     public static class SaveMigration
     {
@@ -131,6 +131,13 @@ namespace Game.Systems
             fresh.dailyGemStipend = old.dailyGemStipend;
             // Identity, not progress. See SaveData.playerId.
             fresh.playerId = old.playerId;
+            if (old.profile != null)
+                fresh.profile = new PlayerProfileData
+                {
+                    name = old.profile.name,
+                    avatar = old.profile.avatar,
+                    prompted = old.profile.prompted,
+                };
             fresh.prestigeRetired = true;
             fresh.legacyIncomeMultiplier = old.legacyIncomeMultiplier > 1d
                 ? old.legacyIncomeMultiplier

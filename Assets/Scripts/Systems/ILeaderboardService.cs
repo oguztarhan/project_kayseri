@@ -36,8 +36,12 @@ namespace Game.Systems
         public int Rank;
 
         /// <summary>What to print. For a synthetic board this is a generated handle, never a name
-        /// belonging to a person.</summary>
+        /// belonging to a person. EMPTY on the player's row when they have not made a profile yet — the
+        /// screen prints its own localized "YOU" rather than this service guessing a language.</summary>
         public string Name;
+
+        /// <summary>Index into <see cref="Game.Core.PlayerProfiles.AvatarSprites"/>.</summary>
+        public int Avatar;
 
         public long Score;
 

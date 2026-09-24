@@ -336,6 +336,13 @@ namespace Game.Systems
         // what every existing save is.
         public LadderState ladder = new LadderState();
 
+        // ---- profil (PlayerProfileService) -------------------------------------------------------
+        // The name and avatar the league board shows for the player. Added WITHOUT a save-version bump,
+        // on the precedent every block above set: an empty name is a player who has not made a profile
+        // yet, and the board shows them as "YOU" until they do. Kept by SaveMigration.Reset, like
+        // playerId: a progress wipe resets what was earned, not who the player is.
+        public PlayerProfileData profile = new PlayerProfileData();
+
         // ---- kart koleksiyonu (CardCollectionService) ---------------------------------------------
         // The card collection. ONE NESTED OBJECT rather than nine fields scattered across this root,
         // because nine loose fields is nine chances for the next feature to sit between two of them
@@ -666,6 +673,19 @@ namespace Game.Systems
     /// inbox that swept itself would be the first thing in this game that punished absence
     /// (Docs/FIVE_LAYERS.md R3).
     /// </summary>
+    /// <summary>
+    /// The player's league profile. The name is stored already cleaned by
+    /// <c>Game.Core.PlayerProfiles.Sanitize</c>, and the avatar is an index into
+    /// <c>PlayerProfiles.AvatarSprites</c>. Both are re-checked on read, because a save file is text.
+    /// </summary>
+    [Serializable]
+    public class PlayerProfileData
+    {
+        public string name = "";          // "" = no profile yet; the board says "YOU"
+        public int avatar;                // index into PlayerProfiles.AvatarSprites
+        public bool prompted;             // the editor has opened by itself once; presentation only
+    }
+
     [Serializable]
     public class LadderInboxRow
     {

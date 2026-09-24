@@ -200,7 +200,18 @@ namespace Game.Tests
             Assert.That(Leaderboards.RewardTier(11, b), Is.EqualTo(4));
             Assert.That(Leaderboards.RewardTier(20, b), Is.EqualTo(4));
             Assert.That(Leaderboards.RewardTier(21, b), Is.EqualTo(5));
-            Assert.That(Leaderboards.RewardTier(Leaderboards.CohortSize, b), Is.EqualTo(5));
+            Assert.That(Leaderboards.RewardTier(Leaderboards.RewardedRanks, b), Is.EqualTo(5));
+        }
+
+        /// <summary>The board is a Top 50, but only the top 30 are paid — the payout table was sized
+        /// against thirty places and the twenty added below them earn nothing.</summary>
+        [Test]
+        public void RanksPastThirtyAreOnTheBoardButOutsideEveryBracket()
+        {
+            Assert.That(Leaderboards.CohortSize, Is.EqualTo(50));
+            Assert.That(Leaderboards.RewardedRanks, Is.EqualTo(30));
+            for (int rank = Leaderboards.RewardedRanks + 1; rank <= Leaderboards.CohortSize; rank++)
+                Assert.That(Leaderboards.RewardTier(rank, Leaderboards.DefaultBracketEnds), Is.EqualTo(-1), "rank " + rank);
         }
 
         /// <summary>Rank 0 means "not on the board" and must never map to the top bracket.</summary>
@@ -346,6 +357,9 @@ namespace Game.Tests
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var service = new LocalLeaderboardService(null, now - 1L, TestCadence);
             service.IslandsOwned = islands;
+            // Rival scores move with the clock now; two boards compared in one test must not
+            // straddle a progress step between them.
+            service.ClockOverrideUnix = now;
             return service;
         }
 
