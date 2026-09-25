@@ -2151,6 +2151,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 228096278}
   m_Mesh: {fileID: -8080619178944260884, guid: 06f7cdca0bbfc8a4780f0c46b9b96814, type: 2}
+--- !u!1 &231691089
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 231691090}
+  m_Layer: 0
+  m_Name: Shop_Coin_Spot_04
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &231691090
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 231691089}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -437, y: 33.58, z: -1485}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1326379055}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &246280656
 GameObject:
   m_ObjectHideFlags: 0
@@ -2751,6 +2782,37 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.8870109, z: -0, w: 0.4617486}
   m_LocalPosition: {x: -492, y: 33.58, z: -1450}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1326379055}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &325046744
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 325046745}
+  m_Layer: 0
+  m_Name: Shop_Lantern_Worker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &325046745
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 325046744}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: -0.7071068}
+  m_LocalPosition: {x: -270, y: 33.58, z: -1344}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4195,6 +4257,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1326379055}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &513293494
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 513293495}
+  m_Layer: 0
+  m_Name: Shop_Coin_Spot_02
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &513293495
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 513293494}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -472, y: 33.58, z: -1478}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1326379055}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &517046345
 GameObject:
   m_ObjectHideFlags: 0
@@ -4577,6 +4670,37 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 2262894893751466040, guid: fdb55ac5a5b4314468fa2d612b59f173, type: 3}
   m_PrefabInstance: {fileID: 6635116245618731502}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &567345875
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 567345876}
+  m_Layer: 0
+  m_Name: Shop_Coin_Spot_01
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &567345876
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 567345875}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -490, y: 33.58, z: -1472}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1326379055}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &578687113
 GameObject:
   m_ObjectHideFlags: 0
@@ -4602,7 +4726,7 @@ Transform:
   m_GameObject: {fileID: 578687113}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -312, y: 33.58, z: -1455}
+  m_LocalPosition: {x: -315, y: 33.58, z: -1455}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7013,6 +7137,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 871302889}
   m_Mesh: {fileID: -4959482999524090609, guid: 06f7cdca0bbfc8a4780f0c46b9b96814, type: 2}
+--- !u!1 &874304923
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 874304924}
+  m_Layer: 0
+  m_Name: Shop_Bag_Worker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &874304924
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 874304923}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  m_LocalPosition: {x: -524, y: 33.58, z: -1338}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1326379055}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &885401354
 GameObject:
   m_ObjectHideFlags: 0
@@ -7646,6 +7801,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 957878464}
   m_Mesh: {fileID: -8140123039477909928, guid: 06f7cdca0bbfc8a4780f0c46b9b96814, type: 2}
+--- !u!1 &966169858
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 966169859}
+  m_Layer: 0
+  m_Name: Shop_Helmet_Worker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &966169859
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 966169858}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
+  m_LocalPosition: {x: -292, y: 33.58, z: -1368}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1326379055}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &968740841
 GameObject:
   m_ObjectHideFlags: 0
@@ -7761,7 +7947,7 @@ Transform:
   m_GameObject: {fileID: 968981463}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -266, y: 33.58, z: -1371}
+  m_LocalPosition: {x: -315, y: 33.58, z: -1371}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10146,7 +10332,7 @@ Transform:
   m_GameObject: {fileID: 1242076151}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -268, y: 33.58, z: -1356}
+  m_LocalPosition: {x: -315, y: 33.58, z: -1344}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10729,6 +10915,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1298030981}
   m_Mesh: {fileID: -5804413829189516216, guid: 06f7cdca0bbfc8a4780f0c46b9b96814, type: 2}
+--- !u!1 &1316282728
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1316282729}
+  m_Layer: 0
+  m_Name: Shop_Coin_Spot_03
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1316282729
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1316282728}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -455, y: 33.58, z: -1482}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1326379055}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1326379054
 GameObject:
   m_ObjectHideFlags: 0
@@ -10741,6 +10958,7 @@ GameObject:
   - component: {fileID: 1326379057}
   - component: {fileID: 1326379056}
   - component: {fileID: 1326379058}
+  - component: {fileID: 1326379059}
   m_Layer: 0
   m_Name: MiningShop_Anchors
   m_TagString: Untagged
@@ -10776,12 +10994,20 @@ Transform:
   - {fileID: 1772900299}
   - {fileID: 497674539}
   - {fileID: 1903285143}
+  - {fileID: 966169859}
   - {fileID: 1884027246}
   - {fileID: 1519770754}
   - {fileID: 1815085187}
+  - {fileID: 325046745}
   - {fileID: 100726638}
   - {fileID: 891546357}
   - {fileID: 969013832}
+  - {fileID: 874304924}
+  - {fileID: 567345876}
+  - {fileID: 513293495}
+  - {fileID: 1316282729}
+  - {fileID: 231691090}
+  - {fileID: 1994994670}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1326379056
@@ -10831,6 +11057,17 @@ MonoBehaviour:
   pickerMax: {x: 0.94, y: 0.72}
   pickerColumns: 5
   workerChipColor: {r: 0.3, g: 0.34, b: 0.42, a: 1}
+  perfectSeconds: 1.2
+  perfectRise: 120
+  perfectCoins: 6
+  perfectCoinSize: 44
+  perfectCoinSpeed: 520
+  perfectCoinGravity: -1400
+  perfectTitleColor: {r: 1, g: 0.84, b: 0.22, a: 1}
+  perfectCashColor: {r: 1, g: 1, b: 1, a: 1}
+  goalMin: {x: 0.025, y: 0.845}
+  goalMax: {x: 0.56, y: 0.905}
+  goalRefreshSeconds: 1
 --- !u!114 &1326379057
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10866,6 +11103,11 @@ MonoBehaviour:
   starPulseScale: 0.18
   workerPlinthRadius: 11
   workerRankScaleStep: 0.1
+  contractSpotOffset: {x: 8, y: 0, z: -30}
+  contractScale: 1.12
+  contractBadgeColor: {r: 1, g: 0.78, b: 0.2, a: 1}
+  contractCrateColor: {r: 0.55, g: 0.36, b: 0.18, a: 1}
+  contractReceiveSeconds: 0.35
 --- !u!114 &1326379058
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10908,6 +11150,33 @@ MonoBehaviour:
   dimColor: {r: 0, g: 0, b: 0, a: 0.6}
   streakTrack: {r: 0, g: 0, b: 0, a: 0.3}
   streakFill: {r: 1, g: 0.78, b: 0.2, a: 1}
+--- !u!114 &1326379059
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1326379054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f76c911e068ef47478ff14607a70a98b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.ShopCoinView
+  coinSprite: {fileID: 0}
+  coinSize: 60
+  bobUnits: 5
+  bobSeconds: 1.4
+  flipsPerSecond: 0.6
+  edgeWidth: 0.2
+  coinSortingOrder: 101
+  popSeconds: 0.3
+  popOvershoot: 1.15
+  shrinkSeconds: 0.25
+  blinkSeconds: 5
+  blinksPerSecond: 4
+  fullScreenSortingOrder: 104
+  viewportMargin: 0.05
+  maxStepSeconds: 0.25
 --- !u!1 &1338409780
 GameObject:
   m_ObjectHideFlags: 0
@@ -12506,8 +12775,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1519770753}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-  m_LocalPosition: {x: -268, y: 33.58, z: -1356}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: -315, y: 33.58, z: -1344}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13026,11 +13295,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6133922240265336258, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.9955157
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6133922240265336258, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.9955157
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6546755171169001220, guid: 3d233ee8724dda345b8cffd178e278bc, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -14821,7 +15090,7 @@ Transform:
   m_GameObject: {fileID: 1815085186}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-  m_LocalPosition: {x: -292, y: 33.58, z: -1356}
+  m_LocalPosition: {x: -292, y: 33.58, z: -1344}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -15627,7 +15896,7 @@ Transform:
   m_GameObject: {fileID: 1884027245}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
-  m_LocalPosition: {x: -292, y: 33.58, z: -1356}
+  m_LocalPosition: {x: -292, y: 33.58, z: -1344}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -16474,6 +16743,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 68468241}
     m_Modifications:
+    - target: {fileID: 307719554561223952, guid: 36966a3b5c5a625419edaf00cba0be5b, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -4.117647
+      objectReference: {fileID: 0}
+    - target: {fileID: 307719554561223952, guid: 36966a3b5c5a625419edaf00cba0be5b, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -15.118228
+      objectReference: {fileID: 0}
     - target: {fileID: 494800526616031704, guid: 36966a3b5c5a625419edaf00cba0be5b, type: 3}
       propertyPath: m_LocalScale.x
       value: 85
@@ -17136,6 +17413,37 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 700fc4eacd5276049b79347926054b36, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.PortraitSpriteMesh
+--- !u!1 &1994994669
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1994994670}
+  m_Layer: 0
+  m_Name: Shop_Coin_Spot_05
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1994994670
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1994994669}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -418, y: 33.58, z: -1488}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1326379055}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2001247681
 GameObject:
   m_ObjectHideFlags: 0
@@ -18615,7 +18923,7 @@ Transform:
   m_GameObject: {fileID: 2075966757}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -312, y: 33.58, z: -1371}
+  m_LocalPosition: {x: -315, y: 33.58, z: -1413}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

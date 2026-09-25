@@ -97,6 +97,11 @@ namespace Game.Systems
         // the shop: which job the current 30-minute slot froze, and a completion the player has not seen yet.
         public ShopContractSaveData shopContract = new ShopContractSaveData();
 
+        // ---- dükkân sikkeleri (ShopCoinService) -----------------------------------------------
+        // Added WITHOUT a save-version bump: a default row is a player who has never seen a coin, and the first
+        // look at it opens the current cycle. The coin on screen is deliberately not saved — it goes back to the cycle.
+        public ShopCoinSaveData shopCoins = new ShopCoinSaveData();
+
         // ---- pop-up teklifler (OfferPopupUI) --------------------------------------------------
         // The IAP skus are consumable and shared by all eight islands, so purchasedOffers cannot
         // gate these: buying the small pack on coal would lock it on copper too. The pop-up keeps
@@ -771,6 +776,31 @@ namespace Game.Systems
         public int celebrationCards;
         /// <summary>The foreman the cards went to, or -1.</summary>
         public int celebrationForeman = -1;
+    }
+
+    [Serializable]
+    public class ShopCoinSaveData
+    {
+        /// <summary>The 48-hour cycle the counters below belong to; -1 before the first one opens.</summary>
+        public long cycle = -1L;
+        /// <summary>Coins collected this cycle. The cap counts these, not spawns.</summary>
+        public int collected;
+        /// <summary>Coins spawned this cycle, missed ones included. Seeds the gap before the next one.</summary>
+        public int spawns;
+        /// <summary>Eligible play left before the next coin. Set when a coin spawns, so a restart cannot shorten it.</summary>
+        public double secondsToNextSpawn;
+
+        /// <summary>Makes a loaded block safe to read. Returns true when something had to be changed.</summary>
+        public bool Normalise(double maxDelaySeconds)
+        {
+            bool changed = false;
+            if (cycle < -1L) { cycle = -1L; changed = true; }
+            if (collected < 0) { collected = 0; changed = true; }
+            if (spawns < 0) { spawns = 0; changed = true; }
+            if (double.IsNaN(secondsToNextSpawn) || secondsToNextSpawn < 0d) { secondsToNextSpawn = 0d; changed = true; }
+            else if (secondsToNextSpawn > maxDelaySeconds) { secondsToNextSpawn = maxDelaySeconds; changed = true; }
+            return changed;
+        }
     }
 
     [Serializable]

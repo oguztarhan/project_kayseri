@@ -52,6 +52,8 @@ namespace Game.Systems
         [SerializeField] private ContractConfig contractConfig;
         [Tooltip("Dükkân kontratları: teklif aralığı, boyutlar ve tamamlanınca verilen ödüller. Boş bırakılırsa varsayılanlarla çalışır.")]
         [SerializeField] private ShopContractConfig shopContractConfig;
+        [Tooltip("Dükkân sikkeleri: 48 saatlik döngü, bekleme süreleri ve ödül tablosu. Boş bırakılırsa varsayılanlarla çalışır.")]
+        [SerializeField] private ShopCoinConfig shopCoinConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
         [SerializeField] private JuiceConfig juiceConfig;
@@ -511,6 +513,11 @@ namespace Game.Systems
                 ServiceLocator.Register(new ShopContractService(Market, Wallet,
                     shopContractConfig != null ? shopContractConfig.ToTuning() : ShopContract.Tuning.Default,
                     Data, _time.NowUnix, Foremen, Goals, Save, ServiceLocator.Get<IAnalytics>()));
+            // Coins spawn only in the shop's customer area, so only with a shop open.
+            if (Market?.MiningShopBusiness != null)
+                ServiceLocator.Register(new ShopCoinService(Wallet,
+                    shopCoinConfig != null ? shopCoinConfig.ToTuning() : ShopCoins.Tuning.Default,
+                    Data, _time.NowUnix, boost, Save, ServiceLocator.Get<IAnalytics>()));
 
             // Prices the first ship's offers off the rate the last session persisted, so a returning
             // empire is not offered a $500 job while the live income meter is still reading zero.
