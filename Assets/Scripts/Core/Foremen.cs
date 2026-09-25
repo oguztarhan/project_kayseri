@@ -304,6 +304,28 @@ namespace Game.Core
             return pick;
         }
 
+        /// <summary>
+        /// The owned master worth the most throughput who is not in <paramref name="taken"/>, or -1 when every
+        /// owned master is taken. What an empty shop bench is filled with: any master can work any bench, and one
+        /// bench is all he works, so the benches pick from whoever is left. Ties go to the lower roster index.
+        /// Station posts are a separate board and do not count as taken.
+        /// </summary>
+        public static int BestIdle(int[] stars, int[] taken, in Tuning t)
+        {
+            int pick = -1;
+            double best = 0d;
+            for (int m = 0; m < Count; m++)
+            {
+                int s = StarsOf(stars, m);
+                if (s <= NotHired || (taken != null && Array.IndexOf(taken, m) >= 0)) continue;
+                double worth = SkillValue(m, s, Skill.Throughput, t);
+                if (pick >= 0 && worth <= best) continue;
+                pick = m;
+                best = worth;
+            }
+            return pick;
+        }
+
         /// <summary>One station's throughput multiplier. 1.0 when nobody is working there.</summary>
         public static double StationMultiplier(int[] active, int[] stars, int station, in Tuning t)
         {

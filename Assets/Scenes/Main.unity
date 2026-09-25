@@ -8358,6 +8358,7 @@ MonoBehaviour:
   showBuildingNames: 1
   _font: {fileID: 11400000, guid: c68ba84bdb20aa14288c448eab37515f, type: 2}
   _fontSize: 25
+  _displayScale: 0.9
   _worldLift: 2
   _screenDrop: 72
   _sortingOrder: 99
@@ -10739,6 +10740,7 @@ GameObject:
   - component: {fileID: 1326379055}
   - component: {fileID: 1326379057}
   - component: {fileID: 1326379056}
+  - component: {fileID: 1326379058}
   m_Layer: 0
   m_Name: MiningShop_Anchors
   m_TagString: Untagged
@@ -10794,10 +10796,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d75efd4a0d8334cbc990753408b76ced, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.UI::Game.UI.MiningShopUpgradeUI
-  sortingOrder: 96
+  sortingOrder: 103
   shopFitMargin: 1
   shopScreenLift: 0.08
   shopPitch: 72
+  focusShopOnOpen: 0
   hudLeftFraction: 0.15
   hudRightFraction: 0.2
   signScale: 0.22
@@ -10809,6 +10812,25 @@ MonoBehaviour:
   panelColor: {r: 0.1, g: 0.12, b: 0.16, a: 0.92}
   buyColor: {r: 0.22, g: 0.62, b: 0.3, a: 1}
   closeColor: {r: 0.35, g: 0.35, b: 0.38, a: 1}
+  holdDelay: 0.35
+  holdStartRate: 6
+  holdMaxRate: 20
+  holdRampSeconds: 1.5
+  starEarnedColor: {r: 1, g: 1, b: 1, a: 1}
+  starMissingColor: {r: 0.22, g: 0.24, b: 0.3, a: 0.85}
+  starBarTrack: {r: 0, g: 0, b: 0, a: 0.35}
+  starBarFill: {r: 1, g: 0.78, b: 0.2, a: 1}
+  cardTextColor: {r: 0.16, g: 0.2, b: 0.27, a: 1}
+  starBannerSeconds: 1.8
+  starPopSeconds: 0.5
+  gemFlightSeconds: 0.7
+  gemSize: 56
+  gainRise: 90
+  gainColor: {r: 0.55, g: 0.88, b: 1, a: 1}
+  pickerMin: {x: 0.06, y: 0.35}
+  pickerMax: {x: 0.94, y: 0.72}
+  pickerColumns: 5
+  workerChipColor: {r: 0.3, g: 0.34, b: 0.42, a: 1}
 --- !u!114 &1326379057
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10840,6 +10862,52 @@ MonoBehaviour:
   lanternColor: {r: 1, g: 0.92, b: 0.55, a: 1}
   bagColor: {r: 0.36, g: 0.22, b: 0.12, a: 1}
   padColor: {r: 0.85, g: 0.85, b: 0.8, a: 1}
+  starPulseSeconds: 0.6
+  starPulseScale: 0.18
+  workerPlinthRadius: 11
+  workerRankScaleStep: 0.1
+--- !u!114 &1326379058
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1326379054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b00cb8d1d26b29648b25626cba9c1556, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.UI::Game.UI.FlierUI
+  minGapSeconds: 240
+  maxGapSeconds: 420
+  flightSeconds: 12
+  chargesPerDay: 8
+  cashMinutes: 4
+  cashFloor: 100
+  streakLength: 5
+  quietSeconds: 90
+  flierPrefab: {fileID: 0}
+  screenWidthShare: 0.14
+  depthShare: 0.45
+  flightHeight: {x: 0.8, y: 0.84}
+  bobHeight: 0.015
+  flapsPerSecond: 3
+  flapDegrees: 35
+  wingColor: {r: 0.96, g: 0.96, b: 0.94, a: 1}
+  pouchColor: {r: 0.95, g: 0.72, b: 0.2, a: 1}
+  wingTipColor: {r: 0.35, g: 0.38, b: 0.42, a: 1}
+  beakColor: {r: 0.98, g: 0.62, b: 0.15, a: 1}
+  tapShare: 0.2
+  flierSortingOrder: 101
+  popupSortingOrder: 110
+  fullScreenSortingOrder: 104
+  noThanksDelay: 1.5
+  cardToastSeconds: 2.5
+  panelColor: {r: 0.1, g: 0.12, b: 0.16, a: 0.95}
+  textColor: {r: 0.16, g: 0.2, b: 0.27, a: 1}
+  dimColor: {r: 0, g: 0, b: 0, a: 0.6}
+  streakTrack: {r: 0, g: 0, b: 0, a: 0.3}
+  streakFill: {r: 1, g: 0.78, b: 0.2, a: 1}
 --- !u!1 &1338409780
 GameObject:
   m_ObjectHideFlags: 0
@@ -19270,7 +19338,6 @@ MonoBehaviour:
   verticalShipyard: 1
   authoredYaw: 1
   hudSideFraction: 0.1
-  hudRailOnLeft: 1
   widthMargin: 0.74
 --- !u!114 &2135659105
 MonoBehaviour:
@@ -19355,6 +19422,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.UI::Game.UI.UpgradeReadyMarkers
   badge: {fileID: 21300000, guid: 232a481beab3a1249b6fdd75e6e318a9, type: 3}
   size: 104
+  displayScale: 0.84
   worldLift: 10
   sortingOrder: 92
   bobPixels: 5

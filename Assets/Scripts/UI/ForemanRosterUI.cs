@@ -1055,6 +1055,12 @@ namespace Game.UI
         private Sprite Portrait(int master)
             => portraits != null && master >= 0 && master < portraits.Length ? portraits[master] : null;
 
+        /// <summary>A master's face, for the shop's bench card: the portraits are wired here and only here.</summary>
+        public Sprite PortraitOf(int master) => Portrait(master);
+
+        /// <summary>A master's name as his card prints it.</summary>
+        public static string DisplayName(int master) => NameOf(master);
+
         /// <summary>
         /// The frame a master wears. His RARITY decides it until he is nearly finished; the fourth and
         /// fifth stars then put him in the Epic and Mythic frames whatever he was drawn as, so the
@@ -1443,7 +1449,14 @@ namespace Game.UI
             }
             if (_readyMark[m] != null) _readyMark[m].SetActive(state.CanUpgrade);
             if (_station[m] != null)
-                _station[m].text = Loc.Id("usta.istasyon", Foremen.StationIds[Foremen.StationOf(m)]);
+            {
+                // A master on a shop bench names the bench where his station would be: it is where he works now.
+                MiningShopBusinessService shop = ServiceLocator.Get<MarketService>()?.MiningShopBusiness;
+                int bench = shop != null ? shop.BenchOf(m) : -1;
+                _station[m].text = bench >= 0
+                    ? Loc.T(MiningShopUpgradeUI.BenchTitleKey(bench))
+                    : Loc.Id("usta.istasyon", Foremen.StationIds[Foremen.StationOf(m)]);
+            }
 
             // One badge or the other, never both and never neither-when-it-matters: posted, or not
             // found. A card you own but have not posted carries no badge, which is the quiet state.

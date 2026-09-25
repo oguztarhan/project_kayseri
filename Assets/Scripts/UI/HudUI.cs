@@ -1523,6 +1523,9 @@ namespace Game.UI
         /// <summary>Unboosted empire income per minute for other HUD reward offers.</summary>
         public double CurrentUnboostedIncomePerMinute => IncomePerMinute();
 
+        /// <summary>The gem counter, for rewards that fly gems into it. Null when the HUD has none wired.</summary>
+        public RectTransform GemsCounter => gemsValue != null ? gemsValue.rectTransform : null;
+
         /// <summary>A shop receipt, remembered only for the rate pill. MarketService has already paid the wallet.</summary>
         private void OnShopSold(MiningShopBusinessSimulation.Sale sale)
         {

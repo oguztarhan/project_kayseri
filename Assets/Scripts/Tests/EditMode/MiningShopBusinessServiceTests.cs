@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Game.Core;
 using Game.Data;
 using Game.Systems;
@@ -106,6 +107,8 @@ namespace Game.Tests
             MiningShopBusinessService shop = Open();
             Assert.That(shop.View.ProductAt(0).Level, Is.EqualTo(29));
             Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(815d).Within(1e-6));
+            Assert.That(_wallet.Gems, Is.EqualTo(3L + 5L), "the two stars level 29 stands past are paid on open");
+            Assert.That(shop.View.ProductAt(0).StarsPaid, Is.EqualTo(0b11));
 
             var save = new SaveService("mining-shop-refund-memory-only-test.dat");
             SaveData loaded = save.Decrypt(save.Encrypt(_data), out bool tampered);
@@ -116,6 +119,64 @@ namespace Game.Tests
                 MiningShopBusinessSimulation.Tuning.Default);
             Assert.That(reopened.View.ProductAt(0).Level, Is.EqualTo(29));
             Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(815d).Within(1e-6), "a reload does not pay the refund again");
+            Assert.That(wallet.Gems, Is.EqualTo(8L), "nor the stars");
+        }
+
+        [Test]
+        public void EachStarPaysItsGemsOnceAndNamesItself()
+        {
+            _wallet.AddCash(new BigDouble(1e7));
+            MiningShopBusinessService shop = Open();
+            var heard = new List<string>();
+            shop.StarPaid += (product, star, gems) => heard.Add(product + ":" + star + ":" + gems);
+
+            Assert.That(shop.TryBuyLevels(0, 8), Is.EqualTo(8));
+            Assert.That(_wallet.Gems, Is.Zero, "level 9 has no star");
+            Assert.That(shop.TryBuyLevels(0, 1), Is.EqualTo(1));
+            Assert.That(_wallet.Gems, Is.EqualTo(3L));
+            Assert.That(heard, Is.EqualTo(new[] { "0:0:3" }));
+
+            Assert.That(shop.TryBuyLevels(0, 5), Is.EqualTo(5));
+            Assert.That(shop.TryBuyLevels(0, 30), Is.EqualTo(30), "one purchase from 15 to 45 crosses the level-25 star");
+            Assert.That(_wallet.Gems, Is.EqualTo(3L + 5L));
+            Assert.That(heard, Is.EqualTo(new[] { "0:0:3", "0:1:5" }));
+            Assert.That(_data.miningShopBusinesses[0].Business.Lines[0].StarsPaid, Is.EqualTo(0b11));
+
+            var save = new SaveService("mining-shop-stars-memory-only-test.dat");
+            SaveData loaded = save.Decrypt(save.Encrypt(_data), out bool tampered);
+            Assert.That(tampered, Is.False);
+            var wallet = new WalletService(loaded.wallet);
+            MiningShopBusinessService reopened = new MarketService(loaded, wallet, null).OpenMiningShopBusiness(_campaign,
+                BusinessId, MiningShopBusinessSimulation.Tuning.Default);
+            Assert.That(wallet.Gems, Is.EqualTo(8L), "a reload pays nothing twice");
+            Assert.That(reopened.View.ProductAt(0).StarsPaid, Is.EqualTo(0b11));
+        }
+
+        [Test]
+        public void AStarReachedMidHoldIsSavedAtOnceWithItsGems()
+        {
+            string path = System.IO.Path.Combine(Application.temporaryCachePath, "shop-star-" + Guid.NewGuid().ToString("N") + ".dat");
+            var save = new SaveService(path);
+            try
+            {
+                MiningShopBusinessService shop = _market.OpenMiningShopBusiness(_campaign, BusinessId,
+                    MiningShopBusinessSimulation.Tuning.Default, save);
+                _wallet.AddCash(new BigDouble(shop.CostOfLevels(0, 9) + 1d));
+                Assert.That(shop.TryBuyLevels(0, 8, false), Is.EqualTo(8));
+                Assert.That(save.TryLoad(out SaveData held), Is.True);
+                Assert.That(held.miningShopBusinesses[0].Business.Lines[0].Level, Is.EqualTo(1), "no star yet, still held");
+
+                Assert.That(shop.TryBuyLevels(0, 1, false), Is.EqualTo(1));
+                Assert.That(save.TryLoad(out SaveData starred), Is.True);
+                Assert.That(starred.miningShopBusinesses[0].Business.Lines[0].Level, Is.EqualTo(10));
+                Assert.That(starred.miningShopBusinesses[0].Business.Lines[0].StarsPaid, Is.EqualTo(1));
+                Assert.That(starred.wallet.gems, Is.EqualTo(3L), "the gems and the star they pay for land together");
+            }
+            finally
+            {
+                foreach (string suffix in new[] { "", SaveService.TempSuffix, SaveService.BackupSuffix, SaveService.UnreadableSuffix })
+                    if (System.IO.File.Exists(path + suffix)) System.IO.File.Delete(path + suffix);
+            }
         }
 
         [Test]

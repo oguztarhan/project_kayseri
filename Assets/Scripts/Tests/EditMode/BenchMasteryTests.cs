@@ -108,16 +108,32 @@ namespace Game.Tests
             Foremen.Tuning masters = Foremen.Tuning.Default;
             int common = Foremen.IndexOf(Foremen.Mine, Foremen.Rarity.Common);
             int legendary = Foremen.IndexOf(Foremen.Market, Foremen.Rarity.Legendary);
-            Assert.That(BenchMastery.WorkerMultiplier(-1, 0, masters), Is.EqualTo(1d), "the apprentice");
-            Assert.That(BenchMastery.WorkerMultiplier(common, 0, masters), Is.EqualTo(1d), "not hired");
-            Assert.That(BenchMastery.WorkerMultiplier(common, 1, masters), Is.EqualTo(1.1d).Within(1e-12));
-            Assert.That(BenchMastery.WorkerMultiplier(common, 5, masters), Is.EqualTo(1.5d).Within(1e-12));
-            Assert.That(BenchMastery.WorkerMultiplier(legendary, 5, masters), Is.EqualTo(5d).Within(1e-12));
+            // Half the station value: a maxed Legendary is +400% at his station and +200% at a bench.
+            Assert.That(BenchMastery.WorkerMultiplier(-1, 0, masters, T), Is.EqualTo(1d), "the apprentice");
+            Assert.That(BenchMastery.WorkerMultiplier(common, 0, masters, T), Is.EqualTo(1d), "not hired");
+            Assert.That(BenchMastery.WorkerMultiplier(common, 1, masters, T), Is.EqualTo(1.05d).Within(1e-12));
+            Assert.That(BenchMastery.WorkerMultiplier(common, 5, masters, T), Is.EqualTo(1.25d).Within(1e-12));
+            Assert.That(BenchMastery.WorkerMultiplier(legendary, 5, masters, T), Is.EqualTo(3d).Within(1e-12));
+            BenchMastery.Tuning full = T;
+            full.WorkerShare = 1d;
+            Assert.That(BenchMastery.WorkerMultiplier(legendary, 5, masters, full), Is.EqualTo(5d).Within(1e-12));
 
             long gems = 0L;
             for (int star = 0; star < BenchMastery.StarCount; star++) gems += BenchMastery.StarGems(star, T);
             Assert.That(gems, Is.EqualTo(40L), "the 160-per-island line the gem budget was signed off with");
             Assert.That(BenchMastery.StarGems(BenchMastery.StarCount, T), Is.Zero);
+        }
+
+        [Test]
+        public void UnpaidStarsAreThoseReachedAndNotYetInTheMask()
+        {
+            Assert.That(BenchMastery.UnpaidStars(9, 0), Is.Zero);
+            Assert.That(BenchMastery.UnpaidStars(10, 0), Is.EqualTo(0b00001));
+            Assert.That(BenchMastery.UnpaidStars(10, 0b00001), Is.Zero, "paid once");
+            Assert.That(BenchMastery.UnpaidStars(29, 0), Is.EqualTo(0b00011), "a migrated save owes both stars it passed");
+            Assert.That(BenchMastery.UnpaidStars(60, 0b00001), Is.EqualTo(0b00110));
+            Assert.That(BenchMastery.UnpaidStars(100, 0), Is.EqualTo(0b11111));
+            Assert.That(BenchMastery.UnpaidStars(100, ~0), Is.Zero, "stray high bits pay nothing and cost nothing");
         }
 
         [Test]
@@ -153,6 +169,7 @@ namespace Game.Tests
                 Assert.That(fromConfig.PerfectChancePerStar, Is.EqualTo(T.PerfectChancePerStar));
                 Assert.That(fromConfig.PerfectMultiplier, Is.EqualTo(T.PerfectMultiplier));
                 Assert.That(fromConfig.StarGems, Is.EqualTo(T.StarGems));
+                Assert.That(fromConfig.WorkerShare, Is.EqualTo(T.WorkerShare));
             }
             finally { UnityEngine.Object.DestroyImmediate(config); }
         }

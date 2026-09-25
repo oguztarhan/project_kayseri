@@ -85,6 +85,15 @@ namespace Game.Systems
             for (int i = 0; i < _data.freeRewards.Count; i++) _data.freeRewards[i].used = 0;
         }
 
+        /// <summary>Seconds since any slot last paid out; a very large number when none ever has.</summary>
+        public double SecondsSinceAnyWatch()
+        {
+            long latest = 0L;
+            for (int i = 0; i < _data.freeRewards.Count; i++)
+                if (_data.freeRewards[i].lastWatchUnix > latest) latest = _data.freeRewards[i].lastWatchUnix;
+            return latest > 0L ? _time.ElapsedSince(latest) : double.MaxValue;
+        }
+
         private FreeRewardState Find(string id)
         {
             for (int i = 0; i < _data.freeRewards.Count; i++)

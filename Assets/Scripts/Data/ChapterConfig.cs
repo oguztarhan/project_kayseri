@@ -47,7 +47,7 @@ namespace Game.Data
         [Tooltip("Bir aşamanın ödemesi: Taban + Adım x bölüm sırası. Sonraki bölümler daha çok " +
                  "öder çünkü daha geç gelinir, daha zor oldukları için değil. " +
                  "NAKİT ASLA ÖDENMEZ: nakdin tek musluğu tezgâhtır (Docs/VOYAGES.md R1).")]
-        [SerializeField] private long gemsBase = 6L;
+        [SerializeField] private long gemsBase = 4L;
         [SerializeField] private long gemsStep = 2L;
 
         [Header("Ödül — formen kartı")]

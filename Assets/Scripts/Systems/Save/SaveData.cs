@@ -59,6 +59,7 @@ namespace Game.Systems
         // Wall-clock cooldown for the recurring rewarded cash offer; 0 means ready.
         public long rewardedCashNextAvailableUnix;
         public bool adsRemoved;                      // the remove-ads purchase, so it survives a restart
+        public int flierStreak;                      // flier catches toward the next master card (Game.Core.Flier)
         public List<string> purchasedOffers = new List<string>();  // one-time offer skus already owned
         // StoreKit/Play can redeliver an unconfirmed order after an app kill or network failure. The
         // reward and this id are written in the same save before the order is confirmed, making that

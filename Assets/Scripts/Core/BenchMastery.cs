@@ -56,6 +56,9 @@ namespace Game.Core
             public double PerfectMultiplier;
             /// <summary>Gems each star pays once, in step with <see cref="StarLevels"/>.</summary>
             public long[] StarGems;
+            /// <summary>How much of a master's station throughput he brings to a bench. Below one so workers do
+            /// not shorten the shop's pacing by the whole roster; stations keep the full value.</summary>
+            public double WorkerShare;
 
             public static Tuning Default => new Tuning
             {
@@ -67,7 +70,8 @@ namespace Game.Core
                 PerfectBaseChance = 0.04d,
                 PerfectChancePerStar = 0.01d,
                 PerfectMultiplier = 3d,
-                StarGems = new[] { 3L, 5L, 7L, 10L, 15L }
+                StarGems = new[] { 3L, 5L, 7L, 10L, 15L },
+                WorkerShare = 0.5d
             };
 
             public void Validate()
@@ -79,7 +83,7 @@ namespace Game.Core
                     !Finite(PerfectChancePerStar) || PerfectChancePerStar < 0d ||
                     PerfectBaseChance + PerfectChancePerStar * StarCount > 1d ||
                     !Finite(PerfectMultiplier) || PerfectMultiplier < 1d ||
-                    StarGems == null || StarGems.Length != StarCount)
+                    StarGems == null || StarGems.Length != StarCount || !Finite(WorkerShare) || WorkerShare < 0d)
                     throw new ArgumentException("Bench mastery tuning requires finite positive rates, growth above one, " +
                                                 "perfect odds that stay a probability and one gem award per star.");
                 for (int i = 0; i < StarGems.Length; i++)
@@ -103,6 +107,19 @@ namespace Game.Core
         {
             for (int i = 0; i < StarCount; i++) if (level < StarLevels[i]) return StarLevels[i];
             return 0;
+        }
+
+        /// <summary>
+        /// Stars reached at this level that <paramref name="paidMask"/> has not paid yet, one bit per star. A mask
+        /// rather than a count, so a star can never be paid twice however the level got there — a purchase, a hold
+        /// crossing two stars, or an old save migrated straight past them.
+        /// </summary>
+        public static int UnpaidStars(int level, int paidMask)
+        {
+            int unpaid = 0;
+            for (int i = 0; i < StarCount; i++)
+                if (level >= StarLevels[i] && (paidMask & (1 << i)) == 0) unpaid |= 1 << i;
+            return unpaid;
         }
 
         /// <summary>Levels still to buy before the next star, or 0 once all five are earned.</summary>
@@ -199,11 +216,11 @@ namespace Game.Core
         public static double PerfectAverage(int stars, in Tuning t) => 1d + PerfectChance(stars, t) * (t.PerfectMultiplier - 1d);
 
         /// <summary>
-        /// What a master posted at a bench multiplies its income by. The masters' own throughput table, so a bench
-        /// worker and a station master can never disagree about what a star is worth; no master is ×1.
+        /// What a master posted at a bench multiplies its income by: his share of the masters' own throughput table,
+        /// so a bench worker and a station master can never disagree about what a star is worth; no master is ×1.
         /// </summary>
-        public static double WorkerMultiplier(int master, int masterStars, in Foremen.Tuning t)
-            => 1d + Foremen.SkillValue(master, masterStars, Foremen.Skill.Throughput, t);
+        public static double WorkerMultiplier(int master, int masterStars, in Foremen.Tuning masters, in Tuning t)
+            => 1d + t.WorkerShare * Foremen.SkillValue(master, masterStars, Foremen.Skill.Throughput, masters);
 
         /// <summary>Gems the star at this position pays once.</summary>
         public static long StarGems(int star, in Tuning t) => star >= 0 && star < StarCount ? t.StarGems[star] : 0L;

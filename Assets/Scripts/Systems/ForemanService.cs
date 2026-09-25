@@ -262,6 +262,13 @@ namespace Game.Systems
         public double SkillValueAtStar(int master, int stars, Foremen.Skill skill)
             => Foremen.SkillValue(master, stars, skill, _tuning);
 
+        /// <summary>
+        /// The master an empty shop bench takes: the best owned one not already on a bench in
+        /// <paramref name="taken"/>, or -1. The benches' version of <see cref="FillEmptyPosts"/> — it only
+        /// ever fills, and the bench card is where the player overrides it.
+        /// </summary>
+        public int BestIdleForBench(int[] taken) => Foremen.BestIdle(Stars, taken, _tuning);
+
         /// <summary>Which rarity a master is — the colour of his card and of his plinth.</summary>
         public Foremen.Rarity RankOf(int master) => Foremen.RankOf(master);
 

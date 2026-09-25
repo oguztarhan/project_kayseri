@@ -51,6 +51,9 @@ namespace Game.Tests
 
         private const double LeagueSeasonDays = Leaderboards.ThreeDayCadenceSeconds / 86400d;
         private const double MonthDays = 30d;
+        // The game opens one shop island (GameBootstrap.miningShopBusinessId) and cannot switch yet. Every island
+        // added to month one adds its benches' stars again: raise this when island switching ships.
+        private const int ShopIslandsInMonthOne = 1;
 
         /// <summary>Event rows that ended before this second predate the one-festival calendar rule.
         /// 2026-09-17 00:00 UTC: the September overlap of the Foundry and Harbor festivals is history.</summary>
@@ -218,6 +221,19 @@ namespace Game.Tests
             }
             b.AddOneOff("Islands achievement (all tiers)", islands);
             b.AddOneOff("Other achievements (tiers 1-3)", early);
+
+            // Every bench's five stars. Bootstrap wires no MiningShopConfig, so the game runs its Inspector defaults;
+            // read the wired asset here instead if one is ever assigned.
+            var shop = ScriptableObject.CreateInstance<MiningShopConfig>();
+            try
+            {
+                BenchMastery.Tuning mastery = shop.ToMasteryTuning();
+                double stars = 0d;
+                for (int star = 0; star < BenchMastery.StarCount; star++) stars += BenchMastery.StarGems(star, mastery);
+                b.AddOneOff("Bench stars (" + MiningShopCampaign.ProductCount + " benches x " + ShopIslandsInMonthOne +
+                            " island)", stars * MiningShopCampaign.ProductCount * ShopIslandsInMonthOne);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(shop); }
 
             return b;
         }

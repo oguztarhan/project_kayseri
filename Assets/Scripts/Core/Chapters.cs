@@ -130,7 +130,9 @@ namespace Game.Core
                 // the long tail prestige was retired in favour of.
                 // Retuned 2026-09-17 (was 40 + 15 per chapter, 5,180 over eight): one-off rewards land in
                 // month one on top of the recurring budget, so they are held to 728 in total.
-                GemsBase = 6, GemsStep = 2,
+                // Base 6 -> 4 on 2026-09-25 (616 in total) to make room for the shop's bench stars, which pay 160
+                // on the first island; see RewardBudgetTests.
+                GemsBase = 4, GemsStep = 2,
                 CardsBase = 1, CardsStep = 1,
 
                 // Every chapter is played on the SAME island with its progression reset, so unlike

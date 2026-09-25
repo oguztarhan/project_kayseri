@@ -57,6 +57,8 @@ namespace Game.Data
         [SerializeField, Min(1f)] private double _perfectMultiplier = 3d;
         [Tooltip("Gems each star pays once, stars 1-5. Counted by RewardBudgetTests.")]
         [SerializeField] private long[] _starGems = { 3L, 5L, 7L, 10L, 15L };
+        [Tooltip("Tezgâhtaki ustanın, istasyondaki üretim bonusunun ne kadarını getirdiği. 0.5 = yarısı.")]
+        [SerializeField, Min(0f)] private double _workerShare = 0.5d;
 
         public MiningShopSimulation.Tuning ToTuning()
         {
@@ -124,7 +126,8 @@ namespace Game.Data
                 StarMultiplier = _masteryStarMultiplier, CostGrowth = _masteryCostGrowth,
                 MinCycleSeconds = _masteryMinCycleSeconds, PerfectBaseChance = _perfectBaseChance,
                 PerfectChancePerStar = _perfectChancePerStar, PerfectMultiplier = _perfectMultiplier,
-                StarGems = _starGems != null ? (long[])_starGems.Clone() : null
+                StarGems = _starGems != null ? (long[])_starGems.Clone() : null,
+                WorkerShare = _workerShare
             };
             tuning.Validate();
             return tuning;

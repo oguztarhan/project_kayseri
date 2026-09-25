@@ -131,6 +131,7 @@ namespace Game.Core
             public bool TableBuilt => _line.TableBuilt;
             public int Level => _line.Level;
             public int Stars => BenchMastery.StarsAt(_line.Level);
+            public int StarsPaid => _line.StarsPaid;
             public bool Crafting => _line.Crafting;
             public double CraftRemaining => _line.CraftRemaining;
             public double CraftDuration => _line.CraftDuration;
@@ -209,6 +210,8 @@ namespace Game.Core
         private bool _advancing;
         // Derived from the built benches by Resize, never saved: a reload recomputes them from the levels.
         private int _carrierLoad, _outputCapacity, _shelfCapacity, _bundle, _lineQueue;
+        // What each bench's worker multiplies its price by. Set by the service from the roster, never saved.
+        private readonly double[] _workerMultiplier = { 1d, 1d, 1d, 1d };
 
         /// <summary>
         /// Opens one authored business. <paramref name="availableProductCount"/> is its campaign allowance,
@@ -244,9 +247,10 @@ namespace Game.Core
         /// <summary>Seconds one item takes on this bench at its level, held at the mastery floor.</summary>
         public double CraftSeconds(int productIndex) =>
             BenchMastery.CycleSeconds(_tuning.Products[productIndex].CraftSeconds, Line(productIndex).Level, _tuning.Mastery);
-        /// <summary>What one item off this bench sells for at its level, before perfect sales and the wallet.</summary>
+        /// <summary>What one item off this bench sells for at its level with its worker, before perfect sales and the wallet.</summary>
         public double UnitPrice(int productIndex) => BenchMastery.ItemValue(_tuning.Products[productIndex].UnitPrice,
-            _tuning.Products[productIndex].CraftSeconds, Line(productIndex).Level, _tuning.Mastery);
+            _tuning.Products[productIndex].CraftSeconds, Line(productIndex).Level, _tuning.Mastery) *
+            _workerMultiplier[productIndex];
         public double TableCost(int productIndex) => _tuning.Products[productIndex].TableCost;
         /// <summary>The next level's price, or 0 at the top.</summary>
         public double LevelCost(int productIndex) =>
@@ -258,6 +262,44 @@ namespace Game.Core
         public int AffordableLevels(int productIndex, double cash, int limit) => BenchMastery.AffordableLevels(
             _tuning.Products[productIndex].FirstLevelCost, Line(productIndex).Level, cash, limit, _tuning.Mastery);
         public int BuildRequiresLevel => _tuning.BuildRequiresLevel;
+        /// <summary>What each star multiplies its axis by.</summary>
+        public double StarMultiplier => _tuning.Mastery.StarMultiplier;
+
+        /// <summary>Gems the star at this position pays once.</summary>
+        public long StarGems(int star) => BenchMastery.StarGems(star, _tuning.Mastery);
+
+        /// <summary>Stars this bench has reached but not been paid for, one bit per star.</summary>
+        public int UnpaidStars(int productIndex)
+        {
+            MiningShopProductLineState line = Line(productIndex);
+            return line.TableBuilt ? BenchMastery.UnpaidStars(line.Level, line.StarsPaid) : 0;
+        }
+
+        /// <summary>Pure bookkeeping. Its caller pays the gems and saves both together.</summary>
+        public void MarkStarsPaid(int productIndex, int stars) => Line(productIndex).StarsPaid |= stars;
+
+        /// <summary>The master saved at this bench, or -1. Unchecked: the roster is the service's to validate.</summary>
+        public int WorkerAt(int productIndex) => Line(productIndex).Worker;
+
+        /// <summary>Pure bookkeeping. Its caller validates the master and saves.</summary>
+        public void SetWorker(int productIndex, int master) => Line(productIndex).Worker = master;
+
+        /// <summary>The mastery rules this business runs on.</summary>
+        public BenchMastery.Tuning Mastery => _tuning.Mastery;
+
+        /// <summary>What this bench's worker multiplies its price by; 1 for the apprentice.</summary>
+        public double WorkerMultiplier(int productIndex) => _workerMultiplier[productIndex];
+
+        /// <summary>
+        /// Sets what this bench's worker is worth. Items priced from now on carry it; a customer already being served
+        /// pays the price they were quoted.
+        /// </summary>
+        public void SetWorkerMultiplier(int productIndex, double multiplier)
+        {
+            if (productIndex < 0 || productIndex >= _workerMultiplier.Length || !Positive(multiplier))
+                throw new ArgumentOutOfRangeException(nameof(productIndex));
+            _workerMultiplier[productIndex] = multiplier;
+        }
 
         /// <summary>Whether this bench is offered, unbuilt, and the bench before it has reached the required level.</summary>
         public bool BuildRequirementMet(int productIndex)
@@ -269,7 +311,7 @@ namespace Game.Core
 
         /// <summary>
         /// Cash per second once the shop has settled, before any wallet multiplier: each built bench's income at its
-        /// level, with the average that perfect sales add. The logistics are sized never to hold a bench back, so the
+        /// level and with its worker, with the average that perfect sales add. The logistics are sized never to hold a bench back, so the
         /// sum is the whole answer. Offline earnings and income-minute rewards are paid from this rather than from a
         /// measured window, so it is right the moment the shop opens.
         /// </summary>
@@ -282,7 +324,7 @@ namespace Game.Core
                 if (!line.TableBuilt) continue;
                 ProductTuning product = _tuning.Products[i];
                 rate += BenchMastery.IncomePerSecond(product.UnitPrice, product.CraftSeconds, line.Level, _tuning.Mastery) *
-                        BenchMastery.PerfectAverage(BenchMastery.StarsAt(line.Level), _tuning.Mastery);
+                        BenchMastery.PerfectAverage(BenchMastery.StarsAt(line.Level), _tuning.Mastery) * _workerMultiplier[i];
             }
             return rate;
         }

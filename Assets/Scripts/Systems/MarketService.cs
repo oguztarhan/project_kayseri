@@ -184,7 +184,7 @@ namespace Game.Systems
             bool created = state == null;
             if (created) state = new MiningShopState { BusinessId = businessId };
             var business = new MiningShopBusinessService(state, island.AvailableProductCount, tuning, _wallet, save, _data,
-                PayMiningShopBusinessSale, _goals);
+                PayMiningShopBusinessSale, _goals, _foremen);
             if (created) _data.miningShopBusinesses.Add(state);
             _data.activeMiningShopBusinessId = businessId;
             _accum = 0f;

@@ -45,6 +45,14 @@ namespace Game.Gameplay
         [SerializeField] private Color lanternColor = new Color(1f, 0.92f, 0.55f);
         [SerializeField] private Color bagColor = new Color(0.36f, 0.22f, 0.12f);
         [SerializeField] private Color padColor = new Color(0.85f, 0.85f, 0.8f);
+        [Tooltip("Bir tezgâh yıldız kazanınca ne kadar süre zıplar (sn).")]
+        [SerializeField, Min(0.05f)] private float starPulseSeconds = 0.6f;
+        [Tooltip("Yıldız zıplamasında tezgâhın en fazla büyüme payı.")]
+        [SerializeField, Range(0f, 0.5f)] private float starPulseScale = 0.18f;
+        [Tooltip("Tezgâhtaki ustanın altındaki nadirlik kaidesinin yarıçapı (dünya birimi).")]
+        [SerializeField, Min(0f)] private float workerPlinthRadius = 11f;
+        [Tooltip("Her nadirlik basamağında tezgâh ustasının ne kadar büyüdüğü; istasyon ustalarındakiyle aynı.")]
+        [SerializeField, Range(0f, 0.3f)] private float workerRankScaleStep = 0.10f;
 
         /// <summary>Anchor and route names per product, in MiningShopCampaign.ProductIdAt order.</summary>
         private static readonly string[] Names = { "Pickaxe", "Helmet", "Lantern", "Bag" };
@@ -65,11 +73,16 @@ namespace Game.Gameplay
             public Transform work, output;
             public GameObject table, rack, pad;
             public Walker worker;
+            public Transform workerAnchor;
+            // Which master the worker body is: -1 the apprentice, -2 not built yet.
+            public int workerWho = -2;
             public Transform craft;
             public Transform[] rackItems, shelfItems, cargo;
             public Vector3[] route;
             public float routeLength;
             public Collider tableCollider, padCollider;
+            public Vector3 workScale;
+            public float pulse;
         }
 
         private MarketService _market;
@@ -78,6 +91,9 @@ namespace Game.Gameplay
         private Transform[] _queue;
         private readonly Line[] _lines = new Line[MiningShopCampaign.ProductCount];
         private Material _handleMat, _headMat, _helmetMat, _lanternMat, _bagMat, _padMat;
+        private Material[] _plinthMats;
+        private GameObject[] _people;
+        private ForemanService _foremen;
         private Walker _carrier;
         private int _carrierLine;
         private Walker[] _customers;
@@ -114,6 +130,15 @@ namespace Game.Gameplay
 
         /// <summary>Everything the offered lines use — benches to the customers' entry — for the camera to fit.</summary>
         public Bounds ShopBounds { get; private set; }
+
+        /// <summary>
+        /// A short bounce of the bench and the item on it, for the moment it earns a star. It scales the bench's work
+        /// anchor, so the two move together about the bench's footprint and nothing else on the line is touched.
+        /// </summary>
+        public void PulseBench(int product)
+        {
+            if (product >= 0 && product < _lines.Length && _lines[product] != null) _lines[product].pulse = starPulseSeconds;
+        }
 
         /// <summary>Which product a tapped collider belongs to, and whether it was that line's locked pad.</summary>
         public bool TryGetProduct(Collider hit, out int product, out bool pad)
@@ -169,6 +194,15 @@ namespace Game.Gameplay
             _lanternMat = Tinted(source.sharedMaterial, lanternColor);
             _bagMat = Tinted(source.sharedMaterial, bagColor);
             _padMat = Tinted(source.sharedMaterial, padColor);
+            // One plinth colour per rarity, the roster's own, so the bench master's disc matches his card.
+            _foremen = ServiceLocator.Get<ForemanService>();
+            if (_foremen != null)
+            {
+                _plinthMats = new Material[Foremen.RarityCount];
+                for (int r = 0; r < _plinthMats.Length; r++)
+                    _plinthMats[r] = Tinted(source.sharedMaterial, _foremen.RarityTint((Foremen.Rarity)r));
+            }
+            _people = people;
 
             _carrier = Person(people, 1, Vector3.zero);
             float shelfTop = TopAbove(shelf, _shelf);
@@ -199,7 +233,9 @@ namespace Game.Gameplay
             for (int i = 0; i < _queue.Length; i++) bounds.Encapsulate(_queue[i].position);
             bounds.Encapsulate(_queue[_queue.Length - 1].position + customerEntryOffset);
             ShopBounds = bounds;
+            RefreshWorkers();
             _market.MiningShopBusinessSold += OnSold;
+            _shop.WorkersChanged += RefreshWorkers;
         }
 
         /// <summary>One product's table, rack, locked pad, goods and route. Null when its anchors are not authored.</summary>
@@ -210,7 +246,7 @@ namespace Game.Gameplay
             GameObject routeRoot = GameObject.Find(RoutePath(p));
             if (work == null || output == null || routeRoot == null || routeRoot.transform.childCount < 2) return null;
 
-            var line = new Line { work = work, output = output };
+            var line = new Line { work = work, output = output, workScale = work.localScale };
             float size = p == 0 ? 1f : extraBenchScale;
             line.table = Table(work, benchSize * size);
             line.tableCollider = TapTarget(line.table);
@@ -240,12 +276,8 @@ namespace Game.Gameplay
                 line.padCollider = TapTarget(line.pad);
             }
 
-            Transform workerAnchor = transform.Find("Shop_" + Names[p] + "_Worker");
-            if (workerAnchor != null)
-            {
-                line.worker = Person(people, 0, workerAnchor.position);
-                line.worker.body.rotation = workerAnchor.rotation;
-            }
+            // The body itself follows whoever works the bench; see RefreshWorkers.
+            line.workerAnchor = transform.Find("Shop_" + Names[p] + "_Worker");
 
             Transform r = routeRoot.transform;
             line.route = new Vector3[r.childCount];
@@ -262,8 +294,51 @@ namespace Game.Gameplay
         private void OnDestroy()
         {
             if (_market != null) _market.MiningShopBusinessSold -= OnSold;
+            if (_shop != null) _shop.WorkersChanged -= RefreshWorkers;
             DestroyMaterial(_handleMat); DestroyMaterial(_headMat); DestroyMaterial(_helmetMat);
             DestroyMaterial(_lanternMat); DestroyMaterial(_bagMat); DestroyMaterial(_padMat);
+            if (_plinthMats != null) for (int r = 0; r < _plinthMats.Length; r++) DestroyMaterial(_plinthMats[r]);
+        }
+
+        /// <summary>
+        /// Makes each bench's body the worker posted there: the apprentice is the plain body with no plinth, a master
+        /// is his own body out of the people pack (picked the way <see cref="StationForemen"/> picks, so he is the same
+        /// man on the island), a little bigger per rarity and standing on his rarity's disc. Runs on a posting change,
+        /// never per frame; a body is only rebuilt when the man changes.
+        /// </summary>
+        private void RefreshWorkers()
+        {
+            for (int p = 0; p < _lines.Length; p++)
+            {
+                Line line = _lines[p];
+                if (line == null || line.workerAnchor == null) continue;
+                int who = _shop.WorkerAt(p);
+                if (who == line.workerWho) continue;
+                if (line.worker != null)
+                {
+                    // Off before it goes: Destroy waits for the end of the frame.
+                    line.worker.body.gameObject.SetActive(false);
+                    Destroy(line.worker.body.gameObject);
+                }
+                line.workerWho = who;
+                line.worker = Person(_people, who < 0 ? 0 : who * 5, line.workerAnchor.position);
+                line.worker.body.rotation = line.workerAnchor.rotation;
+                if (who < 0 || _plinthMats == null) continue;
+
+                int rank = (int)Foremen.RankOf(who);
+                line.worker.body.localScale = Vector3.one * (1f + workerRankScaleStep * rank);
+                var plinth = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Destroy(plinth.GetComponent<Collider>());
+                plinth.name = "Kaide";
+                plinth.transform.SetParent(line.worker.body, false);
+                // Just clear of the ground, so the disc does not z-fight the deck it stands on.
+                plinth.transform.localPosition = new Vector3(0f, 0.6f, 0f);
+                plinth.transform.localScale = new Vector3(workerPlinthRadius * 2f, 0.5f, workerPlinthRadius * 2f);
+                var mr = plinth.GetComponent<MeshRenderer>();
+                mr.sharedMaterial = _plinthMats[Mathf.Clamp(rank, 0, _plinthMats.Length - 1)];
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                mr.receiveShadows = false;
+            }
         }
 
         private static void DestroyMaterial(Material m)
@@ -285,6 +360,15 @@ namespace Game.Gameplay
                 line.rack.SetActive(built);
                 if (line.worker != null) line.worker.body.gameObject.SetActive(built);
                 if (line.pad != null) line.pad.SetActive(offered && !built);
+
+                if (line.pulse > 0f)
+                {
+                    line.pulse = Mathf.Max(0f, line.pulse - Time.deltaTime);
+                    // One swell and settle: sin over half a turn, largest a third of the way in.
+                    float t = 1f - line.pulse / starPulseSeconds;
+                    float swell = Mathf.Sin(Mathf.Pow(t, 0.6f) * Mathf.PI) * starPulseScale;
+                    line.work.localScale = line.workScale * (1f + swell);
+                }
 
                 line.craft.gameObject.SetActive(built && product.Crafting);
                 float craft = product.Crafting ? 1f - Frac(product.CraftRemaining, product.CraftDuration) : 0f;
