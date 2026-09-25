@@ -199,6 +199,9 @@ namespace Game.UI
         private WalletService _wallet;
         private StageService _stages;
         private ContractService _contract;
+        // In the shop the Contract button belongs to the shop's contracts; the port ship's stay with ore mode.
+        private ShopContractService _shopContract;
+        private ShopContractUI _shopContractScreen;
         private FoundryFestivalService _festival;
         private HarborFestivalService _harborFestival;
         private ProductionSprintService _productionSprint;
@@ -270,6 +273,11 @@ namespace Game.UI
             _ad = ServiceLocator.Get<IAdService>();
             _market = ServiceLocator.Get<MarketService>();
             if (_market != null) _market.MiningShopBusinessSold += OnShopSold;
+            // The contract customer's progress bar lives with the HUD, so no scene has to carry it.
+            if (_market != null && _market.MiningShopBusiness != null && GetComponent<ShopContractMarker>() == null)
+                gameObject.AddComponent<ShopContractMarker>();
+            _shopContract = ServiceLocator.Get<ShopContractService>();
+            if (_shopContract != null) BuildShopContractScreens();
             if (goldValue != null) goldValue.color = counterTextColor;
             if (gemsValue != null) gemsValue.color = counterTextColor;
             if (rateValue != null) rateValue.color = counterTextColor;
@@ -1416,7 +1424,8 @@ namespace Game.UI
                 var sheet = transform as RectTransform;
                 if (sheet != null && sheet.rect.size != _sheetSize) SolveTopStrip(sheet);
             }
-            if (_contract != null) _contract.Tick(Time.deltaTime, IncomePerMinute());
+            // The port ship waits in the shop: its jobs count smelted ore, which the shop never makes.
+            if (_contract != null && _shopContract == null) _contract.Tick(Time.deltaTime, IncomePerMinute());
             RollCash(Time.unscaledDeltaTime);
             RollGems(Time.unscaledDeltaTime);
             Punch(goldValue, ref _goldPunch, Time.unscaledDeltaTime);
@@ -1559,7 +1568,8 @@ namespace Game.UI
             else if (rateValue != null && _op != null)
                 rateValue.text = string.Format(Loc.T("ortak.dakika_basina"),
                                                "$" + NumberFormatter.Format(new BigDouble(_op.CashPerMinute)));
-            if (contractTimerValue != null && _contract != null) contractTimerValue.text = ContractChip();
+            if (contractTimerValue != null && _shopContract != null) contractTimerValue.text = ShopContractChip();
+            else if (contractTimerValue != null && _contract != null) contractTimerValue.text = ContractChip();
 
             RefreshOfferButton();
 
@@ -1714,6 +1724,32 @@ namespace Game.UI
             }
         }
 
+        /// <summary>
+        /// The chip in the shop: NEW when an offer can be taken, the contract customer's count while one runs, and
+        /// otherwise the clock to the next offer.
+        /// </summary>
+        private string ShopContractChip()
+        {
+            if (!_shopContract.Unlocked) return string.Empty;
+            MiningShopBusinessSimulation.Snapshot view = _market.MiningShopBusiness.View;
+            if (view.ContractActive) return view.ContractDelivered + "/" + view.ContractQuantity;
+            if (_shopContract.OfferReady) return Loc.T("dukkan_kontrat.yeni");
+            return LongClock((float)_shopContract.SecondsToNextOffer);
+        }
+
+        /// <summary>
+        /// The shop's contract screen and its "Contract Completed!" celebration, built in code on a root of their own
+        /// — not under the HUD, which the opening tutorial switches off.
+        /// </summary>
+        private void BuildShopContractScreens()
+        {
+            var host = new GameObject("DukkanKontrati");
+            _shopContractScreen = host.AddComponent<ShopContractUI>();
+            var celebration = host.AddComponent<ShopContractCelebrationUI>();
+            Canvas hud = GetComponentInParent<Canvas>();
+            celebration.Bind(hud, _shopContractScreen.Canvas);
+        }
+
         private static readonly Color DimBoost = new Color(0.55f, 0.58f, 0.66f, 1f);
 
         // ---- what the tutorial points at -------------------------------------------------------
@@ -1802,7 +1838,8 @@ namespace Game.UI
 
         private void OnContract()
         {
-            if (contractScreen != null) contractScreen.Toggle();
+            if (_shopContractScreen != null) _shopContractScreen.Toggle();
+            else if (contractScreen != null) contractScreen.Toggle();
         }
 
         private void OnAds()

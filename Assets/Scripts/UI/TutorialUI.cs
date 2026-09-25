@@ -128,6 +128,7 @@ namespace Game.UI
         private SaveService _save;
         private WalletService _wallet;
         private ContractService _contract;
+        private ShopContractService _shopContract;
         private DailyRewardService _daily;
         private AudioService _audio;
         private HapticService _haptic;
@@ -190,6 +191,7 @@ namespace Game.UI
             _save = ServiceLocator.Get<SaveService>();
             _wallet = ServiceLocator.Get<WalletService>();
             _contract = ServiceLocator.Get<ContractService>();
+            _shopContract = ServiceLocator.Get<ShopContractService>();
             _daily = ServiceLocator.Get<DailyRewardService>();
             _audio = ServiceLocator.Get<AudioService>();
             _haptic = ServiceLocator.Get<HapticService>();
@@ -836,7 +838,9 @@ namespace Game.UI
                 Run(SailIntro());
                 return;
             }
-            if (Intro("kontrat", _contract != null && _contract.Claimable, _data.goals.lifetime[Goals.Contracts] > 0L))
+            // In the shop the cue is the first offer on the table; the port ship's is a finished job.
+            bool contractDue = _shopContract != null ? _shopContract.OfferReady : _contract != null && _contract.Claimable;
+            if (Intro("kontrat", contractDue, _data.goals.lifetime[Goals.Contracts] > 0L))
             {
                 Run(TipCard("kontrat", _hud != null ? _hud.ContractRect : null, true));
                 return;

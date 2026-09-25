@@ -62,8 +62,48 @@ namespace Game.Systems
         public bool BuildRequirementMet(int productIndex) => _simulation.BuildRequirementMet(productIndex);
         public int BuildRequiresLevel => _simulation.BuildRequiresLevel;
         public double StarMultiplier => _simulation.StarMultiplier;
+        /// <summary>What a perfect sale multiplies its price by.</summary>
+        public double PerfectMultiplier => _simulation.Mastery.PerfectMultiplier;
         public long StarGems(int star) => _simulation.StarGems(star);
         public double SteadyStateRate() => _simulation.SteadyStateRate();
+        /// <summary>The mastery rules this business runs on.</summary>
+        public BenchMastery.Tuning Mastery => _simulation.Mastery;
+
+        /// <summary>The contract customer joins the shop. No cash moves and nothing is saved: ShopContractService does both.</summary>
+        internal bool StartContract(long slot, int productIndex, int sizeIndex, in ShopContract.Terms terms)
+            => !_busy && _simulation.View.PendingSeconds <= 0d &&
+               _simulation.StartContract(slot, productIndex, sizeIndex, terms);
+
+        /// <summary>The contract customer leaves unpaid. Nothing is saved: ShopContractService does that.</summary>
+        internal bool CancelContract() => !_busy && _simulation.CancelContract();
+
+        /// <summary>Forgets a completed contract once it is paid. Called from inside its completing receipt.</summary>
+        internal bool ClearCompletedContract() => _simulation.ClearCompletedContract();
+
+        /// <summary>
+        /// The goal card's bench: of the built benches with a star left, the one whose next star costs least to
+        /// reach, ties to the earlier bench. -1 when every built bench has all its stars.
+        /// </summary>
+        public int NextStarBench()
+        {
+            MiningShopBusinessSimulation.Snapshot v = _simulation.View;
+            int best = -1;
+            double bestCost = 0d;
+            for (int p = 0; p < v.AvailableProductCount; p++)
+            {
+                MiningShopBusinessSimulation.ProductSnapshot line = v.ProductAt(p);
+                if (!line.TableBuilt) continue;
+                int toStar = BenchMastery.LevelsToNextStar(line.Level);
+                if (toStar <= 0) continue;
+                double cost = _simulation.CostOfLevels(p, toStar);
+                if (best < 0 || cost < bestCost)
+                {
+                    best = p;
+                    bestCost = cost;
+                }
+            }
+            return best;
+        }
 
         /// <summary>The master working this bench, or -1 for the apprentice.</summary>
         public int WorkerAt(int productIndex) => _foremen != null ? _simulation.WorkerAt(productIndex) : -1;

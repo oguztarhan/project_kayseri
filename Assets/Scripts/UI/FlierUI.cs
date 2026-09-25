@@ -91,7 +91,7 @@ namespace Game.UI
         private float _birdSize = 1f;
         private float _flightClock = -1f, _direction = 1f, _depth;
         private RectTransform _hit, _popup, _noThanks;
-        private Text _amount, _streak, _watchText, _toast;
+        private Text _amount, _streak, _watchText, _toast, _title, _noThanksText;
         private RectTransform _streakFill;
         private float _popupClock, _toastClock, _checkClock;
         private double _offer;
@@ -333,7 +333,9 @@ namespace Game.UI
             hitGo.SetActive(false);
 
             _toast = UiBuild.Label(canvas, "Kart", string.Empty, 40, TextAnchor.MiddleCenter);
-            UiBuild.Anchor(_toast.rectTransform, new Vector2(0.05f, 0.56f), new Vector2(0.95f, 0.62f));
+            // Between the HUD's button rails, shrinking or wrapping rather than running over them.
+            UiBuild.Anchor(_toast.rectTransform, new Vector2(0.15f, 0.56f), new Vector2(0.84f, 0.62f));
+            Fit(_toast, 20, 40);
             _toast.gameObject.AddComponent<Outline>().effectDistance = new Vector2(3f, -3f);
             _toast.gameObject.SetActive(false);
         }
@@ -348,6 +350,7 @@ namespace Game.UI
             Text title = UiBuild.Label(box, "Baslik", Loc.T("ucan_odul.baslik"), 38, TextAnchor.MiddleCenter);
             UiBuild.Anchor(title.rectTransform, new Vector2(0.05f, 0.82f), new Vector2(0.95f, 0.96f));
             Fit(title, 18, 38);
+            _title = title;
 
             var coin = new GameObject("Para", typeof(RectTransform), typeof(Image));
             coin.transform.SetParent(box, false);
@@ -373,6 +376,7 @@ namespace Game.UI
             Button no = UiBuild.Btn(_popup, "Hayir", Loc.T("ucan_odul.hayir"), UiSkin.Flat, new Color(0f, 0f, 0f, 0f), 28, CloseOffer);
             no.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
             _noThanks = (RectTransform)no.transform;
+            _noThanksText = no.GetComponentInChildren<Text>();
             UiBuild.Anchor(_noThanks, new Vector2(0.25f, 0.29f), new Vector2(0.75f, 0.345f));
 
             // The kit panel is light; the fallback box is dark and keeps white text.
@@ -398,6 +402,9 @@ namespace Game.UI
             EndFlight();
             _offer = Flier.Payout(IncomePerMinute(), _service.Tuning);
             _amount.text = "+$" + NumberFormatter.Format(new BigDouble(_offer));
+            // Rewritten on every open, so a language changed since the build shows here too.
+            _title.text = Loc.T("ucan_odul.baslik");
+            _noThanksText.text = Loc.T("ucan_odul.hayir");
             int streak = _service.Streak, length = _service.Tuning.StreakLength;
             _streak.text = string.Format(Loc.T("ucan_odul.seri"), streak, length);
             _streakFill.anchorMax = new Vector2((float)streak / length, 1f);

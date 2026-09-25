@@ -195,6 +195,8 @@ namespace Game.Systems
         private void AddContractCandidates(ref int count)
         {
             if (_contract == null || count >= _candidates.Length) return;
+            // The port ship waits while the shop owns the island; a notice about it would call the player to nothing.
+            if (!string.IsNullOrEmpty(_data.activeMiningShopBusinessId)) return;
             if (_contract.Claimable)
             {
                 _candidates[count++] = new NotificationCandidate

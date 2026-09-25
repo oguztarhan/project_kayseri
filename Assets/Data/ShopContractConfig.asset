@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe5d3093536f75644bb351bdc168cfdc, type: 3}
+  m_Name: ShopContractConfig
+  m_EditorClassIdentifier: Game.Data::Game.Data.ShopContractConfig
+  intervalSeconds: 1800
+  contractShare: 0.5
+  minQuantity: 5
+  maxQuantity: 1000000
+  small:
+    minutes: 10
+    weight: 40
+    premium: 0.1
+    gems: 1
+    foremanCards: 1
+  medium:
+    minutes: 20
+    weight: 40
+    premium: 0.15
+    gems: 2
+    foremanCards: 1
+  large:
+    minutes: 40
+    weight: 20
+    premium: 0.2
+    gems: 3
+    foremanCards: 2
+  productIcons:
+  - {fileID: 21300000, guid: 7a7ad3ec7487b76459e0182a4f85d51e, type: 3}
+  - {fileID: 21300000, guid: 11d5255b14b907146acff3121ed4cab6, type: 3}
+  - {fileID: 21300000, guid: 25f72a365a242a041888037a6b8f2aa0, type: 3}
+  - {fileID: 21300000, guid: 65f7561d25c8b834999234f240a1e912, type: 3}

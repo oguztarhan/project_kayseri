@@ -30,11 +30,15 @@ namespace Game.Core
         public double ServiceRemaining;
         public double ServiceDuration;
         public double ServicePrice;
+        /// <summary>The customer being served is the contract customer: the items are delivered, not sold for cash.</summary>
+        public bool ServiceContract;
         public long ReceiptSequence;
         /// <summary>
         /// 0 while the lines still carry the old speed and value tracks; MiningShopLevelMigration.Schema once they
         /// have been turned into a single level. A new business starts at 0 too and is migrated from 1/1 on open.
         /// </summary>
         public int LevelSchema;
+        /// <summary>The contract customer. A save from before contracts loads an empty one.</summary>
+        public ShopContractState Contract = new ShopContractState();
     }
 }

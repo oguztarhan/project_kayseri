@@ -40,7 +40,7 @@ namespace Game.Tests
         private const long MaxGemsPerFestival = 280L;
 
         // ------------------------------------------------------------------ behaviour estimates
-        /// <summary>Normal contracts finished a day by an engaged twice-a-day player.</summary>
+        /// <summary>Shop contracts finished a day by an engaged twice-a-day player.</summary>
         private const double ContractsPerDay = 6d;
 
         /// <summary>Duplicate-overflow gems from the card collection, a day. Roll-driven and small.</summary>
@@ -60,7 +60,8 @@ namespace Game.Tests
         private const long CalendarRuleStartsUnix = 1789603200L;
 
         private const string ChapterConfigPath = "Assets/Data/ChapterConfig.asset";
-        private const string ContractConfigPath = "Assets/Data/ContractConfig.asset";
+        // The shop's contracts replaced the port ship's in the budget: the port only runs in ore mode.
+        private const string ShopContractConfigPath = "Assets/Data/ShopContractConfig.asset";
         private const string FoundryConfigPath = "Assets/Data/FoundryFestivalConfig.asset";
         private const string PassConfigPath = "Assets/Data/SeasonalIndustryPassConfig.asset";
         private const string LiveEventConfigPath = "Assets/Data/LiveEventConfig.asset";
@@ -167,6 +168,18 @@ namespace Game.Tests
             }
         }
 
+        /// <summary>What one shop contract pays in gems on average, over the size weights.</summary>
+        private static double ShopContractGemsEach(in ShopContract.Tuning t)
+        {
+            double weight = 0d, gems = 0d;
+            for (int i = 0; i < t.Sizes.Length; i++)
+            {
+                weight += t.Sizes[i].Weight;
+                gems += t.Sizes[i].Weight * t.Sizes[i].Gems;
+            }
+            return gems / weight;
+        }
+
         private static Budget Measure()
         {
             var b = new Budget();
@@ -182,9 +195,9 @@ namespace Game.Tests
 
             b.AddWeekly("Daily login", LoginLadderGems());
 
-            var contracts = AssetDatabase.LoadAssetAtPath<ContractConfig>(ContractConfigPath);
-            Assert.That(contracts, Is.Not.Null, ContractConfigPath);
-            b.AddWeekly("Contracts", contracts.RewardGems * ContractsPerDay * 7d);
+            var contracts = AssetDatabase.LoadAssetAtPath<ShopContractConfig>(ShopContractConfigPath);
+            Assert.That(contracts, Is.Not.Null, ShopContractConfigPath);
+            b.AddWeekly("Contracts", ShopContractGemsEach(contracts.ToTuning()) * ContractsPerDay * 7d);
 
             b.AddWeekly("League", TypicalLeagueGems() * 7d / LeagueSeasonDays);
             b.AddWeekly("Ad gem slot", AdGemSlotGemsPerDay() * 7d);

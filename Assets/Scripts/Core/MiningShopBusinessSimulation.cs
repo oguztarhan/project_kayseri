@@ -17,6 +17,11 @@ namespace Game.Core
     /// CUSTOMERS FOLLOW STOCK. An arriving customer goes to a bench with goods on its shelf when there is one, and no
     /// bench may hold more than its share of the queue, so a slow bench can never fill the queue with people waiting
     /// for it and starve the others.
+    ///
+    /// THE CONTRACT CUSTOMER IS A CUSTOMER. An accepted contract (<see cref="StartContract"/>) is served by the same
+    /// seller, taking turns with the normal customers of its bench, and never takes a place in the queue. Each turn
+    /// hands over a bundle for no cash; the receipt of the last item says so, and the contract's terms stay in the
+    /// save until the caller has paid them (<see cref="ClearCompletedContract"/>).
     /// </summary>
     public sealed class MiningShopBusinessSimulation
     {
@@ -98,8 +103,13 @@ namespace Game.Core
             public readonly int Units;
             /// <summary>A perfect sale: <see cref="Cash"/> already includes its multiplier.</summary>
             public readonly bool Perfect;
+            /// <summary>A delivery to the contract customer: <see cref="Cash"/> is 0, the contract pays on completion.</summary>
+            public readonly bool Contract;
+            /// <summary>This delivery was the contract's last item.</summary>
+            public readonly bool CompletesContract;
 
-            internal Sale(string businessId, string productId, long sequence, double cash, int units, bool perfect)
+            internal Sale(string businessId, string productId, long sequence, double cash, int units, bool perfect,
+                bool contract = false, bool completesContract = false)
             {
                 BusinessId = businessId;
                 ProductId = productId;
@@ -107,10 +117,13 @@ namespace Game.Core
                 Cash = cash;
                 Units = units;
                 Perfect = perfect;
+                Contract = contract;
+                CompletesContract = completesContract;
             }
 
             /// <summary>The same receipt at what the wallet was actually paid, once the payer's multipliers are in.</summary>
-            public Sale WithCash(double cash) => new Sale(BusinessId, ProductId, Sequence, cash, Units, Perfect);
+            public Sale WithCash(double cash) =>
+                new Sale(BusinessId, ProductId, Sequence, cash, Units, Perfect, Contract, CompletesContract);
         }
 
         public readonly struct ProductSnapshot
@@ -182,6 +195,17 @@ namespace Game.Core
             public double PendingSeconds => _business.PendingSeconds;
             public double ElapsedSeconds => _business.ElapsedSeconds;
             public long ReceiptSequence => _business.ReceiptSequence;
+            /// <summary>The customer being served is the contract customer.</summary>
+            public bool ServingContract => _business.ServiceContract;
+            public bool ContractActive => _business.Contract.Active;
+            public long ContractSlot => _business.Contract.Slot;
+            public int ContractProductIndex => _business.Contract.ProductIndex;
+            public int ContractSizeIndex => _business.Contract.SizeIndex;
+            public int ContractQuantity => _business.Contract.Quantity;
+            public int ContractDelivered => _business.Contract.Delivered;
+            public double ContractCash => _business.Contract.Cash;
+            public long ContractGems => _business.Contract.Gems;
+            public int ContractForemanCards => _business.Contract.ForemanCards;
             public int WaitingCustomerCount
             {
                 get
@@ -230,6 +254,8 @@ namespace Game.Core
             if (availableProductCount > _state.AvailableProductCount) _state.AvailableProductCount = availableProductCount;
             // A save from before bundles was serving exactly one item.
             if (_state.Serving && _state.ServiceUnits < 1) _state.ServiceUnits = 1;
+            // A save from before contracts has no contract customer.
+            if (_state.Contract == null) _state.Contract = new ShopContractState();
             ValidateState();
             // After validation, so a save the shop refuses is left exactly as it was on disk.
             if (_state.LevelSchema < MiningShopLevelMigration.Schema) MigrateLevels();
@@ -362,6 +388,66 @@ namespace Game.Core
         }
 
         /// <summary>
+        /// Pure contract mutation: the contract customer joins the shop for <paramref name="productIndex"/> with the
+        /// accepted terms. Refused while another contract runs, for a bench that is not built, or for empty terms. Its
+        /// caller saves. Nothing is paid here — the contract pays on completion.
+        /// </summary>
+        public bool StartContract(long slot, int productIndex, int sizeIndex, in ShopContract.Terms terms)
+        {
+            ShopContractState contract = _state.Contract;
+            // Not while a cancelled contract's last bundle is still being handed over: it would count toward this one.
+            if (_advancing || contract.Active || _state.ServiceContract ||
+                productIndex < 0 || productIndex >= _state.AvailableProductCount ||
+                !Line(productIndex).TableBuilt || sizeIndex < 0 || sizeIndex >= ShopContract.SizeCount ||
+                terms.Quantity < 1 || !NonNegative(terms.Cash) || terms.Gems < 0L || terms.ForemanCards < 0) return false;
+
+            contract.Active = true;
+            contract.Slot = slot;
+            contract.ProductIndex = productIndex;
+            contract.SizeIndex = sizeIndex;
+            contract.Quantity = terms.Quantity;
+            contract.Delivered = 0;
+            contract.Cash = terms.Cash;
+            contract.Gems = terms.Gems;
+            contract.ForemanCards = terms.ForemanCards;
+            contract.ContractTurn = true;
+            ScheduleJobs();
+            return true;
+        }
+
+        /// <summary>
+        /// Pure contract mutation: the contract customer leaves unpaid and nothing is owed. Items already handed over
+        /// stay sold; a bundle being handed over right now is still handed over, and counts for nothing. Its caller saves.
+        /// </summary>
+        public bool CancelContract()
+        {
+            if (_advancing || !_state.Contract.Active) return false;
+            _state.Contract.Clear();
+            return true;
+        }
+
+        /// <summary>
+        /// Forgets a completed contract's terms once its caller has paid them. Refused while one runs. Allowed from
+        /// inside the completing receipt, since nothing after it reads the contract.
+        /// </summary>
+        public bool ClearCompletedContract()
+        {
+            ShopContractState contract = _state.Contract;
+            if (contract.Active) return false;
+            contract.Clear();
+            return true;
+        }
+
+        /// <summary>Items the contract customer still wants beyond any bundle already being handed over.</summary>
+        private int ContractWants(int productIndex)
+        {
+            ShopContractState contract = _state.Contract;
+            if (!contract.Active || contract.ProductIndex != productIndex) return 0;
+            int inHand = _state.Serving && _state.ServiceContract ? _state.ServiceUnits : 0;
+            return Math.Max(0, contract.Quantity - contract.Delivered - inHand);
+        }
+
+        /// <summary>
         /// Turns each bench's old speed and value levels into one level, once (see <see cref="MiningShopLevelMigration"/>).
         /// A level already set is never lowered. An item on the bench keeps the share of its craft it had left.
         /// </summary>
@@ -474,21 +560,36 @@ namespace Game.Core
 
             if (!_state.Serving)
             {
-                int sell = FindSellableLine();
+                int sell = FindSellableLine(out bool contract);
                 if (sell >= 0)
                 {
                     MiningShopProductLineState line = _state.Lines[sell];
-                    int units = Math.Min(_bundle, line.ShelfStock);
-                    line.WaitingCustomers--;
-                    line.ShelfStock -= units;
-                    bool perfect = NextRoll() < BenchMastery.PerfectChance(BenchMastery.StarsAt(line.Level), _tuning.Mastery);
+                    if (contract)
+                    {
+                        // Handed over, not sold: no price and no perfect roll — the contract pays on completion.
+                        int units = Math.Min(_bundle, Math.Min(line.ShelfStock, ContractWants(sell)));
+                        line.ShelfStock -= units;
+                        _state.Contract.ContractTurn = false;
+                        _state.ServiceUnits = units;
+                        _state.ServicePerfect = false;
+                        _state.ServicePrice = 0d;
+                    }
+                    else
+                    {
+                        int units = Math.Min(_bundle, line.ShelfStock);
+                        line.WaitingCustomers--;
+                        line.ShelfStock -= units;
+                        bool perfect = NextRoll() < BenchMastery.PerfectChance(BenchMastery.StarsAt(line.Level), _tuning.Mastery);
+                        if (_state.Contract.Active && _state.Contract.ProductIndex == sell) _state.Contract.ContractTurn = true;
+                        _state.ServiceUnits = units;
+                        _state.ServicePerfect = perfect;
+                        _state.ServicePrice = units * UnitPrice(sell) * (perfect ? _tuning.Mastery.PerfectMultiplier : 1d);
+                    }
                     _state.Serving = true;
+                    _state.ServiceContract = contract;
                     _state.ServiceProductIndex = sell;
-                    _state.ServiceUnits = units;
-                    _state.ServicePerfect = perfect;
                     _state.ServiceDuration = _tuning.ServiceSeconds;
                     _state.ServiceRemaining = _tuning.ServiceSeconds;
-                    _state.ServicePrice = units * UnitPrice(sell) * (perfect ? _tuning.Mastery.PerfectMultiplier : 1d);
                 }
             }
 
@@ -573,11 +674,14 @@ namespace Game.Core
 
             if (_state.Serving && _state.ServiceRemaining <= Epsilon)
             {
-                MiningShopProductLineState line = _state.Lines[_state.ServiceProductIndex];
+                int product = _state.ServiceProductIndex;
+                MiningShopProductLineState line = _state.Lines[product];
                 double price = _state.ServicePrice;
                 int units = _state.ServiceUnits;
                 bool perfect = _state.ServicePerfect;
+                bool contract = _state.ServiceContract;
                 _state.Serving = false;
+                _state.ServiceContract = false;
                 _state.ServiceProductIndex = -1;
                 _state.ServiceUnits = 0;
                 _state.ServicePerfect = false;
@@ -585,8 +689,24 @@ namespace Game.Core
                 _state.ServicePrice = 0d;
                 line.Sold += units;
                 line.Earned += price;
+
+                // A bundle for a contract cancelled mid-hand-over still leaves the shop; it just counts for nothing.
+                bool completes = false;
+                ShopContractState order = _state.Contract;
+                if (contract && order.Active && order.ProductIndex == product)
+                {
+                    order.Delivered += units;
+                    if (order.Delivered >= order.Quantity)
+                    {
+                        order.Delivered = order.Quantity;
+                        order.Active = false;
+                        order.ContractTurn = false;
+                        completes = true;
+                    }
+                }
                 _state.ReceiptSequence++;
-                _settle(new Sale(_owner.BusinessId, line.ProductId, _state.ReceiptSequence, price, units, perfect));
+                _settle(new Sale(_owner.BusinessId, line.ProductId, _state.ReceiptSequence, price, units, perfect,
+                    contract, completes));
             }
         }
 
@@ -608,17 +728,25 @@ namespace Game.Core
             return -1;
         }
 
-        private int FindSellableLine()
+        /// <summary>
+        /// The next bench the seller serves, in turn from the seller cursor, and whether it is the contract customer's
+        /// turn there. On the contract's bench the contract customer and the normal customers take turns; when only
+        /// one of them wants goods, that one is served so the seller never stands idle.
+        /// </summary>
+        private int FindSellableLine(out bool contract)
         {
+            contract = false;
             for (int offset = 0; offset < _state.AvailableProductCount; offset++)
             {
                 int index = (_state.SellerCursor + offset) % _state.AvailableProductCount;
                 MiningShopProductLineState line = _state.Lines[index];
-                if (line.TableBuilt && line.WaitingCustomers > 0 && line.ShelfStock > 0)
-                {
-                    _state.SellerCursor = (index + 1) % _state.AvailableProductCount;
-                    return index;
-                }
+                if (!line.TableBuilt || line.ShelfStock <= 0) continue;
+                bool normal = line.WaitingCustomers > 0;
+                bool wants = ContractWants(index) > 0;
+                if (!normal && !wants) continue;
+                _state.SellerCursor = (index + 1) % _state.AvailableProductCount;
+                contract = wants && (!normal || _state.Contract.ContractTurn);
+                return index;
             }
             return -1;
         }
@@ -768,9 +896,11 @@ namespace Game.Core
                 (_state.Carrier != MiningShopSimulation.CarrierPhase.Idle &&
                     (_state.CarrierProductIndex < 0 || _state.CarrierProductIndex >= _state.AvailableProductCount)) ||
                 (_state.Serving && (_state.ServiceProductIndex < 0 || _state.ServiceProductIndex >= _state.AvailableProductCount ||
-                    _state.ServiceUnits < 1 || !Positive(_state.ServicePrice) || !Positive(_state.ServiceDuration) ||
-                    _state.ServiceRemaining > _state.ServiceDuration)) ||
-                (!_state.Serving && (_state.ServiceProductIndex != -1 || _state.ServiceUnits != 0)) ||
+                    _state.ServiceUnits < 1 || !Positive(_state.ServiceDuration) ||
+                    _state.ServiceRemaining > _state.ServiceDuration ||
+                    // A contract hand-over carries no price and no perfect roll; a sale always has a price.
+                    (_state.ServiceContract ? _state.ServicePrice != 0d || _state.ServicePerfect : !Positive(_state.ServicePrice)))) ||
+                (!_state.Serving && (_state.ServiceProductIndex != -1 || _state.ServiceUnits != 0 || _state.ServiceContract)) ||
                 _state.LevelSchema < 0 || _state.LevelSchema > MiningShopLevelMigration.Schema)
                 throw new ArgumentException("Mining-shop business save has invalid shared jobs; refusing to reset it.");
 
@@ -800,6 +930,19 @@ namespace Game.Core
             }
 
             if (totalReserved < 0) throw new ArgumentException("Mining-shop reservation total overflowed.");
+
+            ShopContractState contract = _state.Contract;
+            bool contractInvalid = contract.Quantity < 0 || contract.Delivered < 0 || contract.Delivered > contract.Quantity ||
+                !NonNegative(contract.Cash) || contract.Gems < 0L || contract.ForemanCards < 0;
+            if (contract.Active)
+                contractInvalid |= contract.ProductIndex < 0 || contract.ProductIndex >= _state.AvailableProductCount ||
+                    !_state.Lines[contract.ProductIndex].TableBuilt || contract.SizeIndex < 0 ||
+                    contract.SizeIndex >= ShopContract.SizeCount || contract.Quantity < 1 ||
+                    contract.Delivered >= contract.Quantity ||
+                    (_state.ServiceContract && _state.ServiceProductIndex == contract.ProductIndex &&
+                        contract.Delivered + _state.ServiceUnits > contract.Quantity);
+            if (contractInvalid)
+                throw new ArgumentException("Mining-shop contract save is inconsistent; refusing to reset it.");
         }
 
         private static bool Positive(double value) => value > 0d && !double.IsInfinity(value) && !double.IsNaN(value);

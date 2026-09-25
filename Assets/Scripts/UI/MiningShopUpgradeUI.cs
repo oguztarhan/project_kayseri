@@ -77,6 +77,26 @@ namespace Game.UI
         [Tooltip("Seçicide yan yana kaç usta.")]
         [SerializeField, Min(1)] private int pickerColumns = 5;
         [SerializeField] private Color workerChipColor = new Color(0.3f, 0.34f, 0.42f);
+        [Header("Perfect sale")]
+        [Tooltip("\"MÜKEMMEL!\" yazısının ekranda kalma süresi (sn).")]
+        [SerializeField, Min(0.3f)] private float perfectSeconds = 1.2f;
+        [Tooltip("Yazının müşterinin başından yükselme mesafesi (px).")]
+        [SerializeField] private float perfectRise = 120f;
+        [Tooltip("Her mükemmel satışta fırlayan sikke sayısı (en fazla 10).")]
+        [SerializeField, Range(0, 10)] private int perfectCoins = 6;
+        [SerializeField, Min(8f)] private float perfectCoinSize = 44f;
+        [Tooltip("Sikkelerin ilk hızı (px/sn).")]
+        [SerializeField] private float perfectCoinSpeed = 520f;
+        [Tooltip("Sikkeleri aşağı çeken yerçekimi (px/sn²); negatif = aşağı.")]
+        [SerializeField] private float perfectCoinGravity = -1400f;
+        [SerializeField] private Color perfectTitleColor = new Color(1f, 0.84f, 0.22f);
+        [SerializeField] private Color perfectCashColor = Color.white;
+        [Header("Goal card")]
+        [Tooltip("Sonraki tezgâh yıldızı kartının ekrandaki yeri; üstteki SATILDI hapının altı.")]
+        [SerializeField] private Vector2 goalMin = new Vector2(0.025f, 0.845f);
+        [SerializeField] private Vector2 goalMax = new Vector2(0.56f, 0.905f);
+        [Tooltip("Kartın yeni hedefe bakma aralığı (sn).")]
+        [SerializeField, Min(0.25f)] private float goalRefreshSeconds = 1f;
 
         /// <summary>Panel titles in MiningShopCampaign.ProductIdAt order.</summary>
         private static readonly string[] TitleKeys =
@@ -96,6 +116,9 @@ namespace Game.UI
         private MiningShopBusinessService _shop;
         private HudUI _hud;
         private BenchStarFx _starFx;
+        private PerfectSaleFx _perfectFx;
+        private BenchGoalUI _goal;
+        private MarketService _market;
         private int _product;
         private Text _title;
         private WalletService _wallet;
@@ -135,6 +158,7 @@ namespace Game.UI
         private int _shownProduct = -1, _shownLevel, _shownMode, _shownAffordable;
         private long _shownSold = -1;
         private bool _shownBuilt, _shownBlocked, _shownRequirement;
+        private int _shownRequiredLevel = -1;
         private int _shownWorker = -2;
         private double _shownWorkerMultiplier;
 
@@ -153,8 +177,8 @@ namespace Game.UI
 
         private void Start()
         {
-            MarketService market = ServiceLocator.Get<MarketService>();
-            _shop = market != null ? market.MiningShopBusiness : null;
+            _market = ServiceLocator.Get<MarketService>();
+            _shop = _market != null ? _market.MiningShopBusiness : null;
             _wallet = ServiceLocator.Get<WalletService>();
             if (_shop == null || _wallet == null) { enabled = false; return; }
 
@@ -167,6 +191,7 @@ namespace Game.UI
             Build();
             _shop.StarPaid += OnStarPaid;
             _shop.WorkersChanged += OnWorkersChanged;
+            _market.MiningShopBusinessSold += OnSold;
             _loc = ServiceLocator.Get<LocalizationService>();
             if (_loc != null) _loc.Changed += OnLanguageChanged;
         }
@@ -176,6 +201,15 @@ namespace Game.UI
             if (_loc != null) _loc.Changed -= OnLanguageChanged;
             if (_shop != null) _shop.StarPaid -= OnStarPaid;
             if (_shop != null) _shop.WorkersChanged -= OnWorkersChanged;
+            if (_market != null) _market.MiningShopBusinessSold -= OnSold;
+        }
+
+        /// <summary>A perfect sale pops over the customer who made it, with what it paid; plain sales show nothing.</summary>
+        private void OnSold(MiningShopBusinessSimulation.Sale sale)
+        {
+            if (!sale.Perfect || _perfectFx == null) return;
+            _perfectFx.Play(_view.SalePoint, "+$" + NumberFormatter.Format(new BigDouble(sale.Cash)) + "  ×" +
+                            _shop.PerfectMultiplier.ToString("0.#"), _camera);
         }
 
         /// <summary>A worker moved or got better: the open card and the open picker show it straight away.</summary>
@@ -204,6 +238,8 @@ namespace Game.UI
         private void OnLanguageChanged()
         {
             for (int i = 0; i < _signLabels.Count; i++) _signLabels[i].text = Loc.T(_signKeys[i]);
+            if (_perfectFx != null) _perfectFx.SetTitle(Loc.T("maden_dukkani.mukemmel"));
+            if (_goal != null) _goal.MarkDirty();
             _shownProduct = -1;
             if (_panel != null && _panel.gameObject.activeSelf) Refresh();
             if (_picker == null) return;
@@ -295,6 +331,16 @@ namespace Game.UI
             rt.localScale = Vector3.one * signScale;
         }
 
+        /// <summary>Opens the card on a bench, as tapping it on the island does; the goal card's tap.</summary>
+        public void OpenBench(int product)
+        {
+            if (product < 0 || product >= MiningShopCampaign.ProductCount) return;
+            _product = product;
+            _panel.gameObject.SetActive(true);
+            _picker.gameObject.SetActive(false);
+            Refresh();
+        }
+
         private void TapWorld(Vector2 screen)
         {
             if (_camera == null || _view.TableCollider == null) return;
@@ -317,8 +363,8 @@ namespace Game.UI
             dynamicGo.transform.SetParent(_panel, false);
             RectTransform content = UiBuild.Anchor((RectTransform)dynamicGo.transform, Vector2.zero, Vector2.one);
 
-            _title = UiBuild.Label(content, "Title", Loc.T(TitleKeys[0]), 40, TextAnchor.MiddleLeft);
-            UiBuild.Anchor(_title.rectTransform, new Vector2(0.05f, 0.78f), new Vector2(0.56f, 0.96f));
+            _title = UiBuild.Label(content, "Title", string.Empty, 40, TextAnchor.MiddleLeft);
+            UiBuild.Anchor(_title.rectTransform, new Vector2(0.05f, 0.78f), new Vector2(0.545f, 0.96f));
 
             // The five stars, earned ones lit. The kit's star is the sea screen's; it reads the same here.
             Sprite star = SeaKit.Get("yildiz");
@@ -343,6 +389,8 @@ namespace Game.UI
 
             _nextStar = UiBuild.Label(content, "NextStar", string.Empty, 28, TextAnchor.MiddleLeft);
             UiBuild.Anchor(_nextStar.rectTransform, new Vector2(0.05f, 0.63f), new Vector2(0.95f, 0.77f));
+            // The longest lines (Polish star line, Portuguese requirement) reach the card's edge at full size.
+            FitText(_nextStar, 16, 28);
             _starBar = UiBuild.Bar(content, "StarBar", starBarTrack, starBarFill, new Vector2(0.05f, 0.54f),
                 new Vector2(0.95f, 0.61f), out _starBarFill);
 
@@ -375,6 +423,13 @@ namespace Game.UI
             // After the panel, so the moment draws over the card; before the inset, so it moves with it.
             _starFx = BenchStarFx.Create(canvas, cardTextColor, gainColor, gemSize);
             _starFx.Configure(starBannerSeconds, starPopSeconds, gemFlightSeconds, gainRise);
+            _perfectFx = PerfectSaleFx.Create(canvas, Loc.T("maden_dukkani.mukemmel"), perfectTitleColor,
+                perfectCashColor, perfectCoinSize);
+            _perfectFx.Configure(perfectSeconds, perfectRise, perfectCoins, perfectCoinSpeed, perfectCoinGravity);
+            // Under the card: the shop sits behind it in the island shot, and a pop must not cover the card's text.
+            _perfectFx.transform.SetSiblingIndex(0);
+            _goal = BenchGoalUI.Create(canvas, _shop, this, goalMin, goalMax, cardTextColor, starBarTrack, starBarFill);
+            _goal.Configure(goalRefreshSeconds);
 
             BuildPicker(canvas);
 
@@ -495,6 +550,21 @@ namespace Game.UI
             return img;
         }
 
+        /// <summary>
+        /// The bench name on one line, shrunk just enough to stop short of the stars: long names (German, Polish,
+        /// Portuguese) wrapped or ran under them. Measured only when the name itself changes.
+        /// </summary>
+        private void SetTitle(string title)
+        {
+            if (ReferenceEquals(_title.text, title)) return;
+            _title.text = title;
+            _title.fontSize = TitleSize;
+            float room = _title.rectTransform.rect.width, width = _title.preferredWidth;
+            if (width > room && room > 0f) _title.fontSize = Mathf.Max(TitleMinSize, (int)(TitleSize * room / width));
+        }
+
+        private const int TitleSize = 40, TitleMinSize = 20;
+
         private static void FitText(Text text, int min, int max)
         {
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -549,6 +619,9 @@ namespace Game.UI
             int affordable = wanted > 0 ? _shop.AffordableLevels(_product, wanted) : 0;
             bool blocked = v.PendingSeconds > 0d;
             bool requirement = !product.TableBuilt && _shop.BuildRequirementMet(_product);
+            // How far the bench before it has got towards the build's requirement.
+            int requiredLevel = !product.TableBuilt && _product > 0 && v.ProductAt(_product - 1).TableBuilt
+                ? v.ProductAt(_product - 1).Level : 0;
             // An unbuilt bench only cares whether its build is affordable.
             if (!product.TableBuilt) affordable = requirement && _wallet.CanAfford(new BigDouble(_shop.TableCost(_product))) ? 1 : 0;
             int worker = _shop.WorkerAt(_product);
@@ -556,6 +629,7 @@ namespace Game.UI
             if (_shownProduct == _product && _shownLevel == product.Level && _shownMode == _modeIndex &&
                 _shownAffordable == affordable && _shownSold == product.Sold && _shownBuilt == product.TableBuilt &&
                 _shownBlocked == blocked && _shownRequirement == requirement && _shownWorker == worker &&
+                _shownRequiredLevel == requiredLevel &&
                 _shownWorkerMultiplier == workerMultiplier) return;
             _shownProduct = _product;
             _shownLevel = product.Level;
@@ -565,10 +639,11 @@ namespace Game.UI
             _shownBuilt = product.TableBuilt;
             _shownBlocked = blocked;
             _shownRequirement = requirement;
+            _shownRequiredLevel = requiredLevel;
             _shownWorker = worker;
             _shownWorkerMultiplier = workerMultiplier;
 
-            _title.text = Loc.T(TitleKeys[_product]);
+            SetTitle(Loc.T(TitleKeys[_product]));
             _summary.text = string.Format(Loc.T("maden_dukkani.ozet"), _shop.CraftSeconds(_product).ToString("0.0"),
                 NumberFormatter.Format(new BigDouble(_shop.UnitPrice(_product))), product.Sold);
 
@@ -578,8 +653,10 @@ namespace Game.UI
                 _stars[i].gameObject.SetActive(built);
                 _stars[i].color = i < product.Stars ? starEarnedColor : starMissingColor;
             }
-            _nextStar.gameObject.SetActive(built);
-            _starBar.gameObject.SetActive(built);
+            // A locked build uses the star line and bar for its requirement instead.
+            bool locked = !built && !requirement && _product > 0;
+            _nextStar.gameObject.SetActive(built || locked);
+            _starBar.gameObject.SetActive(built || locked);
             _mode.gameObject.SetActive(built);
             _worker.gameObject.SetActive(built && _foremen != null);
             if (built && _foremen != null)
@@ -610,19 +687,19 @@ namespace Game.UI
                 return;
             }
 
-            // An offered bench not yet built: one build button, usable once the bench before it is levelled enough.
-            string build = Loc.T("maden_dukkani.tezgah_kur");
-            if (!requirement)
+            // An offered bench not yet built: one build button with its price, usable once the bench before it is
+            // levelled enough. Until then the line and bar say which bench, which level, and how far it has got.
+            _buyText.text = Loc.T("maden_dukkani.tezgah_kur") + "\n$" +
+                            NumberFormatter.Format(new BigDouble(_shop.TableCost(_product)));
+            if (locked)
             {
-                bool previousBuilt = _product > 0 && v.ProductAt(_product - 1).TableBuilt;
-                _buyText.text = previousBuilt
-                    ? build + "\n" + string.Format(Loc.T("maden_dukkani.gereken"), Loc.T(TitleKeys[_product - 1]),
-                                                   _shop.BuildRequiresLevel)
-                    : build;
+                int need = _shop.BuildRequiresLevel;
+                _nextStar.text = string.Format(Loc.T("maden_dukkani.gereken"), Loc.T(TitleKeys[_product - 1]), need) +
+                                 "  (" + requiredLevel + "/" + need + ")";
+                _starBarFill.anchorMax = new Vector2(Mathf.Clamp01((float)requiredLevel / need), 1f);
                 _buy.interactable = false;
                 return;
             }
-            _buyText.text = build + "\n$" + NumberFormatter.Format(new BigDouble(_shop.TableCost(_product)));
             _buy.interactable = !blocked && affordable > 0;
         }
 
@@ -646,7 +723,7 @@ namespace Game.UI
         }
 
         /// <summary>What the star at this position doubles, e.g. "VALUE ×2".</summary>
-        private string StarEffectText(int star)
+        internal string StarEffectText(int star)
         {
             string effect = BenchMastery.StarEffects[star] == BenchMastery.StarEffect.Value
                 ? "maden_dukkani.etki_deger" : "maden_dukkani.etki_hiz";

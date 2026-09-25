@@ -92,6 +92,11 @@ namespace Game.Systems
         // is closed; ship travel/cooldown uses the wall clock so a waiting ship can arrive while away.
         public ContractSaveData contract = new ContractSaveData();
 
+        // ---- dükkân kontratı -----------------------------------------------------------------
+        // The contract itself lives on its business (MiningShopBusinessState.Contract). This holds what spans
+        // the shop: which job the current 30-minute slot froze, and a completion the player has not seen yet.
+        public ShopContractSaveData shopContract = new ShopContractSaveData();
+
         // ---- pop-up teklifler (OfferPopupUI) --------------------------------------------------
         // The IAP skus are consumable and shared by all eight islands, so purchasedOffers cannot
         // gate these: buying the small pack on coal would lock it on copper too. The pop-up keeps
@@ -742,6 +747,30 @@ namespace Game.Systems
     {
         public string island;
         public long startedUnix;
+    }
+
+    [Serializable]
+    public class ShopContractSaveData
+    {
+        // The slot's job, frozen the first time the slot is looked at so building a bench mid-slot cannot change
+        // which product is ordered. Quantity and price are not frozen: they follow the bench until accept.
+        public string pickBusinessId = "";
+        public long pickSlot = long.MinValue;
+        public int pickProduct = -1;
+        public int pickSize;
+
+        // A completed contract the "Contract Completed!" screen has not shown yet. Written in the same save that
+        // pays it, so a kill before the screen opens still shows it on the next launch.
+        public bool celebrationPending;
+        public int celebrationProduct = -1;
+        public int celebrationSize;
+        public int celebrationQuantity;
+        public double celebrationCash;
+        public double celebrationNormalCash;
+        public long celebrationGems;
+        public int celebrationCards;
+        /// <summary>The foreman the cards went to, or -1.</summary>
+        public int celebrationForeman = -1;
     }
 
     [Serializable]

@@ -50,6 +50,8 @@ namespace Game.Systems
         [Tooltip("Sezonluk Sanayi Bileti puan kaynakları, kademeleri ve premium ürünü. Boş bırakılırsa varsayılanlarla çalışır.")]
         [SerializeField] private SeasonalIndustryPassConfig seasonalIndustryPassConfig;
         [SerializeField] private ContractConfig contractConfig;
+        [Tooltip("Dükkân kontratları: teklif aralığı, boyutlar ve tamamlanınca verilen ödüller. Boş bırakılırsa varsayılanlarla çalışır.")]
+        [SerializeField] private ShopContractConfig shopContractConfig;
         [SerializeField] private QualityConfig qualityConfig;
         [SerializeField] private AudioConfig audioConfig;
         [SerializeField] private JuiceConfig juiceConfig;
@@ -502,6 +504,13 @@ namespace Game.Systems
             // After the grant: the absence that ended with this launch is paid from the rate the last session
             // saved. Opening the shop replaces that rate with its own, so an ore rate is never paid twice.
             if (miningShopOnMain) OpenMiningShop();
+            // Only with a shop open: its contracts are served by the shop's own customers and seller.
+            // The config is registered too: the contract screen reads its icons from it.
+            if (shopContractConfig != null) ServiceLocator.Register(shopContractConfig);
+            if (Market?.MiningShopBusiness != null)
+                ServiceLocator.Register(new ShopContractService(Market, Wallet,
+                    shopContractConfig != null ? shopContractConfig.ToTuning() : ShopContract.Tuning.Default,
+                    Data, _time.NowUnix, Foremen, Goals, Save, ServiceLocator.Get<IAnalytics>()));
 
             // Prices the first ship's offers off the rate the last session persisted, so a returning
             // empire is not offered a $500 job while the live income meter is still reading zero.

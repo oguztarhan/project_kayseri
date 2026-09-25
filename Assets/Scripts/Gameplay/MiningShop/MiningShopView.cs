@@ -13,6 +13,10 @@ namespace Game.Gameplay
     /// business, moves goods or pays: bodies follow the numbers, the numbers never wait for bodies. A line the island
     /// does not offer draws nothing; an offered line not yet built shows only its locked pad.
     ///
+    /// An accepted contract adds one more body: the contract customer, who waits beside the counter rather than in
+    /// the queue, holds each bundle as it is handed over, fills his crate, and leaves when the contract ends. A
+    /// contract receipt bounces his crate instead of sending anyone away.
+    ///
     /// Anchors are this object's empty children, found by name the way CoalOperation finds its stations.
     /// People come from CoalOperation's people pack; props from Resources/Market.
     /// </summary>
@@ -53,6 +57,18 @@ namespace Game.Gameplay
         [SerializeField, Min(0f)] private float workerPlinthRadius = 11f;
         [Tooltip("Her nadirlik basamağında tezgâh ustasının ne kadar büyüdüğü; istasyon ustalarındakiyle aynı.")]
         [SerializeField, Range(0f, 0.3f)] private float workerRankScaleStep = 0.10f;
+
+        [Header("Kontrat müşterisi")]
+        [Tooltip("Kontrat müşterisinin durduğu yer, servis noktasına göre. Sahnede 'Shop_Customer_Contract' çapası " +
+                 "varsa bu değil o kullanılır.")]
+        [SerializeField] private Vector3 contractSpotOffset = new Vector3(8f, 0f, -30f);
+        [Tooltip("Kontrat müşterisi normal müşterilerden bu kadar büyük görünür.")]
+        [SerializeField, Range(1f, 1.5f)] private float contractScale = 1.12f;
+        [Tooltip("Kontrat müşterisinin ayağının altındaki disk ve elindeki sandık.")]
+        [SerializeField] private Color contractBadgeColor = new Color(1f, 0.78f, 0.2f);
+        [SerializeField] private Color contractCrateColor = new Color(0.55f, 0.36f, 0.18f);
+        [Tooltip("Her teslimde sandığın ne kadar süre zıplayacağı (sn).")]
+        [SerializeField, Min(0.05f)] private float contractReceiveSeconds = 0.35f;
 
         /// <summary>Anchor and route names per product, in MiningShopCampaign.ProductIdAt order.</summary>
         private static readonly string[] Names = { "Pickaxe", "Helmet", "Lantern", "Bag" };
@@ -101,6 +117,19 @@ namespace Game.Gameplay
         private int _waitingCount;
         private int _serving = -1;
 
+        // The contract customer: a body of his own beside the counter, never one of the queue's.
+        private Transform _contractAnchor;
+        private Walker _contractor;
+        private Transform _crate;
+        private Transform[][] _crateItems;
+        private Material _crateMat, _badgeMat;
+        private bool _contractorHere;
+        private bool _contractorSnap = true;
+        private int _contractorProduct = -1;
+        private int _crateShown;
+        private bool _crateFull;
+        private float _receivePulse;
+
         /// <summary>The pickaxe bench's tap target, which the camera waits for. Null until the shop is built.</summary>
         public Collider TableCollider => _lines[0] != null ? _lines[0].tableCollider : null;
 
@@ -128,8 +157,26 @@ namespace Game.Gameplay
         public Collider TutorialPad(int product)
             => product >= 0 && product < _lines.Length && _lines[product] != null ? _lines[product].padCollider : null;
 
+        /// <summary>Over the head of the customer being served, where a sale's moment is shown.</summary>
+        public Vector3 SalePoint => _queue.Length > 0 ? Slot(0) + Vector3.up * personHeight * 1.2f : transform.position;
+
         /// <summary>Everything the offered lines use — benches to the customers' entry — for the camera to fit.</summary>
         public Bounds ShopBounds { get; private set; }
+
+        /// <summary>
+        /// Over the contract customer's head, for the progress marker. False while there is none, and while he walks
+        /// out: a finished or cancelled contract has nothing left to count.
+        /// </summary>
+        public bool TryGetContractCustomer(out Vector3 head)
+        {
+            if (!_contractorHere || _contractor == null || !_contractor.body.gameObject.activeSelf)
+            {
+                head = Vector3.zero;
+                return false;
+            }
+            head = _contractor.body.position + Vector3.up * personHeight * contractScale * 1.25f;
+            return true;
+        }
 
         /// <summary>
         /// A short bounce of the bench and the item on it, for the moment it earns a star. It scales the bench's work
@@ -166,6 +213,7 @@ namespace Game.Gameplay
             while (transform.Find("Shop_Customer_Queue_0" + (slots + 1)) != null) slots++;
             _queue = new Transform[slots];
             for (int i = 0; i < slots; i++) _queue[i] = transform.Find("Shop_Customer_Queue_0" + (i + 1));
+            _contractAnchor = transform.Find("Shop_Customer_Contract");
         }
 
         private void Start()
@@ -229,6 +277,8 @@ namespace Game.Gameplay
                 w.body.gameObject.SetActive(false);
                 _customers[i] = w;
             }
+            BuildContractor(people, source.sharedMaterial);
+            bounds.Encapsulate(ContractSpot() + Vector3.up * personHeight);
 
             for (int i = 0; i < _queue.Length; i++) bounds.Encapsulate(_queue[i].position);
             bounds.Encapsulate(_queue[_queue.Length - 1].position + customerEntryOffset);
@@ -297,6 +347,7 @@ namespace Game.Gameplay
             if (_shop != null) _shop.WorkersChanged -= RefreshWorkers;
             DestroyMaterial(_handleMat); DestroyMaterial(_headMat); DestroyMaterial(_helmetMat);
             DestroyMaterial(_lanternMat); DestroyMaterial(_bagMat); DestroyMaterial(_padMat);
+            DestroyMaterial(_crateMat); DestroyMaterial(_badgeMat);
             if (_plinthMats != null) for (int r = 0; r < _plinthMats.Length; r++) DestroyMaterial(_plinthMats[r]);
         }
 
@@ -380,7 +431,109 @@ namespace Game.Gameplay
             }
             DrawCarrier(v);
             Reconcile(v);
+            DrawContractor(v);
             WalkCustomers(Time.deltaTime);
+        }
+
+        /// <summary>
+        /// The contract customer: a bigger body on a gold disc, holding a crate that fills as the goods arrive. Built
+        /// once and hidden; <see cref="DrawContractor"/> walks him in and out.
+        /// </summary>
+        private void BuildContractor(GameObject[] people, Material source)
+        {
+            _crateMat = Tinted(source, contractCrateColor);
+            _badgeMat = Tinted(source, contractBadgeColor);
+            // The last of the pack: never one of the queue's faces, which start at the front of it.
+            _contractor = Person(people, people.Length - 1, ContractSpot());
+            _contractor.body.localScale = Vector3.one * contractScale;
+            _contractor.held = new Transform[MiningShopCampaign.ProductCount];
+            for (int p = 0; p < _contractor.held.Length; p++) _contractor.held[p] = Carried(p, _contractor.body, 0);
+
+            var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Destroy(disc.GetComponent<Collider>());
+            disc.name = "KontratDiski";
+            disc.transform.SetParent(_contractor.body, false);
+            disc.transform.localPosition = new Vector3(0f, 0.6f, 0f);
+            disc.transform.localScale = new Vector3(workerPlinthRadius * 2f, 0.5f, workerPlinthRadius * 2f);
+            var mr = disc.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = _badgeMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+
+            // Carried on the other side from the item being handed over, so the two never overlap.
+            float crate = pickaxeLength * 0.7f;
+            _crate = new GameObject("KontratSandigi").transform;
+            _crate.SetParent(_contractor.body, false);
+            _crate.localPosition = new Vector3(-personHeight * 0.26f, personHeight * 0.22f, personHeight * 0.08f);
+            Part(PrimitiveType.Cube, _crate, _crateMat, new Vector3(0f, crate * 0.25f, 0f), new Vector3(crate, crate * 0.5f, crate * 0.7f));
+            _crateItems = new Transform[MiningShopCampaign.ProductCount][];
+            for (int p = 0; p < _crateItems.Length; p++)
+            {
+                _crateItems[p] = new Transform[stackShown];
+                for (int i = 0; i < stackShown; i++)
+                {
+                    _crateItems[p][i] = Item(p, _crate, new Vector3(0f, crate * 0.5f + i * ItemHeight(p) * shelfItemScale, 0f));
+                    _crateItems[p][i].localScale = Vector3.one * shelfItemScale;
+                }
+            }
+            _contractor.body.gameObject.SetActive(false);
+        }
+
+        private Vector3 ContractSpot() => _contractAnchor != null ? _contractAnchor.position : Slot(0) + contractSpotOffset;
+
+        /// <summary>
+        /// Walks the contract customer in when a contract starts and out when it ends, finished or cancelled. On a
+        /// launch that opens mid-contract he is simply standing there. While a bundle is being handed to him he holds
+        /// it, and the crate shows how far the order has come.
+        /// </summary>
+        private void DrawContractor(in MiningShopBusinessSimulation.Snapshot v)
+        {
+            if (_contractor == null) return;
+            bool active = v.ContractActive;
+            if (active && !_contractorHere)
+            {
+                _contractorHere = true;
+                _crateFull = false;
+                _contractorProduct = v.ContractProductIndex;
+                Walker w = _contractor;
+                w.leaving = false;
+                w.body.position = _contractorSnap ? ContractSpot() : _queue[_queue.Length - 1].position + customerEntryOffset;
+                w.target = ContractSpot();
+                w.face = _shelf.position - ContractSpot();
+                w.body.gameObject.SetActive(true);
+            }
+            else if (!active && _contractorHere)
+            {
+                _contractorHere = false;
+                _contractor.leaving = true;
+                _contractor.target = ContractSpot() + customerExitOffset;
+                if (_crateFull) _crateShown = stackShown;
+            }
+            _contractorSnap = false;
+
+            int holding = active && v.ServingContract ? v.ContractProductIndex : -1;
+            if (holding != _contractor.heldProduct) Hold(_contractor, holding);
+
+            if (active && v.ContractQuantity > 0)
+                _crateShown = Mathf.CeilToInt(stackShown * (float)v.ContractDelivered / v.ContractQuantity);
+            ShowCrate(_contractorProduct, _crateShown);
+
+            if (_receivePulse > 0f)
+            {
+                _receivePulse = Mathf.Max(0f, _receivePulse - Time.deltaTime);
+                float t = 1f - _receivePulse / contractReceiveSeconds;
+                _crate.localScale = Vector3.one * (1f + Mathf.Sin(t * Mathf.PI) * 0.25f);
+            }
+        }
+
+        private void ShowCrate(int product, int count)
+        {
+            for (int p = 0; p < _crateItems.Length; p++)
+                for (int i = 0; i < _crateItems[p].Length; i++)
+                {
+                    bool on = p == product && i < count;
+                    if (_crateItems[p][i].gameObject.activeSelf != on) _crateItems[p][i].gameObject.SetActive(on);
+                }
         }
 
         private void DrawCarrier(in MiningShopBusinessSimulation.Snapshot v)
@@ -420,7 +573,9 @@ namespace Game.Gameplay
         /// </summary>
         private void Reconcile(in MiningShopBusinessSimulation.Snapshot v)
         {
-            if (v.Serving && _serving < 0)
+            // A hand-over to the contract customer is his, not the queue's: nobody steps up to the counter for it.
+            bool sale = v.Serving && !v.ServingContract;
+            if (sale && _serving < 0)
             {
                 _serving = _waitingCount > 0 ? PopFront() : Spawn();
                 if (_serving >= 0)
@@ -431,7 +586,7 @@ namespace Game.Gameplay
                     Hold(w, v.ServiceProductIndex);
                 }
             }
-            else if (!v.Serving && _serving >= 0)
+            else if (!sale && _serving >= 0)
             {
                 Hide(_customers[_serving]);
                 _serving = -1;
@@ -456,6 +611,13 @@ namespace Game.Gameplay
 
         private void OnSold(MiningShopBusinessSimulation.Sale sale)
         {
+            if (sale.Contract)
+            {
+                // The contract customer keeps his place until the order is complete; the crate bounces instead.
+                _receivePulse = contractReceiveSeconds;
+                if (sale.CompletesContract) _crateFull = true;
+                return;
+            }
             if (_serving < 0) return;
             Walker w = _customers[_serving];
             w.leaving = true;
@@ -465,30 +627,32 @@ namespace Game.Gameplay
 
         private void WalkCustomers(float dt)
         {
-            for (int i = 0; i < _customers.Length; i++)
+            for (int i = 0; i < _customers.Length; i++) Walk(_customers[i], dt);
+            if (_contractor != null) Walk(_contractor, dt);
+        }
+
+        private void Walk(Walker w, float dt)
+        {
+            if (!w.body.gameObject.activeSelf) return;
+            Vector3 to = w.target - w.body.position;
+            to.y = 0f;
+            bool moving = to.sqrMagnitude > 0.25f;
+            if (moving)
             {
-                Walker w = _customers[i];
-                if (!w.body.gameObject.activeSelf) continue;
-                Vector3 to = w.target - w.body.position;
-                to.y = 0f;
-                bool moving = to.sqrMagnitude > 0.25f;
-                if (moving)
-                {
-                    w.body.position = Vector3.MoveTowards(w.body.position, w.target, customerSpeed * dt);
-                    w.body.rotation = Quaternion.LookRotation(to);
-                }
-                else if (w.leaving)
-                {
-                    Hide(w);
-                    continue;
-                }
-                else if (w.face.sqrMagnitude > 1e-4f)
-                {
-                    w.face.y = 0f;
-                    w.body.rotation = Quaternion.LookRotation(w.face);
-                }
-                w.anim?.SetMoving(moving);
+                w.body.position = Vector3.MoveTowards(w.body.position, w.target, customerSpeed * dt);
+                w.body.rotation = Quaternion.LookRotation(to);
             }
+            else if (w.leaving)
+            {
+                Hide(w);
+                return;
+            }
+            else if (w.face.sqrMagnitude > 1e-4f)
+            {
+                w.face.y = 0f;
+                w.body.rotation = Quaternion.LookRotation(w.face);
+            }
+            w.anim?.SetMoving(moving);
         }
 
         private int Spawn()

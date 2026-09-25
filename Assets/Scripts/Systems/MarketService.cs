@@ -103,6 +103,9 @@ namespace Game.Systems
         private double ShopStandingMultiplier =>
             (_boost != null ? _boost.PermanentMultiplier : 1d) * (_miningGear != null ? _miningGear.IncomeMultiplier : 1d);
 
+        /// <summary>The permanent part of what a shop sale pays on top of its price; shop contracts are priced with it.</summary>
+        public double MiningShopStandingMultiplier => ShopStandingMultiplier;
+
         public event Action<MiningShopSimulation.Sale> MiningShopSold;
         public event Action<MiningShopBusinessSimulation.Sale> MiningShopBusinessSold;
 
@@ -200,8 +203,11 @@ namespace Game.Systems
         {
             // The receipt's own Cash stays the shop's figure (Earned counts price alone); listeners are told
             // what the wallet actually took.
-            double paid = sale.Cash * ShopStandingMultiplier * (_boost != null ? _boost.ActiveMultiplier : 1d);
-            _wallet.AddCash(new BigDouble(paid));
+            // A hand-over to the contract customer pays nothing here: ShopContractService pays the whole contract on
+            // its last receipt.
+            double paid = sale.Contract ? 0d
+                : sale.Cash * ShopStandingMultiplier * (_boost != null ? _boost.ActiveMultiplier : 1d);
+            if (!sale.Contract) _wallet.AddCash(new BigDouble(paid));
             // One item sold is one bar sold: the metric every goal, festival and league season already reads. A customer
             // takes a bundle, so the count is its items. It persists with the next save, as the ore market's always has.
             _goals?.Record(Game.Core.Goals.BarsSold, sale.Units);
