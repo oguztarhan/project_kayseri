@@ -4,9 +4,19 @@ using System.Collections.Generic;
 namespace Game.Core
 {
     /// <summary>
-    /// Deterministic four-product business model. Tables own their product stock; one carrier and one seller
-    /// are intentionally shared, so opening helmet, lantern and bag lines cannot create extra logistics or
-    /// sale capacity. This model is not yet selected by the live 1-1 service.
+    /// Deterministic four-product business model. Tables own their product stock; one carrier and one seller are
+    /// shared between them. Each bench has one mastery level (<see cref="BenchMastery"/>) that makes its items both
+    /// faster and dearer.
+    ///
+    /// THE LOGISTICS FOLLOW THE BENCHES. A carrier that took one item every nine seconds used to cap the whole shop,
+    /// so every speed level past the first was sold for nothing. Carrier load, rack and shelf room, and how many items
+    /// one customer takes home are now sized from what the built benches make (<see cref="Resize"/>), always with
+    /// headroom, so a bench's own level is the only thing that sets its income — and <see cref="SteadyStateRate"/>
+    /// can be the plain sum of the benches rather than a guess at a queue.
+    ///
+    /// CUSTOMERS FOLLOW STOCK. An arriving customer goes to a bench with goods on its shelf when there is one, and no
+    /// bench may hold more than its share of the queue, so a slow bench can never fill the queue with people waiting
+    /// for it and starve the others.
     /// </summary>
     public sealed class MiningShopBusinessSimulation
     {
@@ -16,11 +26,14 @@ namespace Game.Core
             public double CraftSeconds;
             public double UnitPrice;
             public double TableCost;
+            /// <summary>What this bench's level 1 → 2 costs; every later level grows from it.</summary>
+            public double FirstLevelCost;
         }
 
         public struct Tuning
         {
             public ProductTuning[] Products;
+            // The four capacities below are floors: the benches size the real ones upward (see Resize).
             public int OutputCapacity;
             public int ShelfCapacityPerProduct;
             public int CarrierLoad;
@@ -29,20 +42,18 @@ namespace Game.Core
             public double HandlingSeconds;
             public double ArrivalSeconds;
             public double ServiceSeconds;
-            public double SpeedPerLevel;
-            public double ValuePerLevel;
-            public double UpgradeBaseCost;
-            public double UpgradeCostGrowth;
-            public int MaxUpgradeLevel;
+            /// <summary>The level the previous bench must reach before the next one can be built.</summary>
+            public int BuildRequiresLevel;
+            public BenchMastery.Tuning Mastery;
 
             public static Tuning Default => new Tuning
             {
                 Products = new[]
                 {
-                    new ProductTuning { ProductId = MiningShopCampaign.ProductIdAt(0), CraftSeconds = 10d, UnitPrice = 20d, TableCost = 0d },
-                    new ProductTuning { ProductId = MiningShopCampaign.ProductIdAt(1), CraftSeconds = 20d, UnitPrice = 60d, TableCost = 300d },
-                    new ProductTuning { ProductId = MiningShopCampaign.ProductIdAt(2), CraftSeconds = 40d, UnitPrice = 150d, TableCost = 1400d },
-                    new ProductTuning { ProductId = MiningShopCampaign.ProductIdAt(3), CraftSeconds = 60d, UnitPrice = 360d, TableCost = 5000d }
+                    new ProductTuning { ProductId = MiningShopCampaign.ProductIdAt(0), CraftSeconds = 10d, UnitPrice = 20d, TableCost = 0d, FirstLevelCost = 40d },
+                    new ProductTuning { ProductId = MiningShopCampaign.ProductIdAt(1), CraftSeconds = 20d, UnitPrice = 240d, TableCost = 3000d, FirstLevelCost = 400d },
+                    new ProductTuning { ProductId = MiningShopCampaign.ProductIdAt(2), CraftSeconds = 40d, UnitPrice = 3200d, TableCost = 150000d, FirstLevelCost = 4000d },
+                    new ProductTuning { ProductId = MiningShopCampaign.ProductIdAt(3), CraftSeconds = 60d, UnitPrice = 30000d, TableCost = 6000000d, FirstLevelCost = 40000d }
                 },
                 OutputCapacity = 4,
                 ShelfCapacityPerProduct = 4,
@@ -52,27 +63,26 @@ namespace Game.Core
                 HandlingSeconds = 0.5d,
                 ArrivalSeconds = 10d,
                 ServiceSeconds = 2d,
-                SpeedPerLevel = 0.1d,
-                ValuePerLevel = 0.15d,
-                UpgradeBaseCost = 40d,
-                UpgradeCostGrowth = 1.18d,
-                MaxUpgradeLevel = 21
+                BuildRequiresLevel = 25,
+                Mastery = BenchMastery.Tuning.Default
             };
 
             public void Validate()
             {
                 if (Products == null || Products.Length != MiningShopCampaign.ProductCount || OutputCapacity < 1 ||
-                    ShelfCapacityPerProduct < 1 || CarrierLoad < 1 || QueueCapacity < 1 || MaxUpgradeLevel < 1 ||
+                    ShelfCapacityPerProduct < 1 || CarrierLoad < 1 || QueueCapacity < 1 ||
                     !MiningShopBusinessSimulation.Positive(TravelSeconds) || !MiningShopBusinessSimulation.Positive(HandlingSeconds) || !MiningShopBusinessSimulation.Positive(ArrivalSeconds) ||
-                    !MiningShopBusinessSimulation.Positive(ServiceSeconds) || !MiningShopBusinessSimulation.Positive(SpeedPerLevel) || !MiningShopBusinessSimulation.Positive(ValuePerLevel) ||
-                    !MiningShopBusinessSimulation.Positive(UpgradeBaseCost) || !MiningShopBusinessSimulation.Positive(UpgradeCostGrowth) || UpgradeCostGrowth < 1d)
+                    !MiningShopBusinessSimulation.Positive(ServiceSeconds) ||
+                    BuildRequiresLevel < BenchMastery.MinLevel || BuildRequiresLevel > BenchMastery.MaxLevel)
                     throw new ArgumentException("Mining-shop business tuning requires finite positive tables, timings and capacities.");
+                Mastery.Validate();
 
                 for (int i = 0; i < Products.Length; i++)
                 {
                     ProductTuning product = Products[i];
                     if (product.ProductId != MiningShopCampaign.ProductIdAt(i) || !MiningShopBusinessSimulation.Positive(product.CraftSeconds) ||
-                        !MiningShopBusinessSimulation.Positive(product.UnitPrice) || !MiningShopBusinessSimulation.NonNegative(product.TableCost))
+                        !MiningShopBusinessSimulation.Positive(product.UnitPrice) || !MiningShopBusinessSimulation.NonNegative(product.TableCost) ||
+                        !MiningShopBusinessSimulation.Positive(product.FirstLevelCost))
                         throw new ArgumentException("Mining-shop product tuning must use the authored merchandise order and finite values.");
                 }
             }
@@ -84,17 +94,23 @@ namespace Game.Core
             public readonly string ProductId;
             public readonly long Sequence;
             public readonly double Cash;
+            /// <summary>Items the customer took home in this one purchase.</summary>
+            public readonly int Units;
+            /// <summary>A perfect sale: <see cref="Cash"/> already includes its multiplier.</summary>
+            public readonly bool Perfect;
 
-            internal Sale(string businessId, string productId, long sequence, double cash)
+            internal Sale(string businessId, string productId, long sequence, double cash, int units, bool perfect)
             {
                 BusinessId = businessId;
                 ProductId = productId;
                 Sequence = sequence;
                 Cash = cash;
+                Units = units;
+                Perfect = perfect;
             }
 
             /// <summary>The same receipt at what the wallet was actually paid, once the payer's multipliers are in.</summary>
-            public Sale WithCash(double cash) => new Sale(BusinessId, ProductId, Sequence, cash);
+            public Sale WithCash(double cash) => new Sale(BusinessId, ProductId, Sequence, cash, Units, Perfect);
         }
 
         public readonly struct ProductSnapshot
@@ -113,8 +129,8 @@ namespace Game.Core
             public int Index => _index;
             public string ProductId => _line.ProductId;
             public bool TableBuilt => _line.TableBuilt;
-            public int SpeedLevel => _line.SpeedLevel;
-            public int ValueLevel => _line.ValueLevel;
+            public int Level => _line.Level;
+            public int Stars => BenchMastery.StarsAt(_line.Level);
             public bool Crafting => _line.Crafting;
             public double CraftRemaining => _line.CraftRemaining;
             public double CraftDuration => _line.CraftDuration;
@@ -159,6 +175,7 @@ namespace Game.Core
             public double CarrierDuration => _business.CarrierDuration;
             public bool Serving => _business.Serving;
             public int ServiceProductIndex => _business.ServiceProductIndex;
+            public int ServiceUnits => _business.ServiceUnits;
             public double ServiceRemaining => _business.ServiceRemaining;
             public double ServiceDuration => _business.ServiceDuration;
             public double PendingSeconds => _business.PendingSeconds;
@@ -183,15 +200,20 @@ namespace Game.Core
 
         private const int MaxBoundariesPerAdvance = 256;
         private const double Epsilon = 1e-9d;
+        /// <summary>Every logistics capacity is sized to carry this much more than the benches make.</summary>
+        private const double LogisticsHeadroom = 1.2d;
         private readonly MiningShopState _owner;
         private readonly MiningShopBusinessState _state;
         private readonly Tuning _tuning;
         private readonly Action<Sale> _settle;
         private bool _advancing;
+        // Derived from the built benches by Resize, never saved: a reload recomputes them from the levels.
+        private int _carrierLoad, _outputCapacity, _shelfCapacity, _bundle, _lineQueue;
 
         /// <summary>
         /// Opens one authored business. <paramref name="availableProductCount"/> is its campaign allowance,
-        /// not a grant of built tables. A legacy pickaxe record is copied once into the first product line.
+        /// not a grant of built tables; a saved business whose allowance has since grown is widened to it, never
+        /// narrowed. A legacy pickaxe record is copied once into the first product line.
         /// </summary>
         public MiningShopBusinessSimulation(MiningShopState owner, int availableProductCount, Tuning tuning, Action<Sale> settle)
         {
@@ -202,77 +224,151 @@ namespace Game.Core
             tuning.Validate();
             _tuning = tuning;
             _state = EnsureBusinessState(owner, availableProductCount);
+            if (availableProductCount > _state.AvailableProductCount) _state.AvailableProductCount = availableProductCount;
+            // A save from before bundles was serving exactly one item.
+            if (_state.Serving && _state.ServiceUnits < 1) _state.ServiceUnits = 1;
             ValidateState();
+            // After validation, so a save the shop refuses is left exactly as it was on disk.
+            if (_state.LevelSchema < MiningShopLevelMigration.Schema) MigrateLevels();
+            Resize();
             ScheduleJobs();
         }
 
+        /// <summary>
+        /// Cash owed to the player by the level migration that ran when this business opened, 0 when none ran. The
+        /// service pays it in the same save that records the migration.
+        /// </summary>
+        public double LevelMigrationRefund { get; private set; }
+
         public Snapshot View => new Snapshot(_owner.BusinessId, _state, _tuning);
-        public double CraftSeconds(int productIndex) => _tuning.Products[productIndex].CraftSeconds /
-            (1d + _tuning.SpeedPerLevel * (Line(productIndex).SpeedLevel - 1));
-        public double UnitPrice(int productIndex) => _tuning.Products[productIndex].UnitPrice *
-            (1d + _tuning.ValuePerLevel * (Line(productIndex).ValueLevel - 1));
+        /// <summary>Seconds one item takes on this bench at its level, held at the mastery floor.</summary>
+        public double CraftSeconds(int productIndex) =>
+            BenchMastery.CycleSeconds(_tuning.Products[productIndex].CraftSeconds, Line(productIndex).Level, _tuning.Mastery);
+        /// <summary>What one item off this bench sells for at its level, before perfect sales and the wallet.</summary>
+        public double UnitPrice(int productIndex) => BenchMastery.ItemValue(_tuning.Products[productIndex].UnitPrice,
+            _tuning.Products[productIndex].CraftSeconds, Line(productIndex).Level, _tuning.Mastery);
         public double TableCost(int productIndex) => _tuning.Products[productIndex].TableCost;
+        /// <summary>The next level's price, or 0 at the top.</summary>
+        public double LevelCost(int productIndex) =>
+            BenchMastery.LevelCost(_tuning.Products[productIndex].FirstLevelCost, Line(productIndex).Level, _tuning.Mastery);
+        /// <summary>The next <paramref name="count"/> levels' price, stopping at the top.</summary>
+        public double CostOfLevels(int productIndex, int count) => BenchMastery.CostOfLevels(
+            _tuning.Products[productIndex].FirstLevelCost, Line(productIndex).Level, count, _tuning.Mastery);
+        /// <summary>How many of the next levels, up to <paramref name="limit"/>, this much cash pays for.</summary>
+        public int AffordableLevels(int productIndex, double cash, int limit) => BenchMastery.AffordableLevels(
+            _tuning.Products[productIndex].FirstLevelCost, Line(productIndex).Level, cash, limit, _tuning.Mastery);
+        public int BuildRequiresLevel => _tuning.BuildRequiresLevel;
+
+        /// <summary>Whether this bench is offered, unbuilt, and the bench before it has reached the required level.</summary>
+        public bool BuildRequirementMet(int productIndex)
+        {
+            if (productIndex <= 0 || productIndex >= _state.AvailableProductCount || Line(productIndex).TableBuilt ||
+                !PreviousTablesBuilt(productIndex)) return false;
+            return _state.Lines[productIndex - 1].Level >= _tuning.BuildRequiresLevel;
+        }
 
         /// <summary>
-        /// Cash per second once the shop has settled, before any wallet multiplier. Customers are dealt to built tables
-        /// in turn, so every table sells the same share and the slowest one paces the rest; the arrival clock, the
-        /// seller and the one shared carrier each cap the total. Offline earnings and income-minute rewards are paid
-        /// from this rather than from a measured window, so it is right the moment the shop opens.
+        /// Cash per second once the shop has settled, before any wallet multiplier: each built bench's income at its
+        /// level, with the average that perfect sales add. The logistics are sized never to hold a bench back, so the
+        /// sum is the whole answer. Offline earnings and income-minute rewards are paid from this rather than from a
+        /// measured window, so it is right the moment the shop opens.
         /// </summary>
         public double SteadyStateRate()
         {
-            int built = 0;
-            double slowest = double.MaxValue, prices = 0d;
+            double rate = 0d;
             for (int i = 0; i < _state.AvailableProductCount; i++)
             {
-                if (!_state.Lines[i].TableBuilt) continue;
-                built++;
-                slowest = Math.Min(slowest, 1d / CraftSeconds(i));
-                prices += UnitPrice(i);
+                MiningShopProductLineState line = _state.Lines[i];
+                if (!line.TableBuilt) continue;
+                ProductTuning product = _tuning.Products[i];
+                rate += BenchMastery.IncomePerSecond(product.UnitPrice, product.CraftSeconds, line.Level, _tuning.Mastery) *
+                        BenchMastery.PerfectAverage(BenchMastery.StarsAt(line.Level), _tuning.Mastery);
             }
-            if (built == 0) return 0d;
-            double carrier = _tuning.CarrierLoad / (2d * (_tuning.HandlingSeconds + _tuning.TravelSeconds));
-            double sales = Math.Min(Math.Min(1d / _tuning.ArrivalSeconds, 1d / _tuning.ServiceSeconds),
-                                    Math.Min(carrier, built * slowest));
-            return sales * prices / built;
-        }
-
-        public double UpgradeCost(int productIndex, bool speed)
-        {
-            MiningShopProductLineState line = Line(productIndex);
-            int level = speed ? line.SpeedLevel : line.ValueLevel;
-            return level >= _tuning.MaxUpgradeLevel ? 0d :
-                Math.Ceiling(_tuning.UpgradeBaseCost * Math.Pow(_tuning.UpgradeCostGrowth, level - 1));
+            return rate;
         }
 
         /// <summary>Pure build mutation. Its caller validates and spends <see cref="TableCost"/> atomically.</summary>
         public bool BuildTable(int productIndex)
         {
-            MiningShopProductLineState line = Line(productIndex);
-            if (productIndex == 0 || productIndex >= _state.AvailableProductCount || line.TableBuilt ||
-                !PreviousTablesBuilt(productIndex)) return false;
-            line.TableBuilt = true;
+            if (!BuildRequirementMet(productIndex)) return false;
+            Line(productIndex).TableBuilt = true;
+            Resize();
             ScheduleJobs();
             return true;
         }
 
-        /// <summary>Pure upgrade mutation. Its caller validates and spends <see cref="UpgradeCost"/> atomically.</summary>
-        public bool Upgrade(int productIndex, bool speed)
+        /// <summary>
+        /// Pure level mutation: raises a built bench by up to <paramref name="count"/> levels, stopping at the top, and
+        /// returns how many it took. Its caller validates and spends <see cref="CostOfLevels"/> atomically. An item
+        /// already on the bench keeps the share of its craft it had left.
+        /// </summary>
+        public int BuyLevels(int productIndex, int count)
         {
             MiningShopProductLineState line = Line(productIndex);
-            if (!line.TableBuilt || UpgradeCost(productIndex, speed) <= 0d) return false;
-            if (speed)
+            if (!line.TableBuilt || count < 1) return 0;
+            int bought = Math.Min(count, BenchMastery.MaxLevel - line.Level);
+            if (bought <= 0) return 0;
+            double fractionLeft = line.Crafting ? line.CraftRemaining / line.CraftDuration : 0d;
+            line.Level += bought;
+            if (line.Crafting)
             {
+                line.CraftDuration = CraftSeconds(productIndex);
+                line.CraftRemaining = fractionLeft * line.CraftDuration;
+            }
+            Resize();
+            return bought;
+        }
+
+        /// <summary>
+        /// Turns each bench's old speed and value levels into one level, once (see <see cref="MiningShopLevelMigration"/>).
+        /// A level already set is never lowered. An item on the bench keeps the share of its craft it had left.
+        /// </summary>
+        private void MigrateLevels()
+        {
+            double refund = 0d;
+            for (int i = 0; i < _state.Lines.Count; i++)
+            {
+                MiningShopProductLineState line = _state.Lines[i];
+                ProductTuning product = _tuning.Products[i];
+                int level = MiningShopLevelMigration.Level(i, line.SpeedLevel, line.ValueLevel, product.FirstLevelCost,
+                    product.UnitPrice, product.CraftSeconds, _tuning.Mastery, out double owed);
+                if (line.Level > level && line.Level <= BenchMastery.MaxLevel) level = line.Level;
+                else refund += owed;
                 double fractionLeft = line.Crafting ? line.CraftRemaining / line.CraftDuration : 0d;
-                line.SpeedLevel++;
+                line.Level = level;
                 if (line.Crafting)
                 {
-                    line.CraftDuration = CraftSeconds(productIndex);
+                    line.CraftDuration = CraftSeconds(i);
                     line.CraftRemaining = fractionLeft * line.CraftDuration;
                 }
             }
-            else line.ValueLevel++;
-            return true;
+            _state.LevelSchema = MiningShopLevelMigration.Schema;
+            LevelMigrationRefund = refund;
+        }
+
+        /// <summary>
+        /// Sizes the shared logistics from what the built benches make, with <see cref="LogisticsHeadroom"/> to spare.
+        /// The carrier and the customers both reach the benches in turn, so a trip and a bundle must each hold what the
+        /// fastest bench makes while the turn goes round all of them — a carrier trip, or one customer arrival per bench.
+        /// Racks and shelves hold two of either so a bench never waits on the walk.
+        /// </summary>
+        private void Resize()
+        {
+            int built = 0;
+            double fastest = 0d;
+            for (int i = 0; i < _state.AvailableProductCount; i++)
+            {
+                if (!_state.Lines[i].TableBuilt) continue;
+                double rate = 1d / CraftSeconds(i);
+                built++;
+                if (rate > fastest) fastest = rate;
+            }
+            double trip = 2d * (_tuning.HandlingSeconds + _tuning.TravelSeconds);
+            _carrierLoad = Math.Max(_tuning.CarrierLoad, (int)Math.Ceiling(LogisticsHeadroom * fastest * built * trip));
+            _bundle = Math.Max(1, (int)Math.Ceiling(LogisticsHeadroom * fastest * built * _tuning.ArrivalSeconds));
+            _outputCapacity = Math.Max(_tuning.OutputCapacity, 2 * _carrierLoad);
+            _shelfCapacity = Math.Max(_tuning.ShelfCapacityPerProduct, 2 * Math.Max(_carrierLoad, _bundle));
+            _lineQueue = Math.Max(1, _tuning.QueueCapacity / Math.Max(1, built));
         }
 
         /// <summary>Foreground time only. Bounded event processing preserves outstanding work in the save.</summary>
@@ -326,7 +422,7 @@ namespace Game.Core
             for (int i = 0; i < _state.AvailableProductCount; i++)
             {
                 MiningShopProductLineState line = _state.Lines[i];
-                if (line.TableBuilt && !line.Crafting && line.OutputStock + line.PickupReserved < _tuning.OutputCapacity)
+                if (line.TableBuilt && !line.Crafting && line.OutputStock + line.PickupReserved < _outputCapacity)
                 {
                     line.Crafting = true;
                     line.CraftDuration = CraftSeconds(i);
@@ -340,13 +436,17 @@ namespace Game.Core
                 if (sell >= 0)
                 {
                     MiningShopProductLineState line = _state.Lines[sell];
+                    int units = Math.Min(_bundle, line.ShelfStock);
                     line.WaitingCustomers--;
-                    line.ShelfStock--;
+                    line.ShelfStock -= units;
+                    bool perfect = NextRoll() < BenchMastery.PerfectChance(BenchMastery.StarsAt(line.Level), _tuning.Mastery);
                     _state.Serving = true;
                     _state.ServiceProductIndex = sell;
+                    _state.ServiceUnits = units;
+                    _state.ServicePerfect = perfect;
                     _state.ServiceDuration = _tuning.ServiceSeconds;
                     _state.ServiceRemaining = _tuning.ServiceSeconds;
-                    _state.ServicePrice = UnitPrice(sell);
+                    _state.ServicePrice = units * UnitPrice(sell) * (perfect ? _tuning.Mastery.PerfectMultiplier : 1d);
                 }
             }
 
@@ -356,8 +456,8 @@ namespace Game.Core
                 if (pickup >= 0)
                 {
                     MiningShopProductLineState line = _state.Lines[pickup];
-                    int room = Math.Max(0, _tuning.ShelfCapacityPerProduct - line.ShelfStock - line.DestinationReserved);
-                    int take = Math.Min(line.OutputStock, Math.Min(room, _tuning.CarrierLoad));
+                    int room = Math.Max(0, _shelfCapacity - line.ShelfStock - line.DestinationReserved);
+                    int take = Math.Min(line.OutputStock, Math.Min(room, _carrierLoad));
                     line.OutputStock -= take;
                     line.PickupReserved = take;
                     line.DestinationReserved = take;
@@ -368,7 +468,7 @@ namespace Game.Core
             else if (_state.Carrier == MiningShopSimulation.CarrierPhase.WaitingForSpace)
             {
                 MiningShopProductLineState line = CarrierLine();
-                if (line.ShelfStock < _tuning.ShelfCapacityPerProduct) SetCarrier(MiningShopSimulation.CarrierPhase.Unloading, _tuning.HandlingSeconds);
+                if (line.ShelfStock < _shelfCapacity) SetCarrier(MiningShopSimulation.CarrierPhase.Unloading, _tuning.HandlingSeconds);
             }
         }
 
@@ -400,7 +500,7 @@ namespace Game.Core
                         SetCarrier(MiningShopSimulation.CarrierPhase.Unloading, _tuning.HandlingSeconds);
                         break;
                     case MiningShopSimulation.CarrierPhase.Unloading:
-                        int accepted = Math.Min(_state.CarrierCount, Math.Max(0, _tuning.ShelfCapacityPerProduct - line.ShelfStock));
+                        int accepted = Math.Min(_state.CarrierCount, Math.Max(0, _shelfCapacity - line.ShelfStock));
                         line.ShelfStock += accepted;
                         _state.CarrierCount -= accepted;
                         line.DestinationReserved -= accepted;
@@ -420,7 +520,7 @@ namespace Game.Core
                 _state.ArrivalRemaining = _tuning.ArrivalSeconds;
                 if (WaitingCustomerCount() < _tuning.QueueCapacity)
                 {
-                    int demand = NextBuiltLine(_state.DemandCursor);
+                    int demand = NextDemandLine();
                     if (demand >= 0)
                     {
                         _state.Lines[demand].WaitingCustomers++;
@@ -433,14 +533,18 @@ namespace Game.Core
             {
                 MiningShopProductLineState line = _state.Lines[_state.ServiceProductIndex];
                 double price = _state.ServicePrice;
+                int units = _state.ServiceUnits;
+                bool perfect = _state.ServicePerfect;
                 _state.Serving = false;
                 _state.ServiceProductIndex = -1;
+                _state.ServiceUnits = 0;
+                _state.ServicePerfect = false;
                 _state.ServiceRemaining = 0d;
                 _state.ServicePrice = 0d;
-                line.Sold++;
+                line.Sold += units;
                 line.Earned += price;
                 _state.ReceiptSequence++;
-                _settle(new Sale(_owner.BusinessId, line.ProductId, _state.ReceiptSequence, price));
+                _settle(new Sale(_owner.BusinessId, line.ProductId, _state.ReceiptSequence, price, units, perfect));
             }
         }
 
@@ -451,8 +555,8 @@ namespace Game.Core
                 {
                     int index = (_state.CarrierCursor + offset) % _state.AvailableProductCount;
                     MiningShopProductLineState line = _state.Lines[index];
-                    int shelfRoom = _tuning.ShelfCapacityPerProduct - line.ShelfStock - line.DestinationReserved;
-                    bool nearlyFull = line.OutputStock + line.PickupReserved >= _tuning.OutputCapacity - 1;
+                    int shelfRoom = _shelfCapacity - line.ShelfStock - line.DestinationReserved;
+                    bool nearlyFull = line.OutputStock + line.PickupReserved >= _outputCapacity - 1;
                     if (line.TableBuilt && line.OutputStock > 0 && shelfRoom > 0 && (pass == 1 || nearlyFull))
                     {
                         _state.CarrierCursor = (index + 1) % _state.AvailableProductCount;
@@ -477,14 +581,43 @@ namespace Game.Core
             return -1;
         }
 
-        private int NextBuiltLine(int start)
+        /// <summary>
+        /// Which bench a new customer queues for, in turn from the demand cursor: first a bench with goods on its shelf
+        /// for more people than already wait there, then any bench still under its share of the queue, then nobody.
+        /// </summary>
+        private int NextDemandLine()
         {
-            for (int offset = 0; offset < _state.AvailableProductCount; offset++)
-            {
-                int index = (start + offset) % _state.AvailableProductCount;
-                if (_state.Lines[index].TableBuilt) return index;
-            }
+            for (int pass = 0; pass < 2; pass++)
+                for (int offset = 0; offset < _state.AvailableProductCount; offset++)
+                {
+                    int index = (_state.DemandCursor + offset) % _state.AvailableProductCount;
+                    MiningShopProductLineState line = _state.Lines[index];
+                    if (line.TableBuilt && line.WaitingCustomers < _lineQueue &&
+                        (pass == 1 || line.ShelfStock > line.WaitingCustomers)) return index;
+                }
             return -1;
+        }
+
+        /// <summary>
+        /// The next perfect-sale roll in [0,1). The generator's state is saved with the business, so a reload can
+        /// neither re-roll a sale nor replay the same luck; a business that has never rolled seeds from its own ID.
+        /// </summary>
+        private double NextRoll()
+        {
+            uint x = unchecked((uint)_state.PerfectSeed);
+            if (x == 0u) x = Seed(_owner.BusinessId);
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            _state.PerfectSeed = unchecked((int)x);
+            return (x >> 8) * (1d / 16777216d);
+        }
+
+        private static uint Seed(string id)
+        {
+            uint hash = 2166136261u;
+            for (int i = 0; i < id.Length; i++) hash = unchecked((hash ^ id[i]) * 16777619u);
+            return hash == 0u ? 1u : hash;
         }
 
         private int WaitingCustomerCount()
@@ -593,17 +726,22 @@ namespace Game.Core
                 (_state.Carrier != MiningShopSimulation.CarrierPhase.Idle &&
                     (_state.CarrierProductIndex < 0 || _state.CarrierProductIndex >= _state.AvailableProductCount)) ||
                 (_state.Serving && (_state.ServiceProductIndex < 0 || _state.ServiceProductIndex >= _state.AvailableProductCount ||
-                    !Positive(_state.ServicePrice) || !Positive(_state.ServiceDuration) || _state.ServiceRemaining > _state.ServiceDuration)) ||
-                (!_state.Serving && _state.ServiceProductIndex != -1))
+                    _state.ServiceUnits < 1 || !Positive(_state.ServicePrice) || !Positive(_state.ServiceDuration) ||
+                    _state.ServiceRemaining > _state.ServiceDuration)) ||
+                (!_state.Serving && (_state.ServiceProductIndex != -1 || _state.ServiceUnits != 0)) ||
+                _state.LevelSchema < 0 || _state.LevelSchema > MiningShopLevelMigration.Schema)
                 throw new ArgumentException("Mining-shop business save has invalid shared jobs; refusing to reset it.");
 
+            // Before the migration a bench's level is the two old tracks; after it, the single level.
+            bool levelsMigrated = _state.LevelSchema >= MiningShopLevelMigration.Schema;
             int totalReserved = 0;
             for (int i = 0; i < _state.Lines.Count; i++)
             {
                 MiningShopProductLineState line = _state.Lines[i];
                 if (line == null || line.ProductId != _tuning.Products[i].ProductId || (i >= _state.AvailableProductCount && line.TableBuilt) ||
-                    (i == 0 && !line.TableBuilt) || line.SpeedLevel < 1 || line.ValueLevel < 1 ||
-                    line.SpeedLevel > _tuning.MaxUpgradeLevel || line.ValueLevel > _tuning.MaxUpgradeLevel ||
+                    (i == 0 && !line.TableBuilt) ||
+                    (levelsMigrated ? line.Level < BenchMastery.MinLevel || line.Level > BenchMastery.MaxLevel
+                        : !MiningShopLevelMigration.LegacyLevelsValid(line.SpeedLevel, line.ValueLevel)) ||
                     line.OutputStock < 0 || line.PickupReserved < 0 || line.DestinationReserved < 0 || line.ShelfStock < 0 ||
                     line.WaitingCustomers < 0 || line.Produced < 0 || line.Sold < 0 || !NonNegative(line.Earned) ||
                     !NonNegative(line.CraftRemaining) || !NonNegative(line.CraftDuration) ||
@@ -612,7 +750,7 @@ namespace Game.Core
                         line.DestinationReserved > 0 || line.ShelfStock > 0 || line.WaitingCustomers > 0 || line.Produced > 0 || line.Sold > 0)) ||
                     line.Produced - line.Sold != (long)line.OutputStock + line.PickupReserved + line.ShelfStock +
                         (_state.CarrierProductIndex == i ? _state.CarrierCount : 0) +
-                        (_state.Serving && _state.ServiceProductIndex == i ? 1L : 0L))
+                        (_state.Serving && _state.ServiceProductIndex == i ? _state.ServiceUnits : 0L))
                     throw new ArgumentException("Mining-shop product-line save has invalid inventory; refusing to reset it.");
                 totalReserved += line.PickupReserved + (_state.CarrierProductIndex == i ? _state.CarrierCount : 0);
                 if (line.DestinationReserved != (line.PickupReserved + (_state.CarrierProductIndex == i ? _state.CarrierCount : 0)))

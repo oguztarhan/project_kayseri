@@ -15,7 +15,7 @@ namespace Game.UI
     /// The onboarding, in two parts:
     ///
     ///   1. THE BASICS — the mining shop's whole loop, taught by watching it and then doing it: a bench
-    ///      crafts, the carrier stocks the shelf, a customer pays, the cash buys the bench's first speed
+    ///      crafts, the carrier stocks the shelf, a customer pays, the cash buys the bench's second
     ///      level. Most lessons end when the game does the thing, not when the player taps DEVAM; the
     ///      order and what has been taught live in <see cref="TutorialProgress"/>, so a player who
     ///      closes the app halfway resumes at the first lesson missing.
@@ -151,7 +151,7 @@ namespace Game.UI
         private bool _tapped;
         private bool _tapAdvances;
         private bool _skipVisible;
-        private int _speedTarget;              // hız dersinde halkanın durduğu yer: 0 yok, 1 tezgâh, 2 HIZ tuşu
+        private int _levelTarget;              // seviye dersinde halkanın durduğu yer: 0 yok, 1 tezgâh, 2 SEVİYE tuşu
         private int _introTarget;              // ilerleme derslerinde halkanın durduğu yer, aynı amaçla
         private bool _passMore;                // görevler dersi Daha Fazla menüsünün içini gösterirken o menü "kapatmaz"
         private GoalsUI _goals;
@@ -300,7 +300,7 @@ namespace Game.UI
                     MiningShopProductLineState product = state.Business.Lines[line];
                     if (product == null) continue;
                     if (product.TableBuilt) builtLines++;
-                    if (product.SpeedLevel > 1 || product.ValueLevel > 1) return true;
+                    if (product.Level > 1) return true;
                 }
                 if (builtLines > 1) return true;
             }
@@ -440,8 +440,8 @@ namespace Game.UI
                     break;
 
                 case "ftue.buy_speed":
-                    _speedTarget = 0;
-                    PointAtSpeed();
+                    _levelTarget = 0;
+                    PointAtLevel();
                     yield return Stage(shadeColor.a, false, true);
                     _tapAdvances = false;
                     Card(title, body, null, null);
@@ -533,7 +533,7 @@ namespace Game.UI
                         _view.SetBody(SaveUpText(saveUp));
                     }
                 }
-                if (goal == TutorialProgress.Goal.BuySpeed) PointAtSpeed();
+                if (goal == TutorialProgress.Goal.BuyLevel) PointAtLevel();
                 yield return null;
             }
 
@@ -546,34 +546,30 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// The speed lesson's spotlight: the bench while its panel is shut, the HIZ button once it is
+        /// The level lesson's spotlight: the bench while its panel is shut, the LEVEL button once it is
         /// open. The player can close the panel halfway; the ring follows rather than pointing at a
         /// button that is no longer there.
         /// </summary>
-        private void PointAtSpeed()
+        private void PointAtLevel()
         {
-            RectTransform speed = _benchPanel != null && _benchPanel.TutorialPanelOpen ? _benchPanel.TutorialSpeedRect : null;
+            RectTransform button = _benchPanel != null && _benchPanel.TutorialPanelOpen ? _benchPanel.TutorialBuyRect : null;
             Collider bench = _shopView != null ? _shopView.TableCollider : null;
-            int want = speed != null ? 2 : (bench != null ? 1 : 0);
-            if (want == _speedTarget) return;
-            _speedTarget = want;
-            if (want == 2) _view.TargetUi(speed);
+            int want = button != null ? 2 : (bench != null ? 1 : 0);
+            if (want == _levelTarget) return;
+            _levelTarget = want;
+            if (want == 2) _view.TargetUi(button);
             else if (want == 1) _view.TargetWorldArea(bench);
             else _view.ClearTarget();
             _view.SetRing(want != 0, true);
         }
 
-        /// <summary>The bench panel itself — the parent of its two buttons — so both are inside one ring.</summary>
+        /// <summary>The bench panel itself, so everything on it is inside one ring.</summary>
         private RectTransform BenchPanelRect()
-        {
-            if (_benchPanel == null || !_benchPanel.TutorialPanelOpen) return null;
-            RectTransform value = _benchPanel.TutorialValueRect;
-            return value != null ? value.parent as RectTransform : null;
-        }
+            => _benchPanel != null && _benchPanel.TutorialPanelOpen ? _benchPanel.TutorialPanelRect : null;
 
         private string SaveUpText(string format)
         {
-            double cost = _shop != null ? _shop.UpgradeCost(0, true) : 0d;
+            double cost = _shop != null ? _shop.LevelCost(0) : 0d;
             BigDouble cash = _wallet != null ? _wallet.Cash : new BigDouble(0d);
             // "$20 / $40" is one reading; a line break inside it left "$20 /" on one line and "$40" on the next.
             return string.Format(format.Replace(" / ", " / "),
@@ -583,7 +579,7 @@ namespace Game.UI
         /// <summary>The shop, read now. No allocation: it is read every frame a lesson waits.</summary>
         private TutorialProgress.Facts ReadFacts()
         {
-            var facts = new TutorialProgress.Facts { SpeedLevel = 1 };
+            var facts = new TutorialProgress.Facts { BenchLevel = 1 };
             if (_shop == null) return facts;
 
             MiningShopBusinessSimulation.Snapshot view = _shop.View;
@@ -594,12 +590,12 @@ namespace Game.UI
                 facts.Produced += product.Produced;
                 facts.Sold += product.Sold;
                 // Everything that ever reached the shelf: on it, being handed over, or sold.
-                facts.Carried += product.ShelfStock + product.Sold + (view.Serving && view.ServiceProductIndex == i ? 1 : 0);
+                facts.Carried += product.ShelfStock + product.Sold + (view.Serving && view.ServiceProductIndex == i ? view.ServiceUnits : 0);
             }
 
-            facts.SpeedLevel = view.ProductAt(0).SpeedLevel;
-            double cost = _shop.UpgradeCost(0, true);
-            facts.CanAffordSpeed = cost > 0d && _wallet != null && _wallet.CanAfford(new BigDouble(cost));
+            facts.BenchLevel = view.ProductAt(0).Level;
+            double cost = _shop.LevelCost(0);
+            facts.CanAffordLevel = cost > 0d && _wallet != null && _wallet.CanAfford(new BigDouble(cost));
             facts.BenchPanelOpen = _benchPanel != null && _benchPanel.TutorialPanelOpen;
             return facts;
         }
@@ -881,8 +877,7 @@ namespace Game.UI
         {
             Collider pad = _shopView != null ? _shopView.TutorialPad(1) : null;
             if (_shop == null || pad == null || !pad.gameObject.activeInHierarchy) return false;
-            MiningShopBusinessSimulation.Snapshot view = _shop.View;
-            if (view.AvailableProductCount < 2 || view.ProductAt(1).TableBuilt) return false;
+            if (!_shop.BuildRequirementMet(1)) return false;
             double cost = _shop.TableCost(1);
             return cost > 0d && _wallet != null && _wallet.CanAfford(new BigDouble(cost));
         }
@@ -969,7 +964,7 @@ namespace Game.UI
             {
                 MiningShopBusinessSimulation.ProductSnapshot product = view.ProductAt(i);
                 if (!product.TableBuilt) continue;
-                bought += product.SpeedLevel - 1 + product.ValueLevel - 1;
+                bought += product.Level - 1;
             }
             return bought >= seaAfterUpgrades;
         }
@@ -1066,7 +1061,7 @@ namespace Game.UI
         private void PointAtBuild()
         {
             bool panel = _benchPanel != null && _benchPanel.TutorialPanelOpen && _benchPanel.TutorialProduct == 1;
-            RectTransform build = panel ? _benchPanel.TutorialSpeedRect : null;
+            RectTransform build = panel ? _benchPanel.TutorialBuyRect : null;
             Collider pad = _shopView != null ? _shopView.TutorialPad(1) : null;
             int want = build != null ? 2 : (pad != null && pad.gameObject.activeInHierarchy ? 1 : 0);
             if (want == _introTarget) return;

@@ -8,6 +8,9 @@ namespace Game.Core
     {
         public string ProductId;
         public bool TableBuilt;
+        /// <summary>The bench's mastery level, 1-100 (see BenchMastery).</summary>
+        public int Level = 1;
+        // The two tracks Level replaced. Read once by the save migration that turns them into a level; nothing else.
         public int SpeedLevel = 1;
         public int ValueLevel = 1;
         public bool Crafting;

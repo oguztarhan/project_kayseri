@@ -8,9 +8,9 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The benches' compact panel: tap a built bench to buy its speed or value, tap an offered line's locked pad to
-    /// build that bench. Spends only through <see cref="MiningShopBusinessService"/>. Also turns the opening island
-    /// shot onto the shop once the island camera has framed itself.
+    /// The benches' compact panel: tap a built bench to buy its next level, tap an offered line's locked pad to build
+    /// that bench once the one before it is levelled enough. Spends only through <see cref="MiningShopBusinessService"/>.
+    /// Also turns the opening island shot onto the shop once the island camera has framed itself.
     /// </summary>
     [RequireComponent(typeof(MiningShopView))]
     public sealed class MiningShopUpgradeUI : MonoBehaviour
@@ -62,8 +62,8 @@ namespace Game.UI
         private Camera _camera;
         private bool _framed;
         private RectTransform _panel;
-        private Text _summary, _speedText, _valueText;
-        private Button _speed, _value;
+        private Text _summary, _buyText;
+        private Button _buy;
         private Vector2 _pressAt;
         private float _refresh;
 
@@ -71,10 +71,9 @@ namespace Game.UI
         public bool TutorialPanelOpen => _panel != null && _panel.gameObject.activeSelf;
         /// <summary>Which bench the open panel is for — 0 the pickaxe bench, 1 the second.</summary>
         public int TutorialProduct => _product;
-        public RectTransform TutorialSpeedRect => _speed != null ? _speed.transform as RectTransform : null;
-        public RectTransform TutorialValueRect => _value != null ? _value.transform as RectTransform : null;
-        public bool TutorialSpeedAvailable => _speed != null && _speed.interactable;
-        public bool TutorialValueAvailable => _value != null && _value.interactable;
+        /// <summary>The panel's one action: the next level on a built bench, the build on an unbuilt one.</summary>
+        public RectTransform TutorialBuyRect => _buy != null ? _buy.transform as RectTransform : null;
+        public RectTransform TutorialPanelRect => _panel;
 
         private void Awake()
         {
@@ -217,20 +216,17 @@ namespace Game.UI
             Button close = UiBuild.Btn(_panel, "Close", "X", UiSkin.ButtonGrey, closeColor, 40, () => _panel.gameObject.SetActive(false));
             UiBuild.Anchor((RectTransform)close.transform, new Vector2(0.86f, 0.74f), new Vector2(0.97f, 0.95f));
 
-            _speed = UiBuild.Btn(_panel, "Speed", string.Empty, UiSkin.ButtonGreen, buyColor, 32, () => Buy(true));
-            UiBuild.Anchor((RectTransform)_speed.transform, new Vector2(0.04f, 0.07f), new Vector2(0.49f, 0.45f));
-            _speedText = _speed.GetComponentInChildren<Text>();
-            _value = UiBuild.Btn(_panel, "Value", string.Empty, UiSkin.ButtonGreen, buyColor, 32, () => Buy(false));
-            UiBuild.Anchor((RectTransform)_value.transform, new Vector2(0.51f, 0.07f), new Vector2(0.96f, 0.45f));
-            _valueText = _value.GetComponentInChildren<Text>();
+            _buy = UiBuild.Btn(_panel, "Buy", string.Empty, UiSkin.ButtonGreen, buyColor, 32, Buy);
+            UiBuild.Anchor((RectTransform)_buy.transform, new Vector2(0.04f, 0.07f), new Vector2(0.96f, 0.45f));
+            _buyText = _buy.GetComponentInChildren<Text>();
 
             _panel.gameObject.SetActive(false);
         }
 
-        /// <summary>A built bench buys the chosen upgrade; an offered, unbuilt bench is built.</summary>
-        private void Buy(bool speed)
+        /// <summary>A built bench buys its next level; an offered, unbuilt bench is built.</summary>
+        private void Buy()
         {
-            if (_shop.View.ProductAt(_product).TableBuilt) _shop.TryBuyUpgrade(_product, speed);
+            if (_shop.View.ProductAt(_product).TableBuilt) _shop.TryBuyLevels(_product, 1);
             else _shop.TryBuildTable(_product);
             Refresh();
         }
@@ -245,25 +241,24 @@ namespace Game.UI
 
             if (product.TableBuilt)
             {
-                _value.gameObject.SetActive(true);
-                Track(_speed, _speedText, string.Format(Loc.T("maden_dukkani.hiz"), product.SpeedLevel),
-                      _shop.UpgradeCost(_product, true), v.PendingSeconds);
-                Track(_value, _valueText, string.Format(Loc.T("maden_dukkani.deger"), product.ValueLevel),
-                      _shop.UpgradeCost(_product, false), v.PendingSeconds);
+                Track(_buy, _buyText, string.Format(Loc.T("maden_dukkani.seviye"), product.Level),
+                      _shop.LevelCost(_product), v.PendingSeconds);
                 return;
             }
 
-            // An offered bench not yet built: one build button, usable only for the next bench in order.
-            _value.gameObject.SetActive(false);
+            // An offered bench not yet built: one build button, usable once the bench before it is levelled enough.
             string build = Loc.T("maden_dukkani.tezgah_kur");
-            bool next = _product > 0 && _product < v.AvailableProductCount && v.ProductAt(_product - 1).TableBuilt;
-            if (!next)
+            if (!_shop.BuildRequirementMet(_product))
             {
-                _speedText.text = build;
-                _speed.interactable = false;
+                bool previousBuilt = _product > 0 && v.ProductAt(_product - 1).TableBuilt;
+                _buyText.text = previousBuilt
+                    ? build + "\n" + string.Format(Loc.T("maden_dukkani.gereken"), Loc.T(TitleKeys[_product - 1]),
+                                                   _shop.BuildRequiresLevel)
+                    : build;
+                _buy.interactable = false;
                 return;
             }
-            Track(_speed, _speedText, build, _shop.TableCost(_product), v.PendingSeconds);
+            Track(_buy, _buyText, build, _shop.TableCost(_product), v.PendingSeconds);
         }
 
         private void Track(Button button, Text label, string name, double cost, double pending)

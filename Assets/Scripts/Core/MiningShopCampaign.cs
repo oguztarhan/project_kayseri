@@ -19,6 +19,8 @@ namespace Game.Core
             public readonly int IslandNumber;
             /// <summary>Zero-based overall order, for difficulty tuning without chapter resets.</summary>
             public readonly int CampaignIndex;
+            /// <summary>Every island offers all four benches; each past the first is gated by the level of the one
+            /// before it (see MiningShopBusinessSimulation.BuildRequirementMet), not by which island this is.</summary>
             public readonly int AvailableProductCount;
 
             internal Island(string id, string chapterId, int chapterNumber, int islandNumber, int campaignIndex)
@@ -28,7 +30,7 @@ namespace Game.Core
                 ChapterNumber = chapterNumber;
                 IslandNumber = islandNumber;
                 CampaignIndex = campaignIndex;
-                AvailableProductCount = Math.Min(ProductCount, campaignIndex + 1);
+                AvailableProductCount = ProductCount;
             }
 
             /// <summary>Availability never grants built tables on arrival.</summary>

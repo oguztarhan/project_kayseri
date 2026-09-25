@@ -202,9 +202,9 @@ namespace Game.Systems
             // what the wallet actually took.
             double paid = sale.Cash * ShopStandingMultiplier * (_boost != null ? _boost.ActiveMultiplier : 1d);
             _wallet.AddCash(new BigDouble(paid));
-            // One item sold is one bar sold: the metric every goal, festival and league season already reads.
-            // It persists with the next save, as the ore market's count always has.
-            _goals?.Record(Game.Core.Goals.BarsSold);
+            // One item sold is one bar sold: the metric every goal, festival and league season already reads. A customer
+            // takes a bundle, so the count is its items. It persists with the next save, as the ore market's always has.
+            _goals?.Record(Game.Core.Goals.BarsSold, sale.Units);
             MiningShopBusinessSold?.Invoke(sale.WithCash(paid));
         }
 

@@ -52,7 +52,7 @@ namespace Game.Tests
             {
                 var island = _campaign.IslandAt(i);
                 Assert.That(island.StartingTableCount, Is.EqualTo(1), island.Id);
-                Assert.That(island.AvailableProductCount, Is.EqualTo(Math.Min(4, i + 1)), island.Id);
+                Assert.That(island.AvailableProductCount, Is.EqualTo(MiningShopCampaign.ProductCount), island.Id);
             }
         }
 

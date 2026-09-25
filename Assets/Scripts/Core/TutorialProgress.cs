@@ -45,9 +45,9 @@ namespace Game.Core
             Produce,    // a bench finished an item
             Carry,      // the carrier put an item on the shelf
             Sell,       // a customer bought one
-            Afford,     // the wallet covers the first bench's speed upgrade
+            Afford,     // the wallet covers the first bench's next level
             OpenBench,  // the bench's upgrade panel is open
-            BuySpeed    // the first bench's speed level went up
+            BuyLevel    // the first bench's level went up
         }
 
         public readonly struct Lesson
@@ -73,10 +73,10 @@ namespace Game.Core
             /// <summary>Items that ever reached the shelf: on it now plus sold.</summary>
             public long Carried;
             public long Sold;
-            public bool CanAffordSpeed;
+            public bool CanAffordLevel;
             public bool BenchPanelOpen;
-            /// <summary>The first bench's speed level; 1 until the first upgrade.</summary>
-            public int SpeedLevel;
+            /// <summary>The first bench's level; 1 until the first upgrade.</summary>
+            public int BenchLevel;
         }
 
         public enum Intro
@@ -97,7 +97,8 @@ namespace Game.Core
             new Lesson("ftue.sell",        Goal.Sell),
             new Lesson("ftue.save_up",     Goal.Afford),
             new Lesson("ftue.open_bench",  Goal.OpenBench),
-            new Lesson("ftue.buy_speed",   Goal.BuySpeed),
+            // The two ids below predate the single bench level. They are saved as done, so they keep their names.
+            new Lesson("ftue.buy_speed",   Goal.BuyLevel),
             new Lesson("ftue.speed_value", Goal.Tap),
             new Lesson("ftue.loop",        Goal.Tap),
         };
@@ -221,9 +222,9 @@ namespace Game.Core
                 case Goal.Produce:   return now.Produced > atStart.Produced;
                 case Goal.Carry:     return now.Carried > atStart.Carried;
                 case Goal.Sell:      return now.Sold > atStart.Sold;
-                case Goal.Afford:    return now.CanAffordSpeed || now.SpeedLevel > 1;
-                case Goal.OpenBench: return now.BenchPanelOpen || now.SpeedLevel > 1;
-                case Goal.BuySpeed:  return now.SpeedLevel > atStart.SpeedLevel;
+                case Goal.Afford:    return now.CanAffordLevel || now.BenchLevel > 1;
+                case Goal.OpenBench: return now.BenchPanelOpen || now.BenchLevel > 1;
+                case Goal.BuyLevel:  return now.BenchLevel > atStart.BenchLevel;
                 default:             return false;
             }
         }
@@ -237,9 +238,9 @@ namespace Game.Core
         {
             switch (goal)
             {
-                case Goal.Afford:    return now.CanAffordSpeed || now.SpeedLevel > 1;
-                case Goal.OpenBench: return now.SpeedLevel > 1;
-                case Goal.BuySpeed:  return now.SpeedLevel > 1;
+                case Goal.Afford:    return now.CanAffordLevel || now.BenchLevel > 1;
+                case Goal.OpenBench: return now.BenchLevel > 1;
+                case Goal.BuyLevel:  return now.BenchLevel > 1;
                 default:             return false;
             }
         }

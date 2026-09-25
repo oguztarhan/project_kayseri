@@ -25,16 +25,38 @@ namespace Game.Data
 
         [Header("Additional product tables")]
         [SerializeField, Min(0.1f)] private double _helmetCraftSeconds = 20d;
-        [SerializeField, Min(1f)] private double _helmetUnitPrice = 60d;
-        [SerializeField, Min(1f)] private double _helmetTableCost = 300d;
+        [SerializeField, Min(1f)] private double _helmetUnitPrice = 240d;
+        [SerializeField, Min(1f)] private double _helmetTableCost = 3000d;
         [SerializeField, Min(0.1f)] private double _lanternCraftSeconds = 40d;
-        [SerializeField, Min(1f)] private double _lanternUnitPrice = 150d;
-        [SerializeField, Min(1f)] private double _lanternTableCost = 1400d;
+        [SerializeField, Min(1f)] private double _lanternUnitPrice = 3200d;
+        [SerializeField, Min(1f)] private double _lanternTableCost = 150000d;
         [SerializeField, Min(0.1f)] private double _bagCraftSeconds = 60d;
-        [SerializeField, Min(1f)] private double _bagUnitPrice = 360d;
-        [SerializeField, Min(1f)] private double _bagTableCost = 5000d;
-        [Tooltip("Items one shared carrier brings on each trip. One keeps the four product types readable.")]
+        [SerializeField, Min(1f)] private double _bagUnitPrice = 30000d;
+        [SerializeField, Min(1f)] private double _bagTableCost = 6000000d;
+        [Tooltip("The fewest items the shared carrier brings on a trip. Faster benches raise it (see the business model).")]
         [SerializeField, Min(1)] private int _businessCarrierLoad = 1;
+
+        [Header("Bench mastery")]
+        [Tooltip("What each bench's level 1 → 2 costs; every later level grows from it by the cost growth below.")]
+        [SerializeField, Min(1f)] private double _pickaxeFirstLevelCost = 40d;
+        [SerializeField, Min(1f)] private double _helmetFirstLevelCost = 400d;
+        [SerializeField, Min(1f)] private double _lanternFirstLevelCost = 4000d;
+        [SerializeField, Min(1f)] private double _bagFirstLevelCost = 40000d;
+        [Tooltip("The level the previous bench must reach before the next one can be built.")]
+        [SerializeField, Range(1, 100)] private int _buildRequiresLevel = 25;
+        [SerializeField, Min(0.001f)] private double _masteryValuePerLevel = 0.10d;
+        [SerializeField, Min(0.001f)] private double _masterySpeedPerLevel = 0.03d;
+        [Tooltip("What one star multiplies its axis by (value at 10/50/100, speed at 25/75).")]
+        [SerializeField, Min(1f)] private double _masteryStarMultiplier = 2d;
+        [SerializeField, Min(1.001f)] private double _masteryCostGrowth = 1.14d;
+        [Tooltip("Shortest cycle a bench is drawn at. Faster than this turns into value per item; income is unchanged.")]
+        [SerializeField, Min(0.1f)] private double _masteryMinCycleSeconds = 2d;
+        [Tooltip("Chance with no stars. Base plus five stars' worth must stay at or under 1.")]
+        [SerializeField, Min(0f)] private double _perfectBaseChance = 0.04d;
+        [SerializeField, Min(0f)] private double _perfectChancePerStar = 0.01d;
+        [SerializeField, Min(1f)] private double _perfectMultiplier = 3d;
+        [Tooltip("Gems each star pays once, stars 1-5. Counted by RewardBudgetTests.")]
+        [SerializeField] private long[] _starGems = { 3L, 5L, 7L, 10L, 15L };
 
         public MiningShopSimulation.Tuning ToTuning()
         {
@@ -61,22 +83,22 @@ namespace Game.Data
                     new MiningShopBusinessSimulation.ProductTuning
                     {
                         ProductId = MiningShopCampaign.ProductIdAt(0), CraftSeconds = pickaxe.CraftSeconds,
-                        UnitPrice = pickaxe.UnitPrice, TableCost = 0d
+                        UnitPrice = pickaxe.UnitPrice, TableCost = 0d, FirstLevelCost = _pickaxeFirstLevelCost
                     },
                     new MiningShopBusinessSimulation.ProductTuning
                     {
                         ProductId = MiningShopCampaign.ProductIdAt(1), CraftSeconds = _helmetCraftSeconds,
-                        UnitPrice = _helmetUnitPrice, TableCost = _helmetTableCost
+                        UnitPrice = _helmetUnitPrice, TableCost = _helmetTableCost, FirstLevelCost = _helmetFirstLevelCost
                     },
                     new MiningShopBusinessSimulation.ProductTuning
                     {
                         ProductId = MiningShopCampaign.ProductIdAt(2), CraftSeconds = _lanternCraftSeconds,
-                        UnitPrice = _lanternUnitPrice, TableCost = _lanternTableCost
+                        UnitPrice = _lanternUnitPrice, TableCost = _lanternTableCost, FirstLevelCost = _lanternFirstLevelCost
                     },
                     new MiningShopBusinessSimulation.ProductTuning
                     {
                         ProductId = MiningShopCampaign.ProductIdAt(3), CraftSeconds = _bagCraftSeconds,
-                        UnitPrice = _bagUnitPrice, TableCost = _bagTableCost
+                        UnitPrice = _bagUnitPrice, TableCost = _bagTableCost, FirstLevelCost = _bagFirstLevelCost
                     }
                 },
                 OutputCapacity = pickaxe.OutputCapacity,
@@ -87,11 +109,22 @@ namespace Game.Data
                 HandlingSeconds = pickaxe.HandlingSeconds,
                 ArrivalSeconds = pickaxe.ArrivalSeconds,
                 ServiceSeconds = pickaxe.ServiceSeconds,
-                SpeedPerLevel = pickaxe.SpeedPerLevel,
-                ValuePerLevel = pickaxe.ValuePerLevel,
-                UpgradeBaseCost = pickaxe.UpgradeBaseCost,
-                UpgradeCostGrowth = pickaxe.UpgradeCostGrowth,
-                MaxUpgradeLevel = pickaxe.MaxUpgradeLevel
+                BuildRequiresLevel = _buildRequiresLevel,
+                Mastery = ToMasteryTuning()
+            };
+            tuning.Validate();
+            return tuning;
+        }
+
+        public BenchMastery.Tuning ToMasteryTuning()
+        {
+            var tuning = new BenchMastery.Tuning
+            {
+                ValuePerLevel = _masteryValuePerLevel, SpeedPerLevel = _masterySpeedPerLevel,
+                StarMultiplier = _masteryStarMultiplier, CostGrowth = _masteryCostGrowth,
+                MinCycleSeconds = _masteryMinCycleSeconds, PerfectBaseChance = _perfectBaseChance,
+                PerfectChancePerStar = _perfectChancePerStar, PerfectMultiplier = _perfectMultiplier,
+                StarGems = _starGems != null ? (long[])_starGems.Clone() : null
             };
             tuning.Validate();
             return tuning;

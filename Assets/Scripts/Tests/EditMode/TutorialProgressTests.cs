@@ -43,7 +43,7 @@ namespace Game.Tests
 
             // Craft, carry, sell, earn, spend — each before the next.
             int produce = goals.IndexOf(Goal.Produce), carry = goals.IndexOf(Goal.Carry), sell = goals.IndexOf(Goal.Sell);
-            int afford = goals.IndexOf(Goal.Afford), open = goals.IndexOf(Goal.OpenBench), buy = goals.IndexOf(Goal.BuySpeed);
+            int afford = goals.IndexOf(Goal.Afford), open = goals.IndexOf(Goal.OpenBench), buy = goals.IndexOf(Goal.BuyLevel);
             Assert.That(new[] { produce, carry, sell, afford, open, buy }, Is.Ordered.And.All.GreaterThan(0));
             Assert.That(TutorialProgress.CoreLessons[TutorialProgress.CoreLessons.Length - 1].Id, Is.EqualTo("ftue.loop"));
         }
@@ -271,7 +271,7 @@ namespace Game.Tests
         [Test]
         public void TheTapGoalIsOnlyEverEndedByThePlayer()
         {
-            var everything = new Facts { Produced = 9, Carried = 9, Sold = 9, CanAffordSpeed = true, BenchPanelOpen = true, SpeedLevel = 5 };
+            var everything = new Facts { Produced = 9, Carried = 9, Sold = 9, CanAffordLevel = true, BenchPanelOpen = true, BenchLevel = 5 };
 
             Assert.That(TutorialProgress.GoalMet(Goal.Tap, everything, default), Is.False);
             Assert.That(TutorialProgress.AlreadyDone(Goal.Tap, everything), Is.False);
@@ -280,35 +280,35 @@ namespace Game.Tests
         [Test]
         public void TheUpgradeLessonsFollowTheWalletThePanelAndTheLevel()
         {
-            var poor = new Facts { SpeedLevel = 1 };
-            var rich = new Facts { SpeedLevel = 1, CanAffordSpeed = true };
-            var open = new Facts { SpeedLevel = 1, CanAffordSpeed = true, BenchPanelOpen = true };
-            var bought = new Facts { SpeedLevel = 2, BenchPanelOpen = true };
+            var poor = new Facts { BenchLevel = 1 };
+            var rich = new Facts { BenchLevel = 1, CanAffordLevel = true };
+            var open = new Facts { BenchLevel = 1, CanAffordLevel = true, BenchPanelOpen = true };
+            var bought = new Facts { BenchLevel = 2, BenchPanelOpen = true };
 
             Assert.That(TutorialProgress.GoalMet(Goal.Afford, poor, poor), Is.False);
             Assert.That(TutorialProgress.GoalMet(Goal.Afford, rich, poor), Is.True);
             Assert.That(TutorialProgress.GoalMet(Goal.OpenBench, rich, rich), Is.False);
             Assert.That(TutorialProgress.GoalMet(Goal.OpenBench, open, rich), Is.True);
-            Assert.That(TutorialProgress.GoalMet(Goal.BuySpeed, open, open), Is.False);
-            Assert.That(TutorialProgress.GoalMet(Goal.BuySpeed, bought, open), Is.True);
+            Assert.That(TutorialProgress.GoalMet(Goal.BuyLevel, open, open), Is.False);
+            Assert.That(TutorialProgress.GoalMet(Goal.BuyLevel, bought, open), Is.True);
         }
 
         [Test]
         public void UpgradeStepsThePlayerAlreadyDidAreSkipped()
         {
-            var upgraded = new Facts { SpeedLevel = 2 };
+            var upgraded = new Facts { BenchLevel = 2 };
 
             Assert.That(TutorialProgress.AlreadyDone(Goal.Afford, upgraded), Is.True);
             Assert.That(TutorialProgress.AlreadyDone(Goal.OpenBench, upgraded), Is.True);
-            Assert.That(TutorialProgress.AlreadyDone(Goal.BuySpeed, upgraded), Is.True);
-            Assert.That(TutorialProgress.AlreadyDone(Goal.Afford, new Facts { SpeedLevel = 1, CanAffordSpeed = true }), Is.True,
+            Assert.That(TutorialProgress.AlreadyDone(Goal.BuyLevel, upgraded), Is.True);
+            Assert.That(TutorialProgress.AlreadyDone(Goal.Afford, new Facts { BenchLevel = 1, CanAffordLevel = true }), Is.True,
                         "no point telling a player to save up for what they can already buy");
         }
 
         [Test]
         public void TheLoopLessonsAreNeverSkippedForBeingOldNews()
         {
-            var busyShop = new Facts { Produced = 500, Carried = 500, Sold = 500, SpeedLevel = 1 };
+            var busyShop = new Facts { Produced = 500, Carried = 500, Sold = 500, BenchLevel = 1 };
 
             Assert.That(TutorialProgress.AlreadyDone(Goal.Produce, busyShop), Is.False);
             Assert.That(TutorialProgress.AlreadyDone(Goal.Carry, busyShop), Is.False);

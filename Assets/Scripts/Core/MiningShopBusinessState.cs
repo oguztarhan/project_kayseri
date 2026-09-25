@@ -22,9 +22,19 @@ namespace Game.Core
         public double ArrivalRemaining;
         public bool Serving;
         public int ServiceProductIndex = -1;
+        /// <summary>Items in the customer's bundle being served.</summary>
+        public int ServiceUnits;
+        public bool ServicePerfect;
+        /// <summary>The perfect-sale generator's state; 0 until the first roll.</summary>
+        public int PerfectSeed;
         public double ServiceRemaining;
         public double ServiceDuration;
         public double ServicePrice;
         public long ReceiptSequence;
+        /// <summary>
+        /// 0 while the lines still carry the old speed and value tracks; MiningShopLevelMigration.Schema once they
+        /// have been turned into a single level. A new business starts at 0 too and is migrated from 1/1 on open.
+        /// </summary>
+        public int LevelSchema;
     }
 }

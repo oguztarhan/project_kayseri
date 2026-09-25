@@ -35,26 +35,98 @@ namespace Game.Tests
         [Test]
         public void TablesSpendOnceInOrderAndPersistInTheBusinessRecord()
         {
-            _wallet.AddCash(new BigDouble(10000d));
+            _wallet.AddCash(new BigDouble(1e7));
             MiningShopBusinessService shop = Open();
-            Assert.That(shop.TryBuildTable(2), Is.False);
-            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(10000d));
+            Assert.That(shop.TryBuildTable(1), Is.False, "the pickaxe bench is not level 25 yet");
+            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(1e7));
+            double levels = shop.CostOfLevels(0, 24);
+            Assert.That(shop.TryBuyLevels(0, 24), Is.EqualTo(24));
+            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(1e7 - levels).Within(1e-6));
+            Assert.That(shop.TryBuildTable(2), Is.False, "out of order");
             Assert.That(shop.TryBuildTable(1), Is.True);
-            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(9700d).Within(1e-6));
+            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(1e7 - levels - 3000d).Within(1e-6));
             Assert.That(shop.TryBuildTable(1), Is.False);
-            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(9700d).Within(1e-6));
-            Assert.That(shop.TryBuildTable(2), Is.True);
-            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(8300d).Within(1e-6));
+            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(1e7 - levels - 3000d).Within(1e-6));
             Assert.That(_data.miningShopBusinesses[0].Business.Lines[1].TableBuilt, Is.True);
-            Assert.That(_data.miningShopBusinesses[0].Business.Lines[2].TableBuilt, Is.True);
+            Assert.That(_data.miningShopBusinesses[0].Business.Lines[0].Level, Is.EqualTo(25));
+        }
+
+        [Test]
+        public void LevelsBuyWhatTheWalletCoversAndNoMore()
+        {
+            MiningShopBusinessService shop = Open();
+            double three = shop.CostOfLevels(0, 3);
+            _wallet.AddCash(new BigDouble(three + 1d));
+            Assert.That(shop.TryBuyLevels(0, 10), Is.EqualTo(3), "a x10 press buys the three it can pay for");
+            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(1d).Within(1e-6));
+            Assert.That(shop.TryBuyLevels(0, 1), Is.Zero);
+            Assert.That(shop.TryBuyLevels(1, 1), Is.Zero, "not built");
+            Assert.That(shop.TryBuyLevels(0, 0), Is.Zero);
+            Assert.That(shop.View.ProductAt(0).Level, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void HeldPurchasesReachTheDiskOnlyWhenTheHoldEnds()
+        {
+            string path = System.IO.Path.Combine(Application.temporaryCachePath, "shop-hold-" + Guid.NewGuid().ToString("N") + ".dat");
+            var save = new SaveService(path);
+            try
+            {
+                MiningShopBusinessService shop = _market.OpenMiningShopBusiness(_campaign, BusinessId,
+                    MiningShopBusinessSimulation.Tuning.Default, save);
+                _wallet.AddCash(new BigDouble(shop.CostOfLevels(0, 5) + 1d));
+                for (int i = 0; i < 5; i++) Assert.That(shop.TryBuyLevels(0, 1, false), Is.EqualTo(1));
+                Assert.That(save.TryLoad(out SaveData held), Is.True);
+                Assert.That(held.miningShopBusinesses[0].Business.Lines[0].Level, Is.EqualTo(1), "nothing written mid-hold");
+
+                shop.FlushSave();
+                Assert.That(save.TryLoad(out SaveData released), Is.True);
+                Assert.That(released.miningShopBusinesses[0].Business.Lines[0].Level, Is.EqualTo(6));
+                Assert.That(released.wallet.cash.ToDouble(), Is.EqualTo(1d).Within(1e-6), "the cash left with the levels");
+            }
+            finally
+            {
+                foreach (string suffix in new[] { "", SaveService.TempSuffix, SaveService.BackupSuffix, SaveService.UnreadableSuffix })
+                    if (System.IO.File.Exists(path + suffix)) System.IO.File.Delete(path + suffix);
+            }
+        }
+
+        [Test]
+        public void AnOldSavesRefundIsPaidOnceAndSavedWithItsLevels()
+        {
+            var old = new MiningShopState { BusinessId = BusinessId, Business = new MiningShopBusinessState() };
+            for (int i = 0; i < MiningShopCampaign.ProductCount; i++)
+                old.Business.Lines.Add(new MiningShopProductLineState
+                {
+                    ProductId = MiningShopCampaign.ProductIdAt(i), TableBuilt = i == 0,
+                    SpeedLevel = i == 0 ? 21 : 1, ValueLevel = i == 0 ? 21 : 1
+                });
+            _data.miningShopBusinesses.Add(old);
+
+            MiningShopBusinessService shop = Open();
+            Assert.That(shop.View.ProductAt(0).Level, Is.EqualTo(29));
+            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(815d).Within(1e-6));
+
+            var save = new SaveService("mining-shop-refund-memory-only-test.dat");
+            SaveData loaded = save.Decrypt(save.Encrypt(_data), out bool tampered);
+            Assert.That(tampered, Is.False);
+            var wallet = new WalletService(loaded.wallet);
+            var market = new MarketService(loaded, wallet, null);
+            MiningShopBusinessService reopened = market.OpenMiningShopBusiness(_campaign, BusinessId,
+                MiningShopBusinessSimulation.Tuning.Default);
+            Assert.That(reopened.View.ProductAt(0).Level, Is.EqualTo(29));
+            Assert.That(wallet.Cash.ToDouble(), Is.EqualTo(815d).Within(1e-6), "a reload does not pay the refund again");
         }
 
         [Test]
         public void MarketCreditsEachProductReceiptOnceThroughTheSharedBusinessPayer()
         {
-            _wallet.AddCash(new BigDouble(300d));
             MiningShopBusinessService shop = Open();
+            // A coin over exact change: the wallet's big-number subtraction may leave the build a hair short otherwise.
+            _wallet.AddCash(new BigDouble(shop.CostOfLevels(0, 24) + shop.TableCost(1) + 1d));
+            Assert.That(shop.TryBuyLevels(0, 24), Is.EqualTo(24));
             Assert.That(shop.TryBuildTable(1), Is.True);
+            _wallet.TrySpendCash(_wallet.Cash);
             int pickaxes = 0, helmets = 0;
             _market.MiningShopBusinessSold += sale =>
             {
@@ -112,30 +184,30 @@ namespace Game.Tests
             var board = new LocalLeaderboardService(null, Leaderboards.SeasonEpochUnix, Leaderboards.ThreeDayCadenceSeconds);
             var ladder = new LadderService(_data, null, goals, board, _wallet);
             _market = new MarketService(_data, _wallet, null, goals: goals);
-            _wallet.AddCash(new BigDouble(400d));
             MiningShopBusinessService shop = Open();
+            _wallet.AddCash(new BigDouble(shop.CostOfLevels(0, 24) + shop.TableCost(1) + 1d));
             long score = ladder.Score;
 
+            Assert.That(shop.TryBuyLevels(0, 24), Is.EqualTo(24));
             Assert.That(shop.TryBuildTable(1), Is.True);
-            Assert.That(shop.TryBuyUpgrade(0, true), Is.True);
-            Assert.That(goals.TodayProgress(Goals.Upgrades), Is.EqualTo(2L), "a build and an upgrade");
+            Assert.That(goals.TodayProgress(Goals.Upgrades), Is.EqualTo(25L), "24 levels and a build");
             Assert.That(shop.TryBuildTable(1), Is.False);
-            Assert.That(shop.TryBuyUpgrade(3, true), Is.False, "a table that is not built");
+            Assert.That(shop.TryBuyLevels(3, 1), Is.Zero, "a table that is not built");
             _wallet.TrySpendCash(_wallet.Cash);
-            Assert.That(shop.TryBuyUpgrade(0, false), Is.False, "nothing left to pay with");
-            Assert.That(goals.Lifetime(Goals.Upgrades), Is.EqualTo(2L), "refusals count nothing");
+            Assert.That(shop.TryBuyLevels(0, 1), Is.Zero, "nothing left to pay with");
+            Assert.That(goals.Lifetime(Goals.Upgrades), Is.EqualTo(25L), "refusals count nothing");
 
             for (int i = 0; i < 240; i++) _market.Tick(1f);
             MiningShopBusinessState business = _data.miningShopBusinesses[0].Business;
             long sold = business.Lines[0].Sold + business.Lines[1].Sold;
             Assert.That(sold, Is.GreaterThan(0L));
-            Assert.That(goals.Lifetime(Goals.BarsSold), Is.EqualTo(sold), "one per item sold");
+            Assert.That(goals.Lifetime(Goals.BarsSold), Is.EqualTo(sold), "one per item sold, bundles included");
             Assert.That(goals.TodayProgress(Goals.BarsSold), Is.EqualTo(sold));
 
             Assert.That(ladder.Score, Is.GreaterThan(score), "the league reads the same counts");
             if (ladder.ScoresPoints)
                 foreach (Ladder.ScoringRule rule in Ladder.Scoring)
-                    if (rule.Metric == Goals.Upgrades) Assert.That(ladder.CountedActions(rule), Is.EqualTo(2L));
+                    if (rule.Metric == Goals.Upgrades) Assert.That(ladder.CountedActions(rule), Is.EqualTo(25L));
         }
 
         [Test]
@@ -149,7 +221,7 @@ namespace Game.Tests
             Assert.That(_data.incomeRatePerSec, Is.EqualTo(opened), "published before the first tick");
             Assert.That(_market.MiningShopIncomePerSec, Is.EqualTo(opened));
 
-            Assert.That(shop.TryBuyUpgrade(0, false), Is.True);
+            Assert.That(shop.TryBuyLevels(0, 1), Is.EqualTo(1));
             _market.Tick(1f);
             Assert.That(_data.incomeRatePerSec, Is.GreaterThan(opened));
             Assert.That(_data.incomeRatePerSec, Is.EqualTo(shop.SteadyStateRate()));
@@ -171,8 +243,9 @@ namespace Game.Tests
         [Test]
         public void EncryptedSaveRestoresBuiltLinesWithoutReplayingReceipts()
         {
-            _wallet.AddCash(new BigDouble(300d));
             MiningShopBusinessService shop = Open();
+            _wallet.AddCash(new BigDouble(shop.CostOfLevels(0, 24) + shop.TableCost(1) + 1d));
+            Assert.That(shop.TryBuyLevels(0, 24), Is.EqualTo(24));
             Assert.That(shop.TryBuildTable(1), Is.True);
             for (int i = 0; i < 43; i++) _market.Tick(1f);
             var save = new SaveService("mining-shop-business-memory-only-test.dat");
@@ -209,8 +282,10 @@ namespace Game.Tests
             MiningShopBusinessService shop = market.OpenMiningShopBusiness(_campaign, "mining-shop.island-01-01",
                 MiningShopBusinessSimulation.Tuning.Default);
             MiningShopBusinessSimulation.ProductSnapshot pickaxe = shop.View.ProductAt(0);
-            Assert.That(pickaxe.SpeedLevel, Is.EqualTo(2));
-            Assert.That(pickaxe.CraftRemaining, Is.EqualTo(3d));
+            Assert.That(loaded.miningShopBusinesses[0].Business.Lines[0].SpeedLevel, Is.EqualTo(2),
+                "kept for the level migration to read");
+            Assert.That(pickaxe.Level, Is.EqualTo(2), "one speed upgrade (40) buys level 2 (40)");
+            Assert.That(pickaxe.CraftRemaining / pickaxe.CraftDuration, Is.EqualTo(3d / 9.090909090909091).Within(1e-12));
             Assert.That(shop.View.Carrier, Is.EqualTo(MiningShopSimulation.CarrierPhase.ToMarket));
             Assert.That(shop.View.CarrierProductIndex, Is.EqualTo(0));
             Assert.That(shop.View.CarrierCount, Is.EqualTo(1));
