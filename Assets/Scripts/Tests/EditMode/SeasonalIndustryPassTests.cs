@@ -19,7 +19,7 @@ namespace Game.Tests
             public IReadOnlyList<string> Entitlements => Owned;
             public event Action ProductsUpdated { add { } remove { } }
             public event Action<IReadOnlyList<string>> EntitlementsUpdated;
-            public event Action<string, string> UnfinishedPurchase;
+            public event UnfinishedPurchaseHandler UnfinishedPurchase;
             public string LocalizedPrice(string sku, string fallback) => fallback;
             public void Purchase(string sku, Action<bool, string> onDone) => onDone(true, "tx-buy");
             public void RestorePurchases(Action<bool, string> onDone)
@@ -28,8 +28,8 @@ namespace Game.Tests
                 onDone(true, null);
             }
             public void RetryUnfinishedPurchases() { }
-            public void Interrupt(string sku, string transactionId)
-                => UnfinishedPurchase?.Invoke(sku, transactionId);
+            public UnfinishedPurchases.Outcome Interrupt(string sku, string transactionId)
+                => UnfinishedPurchases.Dispatch(UnfinishedPurchase, sku, transactionId, out _);
         }
 
         private sealed class Rig

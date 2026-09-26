@@ -46,6 +46,16 @@ namespace Game.UI
         [SerializeField, Min(1)] private int energyAdChargesPerDay = 3;
         [SerializeField, Min(0f)] private float energyAdCooldownSeconds = 300f;
 
+        [Header("Canavar alevi — deniz canavarı gülle yerine ateş püskürtür")]
+        [Tooltip("Ağzın canavar resmindeki yeri: 0-1, sol alt köşeden, resim aynalanmadan önce.")]
+        [SerializeField] private Vector2 flameMouthUv = new Vector2(0.80f, 0.45f);
+        [Tooltip("Ağızdan saniyede çıkan alev bulutu.")]
+        [SerializeField, Min(1f)] private float flamePuffsPerSecond = 64f;
+        [Tooltip("İsabetten sonra alevin akmaya devam ettiği süre (sn).")]
+        [SerializeField, Min(0f)] private float flameTailSeconds = 0.28f;
+        [Tooltip("Bir alev bulutunun gemiye çarptıktan sonra dumana dönüp söndüğü süre (sn).")]
+        [SerializeField, Min(0.05f)] private float flameBillowSeconds = 0.3f;
+
         /// <summary>The rewarded-ad slot this button spends. It shares FreeRewardService's day roll
         /// and cooldown book with every other slot in the game, so the sea has no second set of
         /// rules and cannot be farmed past its daily cap.</summary>
@@ -98,6 +108,14 @@ namespace Game.UI
         private static readonly Color PoisonTint = new Color(0.55f, 0.88f, 0.25f, 1f);
         private static readonly Color StealTint = new Color(1f, 0.50f, 0.65f, 1f);
 
+        // The breath, hottest first. The puff sprite is white, so these ARE the flame's colours.
+        private static readonly Color FlameCore = new Color(1f, 0.98f, 0.82f, 1f);
+        private static readonly Color FlameYellow = new Color(1f, 0.84f, 0.28f, 1f);
+        private static readonly Color FlameOrange = new Color(1f, 0.50f, 0.10f, 1f);
+        private static readonly Color FlameRed = new Color(0.86f, 0.18f, 0.06f, 1f);
+        private static readonly Color FlameSmoke = new Color(0.22f, 0.20f, 0.20f, 1f);
+        private static readonly Color ScorchTint = new Color(1f, 0.52f, 0.32f, 1f);
+
         /// <summary>Grade tints — the same ladder the captain screen wears.</summary>
         private static readonly Color[] GradeTint =
         {
@@ -111,6 +129,8 @@ namespace Game.UI
         private const int BallPool = 8;
         private const int FlashPool = 6;
         private const int FloatPool = 14;
+        private const int PuffPool = 72;    // 64/s over a 0.75 s life, and room for a salvo's second breath
+        private const int EmberPool = 32;
         private const int CoreStatCount = 4;
         private const int StatCount = 13;
 
@@ -219,6 +239,31 @@ namespace Game.UI
         private readonly float[] _floatT = new float[FloatPool];
         private readonly Vector2[] _floatFrom = new Vector2[FloatPool];
 
+        // The monster's breath: puffs that fly mouth-to-ship then billow into smoke, embers on a hit.
+        private readonly RectTransform[] _puff = new RectTransform[PuffPool];
+        private readonly Image[] _puffImage = new Image[PuffPool];
+        private readonly float[] _puffT = new float[PuffPool];
+        private readonly float[] _puffTravel = new float[PuffPool];
+        private readonly Vector2[] _puffFrom = new Vector2[PuffPool];
+        private readonly Vector2[] _puffTo = new Vector2[PuffPool];
+        private readonly float[] _puffArc = new float[PuffPool];
+        private readonly float[] _puffSpread = new float[PuffPool];
+        private readonly float[] _puffSize = new float[PuffPool];
+        private readonly float[] _puffSpin = new float[PuffPool];
+        private readonly RectTransform[] _ember = new RectTransform[EmberPool];
+        private readonly Image[] _emberImage = new Image[EmberPool];
+        private readonly float[] _emberT = new float[EmberPool];
+        private readonly float[] _emberLife = new float[EmberPool];
+        private readonly Vector2[] _emberAt = new Vector2[EmberPool];
+        private readonly Vector2[] _emberVel = new Vector2[EmberPool];
+        private RectTransform _flameGlow;
+        private Image _flameGlowImage;
+        private Image _shipImage;
+        private float _breathT = -1f, _breathFlight, _breathEmit, _scorch;
+        private Vector2 _breathTo;
+        private bool _shipScorched, _reduceMotion;
+        private static Sprite _puffSprite;
+
         private int _seenStamp, _seenEvent, _seenBall, _seenKind = -1;
         private string _seenBossLabel;
         private EncounterController.Phase _seenPhase = EncounterController.Phase.Idle;
@@ -262,6 +307,8 @@ namespace Game.UI
             _save = ServiceLocator.Get<SaveService>();
             _data = ServiceLocator.Get<SaveData>();
             _pets = ServiceLocator.Get<PetService>();
+            AccessibilityConfig accessibility = ServiceLocator.Get<AccessibilityConfig>();
+            _reduceMotion = accessibility != null && accessibility.ReduceMotion;
             GameBootstrap bootstrap = FindAnyObjectByType<GameBootstrap>(FindObjectsInactive.Include);
             _petConfig = bootstrap != null ? bootstrap.PetConfig : null;
             if (_pets != null) _pets.Changed += OnPetsChanged;
@@ -290,6 +337,7 @@ namespace Game.UI
             _threatGroup = _threatRoot.gameObject.AddComponent<CanvasGroup>();
             _threatGroup.alpha = 0f;
             _threatImage = _threatRoot.GetChild(0).GetComponent<Image>();
+            _shipImage = _shipRoot.GetChild(0).GetComponent<Image>();
             BuildBars();
             BuildPools();
             BuildBossControls();
@@ -498,6 +546,7 @@ namespace Game.UI
                 _flashGroup[i] = _flash[i].gameObject.AddComponent<CanvasGroup>();
                 _flashT[i] = -1f;
             }
+            BuildFlame();
             for (int i = 0; i < FloatPool; i++)
             {
                 TMP_Text txt = Line(_stage, "Yazi" + i, 34f, Vector2.zero, Vector2.zero);
@@ -1360,6 +1409,7 @@ namespace Game.UI
                 SetChrome(phase);
                 if (phase == EncounterController.Phase.Approach)
                 {
+                    ClearFlame();
                     _seenKind = -1;
                     _threatGroup.alpha = 1f;
                     _threatRoot.localRotation = Quaternion.identity;
@@ -1383,6 +1433,7 @@ namespace Game.UI
             DriveBallLaunches(phase, w, h);
             DriveEvents(w, h);
             DriveBalls(dt);
+            DriveFlame(dt, h);
             DriveFlashes(dt);
             DriveFloats(dt, h);
             DriveSheet(phase, dt);
@@ -1553,10 +1604,14 @@ namespace Game.UI
             }
             else if (_fights.TurnStep == EncounterController.Step.TheirBall)
             {
-                Fire(theirs, ours + new Vector2(w * 0.01f, 0f), flight,
-                     h * (_fights.Current.Kind == SeaCombat.Beast ? 0.16f : 0.11f));
+                Vector2 target = ours + new Vector2(w * 0.01f, 0f);
+                if (BreathesFire(_fights.Current.Kind)) Breathe(target, flight);
+                else Fire(theirs, target, flight, h * 0.11f);
             }
         }
+
+        /// <summary>The sea monster breathes fire where every other threat fires a ball.</summary>
+        public static bool BreathesFire(int kind) => kind == SeaCombat.Beast;
 
         // Numbers pop from the target's hull, not from over its masthead. They rise 0.11 of the stage in
         // their life, and from +0.30 every one ran through the health bar (0.668-0.732 of the stage).
@@ -1579,12 +1634,14 @@ namespace Game.UI
                 {
                     case EncounterController.EvHit:
                         Impact(ev.OnUs, w, h);
+                        if (ev.OnUs && _breathT >= 0f) Scorch(h, false);
                         Float("-" + N(ev.Amount), ev.OnUs ? Danger : Paper, at, 1f);
                         if (!ev.OnUs) _threatWobble = Random.Range(4.5f, 7f) * Sign();
                         else _shipWobble = Random.Range(3.5f, 6f) * Sign();
                         break;
                     case EncounterController.EvCrit:
                         Impact(ev.OnUs, w, h);
+                        if (ev.OnUs && _breathT >= 0f) Scorch(h, true);
                         Float(Loc.T("deniz.kritikvur") + " -" + N(ev.Amount), CritTint, at, 1.35f);
                         if (!ev.OnUs) _threatWobble = Random.Range(6f, 9f) * Sign();
                         else _shipWobble = Random.Range(5f, 8f) * Sign();
@@ -1697,6 +1754,284 @@ namespace Game.UI
                 Vector2 at = Vector2.Lerp(_ballFrom[i], _ballTo[i], a);
                 at.y += _ballArc[i] * Mathf.Sin(a * Mathf.PI);
                 _ball[i].anchoredPosition = at;
+            }
+        }
+
+        // ---------------------------------------------------------------- the monster's breath
+        /// <summary>
+        /// One soft white disc, made once: every flame puff, the mouth glow and the embers tint it.
+        /// There is no flame art in the kit, and a disc layered forty times reads as fire where a
+        /// single painted sprite would read as a sticker.
+        /// </summary>
+        private static Sprite PuffSprite()
+        {
+            if (_puffSprite != null) return _puffSprite;
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "AlevPuf", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear,
+                hideFlags = HideFlags.DontSave,
+            };
+            var px = new Color32[size * size];
+            float r = (size - 1) * 0.5f;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = (x - r) / r, dy = (y - r) / r;
+                    float a = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy));
+                    a = a * a * (3f - 2f * a);
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            _puffSprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+            _puffSprite.hideFlags = HideFlags.DontSave;
+            return _puffSprite;
+        }
+
+        /// <summary>
+        /// The breath's own layer, stretched over the stage so its children share the stage's
+        /// coordinates. Built before the floating numbers, so a damage number is never under a flame.
+        /// Pool order is draw order: the glow and the embers are made last and always sit on top.
+        /// </summary>
+        private void BuildFlame()
+        {
+            var layerGo = new GameObject("Alev", typeof(RectTransform));
+            layerGo.transform.SetParent(_stage, false);
+            RectTransform layer = UiBuild.Anchor((RectTransform)layerGo.transform, Vector2.zero, Vector2.one);
+            Sprite puff = PuffSprite();
+            for (int i = 0; i < PuffPool; i++)
+            {
+                _puffImage[i] = FlameItem(layer, "AlevPuf" + i, puff);
+                _puff[i] = _puffImage[i].rectTransform;
+                _puffT[i] = -1f;
+            }
+            _flameGlowImage = FlameItem(layer, "AgizParlama", puff);
+            _flameGlow = _flameGlowImage.rectTransform;
+            for (int i = 0; i < EmberPool; i++)
+            {
+                _emberImage[i] = FlameItem(layer, "Kivilcim" + i, puff);
+                _ember[i] = _emberImage[i].rectTransform;
+                _emberT[i] = -1f;
+            }
+        }
+
+        private static Image FlameItem(RectTransform parent, string name, Sprite sprite)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.sprite = sprite;
+            img.raycastTarget = false;
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = Vector2.zero;
+            go.SetActive(false);
+            return img;
+        }
+
+        /// <summary>
+        /// Opens a breath. The first puff leaves now and lands exactly when the controller applies the
+        /// damage (<paramref name="flight"/>), so the fire and the hit number arrive together; the
+        /// stream keeps pouring for <see cref="flameTailSeconds"/> after that.
+        /// </summary>
+        private void Breathe(Vector2 target, float flight)
+        {
+            _breathT = 0f;
+            _breathFlight = Mathf.Max(0.05f, flight);
+            _breathTo = target;
+            _breathEmit = 1f;   // one puff on the very first frame
+            if (!_reduceMotion) _threatWobble = -4.5f;   // head thrown back: the monster faces left
+            _flameGlow.gameObject.SetActive(true);
+        }
+
+        /// <summary>
+        /// Where the mouth is on the stage right now. Read through the art's own transform, so the
+        /// mirroring, the bob and the recoil are all already in it, and against the sprite's own
+        /// aspect, because preserveAspect letterboxes the art inside a wider rect.
+        /// </summary>
+        private Vector2 MouthPoint()
+        {
+            RectTransform art = _threatImage.rectTransform;
+            Rect box = art.rect;
+            Sprite sprite = _threatImage.sprite;
+            float aspect = sprite != null && sprite.rect.height > 0f ? sprite.rect.width / sprite.rect.height : 1f;
+            float drawnW = Mathf.Min(box.width, box.height * aspect);
+            float drawnH = drawnW / aspect;
+            Vector3 local = new Vector3(box.center.x + (flameMouthUv.x - 0.5f) * drawnW,
+                                        box.center.y + (flameMouthUv.y - 0.5f) * drawnH, 0f);
+            Vector2 onStage = _stage.InverseTransformPoint(art.TransformPoint(local));
+            return onStage - _stage.rect.min;
+        }
+
+        private void Puff(Vector2 from, float h)
+        {
+            for (int i = 0; i < PuffPool; i++)
+            {
+                if (_puffT[i] >= 0f) continue;
+                _puffT[i] = 0f;
+                _puffTravel[i] = _breathFlight;
+                _puffFrom[i] = from;
+                _puffTo[i] = _breathTo;
+                _puffArc[i] = h * Random.Range(0.01f, 0.05f);
+                _puffSpread[i] = h * Random.Range(-0.055f, 0.055f);
+                _puffSize[i] = h * Random.Range(0.85f, 1.15f);
+                _puffSpin[i] = Random.Range(-160f, 160f);
+                _puff[i].gameObject.SetActive(true);
+                return;
+            }
+        }
+
+        /// <summary>Embers thrown off the hull and a scorch that fades off the ship's paint.</summary>
+        private void Scorch(float h, bool crit)
+        {
+            _scorch = 1f;
+            int count = crit ? 22 : 14;
+            for (int i = 0; i < EmberPool && count > 0; i++)
+            {
+                if (_emberT[i] >= 0f) continue;
+                count--;
+                _emberT[i] = 0f;
+                _emberLife[i] = Random.Range(0.45f, 0.75f);
+                _emberAt[i] = _breathTo + new Vector2(Random.Range(-0.03f, 0.03f), Random.Range(-0.02f, 0.03f)) * h;
+                float lift = crit ? 1.15f : 0.9f;
+                _emberVel[i] = new Vector2(Random.Range(-0.55f, 0.75f), Random.Range(0.35f, 1f) * lift) * h;
+                float s = h * Random.Range(0.02f, crit ? 0.04f : 0.032f);
+                _ember[i].sizeDelta = new Vector2(s, s);
+                _ember[i].gameObject.SetActive(true);
+            }
+        }
+
+        private void ClearFlame()
+        {
+            _breathT = -1f;
+            if (_flameGlow != null) _flameGlow.gameObject.SetActive(false);
+            for (int i = 0; i < PuffPool; i++)
+            {
+                if (_puffT[i] < 0f) continue;
+                _puffT[i] = -1f;
+                _puff[i].gameObject.SetActive(false);
+            }
+            for (int i = 0; i < EmberPool; i++)
+            {
+                if (_emberT[i] < 0f) continue;
+                _emberT[i] = -1f;
+                _ember[i].gameObject.SetActive(false);
+            }
+            _scorch = 0f;
+        }
+
+        private void DriveFlame(float dt, float h)
+        {
+            if (_breathT >= 0f)
+            {
+                _breathT += dt;
+                float pourUntil = _breathFlight + flameTailSeconds;
+                Vector2 mouth = MouthPoint();
+                if (_breathT <= pourUntil)
+                {
+                    _breathEmit += dt * flamePuffsPerSecond;
+                    while (_breathEmit >= 1f)
+                    {
+                        _breathEmit -= 1f;
+                        Puff(mouth, h);
+                    }
+                }
+
+                // The mouth flare: up in a blink, a ragged flicker while it pours, gone as it stops.
+                float up = Mathf.Clamp01(_breathT / 0.07f);
+                float down = Mathf.Clamp01((pourUntil + 0.18f - _breathT) / 0.18f);
+                float flicker = 0.78f + 0.22f * Mathf.PerlinNoise(_breathT * 23f, 0.37f);
+                float glow = h * 0.2f * up * flicker * (0.55f + 0.45f * down);
+                _flameGlow.sizeDelta = new Vector2(glow * 1.2f, glow);
+                _flameGlow.anchoredPosition = mouth;
+                Color g = FlameCore;
+                g.a = 0.9f * up * down;
+                _flameGlowImage.color = g;
+                if (_breathT >= pourUntil + 0.18f)
+                {
+                    _breathT = -1f;
+                    _flameGlow.gameObject.SetActive(false);
+                }
+            }
+
+            for (int i = 0; i < PuffPool; i++)
+            {
+                if (_puffT[i] < 0f) continue;
+                _puffT[i] += dt;
+                float travel = _puffTravel[i];
+                float t = _puffT[i];
+                if (t >= travel + flameBillowSeconds)
+                {
+                    _puffT[i] = -1f;
+                    _puff[i].gameObject.SetActive(false);
+                    continue;
+                }
+
+                Vector2 from = _puffFrom[i], to = _puffTo[i];
+                Vector2 dir = to - from;
+                float len = dir.magnitude;
+                dir = len > 0.001f ? dir / len : Vector2.left;
+                var side = new Vector2(-dir.y, dir.x);
+                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                Vector2 at;
+                float size;
+                Color c;
+
+                if (t < travel)
+                {
+                    // A jet that slows as it spreads: fast out of the mouth, fanning wider as it goes.
+                    float a = t / travel;
+                    float e = a * (1.35f - 0.35f * a);
+                    at = Vector2.Lerp(from, to, e) + side * (_puffSpread[i] * e);
+                    at.y += _puffArc[i] * Mathf.Sin(e * Mathf.PI);
+                    size = _puffSize[i] * (0.065f + 0.12f * e);
+                    if (e < 0.2f) c = Color.Lerp(FlameCore, FlameYellow, e / 0.2f);
+                    else if (e < 0.55f) c = Color.Lerp(FlameYellow, FlameOrange, (e - 0.2f) / 0.35f);
+                    else c = Color.Lerp(FlameOrange, FlameRed, (e - 0.55f) / 0.45f);
+                    c.a = 0.95f * Mathf.Clamp01(a / 0.08f);
+                }
+                else
+                {
+                    // Splashed on the hull: it rolls up and out as smoke and thins away.
+                    float b = (t - travel) / flameBillowSeconds;
+                    at = to + side * _puffSpread[i] + dir * (h * 0.035f * b) + new Vector2(0f, h * 0.07f * b);
+                    size = _puffSize[i] * 0.185f * (1f + 0.55f * b);
+                    c = Color.Lerp(FlameRed, FlameSmoke, b);
+                    c.a = 0.85f * (1f - b) * (1f - b);
+                }
+
+                _puff[i].anchoredPosition = at;
+                _puff[i].sizeDelta = new Vector2(size * 1.35f, size);   // stretched along its flight
+                _puff[i].localRotation = Quaternion.Euler(0f, 0f, angle + _puffSpin[i] * t);
+                _puffImage[i].color = c;
+            }
+
+            for (int i = 0; i < EmberPool; i++)
+            {
+                if (_emberT[i] < 0f) continue;
+                _emberT[i] += dt;
+                float a = _emberT[i] / _emberLife[i];
+                if (a >= 1f)
+                {
+                    _emberT[i] = -1f;
+                    _ember[i].gameObject.SetActive(false);
+                    continue;
+                }
+                _emberVel[i].y -= h * 2.4f * dt;
+                _emberAt[i] += _emberVel[i] * dt;
+                _ember[i].anchoredPosition = _emberAt[i];
+                Color c = a < 0.4f ? Color.Lerp(FlameCore, FlameYellow, a / 0.4f)
+                                   : Color.Lerp(FlameYellow, FlameRed, (a - 0.4f) / 0.6f);
+                c.a = 1f - a * a;
+                _emberImage[i].color = c;
+            }
+
+            // Only touch the ship's colour while there is a scorch to show, so a quiet frame dirties nothing.
+            if (_scorch > 0f || _shipScorched)
+            {
+                _scorch = Mathf.MoveTowards(_scorch, 0f, dt / 0.5f);
+                _shipImage.color = Color.Lerp(Color.white, ScorchTint, _scorch * 0.85f);
+                _shipScorched = _scorch > 0f;
             }
         }
 

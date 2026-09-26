@@ -44,14 +44,14 @@ namespace Game.Systems
         private bool _ready;
         private readonly List<string> _entitlements = new List<string>();
         private readonly List<PendingOrder> _unfinishedOrders = new List<PendingOrder>();
-        private Action<string, string> _unfinishedPurchase;
+        private UnfinishedPurchaseHandler _unfinishedPurchase;
 
         /// <summary>True once the store is connected and the catalogue has arrived.</summary>
         public bool Ready => _ready;
         public IReadOnlyList<string> Entitlements => _entitlements;
         public event Action ProductsUpdated;
         public event Action<IReadOnlyList<string>> EntitlementsUpdated;
-        public event Action<string, string> UnfinishedPurchase
+        public event UnfinishedPurchaseHandler UnfinishedPurchase
         {
             add
             {
@@ -375,6 +375,12 @@ namespace Game.Systems
         /// </summary>
         public void RetryUnfinishedPurchases() => FlushUnfinishedPurchases();
 
+        /// <summary>
+        /// Acknowledges an order only when a listener claimed it. An unclaimed order stays queued and
+        /// unacknowledged: its owner may simply not be loaded yet (the store lives in Main, the season
+        /// pass from boot), and subscribing or opening the store flushes again. After a restart the
+        /// platform delivers it once more.
+        /// </summary>
         private void FlushUnfinishedPurchases()
         {
             if (_unfinishedPurchase == null || _store == null) return;
@@ -382,17 +388,18 @@ namespace Game.Systems
             {
                 PendingOrder order = _unfinishedOrders[i];
                 string sku = SkuOf(order);
-                try
+                UnfinishedPurchases.Outcome outcome = UnfinishedPurchases.Dispatch(
+                    _unfinishedPurchase, sku, TransactionKey(order), out string error);
+                if (outcome == UnfinishedPurchases.Outcome.Handled)
                 {
-                    _unfinishedPurchase(sku, TransactionKey(order));
                     _store.ConfirmPurchase(order);
                     _unfinishedOrders.RemoveAt(i);
                 }
-                catch (Exception e)
-                {
+                else if (outcome == UnfinishedPurchases.Outcome.Failed)
                     // Hak kayda yazılamadıysa siparişi tüketme; sonraki açılışta tekrar teslim edilir.
-                    Debug.LogError("[IAP] yarım satın alma tamamlanamadı (" + sku + "): " + e.Message);
-                }
+                    Debug.LogError("[IAP] yarım satın alma tamamlanamadı (" + sku + "): " + error);
+                else
+                    Debug.LogWarning("[IAP] yarım satın almayı sahiplenen yok, onaylanmadan bekliyor: " + sku);
             }
         }
 

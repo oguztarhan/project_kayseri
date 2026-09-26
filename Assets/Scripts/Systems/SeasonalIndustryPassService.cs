@@ -224,7 +224,9 @@ namespace Game.Systems
             }
             _iap.Purchase(_tuning.PremiumSku, (ok, transactionId) =>
             {
-                if (!ok || string.IsNullOrEmpty(transactionId))
+                // A paid order without an id still gets the pass: the store confirms it as soon as this
+                // returns, and ownership is keyed on the sku, so granting twice is impossible anyway.
+                if (!ok)
                 {
                     onDone?.Invoke(false);
                     return;
@@ -290,12 +292,12 @@ namespace Game.Systems
             }
         }
 
-        private void OnUnfinishedPurchase(string sku, string transactionId)
+        /// <summary>Claims only the pass sku; every other order belongs to the store.</summary>
+        private bool OnUnfinishedPurchase(string sku, string transactionId)
         {
-            if (!string.Equals(sku, _tuning.PremiumSku, StringComparison.Ordinal)) return;
-            if (string.IsNullOrEmpty(transactionId))
-                throw new InvalidOperationException("Sezon bileti işlem kimliği eksik.");
+            if (!string.Equals(sku, _tuning.PremiumSku, StringComparison.Ordinal)) return false;
             ApplyEntitlement(transactionId);
+            return true;
         }
 
         private void ApplyEntitlement(string transactionId)

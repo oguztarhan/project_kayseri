@@ -28,7 +28,11 @@ namespace Game.Systems
         IReadOnlyList<string> Entitlements { get; }
         event Action ProductsUpdated;
         event Action<IReadOnlyList<string>> EntitlementsUpdated;
-        event Action<string, string> UnfinishedPurchase;
+        /// <summary>
+        /// Orders the platform hands back with no tap waiting for them. An order is acknowledged only
+        /// when a listener claims it — see <see cref="UnfinishedPurchases.Dispatch"/>.
+        /// </summary>
+        event UnfinishedPurchaseHandler UnfinishedPurchase;
         string LocalizedPrice(string sku, string fallback);
         /// <summary>
         /// Completes with the platform transaction id. The reward must be saved against that id before
@@ -48,7 +52,7 @@ namespace Game.Systems
         public IReadOnlyList<string> Entitlements => NoEntitlements;
         public event Action ProductsUpdated { add { } remove { } }
         public event Action<IReadOnlyList<string>> EntitlementsUpdated { add { } remove { } }
-        public event Action<string, string> UnfinishedPurchase { add { } remove { } }
+        public event UnfinishedPurchaseHandler UnfinishedPurchase { add { } remove { } }
         public string LocalizedPrice(string sku, string fallback) => fallback;
         public void Purchase(string sku, Action<bool, string> onDone) => onDone?.Invoke(false, null);
         public void RestorePurchases(Action<bool, string> onDone)
@@ -78,6 +82,56 @@ namespace Game.Systems
             if (data.processedIapTransactions.Contains(transactionId)) return false;
             data.processedIapTransactions.Add(transactionId);
             return true;
+        }
+    }
+
+    /// <summary>
+    /// One listener's answer to an unfinished order.
+    /// true: the sku is this listener's and its reward is saved, now or by an earlier delivery.
+    /// false: not this listener's sku.
+    /// Throw: this listener's sku, but it cannot be granted yet; the order must stay unacknowledged.
+    /// </summary>
+    public delegate bool UnfinishedPurchaseHandler(string sku, string transactionId);
+
+    /// <summary>
+    /// Decides whether an unfinished order may be acknowledged. Listeners come and go with scenes (the
+    /// store lives in Main, the season pass from boot), so "nobody objected" is not "somebody paid":
+    /// acknowledging on silence consumed gem orders at boot, before the store had subscribed.
+    /// </summary>
+    public static class UnfinishedPurchases
+    {
+        public enum Outcome
+        {
+            Unclaimed,   // no listener owns the sku: keep the order
+            Handled,     // a listener granted it and none failed: acknowledge
+            Failed,      // a listener owns it but could not grant it yet: keep the order
+        }
+
+        /// <summary>
+        /// Asks every listener, even after one fails: each one is idempotent through
+        /// <see cref="IapTransactionJournal"/> or its own ownership record, and a retry must not skip one.
+        /// </summary>
+        public static Outcome Dispatch(UnfinishedPurchaseHandler listeners, string sku, string transactionId,
+            out string error)
+        {
+            error = null;
+            if (listeners == null) return Outcome.Unclaimed;
+
+            bool handled = false;
+            Delegate[] each = listeners.GetInvocationList();
+            for (int i = 0; i < each.Length; i++)
+            {
+                try
+                {
+                    if (((UnfinishedPurchaseHandler)each[i])(sku, transactionId)) handled = true;
+                }
+                catch (Exception e)
+                {
+                    if (error == null) error = e.Message;
+                }
+            }
+            if (error != null) return Outcome.Failed;
+            return handled ? Outcome.Handled : Outcome.Unclaimed;
         }
     }
 

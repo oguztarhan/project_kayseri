@@ -1099,10 +1099,17 @@ public void Hide()
             RefreshOffers();
         }
 
-        /// <summary>Uygulama ödeme ile ödül arasında kapandıysa yeni satın alımı tam olarak bir kez bitirir.</summary>
-        private void CompleteUnfinishedPurchase(string sku, string transactionId)
+        /// <summary>
+        /// Uygulama ödeme ile ödül arasında kapandıysa yeni satın alımı tam olarak bir kez bitirir.
+        /// True only once the reward is on disk; false for a sku this store does not sell (the season
+        /// pass is its own service's), so the order is never acknowledged on the store's silence.
+        /// </summary>
+        private bool CompleteUnfinishedPurchase(string sku, string transactionId)
         {
-            if (TransactionProcessed(transactionId)) return;
+            // Without the save there is nowhere to put the reward before the order is acknowledged.
+            if (_data == null || _save == null)
+                throw new InvalidOperationException("Mağaza kaydı hazır değil: " + sku);
+            if (TransactionProcessed(transactionId)) return true;
             for (int i = 0; i < offers.Count; i++)
             {
                 OfferBinding offer = offers[i];
@@ -1115,7 +1122,7 @@ public void Hide()
                 }
                 else if (!Owned(offer)) Grant(offer, transactionId);
                 else SavePurchase(transactionId);
-                return;
+                return true;
             }
 
             // Elmas paketleri offers'ta değil items'ta durur; kalıcı hak satmadıkları için Grant
@@ -1124,9 +1131,10 @@ public void Hide()
             {
                 StoreItem item = items[i];
                 if (item == null || item.kind != StoreItemKind.GemPackIAP || item.sku != sku) continue;
-                if (_wallet != null) _wallet.AddGems(item.gemAmount);
+                if (_wallet == null) throw new InvalidOperationException("Cüzdan hazır değil: " + sku);
+                _wallet.AddGems(item.gemAmount);
                 SavePurchase(transactionId);
-                return;
+                return true;
             }
 
             // Ada teklifleri hiçbir listede durmaz, OfferPopupUI onları çalışma anında kurar.
@@ -1138,10 +1146,10 @@ public void Hide()
                 if (NothingToGrant(island))
                     throw new InvalidOperationException("Ada teklifi henüz ödenemez (gelir yok): " + sku);
                 Grant(island, transactionId);
-                return;
+                return true;
             }
 
-            throw new InvalidOperationException("IAP katalogda bulunamadı: " + sku);
+            return false;
         }
 
         /// <summary>
