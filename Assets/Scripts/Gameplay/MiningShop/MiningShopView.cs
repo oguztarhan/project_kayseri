@@ -76,6 +76,24 @@ namespace Game.Gameplay
         [Tooltip("Esnemenin boyu: 0.2 = boyu %20 uzar, eni yarısı kadar daralır.")]
         [SerializeField, Range(0f, 0.5f)] private float tipHopStretch = 0.2f;
 
+        [Header("Madenci aksesuarları")]
+        [Tooltip("Müşteri baretlerinin renkleri; sıradaki müşteriler sırayla bunları giyer, kontrat müşterisi ilkini.")]
+        [SerializeField] private Color[] minerHelmetColors =
+        {
+            new Color(1f, 0.8f, 0.1f), new Color(1f, 0.48f, 0.08f), new Color(0.95f, 0.95f, 0.92f), new Color(0.88f, 0.16f, 0.12f),
+        };
+        [Tooltip("Baretin eni, kişi boyuna oranla. Gerçeğinden büyük: ada kamerasından okunsun diye.")]
+        [SerializeField, Range(0.1f, 0.6f)] private float minerHelmetSize = 0.3f;
+        [Tooltip("Baretin merkezi, gövdenin tepesine göre (dünya birimi; +Z yüzün baktığı yön).")]
+        [SerializeField] private Vector3 minerHelmetOffset = new Vector3(0f, -4f, 0f);
+        [SerializeField] private Vector3 minerHelmetRotation = new Vector3(-8f, 0f, 0f);
+        [Tooltip("Sırttaki kazmanın sap boyu, kişi boyuna oranla. Dükkânın kazma boyundan bağımsız.")]
+        [SerializeField, Range(0.1f, 0.8f)] private float backPickaxeSize = 0.38f;
+        [Tooltip("Sırttaki kazmanın sapının dibi, ayaklara göre (dünya birimi; -Z sırt).")]
+        [SerializeField] private Vector3 backPickaxeOffset = new Vector3(4f, 22f, -10f);
+        [Tooltip("Sırttaki kazmanın duruşu. Z açısı başını sol omzun üstüne yatırır: sağ el alınan malı taşır.")]
+        [SerializeField] private Vector3 backPickaxeRotation = new Vector3(-8f, 0f, 30f);
+
         /// <summary>Anchor and route names per product, in MiningShopCampaign.ProductIdAt order.</summary>
         private static readonly string[] Names = { "Pickaxe", "Helmet", "Lantern", "Bag" };
 
@@ -115,7 +133,7 @@ namespace Game.Gameplay
         private Transform[] _queue;
         private readonly Line[] _lines = new Line[MiningShopCampaign.ProductCount];
         private Material _handleMat, _headMat, _helmetMat, _lanternMat, _bagMat, _padMat;
-        private Material[] _plinthMats;
+        private Material[] _plinthMats, _minerHelmetMats;
         private GameObject[] _people;
         private ForemanService _foremen;
         private Walker _carrier;
@@ -250,6 +268,8 @@ namespace Game.Gameplay
             _lanternMat = Tinted(source.sharedMaterial, lanternColor);
             _bagMat = Tinted(source.sharedMaterial, bagColor);
             _padMat = Tinted(source.sharedMaterial, padColor);
+            _minerHelmetMats = new Material[minerHelmetColors.Length];
+            for (int c = 0; c < _minerHelmetMats.Length; c++) _minerHelmetMats[c] = Tinted(source.sharedMaterial, minerHelmetColors[c]);
             // One plinth colour per rarity, the roster's own, so the bench master's disc matches his card.
             _foremen = ServiceLocator.Get<ForemanService>();
             if (_foremen != null)
@@ -280,6 +300,7 @@ namespace Game.Gameplay
             for (int i = 0; i < customerPool; i++)
             {
                 Walker w = Person(people, 2 + i, Slot(0));
+                DressMiner(w, i);
                 w.held = new Transform[MiningShopCampaign.ProductCount];
                 for (int p = 0; p < w.held.Length; p++) w.held[p] = Carried(p, w.body, 0);
                 w.body.gameObject.SetActive(false);
@@ -357,6 +378,64 @@ namespace Game.Gameplay
             DestroyMaterial(_lanternMat); DestroyMaterial(_bagMat); DestroyMaterial(_padMat);
             DestroyMaterial(_crateMat); DestroyMaterial(_badgeMat);
             if (_plinthMats != null) for (int r = 0; r < _plinthMats.Length; r++) DestroyMaterial(_plinthMats[r]);
+            if (_minerHelmetMats != null) for (int c = 0; c < _minerHelmetMats.Length; c++) DestroyMaterial(_minerHelmetMats[c]);
+        }
+
+        /// <summary>
+        /// Makes a customer read as a miner: a hard hat with a headlamp on the Head bone and a pickaxe across the back
+        /// on the Chest bone, so both follow the walk, the idle and the tip stretch. Built once per body, never per
+        /// frame. Laid out in the body's own space while the fresh instance still stands in its prefab pose, then
+        /// handed to the bone keeping its world place: the rigs' bones sit under a ×100 armature scale. A body with no
+        /// such bones keeps them on the walker itself.
+        /// </summary>
+        private void DressMiner(Walker w, int variant)
+        {
+            if (_minerHelmetMats == null || _minerHelmetMats.Length == 0) return;
+            Material shell = _minerHelmetMats[variant % _minerHelmetMats.Length];
+            float s = personHeight * minerHelmetSize;
+
+            var hat = new GameObject("MadenciBareti").transform;
+            hat.SetParent(w.body, false);
+            hat.localPosition = Vector3.up * personHeight + minerHelmetOffset;
+            hat.localRotation = Quaternion.Euler(minerHelmetRotation);
+            Part(PrimitiveType.Sphere, hat, shell, Vector3.zero, new Vector3(s, s * 0.72f, s));
+            Part(PrimitiveType.Cylinder, hat, shell, new Vector3(0f, -s * 0.12f, s * 0.06f), new Vector3(s * 1.18f, s * 0.035f, s * 1.18f));
+            Transform lamp = Part(PrimitiveType.Cylinder, hat, _headMat, new Vector3(0f, s * 0.08f, s * 0.47f), new Vector3(s * 0.26f, s * 0.06f, s * 0.26f));
+            lamp.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            Transform lens = Part(PrimitiveType.Cylinder, hat, _lanternMat, new Vector3(0f, s * 0.08f, s * 0.53f), new Vector3(s * 0.2f, s * 0.02f, s * 0.2f));
+            lens.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            NoShadow(lamp);
+            NoShadow(lens);
+
+            Transform pick = Item(0, w.body, backPickaxeOffset);
+            pick.name = "SirtKazmasi";
+            pick.localRotation = Quaternion.Euler(backPickaxeRotation);
+            // Item draws a pickaxe pickaxeLength long, which is shop tuning; this one is sized to the person.
+            pick.localScale = Vector3.one * (personHeight * backPickaxeSize / Mathf.Max(1f, pickaxeLength));
+            pick.gameObject.SetActive(true);
+
+            Transform head = FindBone(w.body, "Head");
+            if (head != null) hat.SetParent(head, true);
+            Transform chest = FindBone(w.body, "Chest");
+            if (chest != null) pick.SetParent(chest, true);
+        }
+
+        private static Transform FindBone(Transform t, string name)
+        {
+            if (t.name == name) return t;
+            for (int i = 0; i < t.childCount; i++)
+            {
+                Transform found = FindBone(t.GetChild(i), name);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private static void NoShadow(Transform part)
+        {
+            var r = part.GetComponent<Renderer>();
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
         }
 
         /// <summary>
@@ -453,6 +532,8 @@ namespace Game.Gameplay
             _badgeMat = Tinted(source, contractBadgeColor);
             // The last of the pack: never one of the queue's faces, which start at the front of it.
             _contractor = Person(people, people.Length - 1, ContractSpot());
+            // Dressed at one: DressMiner measures in the body's own units, before the contract scale is applied.
+            DressMiner(_contractor, 0);
             _contractor.body.localScale = Vector3.one * contractScale;
             _contractor.held = new Transform[MiningShopCampaign.ProductCount];
             for (int p = 0; p < _contractor.held.Length; p++) _contractor.held[p] = Carried(p, _contractor.body, 0);
@@ -808,7 +889,7 @@ namespace Game.Gameplay
             return root;
         }
 
-        private static void Part(PrimitiveType type, Transform parent, Material material, Vector3 position, Vector3 scale)
+        private static Transform Part(PrimitiveType type, Transform parent, Material material, Vector3 position, Vector3 scale)
         {
             GameObject go = GameObject.CreatePrimitive(type);
             Destroy(go.GetComponent<Collider>());
@@ -816,6 +897,7 @@ namespace Game.Gameplay
             go.transform.localPosition = position;
             go.transform.localScale = scale;
             go.GetComponent<Renderer>().sharedMaterial = material;
+            return go.transform;
         }
 
         private static Material Tinted(Material source, Color color)
