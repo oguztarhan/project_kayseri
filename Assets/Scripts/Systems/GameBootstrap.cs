@@ -527,7 +527,8 @@ namespace Game.Systems
             // queue is built in OnApplicationPause and torn down again on the way back.
             _notifications = new NotificationService(Data, offlineConfig, _time,
                                                      ServiceLocator.Get<INotifications>(), contract,
-                                                     notificationTestSpacingSeconds, OfflineEarningsAllowed);
+                                                     notificationTestSpacingSeconds, OfflineEarningsAllowed,
+                                                     ServiceLocator.Get<ShopCoinService>());
             ServiceLocator.Register(_notifications);
             _notifications.RefreshOpenedTarget();
 

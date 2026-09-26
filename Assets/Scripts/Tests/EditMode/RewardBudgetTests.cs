@@ -62,6 +62,7 @@ namespace Game.Tests
         private const string ChapterConfigPath = "Assets/Data/ChapterConfig.asset";
         // The shop's contracts replaced the port ship's in the budget: the port only runs in ore mode.
         private const string ShopContractConfigPath = "Assets/Data/ShopContractConfig.asset";
+        private const string ShopCoinConfigPath = "Assets/Data/ShopCoinConfig.asset";
         private const string FoundryConfigPath = "Assets/Data/FoundryFestivalConfig.asset";
         private const string PassConfigPath = "Assets/Data/SeasonalIndustryPassConfig.asset";
         private const string LiveEventConfigPath = "Assets/Data/LiveEventConfig.asset";
@@ -198,6 +199,13 @@ namespace Game.Tests
             var contracts = AssetDatabase.LoadAssetAtPath<ShopContractConfig>(ShopContractConfigPath);
             Assert.That(contracts, Is.Not.Null, ShopContractConfigPath);
             b.AddWeekly("Contracts", ShopContractGemsEach(contracts.ToTuning()) * ContractsPerDay * 7d);
+
+            // Shop coins: an engaged player taps the whole cap every 48-hour cycle.
+            var coins = AssetDatabase.LoadAssetAtPath<ShopCoinConfig>(ShopCoinConfigPath);
+            Assert.That(coins, Is.Not.Null, ShopCoinConfigPath);
+            ShopCoins.Tuning coinTuning = coins.ToTuning();
+            b.AddWeekly("Shop coins", ShopCoins.ExpectedGems(coinTuning) * coinTuning.CoinsPerCycle
+                                      * 7d * ShopCoins.DaySeconds / ShopCoins.CycleSeconds);
 
             b.AddWeekly("League", TypicalLeagueGems() * 7d / LeagueSeasonDays);
             b.AddWeekly("Ad gem slot", AdGemSlotGemsPerDay() * 7d);

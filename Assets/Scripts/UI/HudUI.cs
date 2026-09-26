@@ -79,6 +79,10 @@ namespace Game.UI
         [SerializeField, Min(10f)] private float stagePillFont = 30f;
         [SerializeField, Min(0f)] private float stagePillPadding = 40f;
         [SerializeField] private Vector2 stagePillWidth = new Vector2(104f, 220f);
+        [Header("Sikke hapı (bölüm hapının altı)")]
+        [Tooltip("Bölüm hapıyla sikke hapı arasındaki boşluk.")]
+        [SerializeField, Min(0f)] private float coinPillGap = 8f;
+        [SerializeField] private Vector2 coinPillWidth = new Vector2(150f, 300f);
         [SerializeField] private Button settingsButton;
         [Tooltip("Altın hapının kendisi. Üstündeki + rozeti mağazayı vaat ediyor, o yüzden hap da mağazayı açar.")]
         [SerializeField] private Button goldButton;
@@ -246,7 +250,15 @@ namespace Game.UI
         private RectTransform _stageIndicator;
         private TMP_Text _stageIndicatorLabel;
         private string _shownStageLabel;
-        private string _fitRate, _fitBoost, _fitShield, _fitStage;   // the text each pill was last sized to
+        private string _fitRate, _fitBoost, _fitShield, _fitStage, _fitCoin;   // the text each pill was last sized to
+
+        // The shop-coin pill, another clone of the rate pill, under the stage pill: coins collected this 48-hour
+        // cycle and the time to the reset. Rebuilt only when the count or the shown clock unit changes.
+        private ShopCoinService _shopCoins;
+        private RectTransform _coinPill;
+        private TMP_Text _coinPillLabel;
+        private float _coinPillIcon;
+        private long _coinPillKey = long.MinValue;
 
         // The objective strip under the currency bar. Its position is solved from the authored rects
         // above it rather than authored itself, so it is re-solved whenever the sheet changes size.
@@ -277,6 +289,7 @@ namespace Game.UI
             if (_market != null && _market.MiningShopBusiness != null && GetComponent<ShopContractMarker>() == null)
                 gameObject.AddComponent<ShopContractMarker>();
             _shopContract = ServiceLocator.Get<ShopContractService>();
+            _shopCoins = ServiceLocator.Get<ShopCoinService>();
             if (_shopContract != null) BuildShopContractScreens();
             if (goldValue != null) goldValue.color = counterTextColor;
             if (gemsValue != null) gemsValue.color = counterTextColor;
@@ -341,6 +354,7 @@ namespace Game.UI
             }
             ApplySafeArea();
             BuildStageIndicator();
+            BuildCoinPill();
             PlaceStageIndicator();
             LayoutBottomRow();
             if (!compactShipyardHud)
@@ -861,6 +875,86 @@ namespace Game.UI
             _stageIndicator.anchoredPosition = new Vector2(-stagePillRight,
                                                             settingsRect.anchoredPosition.y
                                                             - settingsRect.rect.height - 12f);
+            PlaceCoinPill();
+        }
+
+        /// <summary>
+        /// The shop-coin pill: a clone of the rate pill like the stage pill, with the coin sprite on its left. Only
+        /// built while a shop is open, since coins exist nowhere else.
+        /// </summary>
+        private void BuildCoinPill()
+        {
+            if (_coinPill != null || _shopCoins == null || settingsButton == null || rateButton == null) return;
+            Transform topBar = settingsButton.transform.parent;
+            if (topBar == null) return;
+
+            GameObject clone = Instantiate(rateButton.gameObject, topBar, false);
+            clone.name = "SikkeHapi";
+            var button = clone.GetComponent<Button>();
+            if (button != null) button.enabled = false;
+            var touchPad = clone.GetComponent<TouchPad>();
+            if (touchPad != null) Destroy(touchPad);
+            _coinPill = clone.transform as RectTransform;
+            _coinPill.localScale = Vector3.one;
+            _coinPillLabel = clone.GetComponentInChildren<TMP_Text>(true);
+
+            _coinPillIcon = infoPillHeight * 0.8f;
+            var icon = new GameObject("Sikke", typeof(RectTransform), typeof(Image));
+            icon.transform.SetParent(_coinPill, false);
+            var iconRect = (RectTransform)icon.transform;
+            iconRect.anchorMin = iconRect.anchorMax = new Vector2(0f, 0.5f);
+            iconRect.pivot = new Vector2(0f, 0.5f);
+            iconRect.sizeDelta = new Vector2(_coinPillIcon, _coinPillIcon);
+            iconRect.anchoredPosition = new Vector2(infoPillHeight * 0.15f, 0f);
+            Image image = icon.GetComponent<Image>();
+            image.sprite = UiSkin.Coin;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            _coinPill.gameObject.SetActive(false);
+        }
+
+        /// <summary>Under the stage pill when it shows, otherwise straight under Settings, right-aligned with both.</summary>
+        private void PlaceCoinPill()
+        {
+            if (_coinPill == null || settingsButton == null) return;
+            RectTransform settingsRect = (RectTransform)settingsButton.transform;
+            _coinPill.anchorMin = settingsRect.anchorMin;
+            _coinPill.anchorMax = settingsRect.anchorMax;
+            _coinPill.pivot = new Vector2(1f, 1f);
+            float top = settingsRect.anchoredPosition.y - settingsRect.rect.height - 12f;
+            if (_stageIndicator != null && _stageIndicator.gameObject.activeSelf)
+                top = _stageIndicator.anchoredPosition.y - _stageIndicator.rect.height - coinPillGap;
+            _coinPill.anchoredPosition = new Vector2(-stagePillRight, top);
+        }
+
+        /// <summary>
+        /// "7/12 · 1 DAY 4 H". The text is rebuilt only when the count changes or the clock's shown unit does —
+        /// hourly while more than an hour is left, then every second — so the quarter-second refresh allocates
+        /// nothing in between.
+        /// </summary>
+        private void RefreshCoinPill()
+        {
+            if (_coinPill == null) return;
+            bool visible = _shopCoins.Unlocked;
+            if (_coinPill.gameObject.activeSelf != visible)
+            {
+                _coinPill.gameObject.SetActive(visible);
+                PlaceCoinPill();
+            }
+            if (!visible || _coinPillLabel == null) return;
+
+            long left = _shopCoins.SecondsToReset;
+            int collected = _shopCoins.Collected;
+            long unit = left >= 3600L ? left / 3600L : -left;
+            long key = unit * 64L + collected;
+            if (key == _coinPillKey) return;
+            _coinPillKey = key;
+            _coinPillLabel.text = collected + "/" + _shopCoins.CoinsPerCycle + " · " + LongClock(left);
+            FitPill(_coinPill, _coinPillLabel, ref _fitCoin, infoPillHeight, infoPillFont,
+                    infoPillPadding + _coinPillIcon, coinPillWidth);
+            // FitPill centres the label; the coin takes the left of the plate, so the text sits right of it.
+            var labelRect = (RectTransform)_coinPillLabel.transform;
+            labelRect.anchoredPosition = new Vector2(_coinPillIcon * 0.5f, labelRect.anchoredPosition.y);
         }
 
         /// <summary>
@@ -1535,6 +1629,12 @@ namespace Game.UI
         /// <summary>The gem counter, for rewards that fly gems into it. Null when the HUD has none wired.</summary>
         public RectTransform GemsCounter => gemsValue != null ? gemsValue.rectTransform : null;
 
+        /// <summary>The cash counter, for rewards that fly coins into it. Null when the HUD has none wired.</summary>
+        public RectTransform CashCounter => goldValue != null ? goldValue.rectTransform : null;
+
+        /// <summary>The running-boost pill, for rewards that start a boost. Null when the HUD has none wired.</summary>
+        public RectTransform BoostCounter => boostIndicator != null ? boostIndicator.transform as RectTransform : null;
+
         /// <summary>A shop receipt, remembered only for the rate pill. MarketService has already paid the wallet.</summary>
         private void OnShopSold(MiningShopBusinessSimulation.Sale sale)
         {
@@ -1563,6 +1663,7 @@ namespace Game.UI
         private void Refresh()
         {
             RefreshStageIndicator();
+            RefreshCoinPill();
             if (rateValue != null && _market != null && _market.MiningShopBusiness != null)
                 rateValue.text = ShopStatus(_market.MiningShopBusiness.View);
             else if (rateValue != null && _op != null)

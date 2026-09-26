@@ -30,6 +30,7 @@ namespace Game.Systems
         private readonly TimeService _time;
         private readonly INotifications _sink;
         private readonly ContractService _contract;
+        private readonly ShopCoinService _shopCoins;
         private readonly int _testSpacing;
         private readonly bool _offlineAllowed;
         private readonly NotificationSlot[] _slots = new NotificationSlot[NotificationPlan.MaxSlots];
@@ -40,13 +41,15 @@ namespace Game.Systems
 
         public NotificationService(SaveData data, OfflineConfig config, TimeService time,
                                    INotifications sink, ContractService contract = null,
-                                   int testSpacingSeconds = 0, bool offlineEarningsAllowed = true)
+                                   int testSpacingSeconds = 0, bool offlineEarningsAllowed = true,
+                                   ShopCoinService shopCoins = null)
         {
             _data = data;
             _config = config;
             _time = time;
             _sink = sink;
             _contract = contract;
+            _shopCoins = shopCoins;
             _testSpacing = testSpacingSeconds;
             _offlineAllowed = offlineEarningsAllowed;
         }
@@ -113,6 +116,7 @@ namespace Game.Systems
 
             AddRepairCandidates(ref candidateCount);
             AddContractCandidates(ref candidateCount);
+            AddShopCoinCandidate(ref candidateCount);
 
             int planned = NotificationSchedulePlanner.Build(leaveLocal, _candidates, candidateCount, _planned);
             for (int i = 0; i < planned; i++)
@@ -221,6 +225,31 @@ namespace Game.Systems
                 Target = "contract",
                 AfterSeconds = untilOffers,
                 Priority = 80
+            };
+        }
+
+        /// <summary>
+        /// One line when the next 48-hour coin cycle opens, and only for a player who has been collecting coins
+        /// this cycle: someone who has never tapped one is not called back for them. It goes through the planner
+        /// like everything else, so quiet hours, the three-hour gap and the daily cap apply; it outranks the
+        /// generic come-back lines and yields to contracts and repairs.
+        /// </summary>
+        private void AddShopCoinCandidate(ref int count)
+        {
+            if (_shopCoins == null || count >= _candidates.Length) return;
+            if (!_shopCoins.Unlocked || _shopCoins.Frozen || _shopCoins.Collected <= 0) return;
+            // A minute past the turn, so a device clock a little behind still finds the new cycle open.
+            long after = _shopCoins.SecondsToReset + 60L;
+            if (after > int.MaxValue) return;
+            _candidates[count++] = new NotificationCandidate
+            {
+                Id = "shopcoins:cycle",
+                Title = Loc.T("bildirim.sikke_baslik"),
+                Message = string.Format(Loc.T("bildirim.sikke"), _shopCoins.CoinsPerCycle),
+                // No deep link: opening the game lands on the shop, where the coins spawn.
+                Target = string.Empty,
+                AfterSeconds = (int)after,
+                Priority = 60
             };
         }
 

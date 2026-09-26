@@ -345,6 +345,8 @@ bildirim.kontrat_odul_baslik	Teslimat tamamlandı	Delivery complete	Lieferung ab
 bildirim.kontrat_odul	Kontrat ödülün limanda hazır.	Your contract reward is ready at the port.	Deine Vertragsbelohnung liegt im Hafen bereit.	Ta récompense de contrat est prête au port.	La recompensa de tu contrato está lista en el puerto.	A recompensa do contrato está pronta no porto.	La ricompensa del contratto è pronta al porto.	Nagroda za kontrakt czeka w porcie.	Награда за контракт ждёт в порту.	Hadiah kontrakmu siap di pelabuhan.	Phần thưởng hợp đồng đang chờ ở cảng.
 bildirim.kontrat_geldi_baslik	Kontrat gemisi limanda	Contract ship at the port	Vertragsschiff im Hafen	Navire de contrat au port	Barco de contratos en el puerto	Navio de contratos no porto	Nave dei contratti al porto	Statek kontraktowy w porcie	Контрактное судно в порту	Kapal kontrak di pelabuhan	Tàu hợp đồng đã cập cảng
 bildirim.kontrat_geldi	{0} yeni teklif seni bekliyor.	{0} new offers are waiting for you.	{0} neue Angebote warten auf dich.	{0} nouvelles offres t'attendent.	Te esperan {0} ofertas nuevas.	{0} novas ofertas estão à tua espera.	{0} nuove offerte ti aspettano.	Czekają na ciebie {0} nowe oferty.	Вас ждут {0} новых предложения.	{0} tawaran baru menunggumu.	{0} đề nghị mới đang chờ bạn.
+bildirim.sikke_baslik	Yeni sikkeler geldi	New coins are here	Neue Münzen sind da	De nouvelles pièces sont là	Han llegado monedas nuevas	Chegaram moedas novas	Sono arrivate nuove monete	Nowe monety już są	Новые монеты уже здесь	Koin baru sudah datang	Đồng xu mới đã đến
+bildirim.sikke	Dükkânında {0} yeni sikke seni bekliyor.	{0} new coins are waiting in your shop.	{0} neue Münzen warten in deinem Laden.	{0} nouvelles pièces t'attendent dans ta boutique.	Te esperan {0} monedas nuevas en tu tienda.	{0} moedas novas estão à tua espera na loja.	{0} nuove monete ti aspettano nel negozio.	W twoim sklepie czeka {0} nowych monet.	В твоей лавке ждут {0} новых монет.	{0} koin baru menunggumu di toko.	{0} đồng xu mới đang chờ trong cửa hàng của bạn.
 market.maks	MAKS	MAX	MAX	MAX	MÁX	MÁX	MAX	MAKS	МАКС	MAKS	TỐI ĐA
 # birimler -- sayinin arkasina yapisan kisaltmalar
 birim.saniye	sn	s	s	s	s	s	s	s	с	d	s
@@ -957,6 +959,8 @@ ucan_odul.seri	USTA KARTINA SERİ: {0}/{1}	MASTER CARD STREAK: {0}/{1}	MEISTERKA
 ucan_odul.izle	İZLE VE AL	WATCH & COLLECT	ANSEHEN & ABHOLEN	REGARDER ET RÉCUPÉRER	VER Y RECOGER	VER E COLETAR	GUARDA E RACCOGLI	OBEJRZYJ I ODBIERZ	СМОТРЕТЬ И ЗАБРАТЬ	TONTON & AMBIL	XEM VÀ NHẬN
 ucan_odul.hayir	Hayır, teşekkürler	No, thanks	Nein, danke	Non merci	No, gracias	Não, obrigado	No, grazie	Nie, dziękuję	Нет, спасибо	Tidak, terima kasih	Không, cảm ơn
 ucan_odul.kart	+1 USTA KARTI: {0}	+1 MASTER CARD: {0}	+1 MEISTERKARTE: {0}	+1 CARTE MAÎTRE : {0}	+1 CARTA MAESTRO: {0}	+1 CARTA MESTRE: {0}	+1 CARTA MAESTRO: {0}	+1 KARTA MISTRZA: {0}	+1 КАРТА МАСТЕРА: {0}	+1 KARTU MASTER: {0}	+1 THẺ THỢ CẢ: {0}
+sikke.elmas	+{0} ELMAS	+{0} GEMS	+{0} DIAMANTEN	+{0} GEMMES	+{0} GEMAS	+{0} GEMAS	+{0} GEMME	+{0} KLEJNOTÓW	+{0} АЛМАЗОВ	+{0} PERMATA	+{0} KIM CƯƠNG
+sikke.hiz	×{0} GELİR · {1} SN	×{0} INCOME · {1}S	×{0} EINKOMMEN · {1} S	×{0} REVENUS · {1} S	×{0} INGRESOS · {1} S	×{0} RENDA · {1} S	×{0} ENTRATE · {1} S	×{0} DOCHÓD · {1} S	×{0} ДОХОД · {1} С	×{0} PENDAPATAN · {1} DTK	×{0} THU NHẬP · {1} GIÂY
 maden_dukkani.maks	MAKS	MAX	MAX	MAX	MÁX	MÁX	MAX	MAKS	МАКС	MAKS	TỐI ĐA
 maden_dukkani.mukemmel	MÜKEMMEL!	PERFECT!	PERFEKT!	PARFAIT !	¡PERFECTO!	PERFEITO!	PERFETTO!	IDEALNIE!	ИДЕАЛЬНО!	SEMPURNA!	HOÀN HẢO!
 maden_dukkani.uret	ÜRET	CRAFT	FERTIGEN	CRÉER	FABRICAR	FABRICAR	CREA	WYTWÓRZ	СОЗДАТЬ	BUAT	CHẾ TẠO
