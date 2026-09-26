@@ -117,9 +117,13 @@ namespace Game.UI
         [SerializeField, Min(0f)] private float tipShakeAmplitude = 0.12f;
         [SerializeField, Min(0f)] private float tipShakeSeconds = 0.25f;
         [Header("Goal card")]
-        [Tooltip("Sonraki tezgâh yıldızı kartının ekrandaki yeri; üstteki SATILDI hapının altı.")]
-        [SerializeField] private Vector2 goalMin = new Vector2(0.025f, 0.845f);
-        [SerializeField] private Vector2 goalMax = new Vector2(0.56f, 0.905f);
+        [Tooltip("Sonraki tezgâh yıldızı kartının yatay yeri (ekran genişliğinin payı).")]
+        [SerializeField] private float goalLeft = 0.025f;
+        [SerializeField] private float goalRight = 0.56f;
+        [Tooltip("Kartın üstten uzaklığı ve yüksekliği (tuval birimi). Ekran payı değil: SATILDI hapı da üstten sabit " +
+                 "uzaklıkta durur, 3:4'te payla konan kart onun üstüne biniyordu.")]
+        [SerializeField, Min(0f)] private float goalTop = 196f;
+        [SerializeField, Min(40f)] private float goalHeight = 124f;
         [Tooltip("Kartın yeni hedefe bakma aralığı (sn).")]
         [SerializeField, Min(0.25f)] private float goalRefreshSeconds = 1f;
 
@@ -518,7 +522,7 @@ namespace Game.UI
             _tipConfettiRect = UiBuild.Anchor((RectTransform)confetti.transform, Vector2.zero, Vector2.one);
             _tipConfetti = confetti.AddComponent<ConfettiBurst>();
             _tipConfetti.transform.SetSiblingIndex(1);
-            _goal = BenchGoalUI.Create(canvas, _shop, this, goalMin, goalMax, cardTextColor, starBarTrack, starBarFill);
+            _goal = BenchGoalUI.Create(canvas, _shop, this, goalLeft, goalRight, goalTop, goalHeight);
             _goal.Configure(goalRefreshSeconds);
 
             BuildPicker(canvas);

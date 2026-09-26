@@ -95,7 +95,7 @@ namespace Game.UI
             Image card = EkranKit.Sliced(_root, "Kart", LigKit.Get("odul_pano"),
                                          new Vector2(0.12f, 0.29f), new Vector2(0.88f, 0.69f), false);
             _card = card.rectTransform;
-            _title = EtkinlikKit.Label(_card, "Baslik", new Vector2(0.08f, 0.64f), new Vector2(0.92f, 0.77f),
+            _title = EtkinlikKit.Label(_card, "Baslik", new Vector2(0.12f, 0.64f), new Vector2(0.88f, 0.77f),
                                        string.Empty, 46, TextAnchor.MiddleCenter, EkranKit.Ink, 22);
             _summary = EtkinlikKit.Label(_card, "Ozet", new Vector2(0.24f, 0.55f), new Vector2(0.92f, 0.64f),
                                          string.Empty, 28, TextAnchor.MiddleLeft, EtkinlikKit.InkSoft, 14);
@@ -104,14 +104,15 @@ namespace Game.UI
                                       string.Empty, 56, TextAnchor.MiddleCenter, new Color(0.12f, 0.38f, 0.70f, 1f), 24);
             _premium = EtkinlikKit.Label(_card, "Prim", new Vector2(0.08f, 0.34f), new Vector2(0.92f, 0.41f),
                                          string.Empty, 26, TextAnchor.MiddleCenter, premiumInk, 12);
-            _extras = EtkinlikOdulSatiri.Create(_card, "Ekstra", new Vector2(0.08f, 0.24f), new Vector2(0.92f, 0.34f),
+            _extras = EtkinlikOdulSatiri.Create(_card, "Ekstra", new Vector2(0.08f, 0.255f), new Vector2(0.92f, 0.34f),
                                                 38, new Color(0.12f, 0.38f, 0.70f, 1f), TextAnchor.MiddleCenter);
-            _foreman = EtkinlikKit.Label(_card, "Usta", new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.24f),
+            _foreman = EtkinlikKit.Label(_card, "Usta", new Vector2(0.08f, 0.205f), new Vector2(0.92f, 0.255f),
                                          string.Empty, 24, TextAnchor.MiddleCenter, EtkinlikKit.InkSoft, 12);
 
-            Button close = EtkinlikKit.Capsule(_card, "Harika", new Vector2(0.27f, 0.03f), new Vector2(0.73f, 0.16f),
+            Button close = EtkinlikKit.Capsule(_card, "Harika", new Vector2(0.27f, 0.075f), new Vector2(0.73f, 0.195f),
                                                Close, out _closeLabel);
             EtkinlikKit.SetFace(close, _closeLabel, EtkinlikKit.Face.Claim, true);
+            EtkinlikKit.Fit(_closeLabel, 12, 34);
 
             // On this canvas, after the card, so the paper falls in front of it and above every other screen.
             _confetti = _canvas.gameObject.AddComponent<ConfettiBurst>();

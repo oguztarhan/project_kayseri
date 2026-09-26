@@ -798,16 +798,14 @@ namespace Game.UI
         {
             int role = Captains.RoleOf(captain);
             double first;
-            double second;
             switch (role)
             {
                 case Captains.Gunner:
                     first = (Captains.SalvageMultiplier(captain, level, _captains.Tuning) - 1d) * 100d;
                     return string.Format(Loc.T("kaptan.rol.1.not"), Percent(first));
                 case Captains.Bosun:
-                    first = Captains.RiskReduction(captain, level, _captains.Tuning) * 100d;
-                    second = (1d - Captains.RepairMultiplier(captain, level, _captains.Tuning)) * 100d;
-                    return string.Format(Loc.T("kaptan.rol.2.not"), Percent(first), Percent(second));
+                    first = Captains.LossRefundChance(captain, level, _captains.Tuning) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.2.not"), Percent(first));
                 case Captains.Purser:
                     first = Captains.DirectedShare(captain, level, _captains.Tuning) * 100d;
                     return string.Format(Loc.T("kaptan.rol.3.not"), Percent(first));
@@ -821,7 +819,6 @@ namespace Game.UI
         {
             int role = Captains.RoleOf(captain);
             double first;
-            double second;
             switch (role)
             {
                 case Captains.Gunner:
@@ -829,11 +826,10 @@ namespace Game.UI
                            - Captains.SalvageMultiplier(captain, fromLevel, _captains.Tuning)) * 100d;
                     return string.Format(Loc.T("kaptan.rol.1.not"), Percent(first));
                 case Captains.Bosun:
-                    first = (Captains.RiskReduction(captain, toLevel, _captains.Tuning)
-                           - Captains.RiskReduction(captain, fromLevel, _captains.Tuning)) * 100d;
-                    second = (Captains.RepairMultiplier(captain, fromLevel, _captains.Tuning)
-                            - Captains.RepairMultiplier(captain, toLevel, _captains.Tuning)) * 100d;
-                    return string.Format(Loc.T("kaptan.rol.2.not"), Percent(first), Percent(second));
+                    // A chance, not a bonus: the next level reads as the chance it will be. As a
+                    // difference ("1.4% chance") it read as a worse bosun than the current one.
+                    first = Captains.LossRefundChance(captain, toLevel, _captains.Tuning) * 100d;
+                    return string.Format(Loc.T("kaptan.rol.2.not"), Percent(first));
                 case Captains.Purser:
                     first = (Captains.DirectedShare(captain, toLevel, _captains.Tuning)
                            - Captains.DirectedShare(captain, fromLevel, _captains.Tuning)) * 100d;

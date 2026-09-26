@@ -181,15 +181,17 @@ namespace Game.Tests
             MethodInfo receipt = typeof(SeaFightUI).GetMethod("WinReceipt", BindingFlags.Static | BindingFlags.NonPublic);
             Assert.That(receipt, Is.Not.Null);
 
-            var all = (string)receipt.Invoke(null, new object[] { 3L, 12L, 1L, 2L });
+            var all = (string)receipt.Invoke(null, new object[] { 3L, 12L, 1L, 2L, 500d });
             Assert.That(all, Does.Contain(CurrencyText.Gain(CurrencyId.Charts, 3L)));
             Assert.That(all, Does.Contain(CurrencyText.Gain(CurrencyId.Salvage, 12L)));
             Assert.That(all, Does.Contain(CurrencyText.Gain(CurrencyId.CraftPoints, 1L)));
             Assert.That(all, Does.Contain(CurrencyText.Gain(CurrencyId.Pearls, 2L)));
+            Assert.That(all, Does.Contain(CurrencyText.Name(CurrencyId.Cash)));
 
-            var some = (string)receipt.Invoke(null, new object[] { 3L, 12L, 0L, 0L });
+            var some = (string)receipt.Invoke(null, new object[] { 3L, 12L, 0L, 0L, 0d });
             Assert.That(some, Does.Not.Contain(CurrencyText.Name(CurrencyId.CraftPoints)));
             Assert.That(some, Does.Not.Contain(CurrencyText.Name(CurrencyId.Pearls)));
+            Assert.That(some, Does.Not.Contain(CurrencyText.Name(CurrencyId.Cash)));
         }
 
         // ------------------------------------------------------- other spend buttons

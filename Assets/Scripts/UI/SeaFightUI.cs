@@ -1341,6 +1341,8 @@ namespace Game.UI
                                                                _fights.LastCraftPoints, _fights.LastPearls,
                                                                _fights.LastCashReward)
                     : Loc.T("deniz.yenildik");
+                if (!_fights.LastWon && _fights.LastEnergyRefunded)
+                    _banner.text += "  ·  " + Loc.T("deniz.enerji_iade");
                 if (_fights.LastWon && _fights.IsBossEncounter)
                     _banner.text += "  ·  " + Loc.T(_fights.LastBossFirstClear ? "deniz.boss_ilk" : "deniz.boss");
             }

@@ -877,14 +877,17 @@ namespace Game.Systems
             // find bonus on those would let a collection print salvage out of a stash it did not
             // help fill. See Docs/PLAN_14 for the five paths this deliberately skips.
             CardCollectionEffects gain = Cards != null ? Cards.Effects : CardCollectionEffects.None;
+            // The quartermaster's and gunner's posts multiply on top of the collection's lift: two
+            // separate sources, so neither makes the other pointless.
             if (charts > 0 && _captains != null)
             {
-                LastKillCharts = CardCollection.Scale(charts, gain.SeaChartMultiplier);
+                LastKillCharts = CardCollection.Scale(charts, gain.SeaChartMultiplier * _captains.PostChartMultiplier);
                 _captains.AddCharts(LastKillCharts);
             }
             if (salvage > 0 && _data != null)
             {
-                LastKillSalvage = CardCollection.Scale(salvage, gain.SeaSalvageMultiplier);
+                double gunner = _captains != null ? _captains.PostSalvageMultiplier : 1d;
+                LastKillSalvage = CardCollection.Scale(salvage, gain.SeaSalvageMultiplier * gunner);
                 _data.salvage += LastKillSalvage;
             }
             // The workshop's point drop rides the same win, on the same dice-in-the-service rule.
@@ -892,6 +895,18 @@ namespace Game.Systems
                 LastKillCraftPoints = Crafting.Tuning.PointsPerWin;
             Changed?.Invoke();
             return true;
+        }
+
+        /// <summary>
+        /// The bosun's post: a lost fight may hand back the one energy its search cost. Rolled here, where
+        /// the sea's other dice live, and refused ashore. True when the energy came back.
+        /// </summary>
+        public bool TryRefundLoss()
+        {
+            if (!_atSea || _captains == null) return false;
+            double chance = _captains.PostLossRefundChance;
+            if (chance <= 0d || _random.NextDouble() >= chance) return false;
+            return GrantEnergy(1) > 0;
         }
 
         /// <summary>What the last <see cref="RegisterKill"/> actually banked — after the collection's

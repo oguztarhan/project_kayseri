@@ -79,8 +79,10 @@ namespace Game.UI
             RectTransform infoRect = (RectTransform)infoCard.transform;
             infoRect.SetParent(sheet, false);
             UiBuild.Anchor(infoRect, new Vector2(0.075f, 0.335f), new Vector2(0.925f, 0.68f));
-            Sprite infoArt = PortraitUiArt.Get("general-small-card-panel");
-            if (infoArt != null) PortraitUiArt.Apply(infoCard.GetComponent<Image>(), infoArt);
+            // The -transparent cut: the plain one has its checkerboard baked into the corners, which
+            // the aspect-locked mesh used to trim and a nine-slice draws.
+            Sprite infoArt = PortraitUiArt.Get("general-small-card-panel-transparent");
+            if (infoArt != null) SliceToFill(infoCard.GetComponent<Image>(), infoArt);
             else infoCard.GetComponent<Image>().color = new Color(0.05f, 0.20f, 0.42f, 1f);
             infoCard.GetComponent<Image>().raycastTarget = false;
 
@@ -201,6 +203,39 @@ namespace Game.UI
         public void Hide()
         {
             if (_overlay != null) _overlay.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// The info card art is a 3:1 plate with no slice border. Drawn aspect-locked in its band it
+        /// came out little more than half the band's height, so the effect lines above and below its
+        /// middle sat on its rims and the middle stood empty. Sliced here at the rounded rim, it fills
+        /// the band with the rim drawn exactly as thick as it was.
+        /// </summary>
+        private static void SliceToFill(Image image, Sprite art)
+        {
+            const float RimPixels = 130f;
+            // The width the band gets from the 900-wide sheet: its anchors are 0.075-0.925.
+            const float BandWidth = 900f * 0.85f;
+            Sprite sliced = Sprite.Create(art.texture, art.textureRect, new Vector2(0.5f, 0.5f), art.pixelsPerUnit,
+                                          0, SpriteMeshType.FullRect,
+                                          new Vector4(RimPixels, RimPixels, RimPixels, RimPixels));
+            sliced.name = art.name + " (dilimli)";
+            image.sprite = sliced;
+            image.type = Image.Type.Sliced;
+            image.preserveAspect = false;
+            // Rim units = pixels x 100 / (ppu x multiplier); matching the aspect-locked draw means
+            // pixels x BandWidth / art width.
+            image.pixelsPerUnitMultiplier = 100f * art.textureRect.width / (art.pixelsPerUnit * BandWidth);
+
+            // The art's middle stretched 2.4x tall streaks its fine grain, so the middle is left out and
+            // painted flat in the art's own navy, inside the slice line.
+            image.fillCenter = false;
+            float rim = RimPixels * BandWidth / art.textureRect.width;
+            RectTransform well = UiBuild.Flat(image.rectTransform, "Zemin", new Color(0.047f, 0.208f, 0.435f, 1f),
+                                              Vector2.zero, Vector2.one);
+            well.offsetMin = new Vector2(rim, rim);
+            well.offsetMax = new Vector2(-rim, -rim);
+            well.GetComponent<Image>().raycastTarget = false;
         }
 
         private static Text Label(RectTransform parent, string name, int size, Vector2 min, Vector2 max)

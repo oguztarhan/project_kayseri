@@ -85,6 +85,7 @@ namespace Game.UI
         private SaveData _data;
         private WorldIslands _world;
         private HudUI _hud;
+        private readonly Dictionary<Slot, TMP_Text> _watchLabels = new Dictionary<Slot, TMP_Text>();
         private CoalOperation _op;
         private float _timer;
         private bool _cashAdInFlight;
@@ -106,6 +107,7 @@ namespace Game.UI
                 if (slot == null || slot.watchButton == null) continue;
                 Slot captured = slot;
                 slot.watchButton.onClick.AddListener(() => Watch(captured));
+                _watchLabels[slot] = WatchLabel(slot);
                 if (slot.kind == RewardKind.RecurringCash && slot.label != null)
                 {
                     slot.label.enableAutoSizing = true;
@@ -195,6 +197,8 @@ namespace Game.UI
                 if (slot.label != null) slot.label.text = cash ? CashLabel(cooldown) : LabelFor(slot, left, cooldown);
 
                 if (slot.watchButton != null) slot.watchButton.interactable = ready;
+                if (_watchLabels.TryGetValue(slot, out TMP_Text watch) && watch != null)
+                    watch.text = _free != null && _free.AdsRemoved ? Loc.T("ortak.topla") : Loc.T("reklam.izle");
                 if (slot.watchImage != null && slot.watchReady != null && slot.watchWaiting != null)
                 {
                     slot.watchImage.sprite = ready ? slot.watchReady : slot.watchWaiting;
@@ -209,6 +213,36 @@ namespace Game.UI
         /// The cooldown reads as a clock and the day limit as a plain sentence, so the two "not now"
         /// states are never mistaken for each other.
         /// </summary>
+        /// <summary>
+        /// The watch button's word, on the cream band the btn_izle art leaves right of its ticket.
+        /// The prefab ships the band empty, so the button read as a blank orange bar.
+        /// </summary>
+        private static TMP_Text WatchLabel(Slot slot)
+        {
+            RectTransform host = slot.watchImage != null ? slot.watchImage.rectTransform
+                                                         : (RectTransform)slot.watchButton.transform;
+            var go = new GameObject("IzleYazi", typeof(RectTransform), typeof(TextMeshProUGUI));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(host, false);
+            rt.anchorMin = new Vector2(0.27f, 0.22f);
+            rt.anchorMax = new Vector2(0.92f, 0.78f);
+            rt.offsetMin = rt.offsetMax = Vector2.zero;
+            var text = go.GetComponent<TextMeshProUGUI>();
+            if (slot.label != null)
+            {
+                text.font = slot.label.font;
+                text.fontSharedMaterial = slot.label.fontSharedMaterial;
+            }
+            text.color = EkranKit.Ink;
+            text.alignment = TextAlignmentOptions.Center;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 14f;
+            text.fontSizeMax = 30f;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.raycastTarget = false;
+            return text;
+        }
+
         private string LabelFor(Slot slot, int chargesLeft, float cooldown)
         {
             if (chargesLeft <= 0) return Loc.T("reklam.yarin_gel");

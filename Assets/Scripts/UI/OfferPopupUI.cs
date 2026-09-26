@@ -459,10 +459,14 @@ namespace Game.UI
         /// <summary>What the empire earns a minute — the same sum the store and the HUD price against.</summary>
         private double IncomePerMinute()
         {
-            if (_world == null) return 0d;
             double sum = 0d;
-            for (int i = 0; i < _world.Count; i++) if (_world.IsOwned(i)) sum += _world.RatePerMin(i);
-            return sum;
+            if (_world != null)
+                for (int i = 0; i < _world.Count; i++) if (_world.IsOwned(i)) sum += _world.RatePerMin(i);
+            if (sum > 0d) return sum;
+            // The mining shop replaced the islands' economy on Main, where their rates read 0: the starter
+            // pack showed "$0 · 6 hours of income". Same rung as HudUI.IncomePerMinute.
+            MarketService market = ServiceLocator.Get<MarketService>();
+            return market != null && market.MiningShopBusiness != null ? market.MiningShopIncomePerSec * 60d : 0d;
         }
 
         // ---- open / close -----------------------------------------------------------------------
@@ -727,6 +731,9 @@ namespace Game.UI
                     caption = CardText(rt, "Alt", 28f, new Vector2(0f, -(cardIconSize + 106f)), 80f,
                                        new Color32(0x6B, 0x7A, 0x99, 0xFF)),
                 };
+                // Two caption lines in this font's tall line box measured ~90 in the 80 box, so the second
+                // line ("HIZLANDIRICI") sat on the card's bottom frame. Tighter leading keeps both inside.
+                _cards[i].caption.lineSpacing = -30f;
                 go.SetActive(false);
             }
         }

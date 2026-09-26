@@ -44,6 +44,9 @@ namespace Game.Systems
         private readonly UnityEngine.Color[] _rarityTint;
         private readonly Random _random = new Random();
 
+        /// <summary>The captain roster, for the purser's post. Null leaves every random grant rolled.</summary>
+        public CaptainService Captains { get; set; }
+
         /// <summary>Used when no config is wired, so an unconfigured project still reads correctly
         /// rather than drawing every rarity white.</summary>
         private static readonly UnityEngine.Color[] DefaultRarityTint =
@@ -529,7 +532,10 @@ namespace Game.Systems
         public int GrantRandomDuplicates(int count)
         {
             if (_data == null || count <= 0) return -1;
-            int pick = Roll();
+            // The purser's post: this share of random grants is aimed instead of rolled, so over many
+            // grants that share of the cards lands on whoever is furthest behind.
+            double aimed = Captains != null ? Captains.PostDirectedShare : 0d;
+            int pick = aimed > 0d && _random.NextDouble() < aimed ? AimedMaster() : Roll();
             GrantDuplicates(pick, count);
             return pick;
         }

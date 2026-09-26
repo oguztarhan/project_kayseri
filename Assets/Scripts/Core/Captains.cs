@@ -150,6 +150,11 @@ namespace Game.Core
             /// nothing is a failure with no cost, and the berth is where a failure is supposed to
             /// hurt (Docs/VOYAGES.md §18).</summary>
             public double MinRepairFraction;
+            /// <summary>
+            /// The bosun at sea, where nothing needs repairing and a loss costs only its energy: the
+            /// chance a lost fight hands that energy back is this share of the old repair cut, capped.
+            /// </summary>
+            public double BosunRefundFactor, BosunRefundCap;
 
             /// <summary>Duplicates to go from level L to L+1: Base + Step x (L - 1). No gem cost on
             /// top, unlike the foremen — charts already paid for the crate, and charging twice for one
@@ -205,6 +210,11 @@ namespace Game.Core
                 BosunRiskMythic    = 0.0120d,
 
                 MinRepairFraction = 0.25d,
+
+                // Maxed: Common 14%, Rare 21%, Epic 31.5%, Legendary 45.5%; the Mythic's 63% is held
+                // to half. A refund never makes a loss free more often than not.
+                BosunRefundFactor = 0.35d,
+                BosunRefundCap = 0.50d,
 
                 // 8,16,24,32 = 80 duplicates at Common across four star-ups. It was 2,4,6,… = 90 over
                 // nine; the ladder is shorter and each rung costs more, so the road to a maxed captain
@@ -437,6 +447,41 @@ namespace Game.Core
         {
             if (!Doing(Purser, captain, level)) return 0d;
             return Clamp01(PerLevel(captain, t) * Clamp(level, 0, MaxLevel));
+        }
+
+        /// <summary>
+        /// The chance a lost sea fight gives back the energy it cost. 0 when no bosun is doing the job.
+        /// </summary>
+        public static double LossRefundChance(int captain, int level, in Tuning t)
+        {
+            if (!Doing(Bosun, captain, level)) return 0d;
+            double chance = Math.Max(0d, t.BosunRefundFactor) * PerLevel(captain, t) * Clamp(level, 0, MaxLevel);
+            double cap = Clamp01(t.BosunRefundCap);
+            return chance < cap ? chance : cap;
+        }
+
+        /// <summary>
+        /// Who holds a role's post: the owned captain of that role whose ability is largest (grade times
+        /// level), first of the roster on a tie; -1 when nobody of that role has been pulled. Each of the
+        /// four posts is filled on its own, so every role's ability works at once.
+        /// </summary>
+        public static int BestForRole(int role, int[] levels, in Tuning t)
+        {
+            if (levels == null) return -1;
+            int best = -1;
+            double bestWorth = 0d;
+            int len = levels.Length < Count ? levels.Length : Count;
+            for (int i = 0; i < len; i++)
+            {
+                if (Roster[i].Role != role || levels[i] <= NotOwned) continue;
+                double worth = PerLevel(i, t) * Clamp(levels[i], 0, MaxLevel);
+                if (best < 0 || worth > bestWorth)
+                {
+                    best = i;
+                    bestWorth = worth;
+                }
+            }
+            return best;
         }
 
         private static double Clamp01(double v) => v < 0d ? 0d : (v > 1d ? 1d : v);

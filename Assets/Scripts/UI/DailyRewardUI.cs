@@ -137,6 +137,10 @@ namespace Game.UI
                 for (int i = 0; i < _world.Count; i++) if (_world.IsOwned(i)) sum += _world.RatePerMin(i);
                 if (sum > 0d) return sum;
             }
+            // The mining shop replaced the islands' economy on Main; without this rung "N minutes of
+            // income" paid nothing. Same rung, same order as HudUI.IncomePerMinute.
+            MarketService market = ServiceLocator.Get<MarketService>();
+            if (market != null && market.MiningShopBusiness != null) return market.MiningShopIncomePerSec * 60d;
             if (_op == null || !_op.enabled)
             {
                 var ops = FindObjectsByType<CoalOperation>(FindObjectsSortMode.None);

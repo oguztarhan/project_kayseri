@@ -927,10 +927,20 @@ namespace Game.UI
                 AvatarArt.Show(_avatarHead[k], k);
             }
 
-            LigKit.Capsule(card, "Iptal", Loc.T("lig.profil_iptal"),
-                           new Vector2(0.080f, 0.055f), new Vector2(0.480f, 0.155f),
-                           CancelProfile, out _profileCancelLabel);
+            Button cancel = LigKit.Capsule(card, "Iptal", Loc.T("lig.profil_iptal"),
+                                           new Vector2(0.080f, 0.055f), new Vector2(0.480f, 0.155f),
+                                           CancelProfile, out _profileCancelLabel);
             Fit(_profileCancelLabel, 14, 28);
+            // The kit's pale "not now" face: two greens side by side read as two ways to save.
+            Sprite pale = EkranKit.Get("btn_bos");
+            if (pale != null)
+            {
+                var cancelFace = (Image)cancel.targetGraphic;
+                cancelFace.sprite = pale;
+                var fit = cancelFace.GetComponent<PillFit>();
+                if (fit != null) fit.Fit();
+                _profileCancelLabel.color = EkranKit.Ink;
+            }
             LigKit.Capsule(card, "Kaydet", Loc.T("lig.profil_kaydet"),
                            new Vector2(0.520f, 0.055f), new Vector2(0.920f, 0.155f),
                            SaveProfile, out _profileSaveLabel);

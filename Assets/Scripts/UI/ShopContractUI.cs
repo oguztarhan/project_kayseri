@@ -136,6 +136,7 @@ namespace Game.UI
             _accept = EtkinlikKit.Capsule(sheet, "KabulEt", new Vector2(0.250f, 0.070f), new Vector2(0.750f, 0.170f),
                                           OnAccept, out _acceptLabel);
             EtkinlikKit.SetFace(_accept, _acceptLabel, EtkinlikKit.Face.Claim, true);
+            EtkinlikKit.Fit(_acceptLabel, 12, 34);   // the row capsules' 24 read small on a button this wide
             _status = EtkinlikKit.Label(sheet, "Durum", new Vector2(0.090f, 0.070f), new Vector2(0.910f, 0.170f),
                                         string.Empty, 28, TextAnchor.MiddleCenter, EkranKit.Ink, 14);
 

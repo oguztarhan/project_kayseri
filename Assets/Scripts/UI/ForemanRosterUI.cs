@@ -456,6 +456,8 @@ namespace Game.UI
             _chestBlurb = UiBuild.Label(Slot(shelf, "Aciklama", new Vector2(0.195f, 0.090f), new Vector2(0.560f, 0.630f)),
                                         "Text", string.Empty, 19, TextAnchor.UpperLeft);
             _chestBlurb.color = InkFaint;
+            // Wrapped inside its column: the card sources run long in de/fr and ran under the x10 pill.
+            _chestBlurb.horizontalOverflow = HorizontalWrapMode.Wrap;
 
             _singleButton = ShelfButton(shelf, "Tek", new Vector2(0.580f, 0.690f), new Vector2(0.985f, 0.955f),
                                         () => Open(1), out _chestSingle);
@@ -799,6 +801,10 @@ namespace Game.UI
             Capsule(locked);
             _activeLabel[station] = mark != null ? mark.GetComponentInChildren<Text>(true) : null;
             _lockLabel[station] = locked != null ? locked.GetComponentInChildren<Text>(true) : null;
+            // The prefab's label reaches the capsule's very edge, over its round end, so GESPERRT /
+            // VERROUILLÉ ran past the pill. Kept off the cap and shrunk to what is left.
+            FitBadgeLabel(_activeLabel[station]);
+            FitBadgeLabel(_lockLabel[station]);
 
             for (int i = 0; i < Foremen.MaxStars; i++)
                 _star[station * Foremen.MaxStars + i] = FindIn<Image>(card, "Yildiz" + i);
@@ -838,6 +844,14 @@ namespace Game.UI
         /// frame above it: the prefab's rectangle is 0.60 of the card wide, which is wider than the
         /// frame's rounded foot, so its square corners hung out past it.
         /// </summary>
+        private static void FitBadgeLabel(Text label)
+        {
+            if (label == null) return;
+            RectTransform rect = label.rectTransform;
+            rect.anchorMax = new Vector2(Mathf.Min(rect.anchorMax.x, 0.90f), rect.anchorMax.y);
+            EtkinlikKit.Fit(label, 10, label.fontSize);
+        }
+
         private static void Capsule(Transform mark)
         {
             var image = mark != null ? mark.GetComponent<Image>() : null;
@@ -1453,9 +1467,12 @@ namespace Game.UI
                 // A master on a shop bench names the bench where his station would be: it is where he works now.
                 MiningShopBusinessService shop = ServiceLocator.Get<MarketService>()?.MiningShopBusiness;
                 int bench = shop != null ? shop.BenchOf(m) : -1;
-                _station[m].text = bench >= 0
+                string where = bench >= 0
                     ? Loc.T(MiningShopUpgradeUI.BenchTitleKey(bench))
                     : Loc.Id("usta.istasyon", Foremen.StationIds[Foremen.StationOf(m)]);
+                // Legacy Text never breaks after a hyphen, so a German compound (SPITZHACKEN-WERKBANK)
+                // was split mid-word in this narrow slot. Break it where the word already joins.
+                _station[m].text = where.IndexOf('-') > 0 ? where.Replace("-", "-\n") : where;
             }
 
             // One badge or the other, never both and never neither-when-it-matters: posted, or not

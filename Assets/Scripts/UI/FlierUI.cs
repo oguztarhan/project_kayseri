@@ -72,11 +72,8 @@ namespace Game.UI
         [SerializeField, Min(0f)] private float noThanksDelay = 1.5f;
         [Tooltip("Seri usta kartı verince yazının ekranda kalma süresi (sn).")]
         [SerializeField, Min(0.3f)] private float cardToastSeconds = 2.5f;
-        [SerializeField] private Color panelColor = new Color(0.1f, 0.12f, 0.16f, 0.95f);
-        [SerializeField] private Color textColor = new Color(0.16f, 0.2f, 0.27f);
-        [SerializeField] private Color dimColor = new Color(0f, 0f, 0f, 0.6f);
-        [SerializeField] private Color streakTrack = new Color(0f, 0f, 0f, 0.3f);
-        [SerializeField] private Color streakFill = new Color(1f, 0.78f, 0.2f);
+        [SerializeField] private Color dimColor = new Color(0.02f, 0.03f, 0.06f, 0.78f);
+        [SerializeField] private Color amountInk = new Color(0.12f, 0.38f, 0.70f, 1f);
 
         private FlierService _service;
         private MarketService _market;
@@ -92,7 +89,7 @@ namespace Game.UI
         private float _flightClock = -1f, _direction = 1f, _depth;
         private RectTransform _hit, _popup, _noThanks;
         private Text _amount, _streak, _watchText, _toast, _title, _noThanksText;
-        private RectTransform _streakFill;
+        private Image _streakFill;
         private float _popupClock, _toastClock, _checkClock;
         private double _offer;
 
@@ -345,42 +342,30 @@ namespace Game.UI
             RectTransform canvas = UiBuild.Canvas(transform, "UcanOdulTeklif", popupSortingOrder);
             _popup = UiBuild.Flat(canvas, "Karartma", dimColor, Vector2.zero, Vector2.one);
             _popup.GetComponent<Image>().raycastTarget = true;
-            RectTransform box = UiBuild.Box(_popup, "Kutu", panelColor, new Vector2(0.1f, 0.36f), new Vector2(0.9f, 0.64f));
+            // The contract celebration's crowned card: the same reward-moment family, one size smaller.
+            RectTransform box = EkranKit.Sliced(_popup, "Kart", LigKit.Get("odul_pano"),
+                                                new Vector2(0.12f, 0.31f), new Vector2(0.88f, 0.67f), false).rectTransform;
 
-            Text title = UiBuild.Label(box, "Baslik", Loc.T("ucan_odul.baslik"), 38, TextAnchor.MiddleCenter);
-            UiBuild.Anchor(title.rectTransform, new Vector2(0.05f, 0.82f), new Vector2(0.95f, 0.96f));
-            Fit(title, 18, 38);
-            _title = title;
+            _title = EtkinlikKit.Label(box, "Baslik", new Vector2(0.12f, 0.655f), new Vector2(0.88f, 0.765f),
+                                       string.Empty, 36, TextAnchor.MiddleCenter, EkranKit.Ink, 20);
+            EkranKit.Icon(box, "Para", UiSkin.Coin, new Vector2(0.41f, 0.545f), new Vector2(0.59f, 0.665f));
+            _amount = EtkinlikKit.Label(box, "Miktar", new Vector2(0.08f, 0.44f), new Vector2(0.92f, 0.545f),
+                                        string.Empty, 56, TextAnchor.MiddleCenter, amountInk, 24);
+            _streak = EtkinlikKit.Label(box, "Seri", new Vector2(0.08f, 0.375f), new Vector2(0.92f, 0.44f),
+                                        string.Empty, 26, TextAnchor.MiddleCenter, EtkinlikKit.InkSoft, 14);
+            _streakFill = EtkinlikKit.Bar(box, "SeriCubuk", new Vector2(0.22f, 0.33f), new Vector2(0.78f, 0.365f), "cubuk_altin");
 
-            var coin = new GameObject("Para", typeof(RectTransform), typeof(Image));
-            coin.transform.SetParent(box, false);
-            Image coinImage = coin.GetComponent<Image>();
-            coinImage.sprite = UiSkin.Coin;
-            coinImage.enabled = coinImage.sprite != null;
-            coinImage.preserveAspect = true;
-            coinImage.raycastTarget = false;
-            UiBuild.Anchor((RectTransform)coin.transform, new Vector2(0.4f, 0.58f), new Vector2(0.6f, 0.82f));
+            Button watch = EtkinlikKit.Capsule(box, "Izle", new Vector2(0.22f, 0.195f), new Vector2(0.78f, 0.305f),
+                                               Watch, out _watchText);
+            EtkinlikKit.SetFace(watch, _watchText, EtkinlikKit.Face.Claim, true);
+            EtkinlikKit.Fit(_watchText, 12, 34);
 
-            _amount = UiBuild.Label(box, "Miktar", string.Empty, 52, TextAnchor.MiddleCenter);
-            UiBuild.Anchor(_amount.rectTransform, new Vector2(0.05f, 0.44f), new Vector2(0.95f, 0.58f));
-
-            _streak = UiBuild.Label(box, "Seri", string.Empty, 26, TextAnchor.MiddleCenter);
-            UiBuild.Anchor(_streak.rectTransform, new Vector2(0.05f, 0.33f), new Vector2(0.95f, 0.43f));
-            Fit(_streak, 14, 26);
-            UiBuild.Bar(box, "SeriCubuk", streakTrack, streakFill, new Vector2(0.2f, 0.27f), new Vector2(0.8f, 0.31f), out _streakFill);
-
-            Button watch = UiBuild.Btn(box, "Izle", string.Empty, UiSkin.ButtonGreen, new Color(0.22f, 0.62f, 0.3f), 34, Watch);
-            UiBuild.Anchor((RectTransform)watch.transform, new Vector2(0.15f, 0.05f), new Vector2(0.85f, 0.22f));
-            _watchText = watch.GetComponentInChildren<Text>();
-
-            Button no = UiBuild.Btn(_popup, "Hayir", Loc.T("ucan_odul.hayir"), UiSkin.Flat, new Color(0f, 0f, 0f, 0f), 28, CloseOffer);
-            no.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
+            // Inside the card, under the claim: over the island it read as a stray label.
+            Button no = EtkinlikKit.Capsule(box, "Hayir", new Vector2(0.30f, 0.095f), new Vector2(0.70f, 0.175f),
+                                            CloseOffer, out _noThanksText);
+            EtkinlikKit.SetFace(no, _noThanksText, EtkinlikKit.Face.Dead, true);
             _noThanks = (RectTransform)no.transform;
-            _noThanksText = no.GetComponentInChildren<Text>();
-            UiBuild.Anchor(_noThanks, new Vector2(0.25f, 0.29f), new Vector2(0.75f, 0.345f));
 
-            // The kit panel is light; the fallback box is dark and keeps white text.
-            if (UiSkin.HasArt) title.color = _amount.color = _streak.color = textColor;
             _popup.gameObject.SetActive(false);
             UiBuild.InsetContent(canvas);
         }
@@ -407,7 +392,7 @@ namespace Game.UI
             _noThanksText.text = Loc.T("ucan_odul.hayir");
             int streak = _service.Streak, length = _service.Tuning.StreakLength;
             _streak.text = string.Format(Loc.T("ucan_odul.seri"), streak, length);
-            _streakFill.anchorMax = new Vector2((float)streak / length, 1f);
+            EtkinlikKit.Progress(_streakFill, (float)streak / length);
             _watchText.text = _free.AdsRemoved ? Loc.T("ortak.topla") : Loc.T("ucan_odul.izle");
             _noThanks.gameObject.SetActive(noThanksDelay <= 0f);
             _popupClock = noThanksDelay;

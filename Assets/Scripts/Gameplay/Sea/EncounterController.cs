@@ -93,6 +93,8 @@ namespace Game.Gameplay
         public int Stamp { get; private set; }
         public bool LastWon { get; private set; }
         public bool LastBossFirstClear { get; private set; }
+        /// <summary>The last loss handed its energy back (the bosun's post).</summary>
+        public bool LastEnergyRefunded { get; private set; }
         public bool IsBossEncounter => _bossChallenge;
         public string BossEncounterLabel => StageBosses.TryGet(_bossChapter, _bossStage, _bossIndex, out var boss)
             ? boss.Label : string.Empty;
@@ -508,6 +510,7 @@ namespace Game.Gameplay
             LastPearls = 0L;
             LastCashReward = 0d;
             LastBossFirstClear = false;
+            LastEnergyRefunded = false;
             _hasDrop = false;
 
             if (_sea != null)
@@ -556,11 +559,12 @@ namespace Game.Gameplay
                     _drop = _sea.RollDrop(_fight.Tier);
                     _hasDrop = true;
                 }
-                else if (_plunder > 0L)
+                else
                 {
                     // What YAĞMA grabbed mid-fight was grabbed — a loss costs the energy, never
                     // claws back what the fight already paid.
-                    _sea.RegisterKill(0, (int)_plunder);
+                    if (_plunder > 0L) _sea.RegisterKill(0, (int)_plunder);
+                    LastEnergyRefunded = _sea.TryRefundLoss();
                 }
             }
             _plunder = 0L;

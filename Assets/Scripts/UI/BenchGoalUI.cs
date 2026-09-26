@@ -21,13 +21,13 @@ namespace Game.UI
         private MiningShopUpgradeUI _card;
         private GameObject _root;
         private Text _title, _task, _count;
-        private RectTransform _fill;
+        private Image _fill;
         private float _refreshSeconds = 1f, _timer;
         private int _bench = -2, _level = -1;
 
         /// <summary>Builds the card on <paramref name="parent"/>, a child of the shop's canvas, hidden until a goal exists.</summary>
         public static BenchGoalUI Create(RectTransform parent, MiningShopBusinessService shop, MiningShopUpgradeUI card,
-                                         Vector2 min, Vector2 max, Color textColor, Color barTrack, Color barFill)
+                                         float left, float right, float top, float height)
         {
             var go = new GameObject("TezgahHedefi", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
             go.transform.SetParent(parent, false);
@@ -36,16 +36,17 @@ namespace Game.UI
             goal._shop = shop;
             goal._card = card;
 
-            Button button = UiBuild.Btn(go.transform, "Kart", string.Empty, UiSkin.Panel, new Color(0.16f, 0.19f, 0.27f, 0.94f),
-                20, goal.OnTap);
-            var rt = (RectTransform)button.transform;
-            UiBuild.Anchor(rt, min, max);
-            Image img = button.GetComponent<Image>();
-            img.type = Image.Type.Sliced;
-            Text unused = button.GetComponentInChildren<Text>();
-            if (unused != null) unused.gameObject.SetActive(false);
-            goal._root = button.gameObject;
-            Color text = UiSkin.HasArt ? textColor : Color.white;
+            // The kit's navy card, drawn finer: the art's frame is taller than this whole strip.
+            Image img = EtkinlikKit.Card((RectTransform)go.transform, "Kart", new Vector2(left, 1f), new Vector2(right, 1f), 2.4f);
+            // Hung from the top in canvas units, as the HUD pills above it are.
+            img.rectTransform.offsetMin = new Vector2(0f, -top - height);
+            img.rectTransform.offsetMax = new Vector2(0f, -top);
+            img.raycastTarget = true;
+            Button button = img.gameObject.AddComponent<Button>();
+            button.targetGraphic = img;
+            button.onClick.AddListener(goal.OnTap);
+            var rt = img.rectTransform;
+            goal._root = img.gameObject;
 
             var star = new GameObject("Yildiz", typeof(RectTransform), typeof(Image));
             star.transform.SetParent(rt, false);
@@ -57,13 +58,13 @@ namespace Game.UI
             starImg.raycastTarget = false;
             UiBuild.Anchor((RectTransform)star.transform, new Vector2(0.03f, 0.18f), new Vector2(0.17f, 0.82f));
 
-            goal._title = Row(rt, "Baslik", 26, TextAnchor.LowerLeft, text, new Vector2(0.2f, 0.64f), new Vector2(0.97f, 0.94f));
-            goal._task = Row(rt, "Gorev", 22, TextAnchor.MiddleLeft, text, new Vector2(0.2f, 0.36f), new Vector2(0.97f, 0.64f));
-            RectTransform track = UiBuild.Bar(rt, "Yatak", barTrack, barFill, new Vector2(0.2f, 0.1f), new Vector2(0.97f, 0.33f),
-                out goal._fill);
+            goal._title = Row(rt, "Baslik", 26, TextAnchor.LowerLeft, EkranKit.Paper, new Vector2(0.2f, 0.64f), new Vector2(0.95f, 0.92f));
+            goal._task = Row(rt, "Gorev", 22, TextAnchor.MiddleLeft, EkranKit.PaperSoft, new Vector2(0.2f, 0.37f), new Vector2(0.95f, 0.64f));
+            goal._fill = EtkinlikKit.Bar(rt, "Yatak", new Vector2(0.2f, 0.1f), new Vector2(0.95f, 0.34f), "cubuk_altin");
+            Transform track = goal._fill.transform.parent.parent;
             // Inside the card's own button: neither half of the bar may take the tap.
             track.GetComponent<Image>().raycastTarget = false;
-            goal._fill.GetComponent<Image>().raycastTarget = false;
+            goal._fill.raycastTarget = false;
             goal._count = Row(track, "Sayi", 20, TextAnchor.MiddleCenter, Color.white, Vector2.zero, Vector2.one);
             goal._count.gameObject.AddComponent<Outline>().effectDistance = new Vector2(1.5f, -1.5f);
 
@@ -116,7 +117,7 @@ namespace Game.UI
             _task.text = string.Format(Loc.T("maden_dukkani.sonraki_yildiz"), stars + 1, next, _card.StarEffectText(stars)) +
                          "  ·  " + string.Format(Loc.T("reklam.elmas"), _shop.StarGems(stars));
             _count.text = level + " / " + next;
-            _fill.anchorMax = new Vector2(Mathf.Clamp01((float)(level - from) / (next - from)), 1f);
+            EtkinlikKit.Progress(_fill, (float)(level - from) / (next - from));
         }
 
         private void OnTap()

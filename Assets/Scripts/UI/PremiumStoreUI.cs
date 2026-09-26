@@ -119,6 +119,10 @@ namespace Game.UI
         [SerializeField] private Button closeButton;
         [Tooltip("Kırmızı-beyaz tenteyi de taşıyan tam ekran mağaza arka planı.")]
         [SerializeField] private RectTransform storefrontBackground;
+        [Tooltip("Where the awning's scallops end in the storefront art, as a share of its height from the top.")]
+        [SerializeField, Range(0.05f, 0.5f)] private float awningArtBottom = 0.197f;
+        [Tooltip("The lowest the scallops may reach, in canvas units from the top: just above the first card.")]
+        [SerializeField, Min(0f)] private float awningMaxBottom = 360f;
         [Tooltip("Yatay mağazada her zaman görünen üst tente yüksekliği.")]
         [SerializeField, Min(80f)] private float awningHeight = 185f;
 
@@ -252,11 +256,15 @@ private IIAPService _boundIap;
         {
             if (_world != null)
             {
-                if (activeIslandOnly) return _world.RatePerMin(_world.ActiveIndex);
-                double sum = 0d;
-                for (int i = 0; i < _world.Count; i++) if (_world.IsOwned(i)) sum += _world.RatePerMin(i);
-                if (sum > 0d) return sum;
+                double rate = 0d;
+                if (activeIslandOnly) rate = _world.RatePerMin(_world.ActiveIndex);
+                else for (int i = 0; i < _world.Count; i++) if (_world.IsOwned(i)) rate += _world.RatePerMin(i);
+                if (rate > 0d) return rate;
             }
+            // The mining shop replaced the islands' economy on Main, and their rates read 0 there: priced
+            // off them, every "minutes of income" card showed and paid $0. Same rung as HudUI.IncomePerMinute.
+            MarketService market = ServiceLocator.Get<MarketService>();
+            if (market != null && market.MiningShopBusiness != null) return market.MiningShopIncomePerSec * 60d;
             return 0d;
         }
 
@@ -403,11 +411,28 @@ private void EnsureSingleStorefrontTexture()
             rect.SetAsFirstSibling();
 
             _awning.texture = sprite.texture;
-            _awning.uvRect = new Rect(0f, 0f, 1f, 1f);
+            _awning.uvRect = AwningUv(host.rect.size, sprite.texture);
             _awning.color = Color.white;
             _awning.raycastTarget = false;
             _awning.gameObject.SetActive(true);
             if (backgroundImage != null) backgroundImage.enabled = false;
+        }
+
+        /// <summary>
+        /// The texture scaled to the panel's WIDTH (never stretched), pinned to the top, and slid up just
+        /// enough that the scallops end by <see cref="awningMaxBottom"/>. Stretched to the whole panel, a
+        /// 20:9 phone drew the awning a third taller than painted; width-fitted alone, a 3:4 tablet drew
+        /// it taller still. Either way the scallops ran over the first card, which sits a fixed distance
+        /// down (U38/U37). Past the art's own height the bottom row is clamped: plain navy wall.
+        /// </summary>
+        private Rect AwningUv(Vector2 panel, Texture art)
+        {
+            if (panel.x <= 0f || art.width <= 0 || art.height <= 0) return new Rect(0f, 0f, 1f, 1f);
+            float unitsPerTexel = panel.x / art.width;
+            float span = panel.y / (art.height * unitsPerTexel);
+            float scallops = awningArtBottom * art.height * unitsPerTexel;
+            float crop = Mathf.Max(0f, scallops - awningMaxBottom) / (art.height * unitsPerTexel);
+            return new Rect(0f, 1f - span - crop, 1f, span);
         }
 
 public void Hide()

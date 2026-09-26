@@ -354,6 +354,7 @@ namespace Game.Systems
                 captainConfig != null ? captainConfig.ToCrateTuning() : Game.Core.CaptainCrate.Tuning.Default,
                 save: Save);
             ServiceLocator.Register(Captains);
+            Foremen.Captains = Captains;   // the purser aims random foreman cards
 
             Market = new MarketService(Data, Wallet, boost, Maintenance, Foremen, Goals, MiningGear,
                                        CardCollection, Captains);

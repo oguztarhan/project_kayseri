@@ -49,6 +49,12 @@ namespace Game.Data
                  "onarım, bedeli olmayan bir başarısızlıktır — bedelin oturduğu yer rıhtımdır.")]
         [SerializeField] private double minRepairFraction = 0.25d;
 
+        [Header("Lostromo — denizde")]
+        [Tooltip("Kaybedilen savaşın enerjisini geri verme şansı = bu çarpan × eski onarım indirimi " +
+                 "(seviye başı × seviye). Tavanla sınırlı: kayıp hiçbir zaman çoğunlukla bedava olmaz.")]
+        [SerializeField] private double bosunRefundFactor = 0.35d;
+        [SerializeField, Min(0f)] private double bosunRefundCap = 0.50d;
+
         [Header("Seviye — yalnızca kopya, elmas yok")]
         [Tooltip("L'den L+1'e: Taban + Adım x (L-1). 2,4,6,… = bir kaptanı sonuna kadar çıkarmak " +
                  "90 kopya, formen kadrosuyla aynı. Elmas ALINMAZ: sandığın bedeli zaten haritaydı, " +
@@ -111,6 +117,8 @@ namespace Game.Data
             BosunRiskLegendary = bosunRiskLegendary,
             BosunRiskMythic    = bosunRiskMythic,
             MinRepairFraction  = minRepairFraction,
+            BosunRefundFactor  = bosunRefundFactor,
+            BosunRefundCap     = bosunRefundCap,
             DuplicateBase      = duplicateBase,
             DuplicateStep      = duplicateStep,
             DupScaleCommon     = dupScaleCommon,

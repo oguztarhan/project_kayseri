@@ -201,7 +201,7 @@ namespace Game.Systems
 
         /// <summary>
         /// Shared roster-card state. Effect is the captain's current primary contribution: chart or
-        /// salvage bonus, risk reduction, or directed-card share according to role.
+        /// salvage bonus, loss-refund chance, or directed-card share according to role.
         /// </summary>
         public RosterCardState CardState(int captain)
         {
@@ -210,7 +210,7 @@ namespace Game.Systems
             switch (role)
             {
                 case Captains.Gunner: effect = SalvageMultiplier(captain) - 1d; break;
-                case Captains.Bosun:  effect = RiskReduction(captain); break;
+                case Captains.Bosun:  effect = LossRefundChance(captain); break;
                 case Captains.Purser: effect = DirectedShare(captain); break;
                 default:              effect = ChartMultiplier(captain) - 1d; break;
             }
@@ -333,5 +333,26 @@ namespace Game.Systems
         public double RiskReduction(int captain) => Captains.RiskReduction(captain, Level(captain), _tuning);
         public double RepairMultiplier(int captain) => Captains.RepairMultiplier(captain, Level(captain), _tuning);
         public double DirectedShare(int captain) => Captains.DirectedShare(captain, Level(captain), _tuning);
+        public double LossRefundChance(int captain) => Captains.LossRefundChance(captain, Level(captain), _tuning);
+
+        // ---------------------------------------------------------------- posts
+        // The four role abilities, each from the best owned captain of that role, all at once. The one
+        // captain aboard still sets the fight's stats (ExpeditionService.CaptainAboard); these are what
+        // the roster cards promise for every role.
+
+        /// <summary>The captain holding a role's post, or -1 when nobody of that role has been pulled.</summary>
+        public int OfficerFor(int role) => Captains.BestForRole(role, _data != null ? _data.captainLevels : null, _tuning);
+
+        /// <summary>Charts a won sea fight pays, as a multiplier. 1 without a quartermaster.</summary>
+        public double PostChartMultiplier => ChartMultiplier(OfficerFor(Captains.Quartermaster));
+
+        /// <summary>Salvage a won sea fight pays, as a multiplier. 1 without a gunner.</summary>
+        public double PostSalvageMultiplier => SalvageMultiplier(OfficerFor(Captains.Gunner));
+
+        /// <summary>The chance a lost sea fight hands its energy back. 0 without a bosun.</summary>
+        public double PostLossRefundChance => LossRefundChance(OfficerFor(Captains.Bosun));
+
+        /// <summary>The share of random foreman cards aimed at the furthest-behind foreman. 0 without a purser.</summary>
+        public double PostDirectedShare => DirectedShare(OfficerFor(Captains.Purser));
     }
 }
