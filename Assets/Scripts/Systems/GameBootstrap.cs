@@ -135,6 +135,7 @@ namespace Game.Systems
 
         private TimeService _time;
         private NotificationService _notifications;
+        private ShopTipAnalytics _tipAnalytics;   // null without a shop or an analytics sink
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
         private AdMobService _ads;
         private UmpConsentService _consent;
@@ -518,6 +519,9 @@ namespace Game.Systems
                 ServiceLocator.Register(new ShopCoinService(Wallet,
                     shopCoinConfig != null ? shopCoinConfig.ToTuning() : ShopCoins.Tuning.Default,
                     Data, _time.NowUnix, boost, Save, ServiceLocator.Get<IAnalytics>()));
+            // Tips come only from the shop's customers.
+            if (Market?.MiningShopBusiness != null && ServiceLocator.Get<IAnalytics>() != null)
+                _tipAnalytics = new ShopTipAnalytics(Market, ServiceLocator.Get<IAnalytics>());
 
             // Prices the first ship's offers off the rate the last session persisted, so a returning
             // empire is not offered a $500 job while the live income meter is still reading zero.
@@ -656,6 +660,7 @@ namespace Game.Systems
                 IndustryPass?.Sync();
                 Save?.Save(Data);
                 _notifications?.ScheduleAway();
+                _tipAnalytics?.Flush();
             }
             else
             {
@@ -682,6 +687,8 @@ namespace Game.Systems
             // Android normally pauses before it quits, so this is usually a re-queue of the same plan
             // a second later. ScheduleAway clears the queue before rebuilding it, so that is harmless.
             _notifications?.ScheduleAway();
+            // Empty after a pause's flush, so a pause followed by a quit reports the session once.
+            _tipAnalytics?.Flush();
         }
     }
 }

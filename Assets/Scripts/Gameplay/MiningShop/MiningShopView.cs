@@ -70,6 +70,12 @@ namespace Game.Gameplay
         [Tooltip("Her teslimde sandığın ne kadar süre zıplayacağı (sn).")]
         [SerializeField, Min(0.05f)] private float contractReceiveSeconds = 0.35f;
 
+        [Header("Bahşiş")]
+        [Tooltip("Bahşiş bırakan müşterinin sevinçle esneyip toparlanma süresi (sn).")]
+        [SerializeField, Min(0.05f)] private float tipHopSeconds = 0.45f;
+        [Tooltip("Esnemenin boyu: 0.2 = boyu %20 uzar, eni yarısı kadar daralır.")]
+        [SerializeField, Range(0f, 0.5f)] private float tipHopStretch = 0.2f;
+
         /// <summary>Anchor and route names per product, in MiningShopCampaign.ProductIdAt order.</summary>
         private static readonly string[] Names = { "Pickaxe", "Helmet", "Lantern", "Bag" };
 
@@ -82,6 +88,8 @@ namespace Game.Gameplay
             public Vector3 target;
             public Vector3 face;
             public bool leaving;
+            /// <summary>Seconds left on a tipping customer's happy stretch; 0 when none.</summary>
+            public float hop;
         }
 
         private sealed class Line
@@ -622,6 +630,7 @@ namespace Game.Gameplay
             Walker w = _customers[_serving];
             w.leaving = true;
             w.target = Slot(0) + customerExitOffset;
+            if (sale.TipTier != ShopTips.None) w.hop = tipHopSeconds;
             _serving = -1;
         }
 
@@ -634,6 +643,14 @@ namespace Game.Gameplay
         private void Walk(Walker w, float dt)
         {
             if (!w.body.gameObject.activeSelf) return;
+            if (w.hop > 0f)
+            {
+                // Scale rather than height, so the walk to the exit is never pulled off its line. Only customers hop,
+                // and a customer's body is drawn at one.
+                w.hop = Mathf.Max(0f, w.hop - dt);
+                float k = Mathf.Sin((1f - w.hop / tipHopSeconds) * Mathf.PI) * tipHopStretch;
+                w.body.localScale = new Vector3(1f - k * 0.5f, 1f + k, 1f - k * 0.5f);
+            }
             Vector3 to = w.target - w.body.position;
             to.y = 0f;
             bool moving = to.sqrMagnitude > 0.25f;
@@ -689,6 +706,8 @@ namespace Game.Gameplay
         private static void Hide(Walker w)
         {
             w.leaving = false;
+            if (w.hop > 0f) w.body.localScale = Vector3.one;
+            w.hop = 0f;
             Hold(w, -1);
             w.body.gameObject.SetActive(false);
         }

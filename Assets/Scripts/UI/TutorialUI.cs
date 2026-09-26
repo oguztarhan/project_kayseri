@@ -850,6 +850,13 @@ namespace Game.UI
                 Run(TipCard("boost", _hud.BoostRect, true));
                 return;
             }
+            // Told after the first tip, so the card names something that has just happened. Never passed over as
+            // already used: a save that has had tips from before this card still has not been told what they are.
+            if (Intro("bahsis", ShopActive && _shop != null && _shop.View.TipCount > 0L, false))
+            {
+                Run(TipCard("bahsis", null, true));
+                return;
+            }
             if (Intro("gunluk", _daily != null && _daily.CanClaim(), _data.lastDailyClaimUnix > 0L))
                 Run(TipCard("gunluk", _hud != null ? _hud.DailyRect : null, true));
         }

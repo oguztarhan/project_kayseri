@@ -929,6 +929,7 @@ namespace Game.Systems
         public int week = int.MinValue;                                   // Monday-based UTC week
         public long[] weekBaseline = new long[Game.Core.Goals.MetricCount];
         public string[] weeklyMilestonesClaimed = new string[0];          // immutable tier IDs
+        public long tipsLifetime;                                         // Goals.Tips: achievement-only, outside lifetime[]
     }
 
     [Serializable]

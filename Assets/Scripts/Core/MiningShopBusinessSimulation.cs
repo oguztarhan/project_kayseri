@@ -50,6 +50,7 @@ namespace Game.Core
             /// <summary>The level the previous bench must reach before the next one can be built.</summary>
             public int BuildRequiresLevel;
             public BenchMastery.Tuning Mastery;
+            public ShopTips.Tuning Tips;
 
             public static Tuning Default => new Tuning
             {
@@ -69,7 +70,8 @@ namespace Game.Core
                 ArrivalSeconds = 10d,
                 ServiceSeconds = 2d,
                 BuildRequiresLevel = 25,
-                Mastery = BenchMastery.Tuning.Default
+                Mastery = BenchMastery.Tuning.Default,
+                Tips = ShopTips.Tuning.Default
             };
 
             public void Validate()
@@ -81,6 +83,7 @@ namespace Game.Core
                     BuildRequiresLevel < BenchMastery.MinLevel || BuildRequiresLevel > BenchMastery.MaxLevel)
                     throw new ArgumentException("Mining-shop business tuning requires finite positive tables, timings and capacities.");
                 Mastery.Validate();
+                Tips.Validate();
 
                 for (int i = 0; i < Products.Length; i++)
                 {
@@ -107,9 +110,13 @@ namespace Game.Core
             public readonly bool Contract;
             /// <summary>This delivery was the contract's last item.</summary>
             public readonly bool CompletesContract;
+            /// <summary>What the customer left on top of <see cref="Cash"/>; 0 when they left nothing.</summary>
+            public readonly double Tip;
+            /// <summary>Which <see cref="ShopTips"/> tier the tip was, or <see cref="ShopTips.None"/>.</summary>
+            public readonly int TipTier;
 
             internal Sale(string businessId, string productId, long sequence, double cash, int units, bool perfect,
-                bool contract = false, bool completesContract = false)
+                bool contract = false, bool completesContract = false, double tip = 0d, int tipTier = ShopTips.None)
             {
                 BusinessId = businessId;
                 ProductId = productId;
@@ -119,11 +126,13 @@ namespace Game.Core
                 Perfect = perfect;
                 Contract = contract;
                 CompletesContract = completesContract;
+                Tip = tip;
+                TipTier = tipTier;
             }
 
-            /// <summary>The same receipt at what the wallet was actually paid, once the payer's multipliers are in.</summary>
-            public Sale WithCash(double cash) =>
-                new Sale(BusinessId, ProductId, Sequence, cash, Units, Perfect, Contract, CompletesContract);
+            /// <summary>The same receipt at what the wallet was actually paid for the sale and the tip, once the payer's multipliers are in.</summary>
+            public Sale WithPaid(double cash, double tip) =>
+                new Sale(BusinessId, ProductId, Sequence, cash, Units, Perfect, Contract, CompletesContract, tip, TipTier);
         }
 
         public readonly struct ProductSnapshot
@@ -206,6 +215,8 @@ namespace Game.Core
             public double ContractCash => _business.Contract.Cash;
             public long ContractGems => _business.Contract.Gems;
             public int ContractForemanCards => _business.Contract.ForemanCards;
+            public long TipCount => _business.TipCount;
+            public double TipsEarned => _business.TipsEarned;
             public int WaitingCustomerCount
             {
                 get
@@ -309,6 +320,13 @@ namespace Game.Core
 
         /// <summary>Pure bookkeeping. Its caller validates the master and saves.</summary>
         public void SetWorker(int productIndex, int master) => Line(productIndex).Worker = master;
+
+        /// <summary>Chance a normal sale off this bench tips at its stars, before the gap; 0 for a bench not built.</summary>
+        public double TipChance(int productIndex)
+        {
+            MiningShopProductLineState line = Line(productIndex);
+            return line.TableBuilt ? ShopTips.Chance(BenchMastery.StarsAt(line.Level), false, _tuning.Tips) : 0d;
+        }
 
         /// <summary>The mastery rules this business runs on.</summary>
         public BenchMastery.Tuning Mastery => _tuning.Mastery;
@@ -705,8 +723,12 @@ namespace Game.Core
                     }
                 }
                 _state.ReceiptSequence++;
+                // Only a cash sale can tip: the contract customer pays on completion.
+                double tip = 0d;
+                int tipTier = contract || price <= 0d ? ShopTips.None
+                    : RollTip(line, perfect ? price / _tuning.Mastery.PerfectMultiplier : price, perfect, out tip);
                 _settle(new Sale(_owner.BusinessId, line.ProductId, _state.ReceiptSequence, price, units, perfect,
-                    contract, completes));
+                    contract, completes, tip, tipTier));
             }
         }
 
@@ -782,6 +804,48 @@ namespace Game.Core
             _state.PerfectSeed = unchecked((int)x);
             return (x >> 8) * (1d / 16777216d);
         }
+
+        /// <summary>
+        /// Whether the cash sale just receipted tips, and which tier. A business's first receipts never tip, and after a
+        /// tip <see cref="ShopTips.Tuning.MinSalesBetween"/> cash sales must pass; the gap counts during the first
+        /// receipts too, so the first tip can come as soon as they are over. The amount is a share of
+        /// <paramref name="normalPrice"/>, the bundle's price before any perfect multiplier.
+        /// </summary>
+        private int RollTip(MiningShopProductLineState line, double normalPrice, bool perfect, out double tip)
+        {
+            tip = 0d;
+            ShopTips.Tuning t = _tuning.Tips;
+            if (_state.ReceiptSequence <= t.UnlockReceipts || _state.SalesSinceTip < t.MinSalesBetween)
+            {
+                if (_state.SalesSinceTip < t.MinSalesBetween) _state.SalesSinceTip++;
+                return ShopTips.None;
+            }
+            if (NextTipRoll() >= ShopTips.Chance(BenchMastery.StarsAt(line.Level), perfect, t)) return ShopTips.None;
+            int tier = ShopTips.Tier(NextTipRoll(), t);
+            tip = ShopTips.Amount(normalPrice, tier, t);
+            _state.SalesSinceTip = 0;
+            _state.TipCount++;
+            _state.TipsEarned += tip;
+            return tier;
+        }
+
+        /// <summary>
+        /// The next tip roll in [0,1), from its own saved generator so tips never move a perfect-sale roll. A business
+        /// that has never rolled seeds from its ID, salted so the two generators do not run in step.
+        /// </summary>
+        private double NextTipRoll()
+        {
+            uint x = unchecked((uint)_state.TipSeed);
+            if (x == 0u) x = Seed(_owner.BusinessId) ^ TipSeedSalt;
+            if (x == 0u) x = 1u;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            _state.TipSeed = unchecked((int)x);
+            return (x >> 8) * (1d / 16777216d);
+        }
+
+        private const uint TipSeedSalt = 0x9E3779B9u;
 
         private static uint Seed(string id)
         {
@@ -901,7 +965,8 @@ namespace Game.Core
                     // A contract hand-over carries no price and no perfect roll; a sale always has a price.
                     (_state.ServiceContract ? _state.ServicePrice != 0d || _state.ServicePerfect : !Positive(_state.ServicePrice)))) ||
                 (!_state.Serving && (_state.ServiceProductIndex != -1 || _state.ServiceUnits != 0 || _state.ServiceContract)) ||
-                _state.LevelSchema < 0 || _state.LevelSchema > MiningShopLevelMigration.Schema)
+                _state.LevelSchema < 0 || _state.LevelSchema > MiningShopLevelMigration.Schema ||
+                _state.SalesSinceTip < 0 || _state.TipCount < 0L || !NonNegative(_state.TipsEarned))
                 throw new ArgumentException("Mining-shop business save has invalid shared jobs; refusing to reset it.");
 
             // Before the migration a bench's level is the two old tracks; after it, the single level.

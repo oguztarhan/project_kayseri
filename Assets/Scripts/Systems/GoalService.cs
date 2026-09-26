@@ -9,7 +9,7 @@ namespace Game.Systems
     /// been collected. The maths is in <see cref="Goals"/>; this counts things and pays out.
     ///
     /// ONE CALL, SIX PLACES. <see cref="Record"/> is the whole write surface, and it is invoked from
-    /// exactly one line each in MarketService (bars sold), CoalOperation (upgrades and unlocks),
+    /// exactly one line each in MarketService (bars sold, tips), CoalOperation (upgrades and unlocks),
     /// ContractService (a contract claimed), MaintenanceService (a repair started), WorldIslands (an
     /// island bought) and ForemanService (a foreman hired or levelled). Nothing else has to know the
     /// goal system exists, which is what keeps it from leaking into the simulation.
@@ -173,6 +173,13 @@ namespace Game.Systems
         public void Record(int metric, long amount = 1L)
         {
             if (_data == null || amount <= 0L) return;
+            // Achievement-only: no day or week baseline reads it, so there is nothing to roll.
+            if (metric == Goals.Tips)
+            {
+                _data.goals.tipsLifetime += amount;
+                Changed?.Invoke();
+                return;
+            }
             if (metric < 0 || metric >= Goals.MetricCount) return;
             Roll();
             RollWeek();
@@ -182,7 +189,9 @@ namespace Game.Systems
 
         // ------------------------------------------------------------------ read
         public long Lifetime(int metric)
-            => _data != null && metric >= 0 && metric < Goals.MetricCount ? _data.goals.lifetime[metric] : 0L;
+            => _data == null ? 0L
+             : metric == Goals.Tips ? _data.goals.tipsLifetime
+             : metric >= 0 && metric < Goals.MetricCount ? _data.goals.lifetime[metric] : 0L;
 
         /// <summary>Today's progress on a metric: how far the lifetime total has moved since the roll.</summary>
         public long TodayProgress(int metric)

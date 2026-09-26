@@ -91,6 +91,31 @@ namespace Game.UI
         [SerializeField] private float perfectCoinGravity = -1400f;
         [SerializeField] private Color perfectTitleColor = new Color(1f, 0.84f, 0.22f);
         [SerializeField] private Color perfectCashColor = Color.white;
+        [Header("Tips")]
+        [Tooltip("Bahşiş yazısının ekranda kalma süresi (sn).")]
+        [SerializeField, Min(0.3f)] private float tipSeconds = 1.3f;
+        [SerializeField] private float tipRise = 110f;
+        [Tooltip("Bahşiş, büyük bahşiş, dev bahşiş: yazının boyu.")]
+        [SerializeField] private float[] tipScales = { 0.8f, 1f, 1.25f };
+        [Tooltip("Bahşiş, büyük bahşiş, dev bahşiş: yazıdan fırlayan sikke sayısı (en fazla 10).")]
+        [SerializeField] private int[] tipBurstCoins = { 2, 4, 8 };
+        [Tooltip("Bahşiş, büyük bahşiş, dev bahşiş: başlık rengi.")]
+        [SerializeField] private Color[] tipTitleColors =
+        {
+            new Color(0.55f, 0.95f, 0.55f), new Color(1f, 0.84f, 0.22f), new Color(1f, 0.62f, 0.12f)
+        };
+        [SerializeField] private Color tipCashColor = Color.white;
+        [Tooltip("Mükemmel satışta bahşiş yazısı, mükemmel yazısından bu kadar sonra çıkar (sn) ve aşağıdaki kadar altında durur.")]
+        [SerializeField, Min(0f)] private float tipDelayAfterPerfect = 0.45f;
+        [SerializeField] private Vector2 tipOffsetAfterPerfect = new Vector2(0f, -110f);
+        [Tooltip("Bahşiş, büyük bahşiş, dev bahşiş: kasadan para sayacına uçan sikke sayısı.")]
+        [SerializeField] private int[] tipFlightCoins = { 2, 3, 5 };
+        [SerializeField, Min(8f)] private float tipCoinSize = 40f;
+        [Tooltip("Bir sikkenin para sayacına uçuş süresi (sn).")]
+        [SerializeField, Min(0.1f)] private float tipFlightSeconds = 0.7f;
+        [Tooltip("Dev bahşişte kameranın sarsılması; hareket azaltma açıkken hiç sarsılmaz.")]
+        [SerializeField, Min(0f)] private float tipShakeAmplitude = 0.12f;
+        [SerializeField, Min(0f)] private float tipShakeSeconds = 0.25f;
         [Header("Goal card")]
         [Tooltip("Sonraki tezgâh yıldızı kartının ekrandaki yeri; üstteki SATILDI hapının altı.")]
         [SerializeField] private Vector2 goalMin = new Vector2(0.025f, 0.845f);
@@ -105,6 +130,12 @@ namespace Game.UI
             "maden_dukkani.fener_tezgahi", "maden_dukkani.canta_tezgahi"
         };
 
+        /// <summary>Tip pop titles in ShopTips tier order.</summary>
+        private static readonly string[] TipTitleKeys =
+        {
+            "maden_dukkani.bahsis", "maden_dukkani.bahsis_buyuk", "maden_dukkani.bahsis_dev"
+        };
+
         /// <summary>A bench's name key, for screens that say where a master works.</summary>
         public static string BenchTitleKey(int product) => TitleKeys[product];
 
@@ -117,6 +148,10 @@ namespace Game.UI
         private HudUI _hud;
         private BenchStarFx _starFx;
         private PerfectSaleFx _perfectFx;
+        private PerfectSaleFx _tipFx;
+        private TipCoinFlight _tipFlight;
+        private ConfettiBurst _tipConfetti;
+        private RectTransform _tipConfettiRect;
         private BenchGoalUI _goal;
         private MarketService _market;
         private int _product;
@@ -204,13 +239,55 @@ namespace Game.UI
             if (_market != null) _market.MiningShopBusinessSold -= OnSold;
         }
 
-        /// <summary>A perfect sale pops over the customer who made it, with what it paid; plain sales show nothing.</summary>
+        /// <summary>
+        /// A perfect sale pops over the customer who made it, with what it paid; plain sales show nothing. A tip pops
+        /// there too, after the perfect pop when the sale was both, and its coins fly into the cash counter.
+        /// </summary>
         private void OnSold(MiningShopBusinessSimulation.Sale sale)
         {
-            if (!sale.Perfect || _perfectFx == null) return;
-            _perfectFx.Play(_view.SalePoint, "+$" + NumberFormatter.Format(new BigDouble(sale.Cash)) + "  ×" +
-                            _shop.PerfectMultiplier.ToString("0.#"), _camera);
+            if (sale.Perfect && _perfectFx != null)
+                _perfectFx.Play(_view.SalePoint, "+$" + NumberFormatter.Format(new BigDouble(sale.Cash)) + "  ×" +
+                                _shop.PerfectMultiplier.ToString("0.#"), _camera);
+            if (sale.TipTier != ShopTips.None) PlayTip(sale);
         }
+
+        /// <summary>The tip's moment. The wallet already holds it; this is feedback only.</summary>
+        private void PlayTip(in MiningShopBusinessSimulation.Sale sale)
+        {
+            int tier = Mathf.Clamp(sale.TipTier, 0, ShopTips.TierCount - 1);
+            bool huge = tier == ShopTips.TierCount - 1;
+            float delay = sale.Perfect ? tipDelayAfterPerfect : 0f;
+            Vector3 at = _view.SalePoint;
+            if (_tipFx != null)
+                _tipFx.Play(at, Loc.T(TipTitleKeys[tier]), Pick(tipTitleColors, tier, perfectTitleColor),
+                    "+$" + NumberFormatter.Format(new BigDouble(sale.Tip)), _camera, delay, Pick(tipScales, tier, 1f),
+                    Pick(tipBurstCoins, tier, 0), sale.Perfect ? tipOffsetAfterPerfect : Vector2.zero);
+            if (_tipFlight != null)
+                _tipFlight.Play(at, _camera, _hud != null ? _hud.CashCounter : null, Pick(tipFlightCoins, tier, 0), delay);
+
+            if (huge)
+            {
+                AccessibilityConfig accessibility = ServiceLocator.Get<AccessibilityConfig>();
+                bool still = accessibility != null && accessibility.ReduceMotion;
+                if (!still && _tipConfetti != null && _camera != null)
+                {
+                    Vector3 screen = _camera.WorldToScreenPoint(at);
+                    if (screen.z > 0f &&
+                        RectTransformUtility.ScreenPointToLocalPointInRectangle(_tipConfettiRect, screen, null, out Vector2 local))
+                        _tipConfetti.PlayAt(local);
+                }
+                if (!still) CameraShake.Request(tipShakeAmplitude, tipShakeSeconds);
+                ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
+                ServiceLocator.Get<HapticService>()?.Medium();
+                return;
+            }
+            ServiceLocator.Get<AudioService>()?.Play(SoundId.Coin);
+            ServiceLocator.Get<HapticService>()?.Light();
+        }
+
+        /// <summary>A tier's entry from an Inspector list, or <paramref name="fallback"/> when the list is short.</summary>
+        private static T Pick<T>(T[] values, int tier, T fallback)
+            => values != null && tier < values.Length ? values[tier] : fallback;
 
         /// <summary>A worker moved or got better: the open card and the open picker show it straight away.</summary>
         private void OnWorkersChanged()
@@ -428,6 +505,19 @@ namespace Game.UI
             _perfectFx.Configure(perfectSeconds, perfectRise, perfectCoins, perfectCoinSpeed, perfectCoinGravity);
             // Under the card: the shop sits behind it in the island shot, and a pop must not cover the card's text.
             _perfectFx.transform.SetSiblingIndex(0);
+            _tipFx = PerfectSaleFx.Create(canvas, string.Empty, perfectTitleColor, tipCashColor, perfectCoinSize);
+            _tipFx.Configure(tipSeconds, tipRise, 0, perfectCoinSpeed, perfectCoinGravity);
+            _tipFx.transform.SetSiblingIndex(1);
+            // Over the card: the coins leave the counter for the HUD's cash counter.
+            _tipFlight = TipCoinFlight.Create(canvas, tipCoinSize);
+            _tipFlight.Configure(tipFlightSeconds, 0.06f, 140f, 30f);
+            // Its own canvas: eighty moving pieces would otherwise rebuild the card with them every frame. Under the
+            // tip pop, which it bursts from, so the paper never hides the words.
+            var confetti = new GameObject("BahsisKonfeti", typeof(RectTransform), typeof(Canvas));
+            confetti.transform.SetParent(canvas, false);
+            _tipConfettiRect = UiBuild.Anchor((RectTransform)confetti.transform, Vector2.zero, Vector2.one);
+            _tipConfetti = confetti.AddComponent<ConfettiBurst>();
+            _tipConfetti.transform.SetSiblingIndex(1);
             _goal = BenchGoalUI.Create(canvas, _shop, this, goalMin, goalMax, cardTextColor, starBarTrack, starBarFill);
             _goal.Configure(goalRefreshSeconds);
 
@@ -646,6 +736,10 @@ namespace Game.UI
             SetTitle(Loc.T(TitleKeys[_product]));
             _summary.text = string.Format(Loc.T("maden_dukkani.ozet"), _shop.CraftSeconds(_product).ToString("0.0"),
                 NumberFormatter.Format(new BigDouble(_shop.UnitPrice(_product))), product.Sold);
+            // The tip chance follows the bench's stars, which follow its level: redrawn whenever the level is.
+            if (product.TableBuilt)
+                _summary.text += "\n" + string.Format(Loc.T("maden_dukkani.bahsis_sans"),
+                    Mathf.RoundToInt((float)(_shop.TipChance(_product) * 100d)));
 
             bool built = product.TableBuilt;
             for (int i = 0; i < _stars.Length; i++)

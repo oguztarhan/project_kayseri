@@ -31,6 +31,15 @@ namespace Game.Core
                          Islands = 4, ForemanLevels = 5;
         public const int MetricCount = 6;
 
+        /// <summary>
+        /// Tips customers left in the shop. An ACHIEVEMENT-ONLY metric, deliberately past <see cref="MetricCount"/>:
+        /// every live event, the sprint, the pass and the league size a saved slot layout from MetricCount, and the
+        /// authored event rows carry exact slot counts, so a seventh counted metric would shift running events' saved
+        /// slots and hide the events until their rows were re-authored. GoalService keeps this one total on its own
+        /// field; no daily, weekly, event or league rule can name it.
+        /// </summary>
+        public const int Tips = MetricCount;
+
         /// <summary>How many daily tasks are up at once.</summary>
         public const int DailySlots = 3;
 
@@ -178,6 +187,10 @@ namespace Game.Core
                               Tiers = new[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L } },
             new Achievement { Metric = ForemanLevels, GemsPerTier = 12, CardsPerTier = 0, PacksPerTier = 2,
                               Tiers = new[] { 1L, 8L, 25L, 50L, 80L } },
+            // About 30 tips an hour while the player watches the shop: the first tier in the first session, the last
+            // after some 270 hours. Appended, never inserted: tiersClaimed is saved by position.
+            new Achievement { Metric = Tips,          GemsPerTier = 5,  CardsPerTier = 1, PacksPerTier = 2,
+                              Tiers = new[] { 10L, 50L, 250L, 1000L, 3000L, 8000L } },
         };
 
         /// <summary>How many tiers of an achievement a given lifetime total has passed.</summary>

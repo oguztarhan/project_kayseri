@@ -205,13 +205,17 @@ namespace Game.Systems
             // what the wallet actually took.
             // A hand-over to the contract customer pays nothing here: ShopContractService pays the whole contract on
             // its last receipt.
-            double paid = sale.Contract ? 0d
-                : sale.Cash * ShopStandingMultiplier * (_boost != null ? _boost.ActiveMultiplier : 1d);
-            if (!sale.Contract) _wallet.AddCash(new BigDouble(paid));
+            // A tip is paid at the same multipliers as the sale it came with, in the same credit, so the wallet and the
+            // receipt land in one save. It is never a bar sold.
+            double multiplier = sale.Contract ? 0d : ShopStandingMultiplier * (_boost != null ? _boost.ActiveMultiplier : 1d);
+            double paid = sale.Cash * multiplier;
+            double tip = sale.Tip * multiplier;
+            if (!sale.Contract) _wallet.AddCash(new BigDouble(paid + tip));
             // One item sold is one bar sold: the metric every goal, festival and league season already reads. A customer
             // takes a bundle, so the count is its items. It persists with the next save, as the ore market's always has.
             _goals?.Record(Game.Core.Goals.BarsSold, sale.Units);
-            MiningShopBusinessSold?.Invoke(sale.WithCash(paid));
+            if (sale.TipTier != ShopTips.None) _goals?.Record(Game.Core.Goals.Tips);
+            MiningShopBusinessSold?.Invoke(sale.WithPaid(paid, tip));
         }
 
         private string _activeIsland;    // the one whose trucks are really driving; null in the market scene

@@ -195,6 +195,7 @@ namespace Game.Tests
             var data = new SaveData();
             GoalService goals = Build(data, out CardCollectionService cards);
             for (int metric = 0; metric < Goals.MetricCount; metric++) goals.Record(metric, 30000000L);
+            goals.Record(Goals.Tips, 30000000L);
 
             int expected = 0;
             for (int i = 0; i < Goals.WeeklyMilestones.Length; i++) expected += Goals.WeeklyMilestones[i].Packs;
@@ -213,8 +214,10 @@ namespace Game.Tests
         [Test]
         public void TheLifetimePackSupplyFromGoalsIsWhatThePlanBudgeted()
         {
-            // 24 tiers at or above tier 3 across the six achievements, at 2 packs each. If this
-            // moves, the pacing table in Docs/PLAN_14 was simulated against a different supply.
+            // 24 tiers at or above tier 3 across the first six achievements, at 2 packs each — the supply
+            // Docs/PLAN_14's pacing table was simulated against — plus the tips achievement's 4 (8 packs), added
+            // 2026-09-26. Its tier 3 is some eight hours of watching the shop, so it lands inside that pacing.
+            // If this moves again, re-check the plan's table.
             int ladder = 0;
             for (int i = 0; i < Goals.Ladder.Length; i++)
                 for (int t = 1; t <= Goals.Ladder[i].Tiers.Length; t++)
@@ -223,7 +226,7 @@ namespace Game.Tests
             int week = 0;
             for (int i = 0; i < Goals.WeeklyMilestones.Length; i++) week += Goals.WeeklyMilestones[i].Packs;
 
-            Assert.That(ladder, Is.EqualTo(48));
+            Assert.That(ladder, Is.EqualTo(56));
             Assert.That(week, Is.EqualTo(5));
         }
 

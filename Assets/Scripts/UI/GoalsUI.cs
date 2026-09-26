@@ -258,7 +258,8 @@ namespace Game.UI
 
         private void BuildAchievementsPage(RectTransform page)
         {
-            const int rows = 3;
+            // Two columns, as many rows as the ladder needs: six achievements drew as 2 x 3, the tips one makes it 2 x 4.
+            int rows = (Goals.Ladder.Length + 1) / 2;
             float height = 0.96f / rows;
             for (int i = 0; i < Goals.Ladder.Length; i++)
             {
@@ -574,6 +575,7 @@ namespace Game.UI
                 case Goals.Repairs: return Loc.T("gorev.metrik.onarim");
                 case Goals.Islands: return Loc.T("gorev.metrik.ada");
                 case Goals.ForemanLevels: return Loc.T("gorev.metrik.ustabasi");
+                case Goals.Tips: return Loc.T("gorev.metrik.bahsis");
                 default: return string.Empty;
             }
         }

@@ -5,7 +5,9 @@ namespace Game.UI
 {
     /// <summary>
     /// A perfect sale over the shop counter: "PERFECT!" pops up with what the sale paid, and a handful of coins burst
-    /// out of it and fall away. Presentation only — the wallet was paid before <see cref="Play"/> is called.
+    /// out of it and fall away. Presentation only — the wallet was paid before <see cref="Play"/> is called. A second
+    /// instance plays customer tips, each with its tier's own title, size and coin count, and can wait a moment so a
+    /// tip on a perfect sale follows the perfect pop instead of covering it.
     ///
     /// The pops follow the counter's world point on screen, so they stay on it while the camera moves. A few are made
     /// up front on their own nested canvas and reused; when all are playing, the oldest is restarted. A pop costs no
@@ -16,6 +18,11 @@ namespace Game.UI
         private const int Pops = 3;
         private const int MaxCoins = 10;
         private const float PopIn = 0.18f, FadeOut = 0.3f;
+        /// <summary>
+        /// Widest a title may draw, scale included. A long one (German, French) at a big tip's size would otherwise
+        /// spread over the HUD's side buttons; it is shrunk to this instead.
+        /// </summary>
+        private const float MaxTitleWidth = 460f;
 
         private sealed class Pop
         {
@@ -25,12 +32,17 @@ namespace Game.UI
             public RectTransform[] coins;
             public Vector2[] velocity;
             public Vector3 world;
+            public Vector2 offset;
             public float time = -1f;
+            public float wait;
+            public float scale = 1f;
+            public int coinCount;
         }
 
         private readonly Pop[] _pops = new Pop[Pops];
         private RectTransform _root;
         private Camera _camera;
+        private Color _titleColor;
         private float _seconds = 1.2f, _rise = 120f, _coinSpeed = 520f, _gravity = -1400f;
         private int _coins = 6;
 
@@ -42,6 +54,7 @@ namespace Game.UI
             go.transform.SetParent(parent, false);
             var fx = go.AddComponent<PerfectSaleFx>();
             fx._root = UiBuild.Anchor((RectTransform)go.transform, Vector2.zero, Vector2.one);
+            fx._titleColor = titleColor;
 
             Sprite coin = UiSkin.Coin;
             for (int i = 0; i < Pops; i++)
@@ -102,6 +115,15 @@ namespace Game.UI
 
         /// <summary>One perfect sale at <paramref name="world"/>, showing <paramref name="cash"/> under the title.</summary>
         public void Play(Vector3 world, string cash, Camera camera)
+            => Play(world, null, _titleColor, cash, camera, 0f, 1f, _coins, Vector2.zero);
+
+        /// <summary>
+        /// One pop with its own <paramref name="title"/> (null keeps the set one) in <paramref name="titleColor"/>, drawn at <paramref name="scale"/> with
+        /// <paramref name="coins"/> coins. It shows after <paramref name="delay"/> seconds, <paramref name="offset"/>
+        /// pixels from the point.
+        /// </summary>
+        public void Play(Vector3 world, string title, Color titleColor, string cash, Camera camera, float delay, float scale,
+                         int coins, Vector2 offset)
         {
             _camera = camera;
             if (_camera == null) return;
@@ -113,15 +135,23 @@ namespace Game.UI
                 if (_pops[i].time > pop.time) pop = _pops[i];
             }
             pop.world = world;
+            pop.offset = offset;
             pop.time = 0f;
+            pop.wait = Mathf.Max(0f, delay);
+            pop.scale = scale > 0f ? scale : 1f;
+            pop.coinCount = Mathf.Clamp(coins, 0, MaxCoins);
+            if (title != null) pop.title.text = title;
+            pop.title.color = titleColor;
             pop.cash.text = cash;
+            float wide = pop.title.preferredWidth * pop.scale;
+            pop.root.localScale = Vector3.one * (wide > MaxTitleWidth ? pop.scale * MaxTitleWidth / wide : pop.scale);
             for (int c = 0; c < MaxCoins; c++)
             {
-                bool on = c < _coins;
+                bool on = c < pop.coinCount;
                 pop.coins[c].gameObject.SetActive(on);
                 if (!on) continue;
                 // An upward fan, a little different every time.
-                float angle = Mathf.Lerp(25f, 155f, (c + Random.Range(0.1f, 0.9f)) / _coins) * Mathf.Deg2Rad;
+                float angle = Mathf.Lerp(25f, 155f, (c + Random.Range(0.1f, 0.9f)) / pop.coinCount) * Mathf.Deg2Rad;
                 pop.velocity[c] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * _coinSpeed * Random.Range(0.75f, 1.15f);
             }
             pop.root.gameObject.SetActive(true);
@@ -135,6 +165,12 @@ namespace Game.UI
             {
                 Pop pop = _pops[i];
                 if (pop.time < 0f) continue;
+                if (pop.wait > 0f)
+                {
+                    pop.wait -= dt;
+                    Apply(pop);
+                    continue;
+                }
                 pop.time += dt;
                 if (pop.time >= _seconds || _camera == null)
                 {
@@ -149,9 +185,10 @@ namespace Game.UI
         private void Apply(Pop pop)
         {
             Vector3 screen = _camera.WorldToScreenPoint(pop.world);
-            // Behind the camera: nothing sensible to point at.
-            pop.group.alpha = screen.z > 0f ? Alpha(pop.time) : 0f;
+            // Behind the camera: nothing sensible to point at. Still waiting its turn: not yet.
+            pop.group.alpha = screen.z > 0f && pop.wait <= 0f ? Alpha(pop.time) : 0f;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, screen, null, out Vector2 at);
+            at += pop.offset;
             float t = pop.time / _seconds;
             pop.root.anchoredPosition = at + new Vector2(0f, _rise * (1f - (1f - t) * (1f - t)));
             // Overshoots, then settles.
@@ -160,7 +197,7 @@ namespace Game.UI
             pop.title.rectTransform.localScale = Vector3.one * s;
 
             float time = pop.time;
-            for (int c = 0; c < _coins; c++)
+            for (int c = 0; c < pop.coinCount; c++)
             {
                 Vector2 v = pop.velocity[c];
                 pop.coins[c].anchoredPosition = new Vector2(v.x * time, v.y * time + 0.5f * _gravity * time * time);

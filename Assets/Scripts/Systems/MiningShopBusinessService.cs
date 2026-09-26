@@ -66,6 +66,8 @@ namespace Game.Systems
         public double PerfectMultiplier => _simulation.Mastery.PerfectMultiplier;
         public long StarGems(int star) => _simulation.StarGems(star);
         public double SteadyStateRate() => _simulation.SteadyStateRate();
+        /// <summary>Chance a normal sale off this bench tips at its stars; 0 for a bench not built.</summary>
+        public double TipChance(int productIndex) => _simulation.TipChance(productIndex);
         /// <summary>The mastery rules this business runs on.</summary>
         public BenchMastery.Tuning Mastery => _simulation.Mastery;
 

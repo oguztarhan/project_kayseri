@@ -40,5 +40,12 @@ namespace Game.Core
         public int LevelSchema;
         /// <summary>The contract customer. A save from before contracts loads an empty one.</summary>
         public ShopContractState Contract = new ShopContractState();
+        /// <summary>The tip generator's state; 0 until the first roll. Apart from PerfectSeed so tips shift no perfect sale.</summary>
+        public int TipSeed;
+        /// <summary>Cash sales since the last tip, counted only up to the gap a tip needs.</summary>
+        public int SalesSinceTip;
+        /// <summary>Tips left in this business, and what they came to before the wallet's multipliers.</summary>
+        public long TipCount;
+        public double TipsEarned;
     }
 }

@@ -60,6 +60,22 @@ namespace Game.Data
         [Tooltip("Tezgâhtaki ustanın, istasyondaki üretim bonusunun ne kadarını getirdiği. 0.5 = yarısı.")]
         [SerializeField, Min(0f)] private double _workerShare = 0.5d;
 
+        [Header("Tips")]
+        [Tooltip("Chance a sale tips with no stars on its bench.")]
+        [SerializeField, Range(0f, 1f)] private double _tipBaseChance = 0.10d;
+        [SerializeField, Range(0f, 1f)] private double _tipChancePerStar = 0.01d;
+        [Tooltip("Chance a perfect sale adds. A perfect sale never raises the amount.")]
+        [SerializeField, Range(0f, 1f)] private double _tipPerfectBonus = 0.10d;
+        [SerializeField, Range(0f, 1f)] private double _tipMaxChance = 0.25d;
+        [Tooltip("Cash sales that must pass after a tip before the next one can tip.")]
+        [SerializeField, Min(0)] private int _tipMinSalesBetween = 2;
+        [Tooltip("A business's first receipts never tip.")]
+        [SerializeField, Min(0)] private int _tipUnlockReceipts = 10;
+        [Tooltip("Tip, big tip, huge tip: each one's share of the sale's normal price.")]
+        [SerializeField] private double[] _tipShares = { 0.25d, 0.6d, 1.5d };
+        [Tooltip("Tip, big tip, huge tip: how often each comes up, relative to the others.")]
+        [SerializeField] private int[] _tipWeights = { 75, 22, 3 };
+
         public MiningShopSimulation.Tuning ToTuning()
         {
             var tuning = new MiningShopSimulation.Tuning
@@ -112,7 +128,8 @@ namespace Game.Data
                 ArrivalSeconds = pickaxe.ArrivalSeconds,
                 ServiceSeconds = pickaxe.ServiceSeconds,
                 BuildRequiresLevel = _buildRequiresLevel,
-                Mastery = ToMasteryTuning()
+                Mastery = ToMasteryTuning(),
+                Tips = ToTipTuning()
             };
             tuning.Validate();
             return tuning;
@@ -128,6 +145,19 @@ namespace Game.Data
                 PerfectChancePerStar = _perfectChancePerStar, PerfectMultiplier = _perfectMultiplier,
                 StarGems = _starGems != null ? (long[])_starGems.Clone() : null,
                 WorkerShare = _workerShare
+            };
+            tuning.Validate();
+            return tuning;
+        }
+
+        public ShopTips.Tuning ToTipTuning()
+        {
+            var tuning = new ShopTips.Tuning
+            {
+                BaseChance = _tipBaseChance, ChancePerStar = _tipChancePerStar, PerfectBonus = _tipPerfectBonus,
+                MaxChance = _tipMaxChance, MinSalesBetween = _tipMinSalesBetween, UnlockReceipts = _tipUnlockReceipts,
+                Shares = _tipShares != null ? (double[])_tipShares.Clone() : null,
+                Weights = _tipWeights != null ? (int[])_tipWeights.Clone() : null
             };
             tuning.Validate();
             return tuning;

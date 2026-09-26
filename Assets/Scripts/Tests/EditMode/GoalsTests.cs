@@ -131,8 +131,10 @@ namespace Game.Tests
         [Test]
         public void EveryLadderMetric_IsReal()
         {
+            // A counted metric, or Tips: achievement-only, kept past MetricCount on purpose.
             for (int i = 0; i < Goals.Ladder.Length; i++)
-                Assert.That(Goals.Ladder[i].Metric, Is.InRange(0, Goals.MetricCount - 1));
+                Assert.That(Goals.Ladder[i].Metric == Goals.Tips || Goals.Ladder[i].Metric < Goals.MetricCount &&
+                            Goals.Ladder[i].Metric >= 0, Is.True, "ladder " + i);
         }
 
         // ---- progress -------------------------------------------------------------------------------
@@ -259,6 +261,7 @@ namespace Game.Tests
             var service = new GoalService(data, wallet, null, new TimeService());
             for (int metric = 0; metric < Goals.MetricCount; metric++)
                 service.Record(metric, 30000000L);
+            service.Record(Goals.Tips, 30000000L);
 
             int expected = Goals.DailySlots + Goals.WeeklyMilestones.Length + Goals.Ladder.Length;
             Assert.That(service.ClaimAll(), Is.EqualTo(expected));

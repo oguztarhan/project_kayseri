@@ -198,9 +198,11 @@ namespace Game.Tests
             for (int i = 0; i < 240; i++) _market.Tick(1f);
             Assert.That(pickaxes, Is.GreaterThan(0));
             Assert.That(helmets, Is.GreaterThan(0));
+            // Tips are paid on top of the prices the benches earned.
             Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(
                 _data.miningShopBusinesses[0].Business.Lines[0].Earned +
-                _data.miningShopBusinesses[0].Business.Lines[1].Earned).Within(1e-6));
+                _data.miningShopBusinesses[0].Business.Lines[1].Earned +
+                _data.miningShopBusinesses[0].Business.TipsEarned).Within(1e-6));
             Assert.That(_data.incomeRatePerSec, Is.EqualTo(shop.SteadyStateRate()));
         }
 
@@ -222,17 +224,18 @@ namespace Game.Tests
                 "offline earnings add the timed boost themselves");
 
             double heard = 0d;
-            _market.MiningShopBusinessSold += sale => heard += sale.Cash;
+            _market.MiningShopBusinessSold += sale => heard += sale.Cash + sale.Tip;
             for (int i = 0; i < 120; i++) _market.Tick(1f);
-            MiningShopProductLineState pickaxe = _data.miningShopBusinesses[0].Business.Lines[0];
+            MiningShopBusinessState business = _data.miningShopBusinesses[0].Business;
+            MiningShopProductLineState pickaxe = business.Lines[0];
             Assert.That(pickaxe.Earned, Is.GreaterThan(0d));
-            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(pickaxe.Earned * standing * 2d).Within(1e-6));
+            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo((pickaxe.Earned + business.TipsEarned) * standing * 2d).Within(1e-6));
             Assert.That(heard, Is.EqualTo(_wallet.Cash.ToDouble()).Within(1e-6), "listeners hear what the wallet took");
 
             _data.boostEndUnix = time.NowUnix() - 1L;
-            double cashBefore = _wallet.Cash.ToDouble(), earnedBefore = pickaxe.Earned;
+            double cashBefore = _wallet.Cash.ToDouble(), earnedBefore = pickaxe.Earned, tipsBefore = business.TipsEarned;
             for (int i = 0; i < 120; i++) _market.Tick(1f);
-            double earned = pickaxe.Earned - earnedBefore;
+            double earned = pickaxe.Earned - earnedBefore + business.TipsEarned - tipsBefore;
             Assert.That(earned, Is.GreaterThan(0d));
             Assert.That(_wallet.Cash.ToDouble() - cashBefore, Is.EqualTo(earned * standing).Within(1e-6),
                 "an expired boost stops paying mid-session");
