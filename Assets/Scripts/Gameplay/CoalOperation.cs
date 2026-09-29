@@ -442,6 +442,7 @@ namespace Game.Gameplay
         [SerializeField] private GameObject[] workerPrefabs;
         /// <summary>The people pack this island's walkers are dressed from. Read-only for other views.</summary>
         public GameObject[] WorkerPrefabs => workerPrefabs;
+        public IndustrialHarbourScene Harbour { get; private set; }
 
         /// <summary>Copies the authored lower-island roads once for the shop's visual dispatchers.</summary>
         public bool TryGetShopHaulRoads(out Vector3[] portRoad, out Vector3[] road,
@@ -6639,6 +6640,10 @@ namespace Game.Gameplay
 
         private void BuildSiteLife()
         {
+            var harbour = new GameObject("CanliLiman");
+            harbour.transform.SetParent(_islandRoot, false);
+            Harbour = harbour.AddComponent<IndustrialHarbourScene>();
+            Harbour.Initialize(this, _islandRoot, shipHornClip != null ? shipHornClip : HornClip());
             var environment = new GameObject("AdaCevreHareketleri");
             environment.transform.SetParent(_islandRoot, false);
             _environmentMotion = environment.AddComponent<IslandEnvironmentMotion>();

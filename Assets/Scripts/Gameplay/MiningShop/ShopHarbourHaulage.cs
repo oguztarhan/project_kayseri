@@ -44,6 +44,7 @@ namespace Game.Gameplay
         private CoalOperation _operation;
         private Vector3 _shelf;
         private float _personHeight;
+        private IndustrialHarbourScene _harbour;
 
         private void Awake() => _accessibility = ServiceLocator.Get<AccessibilityConfig>();
 
@@ -61,6 +62,7 @@ namespace Game.Gameplay
         private void Build(CoalOperation operation, MiningShopBusinessService shop, Vector3 shelf, float height)
         {
             if (_state != null || operation == null || shop == null) return;
+            _harbour = operation.Harbour;
             if (!operation.TryGetShopHaulRoads(out Vector3[] portRoad, out Vector3[] road,
                 out Vector3 depot, out Vector3 port)) { enabled = false; return; }
             GameObject[] people = operation.WorkerPrefabs;
@@ -179,7 +181,8 @@ namespace Game.Gameplay
             if (_state.Delivered > _delivered)
             {
                 _delivered = _state.Delivered;
-                _portLife[(int)((_delivered - 1) % ShopHaulage.Capacity)] = _portDisplaySeconds;
+                if (_harbour == null || !_harbour.QueueParcel())
+                    _portLife[(int)((_delivered - 1) % ShopHaulage.Capacity)] = _portDisplaySeconds;
             }
             for (int i = 0; i < ShopHaulage.Capacity; i++)
             {

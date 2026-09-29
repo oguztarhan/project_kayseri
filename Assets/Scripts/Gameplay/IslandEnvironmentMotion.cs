@@ -29,6 +29,7 @@ namespace Game.Gameplay
         private Transform _waterMarker;
         private Vector3 _waterMarkerCentre;
         private float _clock;
+        private CoastalDiscovery _coast;
 
         public Vector3 WindVelocity => _accessibility != null && _accessibility.ReduceMotion
             ? Vector3.zero : _wind * (0.8f + 0.2f * Mathf.Sin(_clock * 0.45f));
@@ -45,14 +46,22 @@ namespace Game.Gameplay
             {
                 float nearest = float.MaxValue;
                 Renderer[] art = island.GetComponentsInChildren<Renderer>(true);
+                Renderer quay = null, sea = null;
                 for (int i = 0; i < art.Length; i++)
                 {
+                    if (art[i].name == "Port | concrete quay") quay = art[i];
+                    if (art[i].name == "Endless turquoise sea") sea = art[i];
                     if (!art[i].name.StartsWith("Sea | little ripple", System.StringComparison.Ordinal)) continue;
                     float distance = (art[i].bounds.center - berth).sqrMagnitude;
                     if (distance >= nearest) continue;
                     nearest = distance;
                     _waterMarker = art[i].transform;
                     _waterMarkerCentre = _waterMarker.InverseTransformPoint(art[i].bounds.center);
+                }
+                if (quay != null && sea != null)
+                {
+                    _coast = gameObject.AddComponent<CoastalDiscovery>();
+                    _coast.Initialize(operation, quay.bounds, sea.bounds.max.y);
                 }
             }
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
@@ -103,6 +112,13 @@ namespace Game.Gameplay
                 water -= heading * (_flightRadius * 0.2f);
             }
             Vector3 right = Vector3.Cross(Vector3.up, heading).normalized;
+            float near = _coast != null ? _coast.Nearness : 0f;
+            if (_coast != null)
+            {
+                heading = Vector3.right;
+                right = Vector3.back;
+                water = _coast.ShorePoint - heading * 110f;
+            }
             Matrix4x4 local = transform.worldToLocalMatrix;
             for (int bird = 0; bird < Birds; bird++)
             {
@@ -111,8 +127,8 @@ namespace Game.Gameplay
                 Vector3 wing = Vector3.Cross(Vector3.up, forward);
                 Vector3 centre = water + right * (Mathf.Cos(a) * _flightRadius)
                     + heading * (Mathf.Sin(a) * _flightRadius * 0.6f)
-                    + Vector3.up * (_flightHeight + bird * 9f + Mathf.Sin(a * 2f) * 4f);
-                float flap = Mathf.Sin(_clock * 6f + bird) * Mathf.Max(0f, Mathf.Sin(_clock * 0.7f + bird));
+                    + Vector3.up * ((_coast != null ? _flightHeight * 3.3f : _flightHeight) + bird * 14f + Mathf.Sin(a * 2f) * (4f + near * 5f));
+                float flap = Mathf.Sin(_clock * 6f + bird) * Mathf.Max(0f, Mathf.Sin(_clock * 0.7f + bird)) * (0.7f + near * 0.6f);
                 float span = _wingSpan * (1f - bird * 0.1f);
                 int v = bird * 9;
                 _vertices[v] = local.MultiplyPoint3x4(centre + forward * span * 0.18f);
@@ -131,12 +147,16 @@ namespace Game.Gameplay
                 float envelope = Mathf.Sin(u * Mathf.PI);
                 Vector3 centre = water + right * ((wave % 3 - 1) * 35f)
                     + heading * ((wave / 3 - 0.5f) * 35f + u * 12f) + Vector3.up * _waterOffset;
+                if (_coast != null)
+                    centre = _coast.ShorePoint + right * ((wave % 3 - 1) * 48f)
+                        - heading * ((1f - u) * 48f + 3f)
+                        + Vector3.up * (_waterOffset + Mathf.Sin(Mathf.InverseLerp(0.7f, 1f, u) * Mathf.PI) * (2f + near * 5f));
                 for (int segment = 0; segment < Segments; segment++)
                 {
                     float a = (float)segment / Segments - 0.5f, b = (float)(segment + 1) / Segments - 0.5f;
                     Vector3 p = centre + right * (a * _waveLength * envelope) + heading * (a * a * 5f);
                     Vector3 q = centre + right * (b * _waveLength * envelope) + heading * (b * b * 5f);
-                    Vector3 width = heading * (_waveWidth * envelope);
+                    Vector3 width = heading * (_waveWidth * envelope * (1f + near * 0.7f));
                     int v = BirdVertices + (wave * Segments + segment) * 4;
                     _vertices[v] = local.MultiplyPoint3x4(p);
                     _vertices[v + 1] = local.MultiplyPoint3x4(q);
