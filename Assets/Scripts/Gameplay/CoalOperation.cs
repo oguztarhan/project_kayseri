@@ -442,6 +442,17 @@ namespace Game.Gameplay
         [SerializeField] private GameObject[] workerPrefabs;
         /// <summary>The people pack this island's walkers are dressed from. Read-only for other views.</summary>
         public GameObject[] WorkerPrefabs => workerPrefabs;
+
+        /// <summary>Copies the authored lower-island roads once for the shop's visual dispatchers.</summary>
+        public bool TryGetShopHaulRoads(out Vector3[] portRoad, out Vector3[] road,
+                                       out Vector3 depot, out Vector3 port)
+        {
+            portRoad = _routes?.GetPath("portRoad");
+            road = _routes?.GetPath("roadY");
+            depot = port = Vector3.zero;
+            return portRoad != null && portRoad.Length > 1 && road != null && road.Length > 1
+                && _routes.TryGetAnchor("depot", out depot) && _routes.TryGetAnchor("port", out port);
+        }
         [SerializeField] private GameObject smokePuffPrefab;
         [SerializeField] private float workerScale = 2.2f;
         [SerializeField] private int maxWorkers = 8;
@@ -660,6 +671,7 @@ namespace Game.Gameplay
         private struct Ship { public Transform t; public Vector3 pier, sea; public float prog, dwell, phase; public bool toSea; }
         private readonly List<Ship> _ships = new List<Ship>();
         private float _waterY;
+        private IslandEnvironmentMotion _environmentMotion;
 
         // ---- the contract ship: the first authored hull, pulled out of the shuttle and driven by the
         //      port contract instead. It sails in from beyond the sea lane, moors while the job runs, and
@@ -6627,6 +6639,10 @@ namespace Game.Gameplay
 
         private void BuildSiteLife()
         {
+            var environment = new GameObject("AdaCevreHareketleri");
+            environment.transform.SetParent(_islandRoot, false);
+            _environmentMotion = environment.AddComponent<IslandEnvironmentMotion>();
+            _environmentMotion.Initialize(this);
             // A footpath running alongside the haul road rather than through the buildings: offset to the
             // far side from the yards, and inset at each end so nobody walks into a wall.
             Vector3[] patrol = AuthoredFootpath();
@@ -6655,7 +6671,12 @@ namespace Game.Gameplay
                                 ? workerPrefabs
                                 : new[] { workerPrefab };
 
-            _life = new SiteLife(_islandRoot, bodies, smokePuffPrefab, smoke,
+            var activity = new GameObject("TesisCanliligi");
+            activity.transform.SetParent(_islandRoot, false);
+            bool industrialLife = activity.AddComponent<IndustrialSiteActivity>()
+                .Initialize(this, _islandRoot, bodies, smokePuffPrefab, smoke);
+
+            _life = new SiteLife(_islandRoot, bodies, industrialLife ? null : smokePuffPrefab, smoke,
                                  patrol, chimneys, _deckY, workerScale,
                                  maxWorkers, maxSmokePuffs, smokePuffLife, smokePuffRise, smokePuffSpread);
 
@@ -7017,6 +7038,7 @@ namespace Game.Gameplay
             // is the opposite of what a pause between cycles means.
             if (_smeltGlow > 0f) _smeltGlow -= dt;
             float rate = _smeltGlow > 0f ? Mathf.Clamp(EffSmelt * 0.55f, 0.8f, 6f) : chimneyIdleRate;
+            _life.WindVelocity = _environmentMotion != null ? _environmentMotion.WindVelocity : Vector3.zero;
             _life.Tick(dt, rate);
             TickShips(dt);
         }

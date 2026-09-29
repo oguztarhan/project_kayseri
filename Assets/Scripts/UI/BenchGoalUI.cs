@@ -6,10 +6,10 @@ using UnityEngine.UI;
 namespace Game.UI
 {
     /// <summary>
-    /// The small goal card at the top of the shop screen: the next bench star worth chasing, how far that bench has
-    /// got towards it, and the gems it pays. Tapping it opens that bench's card. The bench is
-    /// <see cref="MiningShopBusinessService.NextStarBench"/>'s pick; the card hides during the tutorial and once every
-    /// built bench has all its stars.
+    /// The small goal card at the top of the shop screen: an active order's deliveries take priority; otherwise
+    /// it shows the next bench star and its gems. Tapping opens the corresponding bench's upgrade card.
+    /// The star target comes from <see cref="MiningShopBusinessService.NextStarBench"/>. The card hides during
+    /// the tutorial, or when there is neither an order nor a star left to chase.
     ///
     /// The HUD runs compact, which never builds the objective banner, so this is its own small card rather than a
     /// state of that banner. It polls once a second and rewrites its labels only when the bench, level or language
@@ -24,6 +24,8 @@ namespace Game.UI
         private Image _fill;
         private float _refreshSeconds = 1f, _timer;
         private int _bench = -2, _level = -1;
+        private bool _contract;
+        private int _delivered = -1, _quantity = -1;
 
         /// <summary>Builds the card on <paramref name="parent"/>, a child of the shop's canvas, hidden until a goal exists.</summary>
         public static BenchGoalUI Create(RectTransform parent, MiningShopBusinessService shop, MiningShopUpgradeUI card,
@@ -102,13 +104,30 @@ namespace Game.UI
             if (_timer > 0f) return;
             _timer = _refreshSeconds;
 
-            int bench = TutorialUI.Blocking ? -1 : _shop.NextStarBench();
+            MiningShopBusinessSimulation.Snapshot view = _shop.View;
+            bool contract = !TutorialUI.Blocking && view.ContractActive;
+            int bench = TutorialUI.Blocking ? -1 : contract ? view.ContractProductIndex : _shop.NextStarBench();
             int level = bench >= 0 ? _shop.View.ProductAt(bench).Level : -1;
-            if (bench == _bench && level == _level) return;
+            int delivered = contract ? view.ContractDelivered : -1;
+            int quantity = contract ? view.ContractQuantity : -1;
+            if (bench == _bench && level == _level && contract == _contract &&
+                delivered == _delivered && quantity == _quantity) return;
             _bench = bench;
             _level = level;
+            _contract = contract;
+            _delivered = delivered;
+            _quantity = quantity;
             _root.SetActive(bench >= 0);
             if (bench < 0) return;
+
+            if (contract)
+            {
+                _title.text = string.Format(Loc.T("dukkan_kontrat.siparis"), quantity, ShopContractUI.ProductName(bench));
+                _task.text = Loc.T("dukkan_kontrat.odul_sonda");
+                _count.text = delivered + " / " + quantity;
+                EtkinlikKit.Progress(_fill, quantity > 0 ? Mathf.Clamp01((float)delivered / quantity) : 0f);
+                return;
+            }
 
             int stars = BenchMastery.StarsAt(level);
             int next = BenchMastery.NextStarLevel(level);

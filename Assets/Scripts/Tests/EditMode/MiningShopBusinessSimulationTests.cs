@@ -13,6 +13,106 @@ namespace Game.Tests
 
         private static MiningShopState Fresh() => new MiningShopState { BusinessId = BusinessId };
 
+        [Test]
+        public void AssistShortensOnlyTheCurrentPickaxeWithoutCreatingGoodsOrCash()
+        {
+            var state = Fresh();
+            var receipts = new List<MiningShopBusinessSimulation.Sale>();
+            var sim = OpenUngated(state, 2, receipts);
+            Assert.That(sim.BuildTable(1), Is.True);
+            sim.Advance(2d);
+            double remaining = sim.View.ProductAt(0).CraftRemaining;
+            double helmetRemaining = sim.View.ProductAt(1).CraftRemaining;
+            double rate = sim.SteadyStateRate();
+            Assert.That(sim.TryAssistCraft(), Is.True);
+            Assert.That(sim.View.ProductAt(0).CraftRemaining, Is.EqualTo(remaining * 0.5d));
+            Assert.That(sim.View.ProductAt(1).CraftRemaining, Is.EqualTo(helmetRemaining));
+            Assert.That(sim.SteadyStateRate(), Is.EqualTo(rate), "Hands-on help must not inflate offline income.");
+            Assert.That(receipts, Is.Empty);
+            Conserved(state);
+            sim.Advance(remaining * 0.5d);
+            Assert.That(sim.View.ProductAt(0).Produced, Is.EqualTo(1));
+            Assert.That(sim.View.ProductAt(0).CraftRemaining, Is.EqualTo(sim.CraftSeconds(0)),
+                "The next craft returns to its normal duration.");
+            Conserved(state);
+        }
+
+        [Test]
+        public void AssistCannotBeRepeatedOrRefilledByReloading()
+        {
+            var state = Fresh();
+            var sim = Open(state, 1);
+            Assert.That(sim.TryAssistCraft(), Is.True);
+            double remaining = sim.View.ProductAt(0).CraftRemaining;
+            Assert.That(sim.TryAssistCraft(), Is.False);
+            Assert.That(sim.View.ProductAt(0).CraftRemaining, Is.EqualTo(remaining));
+            var loaded = JsonUtility.FromJson<MiningShopState>(JsonUtility.ToJson(state));
+            var resumed = Open(loaded, 1);
+            Assert.That(resumed.AssistDeliveriesRemaining, Is.EqualTo(5));
+            Assert.That(resumed.TryAssistCraft(), Is.False);
+            Assert.That(resumed.View.ProductAt(0).CraftRemaining, Is.EqualTo(remaining));
+        }
+
+        [Test]
+        public void FiveDeliveriesEarnOneAssistAndDoNotAccumulateCharges()
+        {
+            var sim = Open(Fresh(), 1);
+            Assert.That(sim.TryAssistCraft(), Is.True);
+            for (int i = 0; i < 300 && sim.View.ProductAt(0).Sold < 5; i++)
+            {
+                Assert.That(sim.CanAssistCraft, Is.False);
+                sim.Advance(0.5d);
+            }
+            Assert.That(sim.View.ProductAt(0).Sold, Is.GreaterThanOrEqualTo(5));
+            Assert.That(sim.AssistDeliveriesRemaining, Is.Zero);
+            Assert.That(sim.TryAssistCraft(), Is.True);
+            Assert.That(sim.AssistDeliveriesRemaining, Is.EqualTo(5));
+            Assert.That(sim.TryAssistCraft(), Is.False);
+        }
+
+        [Test]
+        public void FullRackDoesNotConsumeReadyAssist()
+        {
+            var tuning = MiningShopBusinessSimulation.Tuning.Default;
+            tuning.ServiceSeconds = 1000d;
+            var sim = new MiningShopBusinessSimulation(Fresh(), 1, tuning, _ => { });
+            for (int i = 0; i < 300; i++) sim.Advance(1d);
+            Assert.That(sim.View.ProductAt(0).Crafting, Is.False);
+            Assert.That(sim.TryAssistCraft(), Is.False);
+            Assert.That(sim.AssistDeliveriesRemaining, Is.Zero);
+        }
+
+        [Test]
+        public void AssistRejectsPendingCatchupAndReceiptReentry()
+        {
+            MiningShopBusinessSimulation sim = null;
+            int callbacks = 0;
+            sim = new MiningShopBusinessSimulation(Fresh(), 1, MiningShopBusinessSimulation.Tuning.Default, _ =>
+            {
+                callbacks++;
+                Assert.That(sim.TryAssistCraft(), Is.False);
+            });
+            sim.Advance(1000000d);
+            Assert.That(callbacks, Is.GreaterThan(0));
+            Assert.That(sim.View.PendingSeconds, Is.GreaterThan(0d));
+            Assert.That(sim.TryAssistCraft(), Is.False);
+        }
+
+        [Test]
+        public void InvalidAssistTuningAndSavedThresholdAreRejected()
+        {
+            var tuning = MiningShopBusinessSimulation.Tuning.Default;
+            tuning.AssistTimeReduction = 1d;
+            Assert.Throws<ArgumentException>(() => tuning.Validate());
+            tuning = MiningShopBusinessSimulation.Tuning.Default;
+            tuning.AssistDeliveryInterval = 0;
+            Assert.Throws<ArgumentException>(() => tuning.Validate());
+            var state = Fresh();
+            Open(state, 1);
+            state.Business.PickaxeAssistReadyAtSold = -1;
+            Assert.Throws<ArgumentException>(() => Open(state, 1));
+        }
+
         private static MiningShopBusinessSimulation Open(MiningShopState state, int available,
             List<MiningShopBusinessSimulation.Sale> receipts = null)
         {

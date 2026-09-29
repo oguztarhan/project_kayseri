@@ -556,6 +556,7 @@ namespace Game.Gameplay
                         }
                         _save?.Save(_saveData);
                     }
+                    _sea.RecordTripCash(LastCashReward);
                     _drop = _sea.RollDrop(_fight.Tier);
                     _hasDrop = true;
                 }

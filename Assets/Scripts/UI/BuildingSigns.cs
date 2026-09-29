@@ -117,12 +117,15 @@ namespace Game.UI
         private float _appliedNight = -1f;
         private LocalizationService _loc;
         private bool _suppressed;
+        private StationScreenUI _stationScreen;
+        private IndustrialWayfinding _wayfinding;
 
         /// <summary>Temporarily hides world labels while a full-screen upgrade sheet is open.</summary>
         public void SetSuppressed(bool suppressed)
         {
             _suppressed = suppressed;
             if (_fade != null) _fade.alpha = suppressed ? 0f : 1f;
+            if (_fade != null) _fade.blocksRaycasts = _fade.interactable = !suppressed;
         }
 
         private void Awake()
@@ -143,7 +146,7 @@ namespace Game.UI
             }
 
             var go = new GameObject("BinaTabelalariKanvas", typeof(Canvas), typeof(CanvasScaler),
-                                    typeof(CanvasGroup));
+                                    typeof(CanvasGroup), typeof(GraphicRaycaster));
             go.transform.SetParent(transform, false);
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -154,7 +157,7 @@ namespace Game.UI
             scaler.matchWidthOrHeight = 0.5f;
             _canvas = (RectTransform)go.transform;
             _fade = go.GetComponent<CanvasGroup>();
-            // Signs never take a tap; without this a faded-out sign would still swallow one.
+            // Raycasts follow visibility; hidden signs cannot swallow a map gesture.
             _fade.blocksRaycasts = false;
             _fade.interactable = false;
 
@@ -190,6 +193,7 @@ namespace Game.UI
             if (_count == 0) return;
 
             FadeWithZoom();
+            if (_fade != null) _fade.blocksRaycasts = _fade.interactable = _fade.alpha > 0.5f;
             if (_fade != null && _fade.alpha <= 0.001f) return;   // invisible: nothing to lay out
 
             Paint(Shader.GetGlobalFloat(NightId));
@@ -234,6 +238,21 @@ namespace Game.UI
 
         private void Build()
         {
+            IndustrialSiteActivity activity = null;
+            if (_operation.OurShipBerth(out _, out _, out Transform island) && island != null)
+                activity = island.GetComponentInChildren<IndustrialSiteActivity>(true);
+            if (_wayfinding != null && activity != null && !_wayfinding.transform.IsChildOf(activity.transform.parent))
+            {
+                Destroy(_wayfinding.gameObject);
+                _wayfinding = null;
+            }
+            if (activity != null && activity.enabled && _wayfinding == null)
+            {
+                var go = new GameObject("AdaYonlendirme");
+                go.transform.SetParent(activity.transform.parent, false);
+                _wayfinding = go.AddComponent<IndustrialWayfinding>();
+                _wayfinding.Initialize(_operation, activity.transform.parent);
+            }
             if (_signs != null)
                 for (int i = 0; i < _signs.Length; i++)
                     if (_signs[i] != null) Destroy(_signs[i].gameObject);
@@ -259,7 +278,7 @@ namespace Game.UI
         private RectTransform BuildSign(int station, out Image plate, out TextMeshProUGUI label)
         {
             var go = new GameObject("Tabela_" + _operation.StationName(station),
-                                    typeof(RectTransform), typeof(Image));
+                                    typeof(RectTransform), typeof(Image), typeof(Button));
             var rect = (RectTransform)go.transform;
             rect.SetParent(_canvas, false);
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -269,7 +288,10 @@ namespace Game.UI
             plate.sprite = _plateArt != null ? _plateArt : UiSkin.Pill;
             plate.type = Image.Type.Sliced;
             plate.color = _plateArt != null ? Color.white : _borderColor;
-            plate.raycastTarget = false;
+            plate.raycastTarget = true;
+            var button = go.GetComponent<Button>();
+            button.targetGraphic = plate;
+            button.onClick.AddListener(() => OpenStation(station));
             if (_plateArt != null)
             {
                 // panel_beyaz'ın köşe payı 44; 52 boyundaki bir tabelaya ham hâliyle basılınca
@@ -317,7 +339,7 @@ namespace Game.UI
             label.fontSizeMax = _fontSize;
             label.fontStyle = FontStyles.Bold;
             label.raycastTarget = false;
-            label.text = PlayerStationTitle(station);
+            label.text = PlayerStationTitle(station) + "  >";
 
             // The plate is sized to the text rather than to a number typed in here: the names are
             // localised, and "POWER PLANT" and its Turkish are not the same width.
@@ -345,6 +367,14 @@ namespace Game.UI
                 case IslandEconomy.Power: return Loc.T("shipyard.port");
                 default: return "";
             }
+        }
+
+        private void OpenStation(int station)
+        {
+            if (_suppressed || _operation == null || !_operation.isActiveAndEnabled) return;
+            if (_stationScreen == null)
+                _stationScreen = FindAnyObjectByType<StationScreenUI>(FindObjectsInactive.Include);
+            if (_stationScreen != null) _stationScreen.Open(station);
         }
 
         /// <summary>Day to night. Only touched when the value actually moves — fifty-five minutes of
@@ -389,7 +419,8 @@ namespace Game.UI
                 }
 
                 Vector3 screen = _camera.WorldToScreenPoint(world + Vector3.up * _worldLift);
-                bool visible = screen.z > 0f;
+                bool visible = screen.z > 0f && screen.x >= 0f && screen.x <= Screen.width
+                    && screen.y >= 0f && screen.y <= Screen.height;
                 if (sign.gameObject.activeSelf != visible) sign.gameObject.SetActive(visible);
                 if (!visible) continue;
 

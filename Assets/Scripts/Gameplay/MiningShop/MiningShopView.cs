@@ -1,4 +1,5 @@
 using Game.Core;
+using Game.Data;
 using Game.Systems;
 using UnityEngine;
 
@@ -76,6 +77,17 @@ namespace Game.Gameplay
         [Tooltip("Esnemenin boyu: 0.2 = boyu %20 uzar, eni yarısı kadar daralır.")]
         [SerializeField, Range(0f, 0.5f)] private float tipHopStretch = 0.2f;
 
+        [Header("Müşteri teslim tepkisi")]
+        [SerializeField, Min(0.05f)] private float _receiveSeconds = 0.35f;
+        [SerializeField, Range(0f, 0.5f)] private float _receiveStretch = 0.12f;
+
+        [Header("Kazma üretim geri bildirimi")]
+        [SerializeField, Min(0.05f)] private float _productFlightSeconds = 0.4f;
+        [SerializeField, Min(0f)] private float _productFlightHeight = 16f;
+        [SerializeField, Min(0.05f)] private float _shelfPopSeconds = 0.3f;
+        [SerializeField, Range(0f, 0.5f)] private float _shelfPopScale = 0.18f;
+        [SerializeField, Min(0.1f)] private float _hammerSeconds = 0.7f;
+
         [Header("Madenci aksesuarları")]
         [Tooltip("Müşteri baretlerinin renkleri; sıradaki müşteriler sırayla bunları giyer, kontrat müşterisi ilkini.")]
         [SerializeField] private Color[] minerHelmetColors =
@@ -106,8 +118,9 @@ namespace Game.Gameplay
             public Vector3 target;
             public Vector3 face;
             public bool leaving;
-            /// <summary>Seconds left on a tipping customer's happy stretch; 0 when none.</summary>
-            public float hop;
+            public int request = -1;
+            /// <summary>A short receipt reaction before walking away, stronger for a tip.</summary>
+            public float hop, hopDuration, hopStretch;
         }
 
         private sealed class Line
@@ -142,6 +155,15 @@ namespace Game.Gameplay
         private int[] _waiting;
         private int _waitingCount;
         private int _serving = -1;
+        private int _nextPickaxeCustomer = -1;
+        private readonly int[] _unassignedRequests = new int[MiningShopCampaign.ProductCount];
+        private AccessibilityConfig _accessibility;
+        private Transform _finishedPickaxe, _hammer;
+        private Transform[] _benchDetails;
+        private Vector3 _flightFrom;
+        private float _flightLeft, _shelfPopLeft;
+        private long _lastProduced = -1;
+        private int _lastShelfStock = -1, _flightSlot = -1, _shownStars = -1;
 
         // The contract customer: a body of his own beside the counter, never one of the queue's.
         private Transform _contractAnchor;
@@ -245,6 +267,7 @@ namespace Game.Gameplay
         private void Start()
         {
             _market = ServiceLocator.Get<MarketService>();
+            _accessibility = ServiceLocator.Get<AccessibilityConfig>();
             _shop = _market != null ? _market.MiningShopBusiness : null;
             var op = FindAnyObjectByType<CoalOperation>();
             GameObject[] people = op != null ? op.WorkerPrefabs : null;
@@ -293,6 +316,7 @@ namespace Game.Gameplay
                 bounds.Encapsulate(line.output.position);
             }
             if (_lines[0] == null) { enabled = false; return; }
+            BuildPickaxeFeedback();
             _carrier.body.position = _lines[0].route[0];
 
             _customers = new Walker[customerPool];
@@ -315,6 +339,9 @@ namespace Game.Gameplay
             RefreshWorkers();
             _market.MiningShopBusinessSold += OnSold;
             _shop.WorkersChanged += RefreshWorkers;
+            var haul = new GameObject("TezgahDepoLiman");
+            haul.transform.SetParent(transform, false);
+            haul.AddComponent<ShopHarbourHaulage>().Initialize(op, _shop, _shelf.position, personHeight);
         }
 
         /// <summary>One product's table, rack, locked pad, goods and route. Null when its anchors are not authored.</summary>
@@ -520,6 +547,86 @@ namespace Game.Gameplay
             Reconcile(v);
             DrawContractor(v);
             WalkCustomers(Time.deltaTime);
+            DrawPickaxeFeedback(v.ProductAt(0));
+        }
+
+        private void BuildPickaxeFeedback()
+        {
+            Line line = _lines[0];
+            _finishedPickaxe = Item(0, transform, Vector3.zero);
+            _finishedPickaxe.name = "FinishedPickaxe";
+            _hammer = new GameObject("CraftHammer").transform;
+            _hammer.SetParent(line.work, false);
+            _hammer.localPosition = line.craft.localPosition + new Vector3(benchSize * 0.18f, pickaxeLength * 0.5f, 0f);
+            Part(PrimitiveType.Cube, _hammer, _handleMat, new Vector3(0f, pickaxeLength * 0.2f, 0f),
+                new Vector3(2f, pickaxeLength * 0.4f, 2f));
+            Part(PrimitiveType.Cube, _hammer, _headMat, new Vector3(0f, pickaxeLength * 0.4f, 0f),
+                new Vector3(pickaxeLength * 0.4f, 4f, 4f));
+
+            // Permanent additions follow the saved mastery stars, including on the first frame after loading.
+            _benchDetails = new Transform[BenchMastery.StarCount];
+            float w = benchSize, h = w * 0.45f;
+            _benchDetails[0] = Part(PrimitiveType.Cube, line.table.transform, _headMat,
+                new Vector3(0f, h * 0.72f, -w * 0.29f), new Vector3(w, w * 0.12f, w * 0.04f));
+            _benchDetails[1] = Part(PrimitiveType.Cube, line.table.transform, _handleMat,
+                new Vector3(0f, h * 0.25f, 0f), new Vector3(w * 0.8f, w * 0.06f, w * 0.5f));
+            _benchDetails[2] = Part(PrimitiveType.Cube, line.table.transform, _handleMat,
+                new Vector3(0f, h * 1.25f, w * 0.28f), new Vector3(w, h * 0.55f, w * 0.04f));
+            _benchDetails[3] = Part(PrimitiveType.Cube, line.table.transform, _headMat,
+                new Vector3(0f, h * 1.55f, w * 0.28f), new Vector3(w * 1.08f, w * 0.06f, w * 0.12f));
+            _benchDetails[4] = Part(PrimitiveType.Sphere, line.table.transform, _helmetMat,
+                new Vector3(0f, h * 0.72f, -w * 0.33f), new Vector3(w * 0.17f, w * 0.17f, w * 0.05f));
+            for (int i = 0; i < _benchDetails.Length; i++) _benchDetails[i].gameObject.SetActive(false);
+        }
+
+        private void DrawPickaxeFeedback(in MiningShopBusinessSimulation.ProductSnapshot product)
+        {
+            Line line = _lines[0];
+            bool motion = _accessibility == null || !_accessibility.ReduceMotion;
+            if (_shownStars != product.Stars)
+            {
+                _shownStars = product.Stars;
+                for (int i = 0; i < _benchDetails.Length; i++) _benchDetails[i].gameObject.SetActive(i < _shownStars);
+            }
+
+            _hammer.gameObject.SetActive(product.TableBuilt && product.Crafting);
+            float phase = (float)(product.CraftDuration - product.CraftRemaining) / Mathf.Max(0.1f, _hammerSeconds);
+            _hammer.localRotation = Quaternion.Euler(0f, 0f, motion ? -35f + 50f * Mathf.Sin(phase * Mathf.PI * 2f) : 0f);
+
+            int rackCount = Mathf.Min(line.rackItems.Length, product.OutputStock + product.PickupReserved);
+            if (motion && _lastProduced >= 0 && product.Produced > _lastProduced && rackCount > 0)
+            {
+                _flightSlot = rackCount - 1;
+                _flightFrom = line.craft.position;
+                _flightLeft = Mathf.Max(0.05f, _productFlightSeconds);
+            }
+            _lastProduced = product.Produced;
+            if (!motion || !product.TableBuilt || _flightSlot >= rackCount) _flightLeft = 0f;
+            if (_flightLeft > 0f)
+            {
+                _flightLeft = Mathf.Max(0f, _flightLeft - Time.deltaTime);
+                float t = 1f - _flightLeft / Mathf.Max(0.05f, _productFlightSeconds);
+                Transform target = line.rackItems[_flightSlot];
+                _finishedPickaxe.position = Vector3.Lerp(_flightFrom, target.position, t) +
+                    Vector3.up * (Mathf.Sin(t * Mathf.PI) * _productFlightHeight);
+                _finishedPickaxe.rotation = target.rotation;
+                Vector3 parentScale = transform.lossyScale;
+                Vector3 targetScale = target.lossyScale;
+                _finishedPickaxe.localScale = new Vector3(targetScale.x / parentScale.x,
+                    targetScale.y / parentScale.y, targetScale.z / parentScale.z);
+                // The flying item replaces the last visible rack item; it never adds inventory.
+                if (_flightLeft > 0f) target.gameObject.SetActive(false);
+            }
+            _finishedPickaxe.gameObject.SetActive(_flightLeft > 0f);
+
+            if (motion && _lastShelfStock >= 0 && product.ShelfStock > _lastShelfStock)
+                _shelfPopLeft = Mathf.Max(0.05f, _shelfPopSeconds);
+            _lastShelfStock = product.ShelfStock;
+            _shelfPopLeft = motion ? Mathf.Max(0f, _shelfPopLeft - Time.deltaTime) : 0f;
+            float pop = _shelfPopLeft > 0f
+                ? Mathf.Sin((1f - _shelfPopLeft / Mathf.Max(0.05f, _shelfPopSeconds)) * Mathf.PI) * _shelfPopScale : 0f;
+            for (int i = 0; i < line.shelfItems.Length; i++)
+                line.shelfItems[i].localScale = Vector3.one * (shelfItemScale * (1f + pop));
         }
 
         /// <summary>
@@ -666,10 +773,12 @@ namespace Game.Gameplay
             bool sale = v.Serving && !v.ServingContract;
             if (sale && _serving < 0)
             {
-                _serving = _waitingCount > 0 ? PopFront() : Spawn();
+                _serving = TakeWaiting(v.ServiceProductIndex);
+                if (_serving < 0) _serving = Spawn();
                 if (_serving >= 0)
                 {
                     Walker w = _customers[_serving];
+                    w.request = v.ServiceProductIndex;
                     w.target = Slot(0);
                     w.face = _shelf.position - Slot(0);
                     Hold(w, v.ServiceProductIndex);
@@ -681,22 +790,61 @@ namespace Game.Gameplay
                 _serving = -1;
             }
 
-            int waiting = v.WaitingCustomerCount;
-            while (_waitingCount < waiting)
+            for (int p = 0; p < _unassignedRequests.Length; p++)
+                _unassignedRequests[p] = p < v.AvailableProductCount ? v.ProductAt(p).WaitingCustomers : 0;
+            // Preserve each visible customer's request while that demand still exists. The simulation's seller
+            // rotates between products, so the person matching a sale need not be the first visual body.
+            int kept = 0;
+            for (int i = 0; i < _waitingCount; i++)
             {
-                int c = Spawn();
-                if (c < 0) break;
-                _waiting[_waitingCount++] = c;
+                int c = _waiting[i];
+                int p = _customers[c].request;
+                if (p >= 0 && p < _unassignedRequests.Length && _unassignedRequests[p] > 0)
+                {
+                    _unassignedRequests[p]--;
+                    _waiting[kept++] = c;
+                }
+                else Hide(_customers[c]);
             }
-            while (_waitingCount > waiting) Hide(_customers[_waiting[--_waitingCount]]);
+            _waitingCount = kept;
+            for (int p = 0; p < _unassignedRequests.Length; p++)
+                while (_unassignedRequests[p] > 0)
+                {
+                    int c = Spawn();
+                    if (c < 0) break;
+                    _customers[c].request = p;
+                    _waiting[_waitingCount++] = c;
+                    _unassignedRequests[p]--;
+                }
 
+            _nextPickaxeCustomer = _serving >= 0 && _customers[_serving].request == 0 ? _serving : -1;
             for (int i = 0; i < _waitingCount; i++)
             {
                 Walker w = _customers[_waiting[i]];
                 w.target = Slot(i + 1);
-                w.face = Slot(i) - Slot(i + 1);
+                Line requested = w.request >= 0 ? _lines[w.request] : null;
+                w.face = requested != null ? requested.work.position - w.target : _shelf.position - w.target;
+                if (_nextPickaxeCustomer < 0 && w.request == 0) _nextPickaxeCustomer = _waiting[i];
             }
         }
+
+        /// <summary>Presentation-only request; leaving customers no longer ask for an item.</summary>
+        public bool TryGetCustomerRequest(int index, out Vector3 head, out int product, out bool highlighted)
+        {
+            head = Vector3.zero;
+            product = -1;
+            highlighted = false;
+            if (!isActiveAndEnabled || _customers == null || index < 0 || index >= _customers.Length) return false;
+            Walker w = _customers[index];
+            if (!w.body.gameObject.activeInHierarchy || w.leaving || w.request < 0) return false;
+            head = w.body.position + Vector3.up * personHeight * 1.2f;
+            product = w.request;
+            highlighted = index == _nextPickaxeCustomer;
+            return true;
+        }
+
+        public float CustomerHeight => personHeight;
+        public int CustomerCapacity => customerPool;
 
         private void OnSold(MiningShopBusinessSimulation.Sale sale)
         {
@@ -711,7 +859,11 @@ namespace Game.Gameplay
             Walker w = _customers[_serving];
             w.leaving = true;
             w.target = Slot(0) + customerExitOffset;
-            if (sale.TipTier != ShopTips.None) w.hop = tipHopSeconds;
+            bool motion = _accessibility == null || !_accessibility.ReduceMotion;
+            bool tip = sale.TipTier != ShopTips.None;
+            w.hopDuration = tip ? tipHopSeconds : _receiveSeconds;
+            w.hopStretch = tip ? tipHopStretch : _receiveStretch;
+            w.hop = motion ? Mathf.Max(0.05f, w.hopDuration) : 0f;
             _serving = -1;
         }
 
@@ -728,9 +880,12 @@ namespace Game.Gameplay
             {
                 // Scale rather than height, so the walk to the exit is never pulled off its line. Only customers hop,
                 // and a customer's body is drawn at one.
-                w.hop = Mathf.Max(0f, w.hop - dt);
-                float k = Mathf.Sin((1f - w.hop / tipHopSeconds) * Mathf.PI) * tipHopStretch;
+                bool motion = _accessibility == null || !_accessibility.ReduceMotion;
+                w.hop = motion ? Mathf.Max(0f, w.hop - dt) : 0f;
+                float k = Mathf.Sin((1f - w.hop / Mathf.Max(0.05f, w.hopDuration)) * Mathf.PI) * w.hopStretch;
                 w.body.localScale = new Vector3(1f - k * 0.5f, 1f + k, 1f - k * 0.5f);
+                if (w.hop > 0f) { w.anim?.SetMoving(false); return; }
+                w.body.localScale = Vector3.one;
             }
             Vector3 to = w.target - w.body.position;
             to.y = 0f;
@@ -769,12 +924,17 @@ namespace Game.Gameplay
             return -1;
         }
 
-        private int PopFront()
+        private int TakeWaiting(int product)
         {
-            int front = _waiting[0];
-            for (int i = 1; i < _waitingCount; i++) _waiting[i - 1] = _waiting[i];
-            _waitingCount--;
-            return front;
+            for (int i = 0; i < _waitingCount; i++)
+            {
+                int customer = _waiting[i];
+                if (_customers[customer].request != product) continue;
+                for (int j = i + 1; j < _waitingCount; j++) _waiting[j - 1] = _waiting[j];
+                _waitingCount--;
+                return customer;
+            }
+            return -1;
         }
 
         private static void Hold(Walker w, int product)
@@ -789,6 +949,7 @@ namespace Game.Gameplay
             w.leaving = false;
             if (w.hop > 0f) w.body.localScale = Vector3.one;
             w.hop = 0f;
+            w.request = -1;
             Hold(w, -1);
             w.body.gameObject.SetActive(false);
         }

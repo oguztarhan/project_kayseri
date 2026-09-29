@@ -57,6 +57,10 @@ namespace Game.UI
         private SeaLane _lane;
         private SeaHudUI _hud;
         private bool _leaving;
+        private AudioListener _listener;
+        private AudioListener[] _otherListeners;
+        private bool[] _listenerStates;
+        private bool _ownsAudio;
 
         private void Start()
         {
@@ -77,6 +81,12 @@ namespace Game.UI
             var camera = new GameObject("DenizKamerasi").AddComponent<SeaCamera>();
             camera.transform.SetParent(transform, false);
             var cam = camera.gameObject.AddComponent<Camera>();
+            _otherListeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Include);
+            _listenerStates = new bool[_otherListeners.Length];
+            _listener = camera.gameObject.AddComponent<AudioListener>();
+            _listener.enabled = false;
+            UnityEngine.SceneManagement.SceneManager.activeSceneChanged += OnActiveSceneChanged;
+            OnActiveSceneChanged(default, UnityEngine.SceneManagement.SceneManager.GetActiveScene());
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = sky;
             cam.farClipPlane = 3000f;
@@ -304,11 +314,38 @@ namespace Game.UI
             if (!SceneCurtain.Cover(SceneCurtain.HomeScene(homeSceneName), HomeTint(), caption, false)) return;
             _leaving = true;
             _sea?.Ashore();
+            ExpeditionSummaryUI.ShowAfterReturn(_sea);
+        }
+
+        // Additive loading briefly keeps both scenes alive. Hand off at the active-scene change,
+        // before roots are parked/restored, so the sea never has zero or two listeners.
+        private void OnActiveSceneChanged(UnityEngine.SceneManagement.Scene previous,
+                                          UnityEngine.SceneManagement.Scene current)
+        {
+            bool owns = current == gameObject.scene;
+            if (owns == _ownsAudio) return;
+            _ownsAudio = owns;
+            if (!owns) _listener.enabled = false;
+            for (int i = 0; i < _otherListeners.Length; i++)
+            {
+                AudioListener other = _otherListeners[i];
+                if (other == null) continue;
+                if (owns) { _listenerStates[i] = other.enabled; other.enabled = false; }
+                else other.enabled = _listenerStates[i];
+            }
+            if (owns) _listener.enabled = true;
         }
 
         /// <summary>Any other way out — a hot reload, or a path that swaps the scene without the button.</summary>
         private void OnDestroy()
         {
+            UnityEngine.SceneManagement.SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+            if (_ownsAudio)
+            {
+                if (_listener != null) _listener.enabled = false;
+                for (int i = 0; i < _otherListeners.Length; i++)
+                    if (_otherListeners[i] != null) _otherListeners[i].enabled = _listenerStates[i];
+            }
             if (_roster != null) _roster.Changed -= RefreshHelm;
             if (_leaving) return;
             _sea?.Ashore();

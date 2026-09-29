@@ -34,6 +34,27 @@ namespace Game.Tests
             MiningShopBusinessSimulation.Tuning.Default);
 
         [Test]
+        public void AssistIsFreeSendsOneChangeAndSurvivesEncryptedSave()
+        {
+            MiningShopBusinessService shop = Open();
+            int changes = 0;
+            shop.Changed += () => changes++;
+            double cash = _wallet.Cash.ToDouble();
+            Assert.That(shop.TryAssistCraft(), Is.True);
+            Assert.That(shop.TryAssistCraft(), Is.False);
+            Assert.That(changes, Is.EqualTo(1));
+            Assert.That(_wallet.Cash.ToDouble(), Is.EqualTo(cash));
+            var save = new SaveService("assist-memory-only-test.dat");
+            SaveData loaded = save.Decrypt(save.Encrypt(_data), out bool tampered);
+            Assert.That(tampered, Is.False);
+            var market = new MarketService(loaded, new WalletService(loaded.wallet), null);
+            MiningShopBusinessService resumed = market.OpenMiningShopBusiness(_campaign, BusinessId,
+                MiningShopBusinessSimulation.Tuning.Default);
+            Assert.That(resumed.AssistDeliveriesRemaining, Is.EqualTo(5));
+            Assert.That(resumed.TryAssistCraft(), Is.False);
+        }
+
+        [Test]
         public void TablesSpendOnceInOrderAndPersistInTheBusinessRecord()
         {
             _wallet.AddCash(new BigDouble(1e7));

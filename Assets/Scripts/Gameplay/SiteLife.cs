@@ -40,6 +40,7 @@ namespace Game.Gameplay
         /// exactly at the places a pedestrian has to give way, and nowhere else.
         /// </summary>
         public System.Func<Vector3, bool> Hazard;
+        public Vector3 WindVelocity;
 
         /// <summary>
         /// How long a worker will hold at the kerb before crossing anyway. Without a limit a
@@ -225,6 +226,7 @@ namespace Game.Gameplay
                 Transform t = _puffs[i];
                 Vector3 p = t.position;
                 p.y += _puffRise * dt;
+                p += WindVelocity * (dt * (0.35f + k));
                 t.position = p;
                 // Billow out as it rises, then thin away to nothing so there is no hard pop on recycle.
                 float s = Mathf.Lerp(0.35f, 1.6f, k) * (1f - k * k * 0.55f);

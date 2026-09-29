@@ -62,6 +62,23 @@ namespace Game.Systems
         public bool BuildRequirementMet(int productIndex) => _simulation.BuildRequirementMet(productIndex);
         public int BuildRequiresLevel => _simulation.BuildRequiresLevel;
         public double StarMultiplier => _simulation.StarMultiplier;
+        public long AssistDeliveriesRemaining => _simulation.AssistDeliveriesRemaining;
+        public double AssistTimeReduction => _simulation.AssistTimeReduction;
+        public bool CanAssistCraft => !_busy && _simulation.CanAssistCraft;
+
+        public bool TryAssistCraft()
+        {
+            if (!CanAssistCraft) return false;
+            _busy = true;
+            try
+            {
+                if (!_simulation.TryAssistCraft()) return false;
+                Save();
+                Changed?.Invoke();
+                return true;
+            }
+            finally { _busy = false; }
+        }
         /// <summary>What a perfect sale multiplies its price by.</summary>
         public double PerfectMultiplier => _simulation.Mastery.PerfectMultiplier;
         public long StarGems(int star) => _simulation.StarGems(star);

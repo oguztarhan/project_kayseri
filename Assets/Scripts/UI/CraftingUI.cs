@@ -96,6 +96,10 @@ namespace Game.UI
         private Text _decideTitle, _decideScore, _decideRows, _decideWorn, _equipLabel, _salvageLabel;
         private Button _stowBtn;
         private Text _stowLabel, _depoLabel;
+        private Text _sailLabel;
+        private Button _sailBtn;
+        private bool _equipped;
+        private double _powerBeforeEquip;
 
         private GameObject _openerChip;
         private TMP_Text _openerCount;
@@ -144,6 +148,7 @@ namespace Game.UI
 
         public void Show()
         {
+            _equipped = false;
             if (_root != null) _root.gameObject.SetActive(true);
             Refresh();
             TutorialUI.NotifyFeatureOpened("crafting");
@@ -316,10 +321,16 @@ namespace Game.UI
                                        "Text", Loc.T("atolye.birikiyor"), 18, TextAnchor.MiddleCenter);
             _bankLabel.color = new Color(0.75f, 0.81f, 0.92f, 1f);
 
-            _sourceLabel = UiBuild.Label(Zone(c, "Nereden", new Vector2(0f, 0f), new Vector2(1f, 0.120f)),
-                                         "Text", Loc.T("atolye.nereden"), 20, TextAnchor.LowerCenter);
+            _sourceLabel = UiBuild.Label(Zone(c, "Nereden", new Vector2(0f, 0.090f), new Vector2(1f, 0.165f)),
+                                         "Text", Loc.T("atolye.nereden"), 20, TextAnchor.MiddleCenter);
             _sourceLabel.color = InkSoft;
             Fit(_sourceLabel, 12, 20);
+
+            _sailBtn = UiBuild.Btn(c, "SefereGit", string.Empty,
+                _btnBlue != null ? _btnBlue : UiSkin.ButtonBlue, Color.white, 24, OnSail);
+            UiBuild.Anchor((RectTransform)_sailBtn.transform, new Vector2(0f, 0f), new Vector2(1f, 0.085f));
+            PillFit.Wrap(_sailBtn.GetComponent<Image>());
+            _sailLabel = AtolyeKit.Label(_sailBtn, 10, 24);
 
             // Off until RefreshGate says otherwise, so its first pass always applies the matching layout.
             _gateCard.gameObject.SetActive(false);
@@ -426,6 +437,7 @@ namespace Game.UI
 
             _decideScore = UiBuild.Label(Zone(_decideCard, "Guc", new Vector2(0.06f, 0.800f), new Vector2(0.94f, 0.875f)),
                                          "Text", string.Empty, 28, TextAnchor.MiddleCenter);
+            Fit(_decideScore, 12, 28);
 
             _decideRows = UiBuild.Label(Zone(_decideCard, "Satirlar", new Vector2(0.10f, 0.360f), new Vector2(0.90f, 0.790f)),
                                         "Text", string.Empty, 24, TextAnchor.UpperLeft);
@@ -511,6 +523,7 @@ namespace Game.UI
         private void OnCraft()
         {
             if (_crafting == null) return;
+            _equipped = false;
             _crafting.TryCraft(out _);   // refresh rides the Changed event; refusal changes nothing
         }
 
@@ -531,8 +544,20 @@ namespace Game.UI
 
         private void OnEquip()
         {
-            if (_crafting == null) return;
-            _crafting.EquipPending();
+            if (_crafting == null || _sea == null || !_crafting.HasPending) return;
+            double before = _sea.ShipPower();
+            if (_crafting.EquipPending() < 0L) return;
+            _powerBeforeEquip = before;
+            _equipped = true;
+            ServiceLocator.Get<HapticService>()?.Medium();
+            Refresh();
+        }
+
+        private void OnSail()
+        {
+            if (TutorialUI.Blocking || _crafting == null || _crafting.HasPending) return;
+            var port = FindAnyObjectByType<PortShipMarker>();
+            if (port != null && port.TryOpen()) Hide();
         }
 
         private void OnSalvage()
@@ -636,6 +661,14 @@ namespace Game.UI
             }
 
             RefreshDecideCard();
+            if (_sailBtn != null)
+            {
+                _sailBtn.interactable = _sea != null && !_sea.Active && !_crafting.HasPending && !TutorialUI.Blocking;
+                _sailLabel.text = Loc.T("deniz.acil");
+                _sourceLabel.text = _sea == null ? Loc.T("atolye.nereden") : _equipped
+                    ? string.Format(Loc.T("atolye.gemi_takildi"), N(_powerBeforeEquip), N(_sea.ShipPower()))
+                    : string.Format(Loc.T("atolye.gemi_gucu"), N(_sea.ShipPower()));
+            }
         }
 
         private void RefreshCaptainAssignment()
@@ -725,9 +758,10 @@ namespace Game.UI
             _decideTitle.text = Loc.T("kaptan.derece." + item.Grade) + "  ·  " + Loc.T("deniz.slot." + item.Slot);
             _decideTitle.color = tint;
 
-            int score = SeaCombat.ItemScore(item, t);
-            int delta = score - (_sea != null ? _sea.GearScore(item.Slot) : 0);
-            _decideScore.text = Loc.T("deniz.guc") + "  " + score + "   (" + (delta >= 0 ? "+" : "") + delta + ")";
+            double before = _sea != null ? _sea.ShipPower() : 0d;
+            double after = _sea != null ? _sea.ShipPowerWith(item) : SeaCombat.ItemScore(item, t);
+            double delta = after - before;
+            _decideScore.text = string.Format(Loc.T("atolye.gemi_onizleme"), N(before), N(after));
             _decideScore.color = delta >= 0 ? Good : Bad;
 
             _decideRows.text = ItemRows(item, cur, cur.Grade >= 0);

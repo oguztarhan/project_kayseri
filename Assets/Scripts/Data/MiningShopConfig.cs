@@ -60,6 +60,12 @@ namespace Game.Data
         [Tooltip("Tezgâhtaki ustanın, istasyondaki üretim bonusunun ne kadarını getirdiği. 0.5 = yarısı.")]
         [SerializeField, Min(0f)] private double _workerShare = 0.5d;
 
+        [Header("Hands-on craft assist")]
+        [Tooltip("Ustaya yardımın yeniden hazır olması için teslim edilmesi gereken kazma sayısı.")]
+        [SerializeField, Min(1)] private int _assistDeliveryInterval = 5;
+        [Tooltip("Yardımın devam eden kazmanın kalan süresinden kaldırdığı pay. 0.5 = yarısı.")]
+        [SerializeField, Range(0.05f, 0.95f)] private double _assistTimeReduction = 0.5d;
+
         [Header("Tips")]
         [Tooltip("Chance a sale tips with no stars on its bench.")]
         [SerializeField, Range(0f, 1f)] private double _tipBaseChance = 0.10d;
@@ -129,7 +135,9 @@ namespace Game.Data
                 ServiceSeconds = pickaxe.ServiceSeconds,
                 BuildRequiresLevel = _buildRequiresLevel,
                 Mastery = ToMasteryTuning(),
-                Tips = ToTipTuning()
+                Tips = ToTipTuning(),
+                AssistDeliveryInterval = _assistDeliveryInterval,
+                AssistTimeReduction = _assistTimeReduction
             };
             tuning.Validate();
             return tuning;

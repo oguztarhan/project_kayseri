@@ -51,6 +51,8 @@ namespace Game.Core
             public int BuildRequiresLevel;
             public BenchMastery.Tuning Mastery;
             public ShopTips.Tuning Tips;
+            public int AssistDeliveryInterval;
+            public double AssistTimeReduction;
 
             public static Tuning Default => new Tuning
             {
@@ -71,7 +73,9 @@ namespace Game.Core
                 ServiceSeconds = 2d,
                 BuildRequiresLevel = 25,
                 Mastery = BenchMastery.Tuning.Default,
-                Tips = ShopTips.Tuning.Default
+                Tips = ShopTips.Tuning.Default,
+                AssistDeliveryInterval = 5,
+                AssistTimeReduction = 0.5d
             };
 
             public void Validate()
@@ -84,6 +88,8 @@ namespace Game.Core
                     throw new ArgumentException("Mining-shop business tuning requires finite positive tables, timings and capacities.");
                 Mastery.Validate();
                 Tips.Validate();
+                if (AssistDeliveryInterval < 1 || !Positive(AssistTimeReduction) || AssistTimeReduction >= 1d)
+                    throw new ArgumentException("Craft assist requires a positive delivery interval and a reduction between zero and one.");
 
                 for (int i = 0; i < Products.Length; i++)
                 {
@@ -301,6 +307,25 @@ namespace Game.Core
         public int BuildRequiresLevel => _tuning.BuildRequiresLevel;
         /// <summary>What each star multiplies its axis by.</summary>
         public double StarMultiplier => _tuning.Mastery.StarMultiplier;
+
+        public long AssistDeliveriesRemaining => Math.Max(0L, _state.PickaxeAssistReadyAtSold - Line(0).Sold);
+        public double AssistTimeReduction => _tuning.AssistTimeReduction;
+        public bool CanAssistCraft => !_advancing && _state.PendingSeconds <= 0d && Line(0).TableBuilt &&
+            Line(0).Crafting && Line(0).CraftRemaining > Epsilon && AssistDeliveriesRemaining == 0L &&
+            Line(0).Sold <= long.MaxValue - _tuning.AssistDeliveryInterval;
+
+        /// <summary>
+        /// Helps only the current pickaxe. No items, receipts or cash are created here: the normal clock completes
+        /// the shortened job. The next charge is earned by deliveries, not reopening the card or the game.
+        /// </summary>
+        public bool TryAssistCraft()
+        {
+            if (!CanAssistCraft) return false;
+            MiningShopProductLineState line = Line(0);
+            line.CraftRemaining *= 1d - _tuning.AssistTimeReduction;
+            _state.PickaxeAssistReadyAtSold = line.Sold + _tuning.AssistDeliveryInterval;
+            return true;
+        }
 
         /// <summary>Gems the star at this position pays once.</summary>
         public long StarGems(int star) => BenchMastery.StarGems(star, _tuning.Mastery);
@@ -966,7 +991,8 @@ namespace Game.Core
                     (_state.ServiceContract ? _state.ServicePrice != 0d || _state.ServicePerfect : !Positive(_state.ServicePrice)))) ||
                 (!_state.Serving && (_state.ServiceProductIndex != -1 || _state.ServiceUnits != 0 || _state.ServiceContract)) ||
                 _state.LevelSchema < 0 || _state.LevelSchema > MiningShopLevelMigration.Schema ||
-                _state.SalesSinceTip < 0 || _state.TipCount < 0L || !NonNegative(_state.TipsEarned))
+                _state.SalesSinceTip < 0 || _state.TipCount < 0L || !NonNegative(_state.TipsEarned) ||
+                _state.PickaxeAssistReadyAtSold < 0L)
                 throw new ArgumentException("Mining-shop business save has invalid shared jobs; refusing to reset it.");
 
             // Before the migration a bench's level is the two old tracks; after it, the single level.

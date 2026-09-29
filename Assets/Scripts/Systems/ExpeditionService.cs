@@ -289,6 +289,9 @@ namespace Game.Systems
             _islandKey = islandKey ?? string.Empty;
             _sailedUnix = NowUnix();
             _finds = 0;
+            TripWins = 0;
+            TripCharts = TripSalvage = TripCraftPoints = TripPearls = 0L;
+            TripCash = 0d;
             Changed?.Invoke();
             return true;
         }
@@ -548,12 +551,15 @@ namespace Game.Systems
         /// call, stored nowhere.
         /// </summary>
         public SeaCombat.Stats ShipStats()
+            => StatsFor(Loadout());
+
+        private SeaCombat.Stats StatsFor(SeaCombat.Item[] loadout)
         {
             int captain = CaptainAboard;
             int level = _captains != null && captain >= 0 ? _captains.Level(captain) : 0;
             int crew = _data != null && _data.shipLevels != null ? _data.shipLevels[Voyages.Crew] : 0;
             Captains.Tuning ct = _captains != null ? _captains.Tuning : Captains.Tuning.Default;
-            SeaCombat.Stats s = SeaCombat.OurStats(captain, level, crew, Loadout(), ct, _combat);
+            SeaCombat.Stats s = SeaCombat.OurStats(captain, level, crew, loadout, ct, _combat);
             // Pets add on top of gear and the captain, once, and are held to the same sea caps
             // gear already respects — see Game.Core.Pets.ApplyCombatBonus. Unwired, this is a no-op.
             return Pets != null ? Game.Core.Pets.ApplyCombatBonus(s, Pets.CombatBonus()) : s;
@@ -561,6 +567,35 @@ namespace Game.Systems
 
         /// <summary>The panel's headline for <see cref="ShipStats"/>.</summary>
         public double ShipPower() => SeaCombat.PowerFor(ShipStats(), _combat);
+
+        /// <summary>Real ship power after replacing one slot, including captain, crew and pets.
+        /// A read-only preview: it neither equips nor scraps anything.</summary>
+        public double ShipPowerWith(in SeaCombat.Item item)
+        {
+            if (item.Slot < 0 || item.Slot >= SeaCombat.SlotCount || item.Grade < 0) return ShipPower();
+            SeaCombat.Item[] loadout = Loadout();
+            SeaCombat.Item worn = loadout[item.Slot];
+            loadout[item.Slot] = item;
+            double power = SeaCombat.PowerFor(StatsFor(loadout), _combat);
+            loadout[item.Slot] = worn;
+            return power;
+        }
+
+        // Session receipt only. Balances were paid by the encounter; showing this never pays again.
+        public int TripWins { get; private set; }
+        public long TripCharts { get; private set; }
+        public long TripSalvage { get; private set; }
+        public long TripCraftPoints { get; private set; }
+        public long TripPearls { get; private set; }
+        public double TripCash { get; private set; }
+        public bool HasTripRewards => TripWins > 0 || TripCharts > 0L || TripSalvage > 0L
+            || TripCraftPoints > 0L || TripPearls > 0L || TripCash > 0d;
+
+        /// <summary>Records cash already paid by the encounter, including first-clear boss rewards.</summary>
+        public void RecordTripCash(double paid)
+        {
+            if (_atSea && paid > 0d && !double.IsInfinity(paid) && !double.IsNaN(paid)) TripCash += paid;
+        }
 
         /// <summary>
         /// Wear a drop. Whatever was in the slot is scrapped into salvage on the way out — one
@@ -893,6 +928,9 @@ namespace Game.Systems
             // The workshop's point drop rides the same win, on the same dice-in-the-service rule.
             if (Crafting != null && Crafting.TryDropPoint(_random.NextDouble()))
                 LastKillCraftPoints = Crafting.Tuning.PointsPerWin;
+            TripCharts += LastKillCharts;
+            TripSalvage += LastKillSalvage;
+            TripCraftPoints += LastKillCraftPoints;
             Changed?.Invoke();
             return true;
         }
@@ -928,12 +966,14 @@ namespace Game.Systems
             LastWinPearls = 0L;
             if (!_atSea || _data == null) return;
             _data.seaFightsWon++;
+            TripWins++;
             if (Pets != null)
             {
                 long before = Pets.Pearls;
                 Pets.GrantSeaFightWin(tier, enemyKind);
                 LastWinPearls = Pets.Pearls - before;
             }
+            TripPearls += LastWinPearls;
             _save?.Save(_data);
             Changed?.Invoke();
         }

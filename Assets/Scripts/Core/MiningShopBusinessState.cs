@@ -47,5 +47,7 @@ namespace Game.Core
         /// <summary>Tips left in this business, and what they came to before the wallet's multipliers.</summary>
         public long TipCount;
         public double TipsEarned;
+        /// <summary>Pickaxe deliveries needed before the next hands-on assist; zero gives old/new saves one ready use.</summary>
+        public long PickaxeAssistReadyAtSold;
     }
 }

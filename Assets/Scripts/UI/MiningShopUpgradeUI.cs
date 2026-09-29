@@ -152,6 +152,15 @@ namespace Game.UI
         private HudUI _hud;
         private BenchStarFx _starFx;
         private PerfectSaleFx _perfectFx;
+        [SerializeField, Min(0.1f)] private float _ordinarySaleFxInterval = 1f;
+        private TipCoinFlight _ordinarySaleFlight;
+        private float _nextOrdinarySaleFx;
+        private AccessibilityConfig _saleAccessibility;
+        private Button _assist;
+        private Image _assistImage;
+        private Text _assistText;
+        private long _shownAssistRemaining = -1L;
+        private int _shownAssistMode = -1;
         private PerfectSaleFx _tipFx;
         private TipCoinFlight _tipFlight;
         private ConfettiBurst _tipConfetti;
@@ -219,6 +228,7 @@ namespace Game.UI
             _market = ServiceLocator.Get<MarketService>();
             _shop = _market != null ? _market.MiningShopBusiness : null;
             _wallet = ServiceLocator.Get<WalletService>();
+            _saleAccessibility = ServiceLocator.Get<AccessibilityConfig>();
             if (_shop == null || _wallet == null) { enabled = false; return; }
 
             _boot = FindAnyObjectByType<OperationCameraBoot>();
@@ -228,6 +238,7 @@ namespace Game.UI
             _foremen = ServiceLocator.Get<ForemanService>();
             _roster = FindAnyObjectByType<ForemanRosterUI>(FindObjectsInactive.Include);
             Build();
+            if (_view != null) ShopCustomerRequests.Create(_view, _view.CustomerCapacity);
             _shop.StarPaid += OnStarPaid;
             _shop.WorkersChanged += OnWorkersChanged;
             _market.MiningShopBusinessSold += OnSold;
@@ -244,11 +255,19 @@ namespace Game.UI
         }
 
         /// <summary>
-        /// A perfect sale pops over the customer who made it, with what it paid; plain sales show nothing. A tip pops
-        /// there too, after the perfect pop when the sale was both, and its coins fly into the cash counter.
+        /// A perfect sale pops over the customer; ordinary pickaxe sales send a small, rate-limited coin flight.
+        /// Tips keep their own celebration, after the perfect pop when the sale was both.
         /// </summary>
         private void OnSold(MiningShopBusinessSimulation.Sale sale)
         {
+            if (!sale.Contract && !sale.Perfect && sale.TipTier == ShopTips.None &&
+                sale.ProductId == MiningShopCampaign.ProductIdAt(0) && sale.Cash > 0d &&
+                Time.unscaledTime >= _nextOrdinarySaleFx && _ordinarySaleFlight != null &&
+                (_saleAccessibility == null || !_saleAccessibility.ReduceMotion))
+            {
+                _ordinarySaleFlight.Play(_view.SalePoint, _camera, _hud != null ? _hud.CashCounter : null, 3, 0f);
+                _nextOrdinarySaleFx = Time.unscaledTime + Mathf.Max(0.1f, _ordinarySaleFxInterval);
+            }
             if (sale.Perfect && _perfectFx != null)
                 _perfectFx.Play(_view.SalePoint, "+$" + NumberFormatter.Format(new BigDouble(sale.Cash)) + "  ×" +
                                 _shop.PerfectMultiplier.ToString("0.#"), _camera);
@@ -318,6 +337,7 @@ namespace Game.UI
         /// <summary>The signs are drawn once when the camera frames the shop, so they are rewritten here.</summary>
         private void OnLanguageChanged()
         {
+            _shownAssistMode = -1;
             for (int i = 0; i < _signLabels.Count; i++) _signLabels[i].text = Loc.T(_signKeys[i]);
             if (_perfectFx != null) _perfectFx.SetTitle(Loc.T("maden_dukkani.mukemmel"));
             if (_goal != null) _goal.MarkDirty();
@@ -444,6 +464,16 @@ namespace Game.UI
             dynamicGo.transform.SetParent(_panel, false);
             RectTransform content = UiBuild.Anchor((RectTransform)dynamicGo.transform, Vector2.zero, Vector2.one);
 
+            _assist = UiBuild.Btn(content, "CraftAssist", string.Empty, UiSkin.ButtonGreen, buyColor, 28, AssistCraft);
+            UiBuild.Anchor((RectTransform)_assist.transform, new Vector2(0.04f, 1.04f), new Vector2(0.96f, 1.38f));
+            _assistText = _assist.GetComponentInChildren<Text>();
+            _assistImage = (Image)_assist.targetGraphic;
+            ColorBlock assistColors = _assist.colors;
+            assistColors.disabledColor = Color.white;
+            _assist.colors = assistColors;
+            FitText(_assistText, 18, 28);
+            _assist.gameObject.SetActive(false);
+
             _title = UiBuild.Label(content, "Title", string.Empty, 40, TextAnchor.MiddleLeft);
             UiBuild.Anchor(_title.rectTransform, new Vector2(0.05f, 0.78f), new Vector2(0.545f, 0.96f));
 
@@ -515,6 +545,9 @@ namespace Game.UI
             // Over the card: the coins leave the counter for the HUD's cash counter.
             _tipFlight = TipCoinFlight.Create(canvas, tipCoinSize);
             _tipFlight.Configure(tipFlightSeconds, 0.06f, 140f, 30f);
+            _ordinarySaleFlight = TipCoinFlight.Create(canvas, tipCoinSize * 0.8f);
+            _ordinarySaleFlight.name = "SatisSikkeleri";
+            _ordinarySaleFlight.Configure(0.65f, 0.06f, 90f, 16f);
             // Its own canvas: eighty moving pieces would otherwise rebuild the card with them every frame. Under the
             // tip pop, which it bursts from, so the paper never hides the words.
             var confetti = new GameObject("BahsisKonfeti", typeof(RectTransform), typeof(Canvas));
@@ -705,8 +738,40 @@ namespace Game.UI
             return level < BenchMastery.MaxLevel && BenchMastery.StarsAt(level) == BenchMastery.StarsAt(level - bought);
         }
 
+        private void AssistCraft()
+        {
+            if (_product != 0 || TutorialUI.Blocking || !_shop.TryAssistCraft()) return;
+            if (_saleAccessibility == null || !_saleAccessibility.ReduceMotion) _view.PulseBench(0);
+            ServiceLocator.Get<AudioService>()?.Play(SoundId.Reward);
+            ServiceLocator.Get<HapticService>()?.Medium();
+            RefreshAssist();
+        }
+
+        private void RefreshAssist()
+        {
+            bool visible = _product == 0 && _shop.View.ProductAt(0).TableBuilt && !TutorialUI.Blocking;
+            _assist.gameObject.SetActive(visible);
+            if (!visible) return;
+            long remaining = _shop.AssistDeliveriesRemaining;
+            bool ready = _shop.CanAssistCraft;
+            int mode = ready ? 0 : remaining > 0L ? 1 : 2;
+            _assist.interactable = ready;
+            if (mode == _shownAssistMode && remaining == _shownAssistRemaining) return;
+            _shownAssistMode = mode;
+            _shownAssistRemaining = remaining;
+            Sprite assistSprite = ready ? UiSkin.ButtonGreen : UiSkin.ButtonGrey;
+            _assistImage.sprite = assistSprite != null ? assistSprite : UiSkin.Flat;
+            _assistImage.color = UiSkin.HasArt ? Color.white : ready ? buyColor : closeColor;
+            string status = ready
+                ? string.Format(Loc.T("maden_dukkani.yardim_etki"), Mathf.RoundToInt((float)(_shop.AssistTimeReduction * 100d)))
+                : remaining > 0L ? string.Format(Loc.T("maden_dukkani.yardim_dolum"), remaining)
+                : Loc.T("maden_dukkani.yardim_bekle");
+            _assistText.text = Loc.T("maden_dukkani.yardim") + "\n" + status;
+        }
+
         private void Refresh()
         {
+            RefreshAssist();
             MiningShopBusinessSimulation.Snapshot v = _shop.View;
             MiningShopBusinessSimulation.ProductSnapshot product = v.ProductAt(_product);
             int wanted = product.TableBuilt ? PressLevels(product.Level) : 0;

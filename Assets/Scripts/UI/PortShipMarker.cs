@@ -123,18 +123,20 @@ namespace Game.UI
         /// knowing which island it sailed from; if the curtain refuses (one is already up), the
         /// session is closed again rather than left half-made.
         /// </summary>
-        private void Open()
+        private void Open() => TryOpen();
+
+        public bool TryOpen()
         {
-            if (_opening && SceneCurtain.Busy) return;
+            if (SceneCurtain.Busy) return false;
             _opening = false;
 
             if (!Application.CanStreamedLevelBeLoaded(seaSceneName))
             {
                 Debug.LogError("Deniz sahnesi Build Settings içinde yüklenebilir değil: " + seaSceneName);
-                return;
+                return false;
             }
             var sea = ServiceLocator.Get<ExpeditionService>();
-            if (sea == null) return;
+            if (sea == null) return false;
 
             string key = ServiceLocator.Get<MarketService>()?.ActiveIsland;
             if (string.IsNullOrEmpty(key)) key = "coal";
@@ -146,6 +148,7 @@ namespace Game.UI
             _opening = SceneCurtain.Cover(seaSceneName, SeaBlue, Loc.T("deniz.baslik"));
             if (!_opening) sea.Ashore();
             else if (_root != null) _root.SetActive(false);
+            return _opening;
         }
 
         /// <summary>Travelling enables a different operation, so which one is live is re-checked on a timer.</summary>

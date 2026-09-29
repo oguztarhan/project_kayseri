@@ -1450,7 +1450,8 @@ namespace Game.UI
                 bool defeated = _fights.BossDefeated(i);
                 _bossButtons[i].gameObject.SetActive(visible);
                 _bossButtons[i].interactable = idle && !defeated && _sea.Energy > 0 && _fights.BossAvailable(i);
-                string status = defeated ? "✓" : (_fights.BossAvailable(i) ? "⚔" : "🔒");
+                string status = Loc.T(defeated ? "gorev.tamamlandi"
+                    : _fights.BossAvailable(i) ? "deniz.savas" : "gorev.kilitli");
                 _bossButtonLabels[i].text = stage + "  " + status + "  " + _fights.BossEntryLabel(i);
                 if (!defeated)
                     _bossButtonLabels[i].text += "\n" + CashDisplay(_fights.BossCashRewardPreview(i));
