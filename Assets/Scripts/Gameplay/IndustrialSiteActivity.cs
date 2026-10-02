@@ -34,10 +34,16 @@ namespace Game.Gameplay
         private sealed class Hand
         {
             public Renderer Site;
+            public Transform Frame;
             public Transform Body;
             public PersonAnimator Animation;
             public Vector3 A, B;
             public float Distance, Offset;
+            public float GreetLeft, Paused;
+            public Transform Tool, Arm, Grip;
+            public Quaternion ArmRest;
+            public bool Working;
+            public float Stroke;
         }
 
         private readonly List<Vent> _vents = new List<Vent>(MaxVents);
@@ -50,6 +56,40 @@ namespace Game.Gameplay
         private Material _steamMaterial;
         private float _appliedNight = -1f;
         private static readonly int NightId = Shader.PropertyToID("_KayseriNight");
+        [SerializeField, Min(0.1f)] private float _greetingSeconds = 2.4f;
+        [SerializeField, Min(0.1f)] private float _reactionSeconds = 1.4f;
+        private float _reactionLeft;
+        private int _reactionVent = -1;
+        private Vector3 _viewer;
+        private Material _toolMaterial;
+        public float ActivityTime => _clock;
+        public float WarehouseDoorOpen { get; private set; }
+        public bool MiningNow { get; private set; }
+        public Vector3 MineWorkPoint { get; private set; }
+
+        public void React(Vector3 point, Vector3 viewer)
+        {
+            if (_reactionLeft > 0f || (_accessibility != null && _accessibility.ReduceMotion)) return;
+            _reactionLeft = _reactionSeconds;
+            _viewer = viewer;
+            float best = float.MaxValue;
+            Hand nearest = null;
+            for (int i = 0; i < _hands.Count; i++)
+            {
+                Hand h = _hands[i];
+                if (!h.Body.gameObject.activeInHierarchy) continue;
+                float d = (h.Body.position - point).sqrMagnitude;
+                if (d < best) { best = d; nearest = h; }
+            }
+            if (nearest != null && nearest.GreetLeft <= 0f) nearest.GreetLeft = _greetingSeconds;
+            best = float.MaxValue; _reactionVent = -1;
+            for (int i = 0; i < _vents.Count; i++)
+            {
+                if (_vents[i].Source == null) continue;
+                float d = (_vents[i].Source.bounds.center - point).sqrMagnitude;
+                if (d < best) { best = d; _reactionVent = i; }
+            }
+        }
 
         private void Awake() => _accessibility = ServiceLocator.Get<AccessibilityConfig>();
 
@@ -62,6 +102,12 @@ namespace Game.Gameplay
             // Older phased islands retain their existing SiteLife/StationCrew implementation.
             if (mine == null || factory == null) { enabled = false; return false; }
             _operation = operation;
+            Shader toolShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (toolShader != null)
+            {
+                _toolMaterial = new Material(toolShader) { name = "Isci aletleri" };
+                _toolMaterial.SetColor("_BaseColor", new Color(0.72f, 0.49f, 0.23f));
+            }
             _visuals = new GameObject("DumanVeEkipler").transform;
             _visuals.SetParent(transform, false);
             if (puff != null)
@@ -109,6 +155,7 @@ namespace Game.Gameplay
                 AddFront(Find(art, "Smelter | main furnace"), 40f, 80f, people);
                 AddFront(Find(art, "Refinery | equipment slab"), 30f, -90f, people);
             }
+            gameObject.AddComponent<IndustrialWorkRhythm>().Initialize(operation, island, this);
             return true;
         }
 
@@ -169,11 +216,50 @@ namespace Game.Gameplay
             model.localPosition = new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z) * scale;
             model.localRotation = Quaternion.identity;
             foreach (Collider c in model.GetComponentsInChildren<Collider>(true)) Destroy(c);
-            var hand = new Hand { Site = site, Body = body, Animation = new PersonAnimator(model),
-                A = site.transform.InverseTransformPoint(a), B = site.transform.InverseTransformPoint(b),
+            Transform frame = site.name == "Warehouse | loading door" ? site.transform.parent : site.transform;
+            var hand = new Hand { Site = site, Frame = frame, Body = body, Animation = new PersonAnimator(model),
+                A = frame.InverseTransformPoint(a), B = frame.InverseTransformPoint(b),
                 Distance = Vector3.Distance(a, b), Offset = _hands.Count * 1.73f };
             body.position = a;
+            if (_toolMaterial != null && (_hands.Count < 3 || site.name == "Warehouse | loading door"))
+            {
+                hand.Tool = new GameObject("IsAleti").transform;
+                hand.Tool.SetParent(_visuals, false);
+                bool miner = _hands.Count < 3;
+                if (miner)
+                {
+                    foreach (Transform bone in model.GetComponentsInChildren<Transform>())
+                    {
+                        if (bone.name == "UpperArm.R") { hand.Arm = bone; hand.ArmRest = bone.localRotation; }
+                        if (bone.name == "Hand.R") hand.Grip = bone;
+                    }
+                    ToolPart(hand.Tool, new Vector3(0, 0, 0), new Vector3(2, 24, 2));
+                    ToolPart(hand.Tool, new Vector3(0, 11, 0), new Vector3(17, 3, 3));
+                }
+                else ToolPart(hand.Tool, Vector3.zero, new Vector3(18, 15, 16));
+                hand.Tool.gameObject.SetActive(false);
+            }
             _hands.Add(hand);
+        }
+
+        private void ToolPart(Transform parent, Vector3 position, Vector3 scale)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.transform.SetParent(parent, false); go.transform.localPosition = position; go.transform.localScale = scale;
+            Destroy(go.GetComponent<Collider>());
+            var r = go.GetComponent<Renderer>(); r.sharedMaterial = _toolMaterial; r.shadowCastingMode = ShadowCastingMode.Off;
+        }
+
+        private void LateUpdate()
+        {
+            for (int i = 0; i < _hands.Count; i++)
+            {
+                Hand h = _hands[i];
+                if (!h.Working || h.Tool == null || !_visuals.gameObject.activeInHierarchy) continue;
+                if (h.Arm != null) h.Arm.localRotation = h.ArmRest * Quaternion.Euler(-35f - h.Stroke * 65f, 0, -15f);
+                h.Tool.position = h.Grip != null ? h.Grip.position : h.Body.position + Vector3.up * 30f;
+                h.Tool.rotation = h.Body.rotation * Quaternion.Euler(-25f - h.Stroke * 90f, 0, 0);
+            }
         }
 
         private void Update()
@@ -183,6 +269,7 @@ namespace Game.Gameplay
                 && (_accessibility == null || !_accessibility.ReduceMotion);
             if (_visuals.gameObject.activeSelf != visible) _visuals.gameObject.SetActive(visible);
             if (!visible) return;
+            MiningNow = false;
             float night = Mathf.Clamp01(Shader.GetGlobalFloat(NightId));
             if (_smokeMaterial != null && Mathf.Abs(night - _appliedNight) > 0.002f)
             {
@@ -190,6 +277,7 @@ namespace Game.Gameplay
                 _smokeMaterial.SetColor("_BaseColor", Color.Lerp(_dayExhaust, _nightExhaust, night));
             }
             _clock += Mathf.Min(Time.deltaTime, 0.1f);
+            _reactionLeft = Mathf.Max(0f, _reactionLeft - Time.deltaTime);
             for (int v = 0; v < _vents.Count; v++)
             {
                 Vent vent = _vents[v];
@@ -208,27 +296,59 @@ namespace Game.Gameplay
                     float envelope = Mathf.SmoothStep(0f, 1f, k * 6f)
                         * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.6f, 1f, k)));
                     puff.localScale = Vector3.one * (_puffScale * vent.Size * (0.45f + k) * envelope);
+                    if (v == _reactionVent && _reactionLeft > 0f)
+                        puff.localScale *= 1f + 0.55f * Mathf.Sin(_reactionLeft / _reactionSeconds * Mathf.PI);
                 }
             }
             for (int i = 0; i < _hands.Count; i++)
             {
                 Hand h = _hands[i];
+                h.Working = false;
+                if (h.Tool != null) h.Tool.gameObject.SetActive(false);
                 bool on = h.Site != null && h.Site.enabled && h.Site.gameObject.activeInHierarchy;
                 if (h.Body.gameObject.activeSelf != on) h.Body.gameObject.SetActive(on);
                 if (!on) continue;
+                if (h.GreetLeft > 0f)
+                {
+                    float pause = Mathf.Min(Time.deltaTime, 0.1f);
+                    h.GreetLeft = Mathf.Max(0f, h.GreetLeft - pause);
+                    h.Paused += pause;
+                    Vector3 toward = _viewer - h.Body.position; toward.y = 0f;
+                    if (toward.sqrMagnitude > 0.01f) h.Body.rotation = Quaternion.LookRotation(toward);
+                    h.Animation.SetSpeed(1f);
+                    h.Animation.Set(PersonAnimator.Wave);
+                    continue;
+                }
                 float walk = h.Distance / _walkSpeed, half = walk + _pauseSeconds;
-                float phase = Mathf.Repeat(_clock + h.Offset, half * 2f);
+                float phase = Mathf.Repeat(_clock - h.Paused + h.Offset, half * 2f);
                 bool returning = phase >= half;
                 float leg = returning ? phase - half : phase;
                 float progress = Mathf.Clamp01(leg / walk);
                 if (returning) progress = 1f - progress;
-                Vector3 a = h.Site.transform.TransformPoint(h.A), b = h.Site.transform.TransformPoint(h.B);
+                Vector3 a = h.Frame.TransformPoint(h.A), b = h.Frame.TransformPoint(h.B);
                 h.Body.position = Vector3.Lerp(a, b, progress);
                 Vector3 direction = (returning ? a - b : b - a);
                 direction.y = 0f;
                 if (direction.sqrMagnitude > 0.01f) h.Body.rotation = Quaternion.LookRotation(direction);
                 h.Animation.SetMoving(leg < walk);
                 h.Animation.SetSpeed(leg < walk ? _walkSpeed / (_workerHeight * 0.7f) : 1f);
+                if (h.Tool != null && i < 3 && leg >= walk)
+                {
+                    h.Working = true;
+                    h.Stroke = (Mathf.Sin((leg - walk) * 8f) + 1f) * 0.5f;
+                    h.Body.rotation = Quaternion.LookRotation(Vector3.forward);
+                    h.Tool.gameObject.SetActive(true);
+                    MiningNow = true;
+                    MineWorkPoint = h.Body.position + Vector3.forward * 18f + Vector3.up * 4f;
+                }
+                if (h.Tool != null && h.Site.name == "Warehouse | loading door")
+                {
+                    WarehouseDoorOpen = Mathf.SmoothStep(0f, 1f, 1f - progress);
+                    h.Tool.gameObject.SetActive(!returning);
+                    h.Tool.position = leg < walk ? h.Body.position + h.Body.forward * 14f + Vector3.up * 22f
+                        : b + Vector3.up * 8f;
+                    h.Tool.rotation = h.Body.rotation;
+                }
             }
         }
 
@@ -241,6 +361,7 @@ namespace Game.Gameplay
         {
             if (_smokeMaterial != null) Destroy(_smokeMaterial);
             if (_steamMaterial != null) Destroy(_steamMaterial);
+            if (_toolMaterial != null) Destroy(_toolMaterial);
         }
     }
 }

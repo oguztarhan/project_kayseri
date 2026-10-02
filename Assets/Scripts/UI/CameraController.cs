@@ -53,6 +53,30 @@ namespace Game.UI
         // this point in the _forward direction. Set from the opening framing, so "sideways" means the
         // screen's own right axis rather than world X — the two are only the same when yaw is 0.
         private Vector3 _lane;
+        [SerializeField, Min(0.1f)] private float _focusSeconds = 0.65f;
+        private float _focusLeft, _focusZoom;
+        private Vector3 _focusTarget;
+
+        public void FocusBuilding(Bounds area, bool reduceMotion)
+        {
+            if (cam == null || InputLocked || reduceMotion) return;
+            float size = Mathf.Max(area.size.y, area.size.x / Mathf.Max(0.3f, cam.aspect)) * 0.8f;
+            float distance = cam.orthographic ? CurrentZoom
+                : size / Mathf.Tan(cam.fieldOfView * Mathf.Deg2Rad * 0.5f);
+            distance = Mathf.Clamp(distance, minSize, maxSize);
+            _focusTarget = area.center - transform.forward * distance;
+            _focusZoom = Mathf.Clamp(size, minSize, maxSize);
+            _focusLeft = _focusSeconds;
+            _panVel = _smoothVel = Vector3.zero;
+        }
+
+        private void CancelFocus()
+        {
+            if (_focusLeft <= 0f) return;
+            _focusLeft = 0f;
+            _target = _lane = transform.position;
+            _smoothVel = Vector3.zero;
+        }
 
         private void Awake()
         {
@@ -79,6 +103,16 @@ namespace Game.UI
             // panel or tapping a button secretly drags the 3D camera underneath.
             if (InputLocked || PointerOverUI()) { _dragging = false; _lastPinch = 0f; _panVel = Vector3.zero; }
             else { Zoom(); Pan(dt); }
+
+            if (InputLocked) CancelFocus();
+            if (_focusLeft > 0f)
+            {
+                float step = Mathf.Clamp01(dt / _focusLeft);
+                _target = Vector3.Lerp(_target, _focusTarget, step);
+                _lane = _target;
+                if (cam.orthographic) cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, _focusZoom, step);
+                _focusLeft = Mathf.Max(0f, _focusLeft - dt);
+            }
 
             // A released flick keeps gliding, then settles.
             if (!_pannedThisFrame && _panVel.sqrMagnitude > inertiaCutoff * inertiaCutoff)
@@ -180,7 +214,10 @@ namespace Game.UI
             {
                 float scroll = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(scroll) > 0.01f)
+                {
+                    CancelFocus();
                     SetZoom(CurrentZoom * Mathf.Exp(-Mathf.Sign(scroll) * scrollZoomSpeed));
+                }
             }
 
             var ts = Touchscreen.current;
@@ -196,6 +233,7 @@ namespace Game.UI
                 }
                 if (n == 2)
                 {
+                    CancelFocus();
                     float dist = Vector2.Distance(a, b);
                     if (_lastPinch > 0f) { float d = dist - _lastPinch; if (Mathf.Abs(d) > 0.01f) SetZoom(CurrentZoom * Mathf.Exp(-d * pinchZoomSpeed)); }
                     _lastPinch = dist;
@@ -242,6 +280,8 @@ namespace Game.UI
 
         private void PanBy(float screenDx, float screenDy, float dt)
         {
+            if (screenDx * screenDx + screenDy * screenDy < 0.01f) return;
+            CancelFocus();
             // World units covered by one screen pixel at the ground plane. The forward axis is foreshortened
             // by the camera's tilt, so it needs the 1/sin(pitch) correction to track the ground 1:1.
             float halfFov = (cam.orthographic ? 30f : cam.fieldOfView) * 0.5f * Mathf.Deg2Rad;
@@ -300,6 +340,7 @@ namespace Game.UI
         /// </summary>
         public void FrameTo(Vector3 pos, Quaternion rot, float size)
         {
+            _focusLeft = 0f;
             transform.SetPositionAndRotation(pos, rot);
             CacheBasis();
             _target = pos;

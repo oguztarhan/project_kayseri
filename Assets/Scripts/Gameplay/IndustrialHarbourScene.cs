@@ -39,6 +39,8 @@ namespace Game.Gameplay
         private ContractService.PortState _last;
         private HarbourLoading _loading;
         private bool _wasVisible;
+        [SerializeField, Min(3f)] private float _inspectionSeconds = 18f;
+        [SerializeField, Min(0f)] private float _inspectionDistance = 45f;
 
         private void Awake()
         {
@@ -275,6 +277,15 @@ namespace Game.Gameplay
                 _worker.position = Vector3.Lerp(_stock, _pickup, move) - (_pickup - _stock).normalized * 17f;
                 if (direction.sqrMagnitude > 0.01f) _worker.rotation = Quaternion.LookRotation(direction);
                 _animation.SetMoving(active && (p < 0.25f || p >= 0.3f && p < 0.6f));
+                if (!active && !reduce)
+                {
+                    float phase = Mathf.Repeat(_clock / _inspectionSeconds, 1f);
+                    float step = phase < 0.3f ? phase / 0.3f : phase < 0.55f ? 1f : phase < 0.85f ? 1f - (phase - 0.55f) / 0.3f : 0f;
+                    _worker.position += Vector3.right * (Mathf.SmoothStep(0, 1, step) * _inspectionDistance);
+                    _worker.rotation = Quaternion.LookRotation(phase < 0.55f ? Vector3.right : Vector3.left);
+                    _animation.Set(phase < 0.3f || phase >= 0.55f && phase < 0.85f ? PersonAnimator.Walk
+                        : phase < 0.55f ? PersonAnimator.Wave : PersonAnimator.Idle);
+                }
             }
         }
 

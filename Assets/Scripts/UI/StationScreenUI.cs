@@ -1638,7 +1638,7 @@ namespace Game.UI
         }
 
         /// <summary>One economy figure, written the way its own units want to be read.</summary>
-        private static string Stat(float v, IslandEconomy.NumberShape shape)
+        internal static string Stat(float v, IslandEconomy.NumberShape shape)
         {
             switch (shape)
             {

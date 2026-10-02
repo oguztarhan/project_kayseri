@@ -119,6 +119,31 @@ namespace Game.UI
         private bool _suppressed;
         private StationScreenUI _stationScreen;
         private IndustrialWayfinding _wayfinding;
+        private BuildingTouch _touch;
+        private Vector2[] _normalSizes;
+
+        public void PreviewBuilding(int station)
+        {
+            for (int i = 0; i < _count; i++)
+            {
+                _signs[i].sizeDelta = _normalSizes[i];
+                _labels[i].text = PlayerStationTitle(_stations[i]) + "  >";
+                if (_stations[i] != station) continue;
+                int axis = -1;
+                for (int a = 0; a < _operation.AxisCount(station); a++)
+                    if (!_operation.AxisMaxed(station, a) && !_operation.AxisLocked(station, a)) { axis = a; break; }
+                string detail = Loc.T("market.maks");
+                if (axis >= 0)
+                {
+                    var value = _operation.Economy.Readout(station, axis);
+                    detail = Loc.Id("eksen", _operation.AxisName(station, axis)) + "\n"
+                        + Loc.T("etki." + value.Key) + "  " + StationScreenUI.Stat(value.Now, value.Shape)
+                        + " → " + StationScreenUI.Stat(value.Next, value.Shape);
+                }
+                _labels[i].text = PlayerStationTitle(station) + "  >\n<size=75%>" + detail + "</size>";
+                _signs[i].sizeDelta = new Vector2(480f, 132f);
+            }
+        }
 
         /// <summary>Temporarily hides world labels while a full-screen upgrade sheet is open.</summary>
         public void SetSuppressed(bool suppressed)
@@ -207,6 +232,7 @@ namespace Game.UI
         private void FadeWithZoom()
         {
             if (_fade == null) return;
+            if (_touch != null && _touch.SelectedStation >= 0) { _fade.alpha = 1f; return; }
             if (_rig == null) { _fade.alpha = 1f; return; }
 
             float t = Mathf.InverseLerp(_fadeInStartT, _fadeInEndT, _rig.ZoomT);
@@ -238,6 +264,8 @@ namespace Game.UI
 
         private void Build()
         {
+            if (_touch == null) _touch = gameObject.AddComponent<BuildingTouch>();
+            _touch.Initialize(_operation, this, _rig);
             IndustrialSiteActivity activity = null;
             if (_operation.OurShipBerth(out _, out _, out Transform island) && island != null)
                 activity = island.GetComponentInChildren<IndustrialSiteActivity>(true);
@@ -262,6 +290,7 @@ namespace Game.UI
             _plates = new Image[total];
             _labels = new TextMeshProUGUI[total];
             _stations = new int[total];
+            _normalSizes = new Vector2[total];
             _count = 0;
 
             for (int station = 0; station < total; station++)
@@ -269,6 +298,7 @@ namespace Game.UI
                 if (!_operation.StationHasBody(station)) continue;
                 _stations[_count] = station;
                 _signs[_count] = BuildSign(station, out _plates[_count], out _labels[_count]);
+                _normalSizes[_count] = _signs[_count].sizeDelta;
                 _count++;
             }
 
@@ -372,10 +402,13 @@ namespace Game.UI
         private void OpenStation(int station)
         {
             if (_suppressed || _operation == null || !_operation.isActiveAndEnabled) return;
+            if (_touch != null && _touch.Select(station)) return;
             if (_stationScreen == null)
                 _stationScreen = FindAnyObjectByType<StationScreenUI>(FindObjectsInactive.Include);
             if (_stationScreen != null) _stationScreen.Open(station);
         }
+
+        public void TouchStation(int station) => OpenStation(station);
 
         /// <summary>Day to night. Only touched when the value actually moves — fifty-five minutes of
         /// every hour this is one float compare.</summary>
@@ -499,6 +532,8 @@ namespace Game.UI
         /// </summary>
         private bool Anchor(int station, out Vector3 world)
         {
+            if (_touch != null && _touch.SelectedStation == station)
+            { world = _touch.PreviewAnchor; return true; }
             if (_operation.StationAnchor(station, out world)) return true;
             if (!_operation.StationFocus(station, out Bounds area)) return false;
             world = new Vector3(area.center.x, area.max.y, area.center.z);

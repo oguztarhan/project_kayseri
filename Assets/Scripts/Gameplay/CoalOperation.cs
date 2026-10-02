@@ -1219,6 +1219,7 @@ namespace Game.Gameplay
 
         /// <summary>Ore delivered to the furnace and waiting its turn in the fire.</summary>
         public double RefineQueue => _refOre;
+        public double TotalRefined { get; private set; }
 
         /// <summary>
         /// What an expansion multiplies, or 0 for the ones that buy a building rather than a number.
@@ -4158,6 +4159,7 @@ namespace Game.Gameplay
             if (room <= 0d) return;
             double amt = System.Math.Min(System.Math.Min(_refOre, EffSmelt * dt), room);
             _refOre -= amt; _bars += amt;
+            TotalRefined += amt;
             _refinedFlow.Add(amt);
 
             // What the port contract counts. The furnace is the one number the player's upgrades visibly
@@ -6648,6 +6650,9 @@ namespace Game.Gameplay
             environment.transform.SetParent(_islandRoot, false);
             _environmentMotion = environment.AddComponent<IslandEnvironmentMotion>();
             _environmentMotion.Initialize(this);
+            var refining = new GameObject("CevherDonusumu");
+            refining.transform.SetParent(_islandRoot, false);
+            refining.AddComponent<RefineryTransformation>().Initialize(this, _islandRoot);
             // A footpath running alongside the haul road rather than through the buildings: offset to the
             // far side from the yards, and inset at each end so nobody walks into a wall.
             Vector3[] patrol = AuthoredFootpath();
